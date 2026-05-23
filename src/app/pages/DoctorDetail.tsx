@@ -4,8 +4,6 @@ import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowLeft, Star, Calendar, Languages, GraduationCap, Award, Heart, Mail, Phone, MapPin, Clock, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 import { getAllHospitals, readAdminDoctors, mapAdminDoctor } from "@/hooks/useHospitals";
 import type { Hospital, Doctor } from "@/data/hospitals";
 import { slugify } from "@/lib/slug";
@@ -47,14 +45,10 @@ const DoctorDetail = () => {
 
   if (!found) {
     return (
-      <div className="min-h-screen bg-gradient-hero">
-        <Navbar />
-        <main className="container mx-auto py-32 text-center">
+      <div className="min-h-screen bg-gradient-hero"><main className="container mx-auto py-32 text-center">
           <h1 className="font-display text-4xl text-primary">Doctor not found</h1>
           <Link href="/hospitals" className="mt-6 inline-flex items-center gap-2 text-primary"><ArrowLeft className="h-4 w-4" /> Back</Link>
-        </main>
-        <Footer />
-      </div>
+        </main></div>
     );
   }
 
@@ -62,9 +56,7 @@ const DoctorDetail = () => {
   const peers = allDoctors.filter((x) => x.d.slug !== d.slug && x.d.specialty === d.specialty).slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-gradient-hero">
-      <Navbar />
-      <main className="container mx-auto py-12">
+    <div className="min-h-screen bg-gradient-hero"><main className="container mx-auto py-12">
         <Link href="/hospitals" className="inline-flex items-center gap-1.5 text-sm text-primary hover:gap-2 transition-all mb-6">
           <ArrowLeft className="h-4 w-4" /> Back to Hospitals
         </Link>
@@ -73,7 +65,7 @@ const DoctorDetail = () => {
           className="grid lg:grid-cols-[360px_1fr] gap-8">
           <div className="rounded-3xl bg-card border border-border/60 overflow-hidden shadow-card sticky top-24 self-start">
             <div className="relative aspect-[4/5] bg-gradient-to-br from-accent/40 to-primary/10">
-              <img src={d.photo} alt={d.name} className="absolute inset-0 w-full h-full object-cover" />
+              <img src={typeof (d.photo) === "string" ? (d.photo) : ((d.photo)?.src ?? "")} alt={d.name} className="absolute inset-0 w-full h-full object-cover" />
               <span className="absolute top-4 left-4 inline-flex items-center gap-1 rounded-full bg-card/95 backdrop-blur px-3 py-1 text-xs font-semibold text-primary">
                 <Star className="h-3 w-3 fill-accent text-accent" />{d.rating}
               </span>
@@ -132,7 +124,7 @@ const DoctorDetail = () => {
             <section className="rounded-3xl bg-card border border-border/60 p-7">
               <h2 className="font-display text-2xl text-primary mb-4">Practicing At</h2>
               <Link href={`/hospitals/${hospital.slug}`} className="flex items-center gap-4 rounded-2xl bg-accent/20 p-4 hover:bg-accent/30 transition-colors">
-                <img src={hospital.image} alt={hospital.name} className="h-16 w-16 rounded-xl object-cover" />
+                <img src={typeof (hospital.image) === "string" ? (hospital.image) : ((hospital.image)?.src ?? "")} alt={hospital.name} className="h-16 w-16 rounded-xl object-cover" />
                 <div className="flex-1">
                   <p className="font-display text-lg text-primary">{hospital.name}</p>
                   <p className="text-xs text-muted-foreground inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{hospital.location}</p>
@@ -150,7 +142,7 @@ const DoctorDetail = () => {
                 <div className="grid sm:grid-cols-3 gap-4">
                   {peers.map(({ d: p }) => (
                     <Link key={p.slug} href={`/doctors/${p.slug}`} className="group rounded-2xl bg-card border border-border/60 p-4 hover:shadow-soft transition-all">
-                      <img src={p.photo} alt={p.name} className="w-full h-32 rounded-xl object-cover" />
+                      <img src={typeof (p.photo) === "string" ? (p.photo) : ((p.photo)?.src ?? "")} alt={p.name} className="w-full h-32 rounded-xl object-cover" />
                       <p className="font-semibold text-primary text-sm mt-3 group-hover:underline">{p.name}</p>
                       <p className="text-[11px] text-muted-foreground">{p.specialty}</p>
                     </Link>
@@ -160,9 +152,7 @@ const DoctorDetail = () => {
             )}
           </div>
         </motion.div>
-      </main>
-      <Footer />
-    </div>
+      </main></div>
   );
 };
 

@@ -4,8 +4,6 @@ import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowLeft, Calendar, Clock, Eye, Share2, Bookmark, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 import { getPost, posts } from "@/data/blog";
 
 const BlogDetail = () => {
@@ -15,14 +13,10 @@ const BlogDetail = () => {
 
   if (!post) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <main className="container mx-auto py-32 text-center">
+      <div className="min-h-screen bg-background"><main className="container mx-auto py-32 text-center">
           <h1 className="font-display text-4xl text-primary">Story not found</h1>
           <Link href="/blog" className="mt-6 inline-flex items-center gap-2 text-primary"><ArrowLeft className="h-4 w-4" /> Back to The Healing Times</Link>
-        </main>
-        <Footer />
-      </div>
+        </main></div>
     );
   }
 
@@ -31,9 +25,7 @@ const BlogDetail = () => {
   const suggestions = related.length ? related : fallback;
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <main>
+    <div className="min-h-screen bg-background"><main>
         <article className="container mx-auto max-w-3xl pt-12 pb-16">
           <Link href="/blog" className="inline-flex items-center gap-1.5 text-xs uppercase tracking-widest text-muted-foreground hover:text-primary">
             <ArrowLeft className="h-3 w-3" /> The Healing Times
@@ -46,7 +38,7 @@ const BlogDetail = () => {
           </motion.div>
 
           <div className="mt-8 flex flex-wrap items-center gap-4 pb-6 border-b border-border/60">
-            <img src={post.authorPhoto} alt={post.author} className="h-11 w-11 rounded-full object-cover" loading="lazy" />
+            <img src={typeof (post.authorPhoto) === "string" ? (post.authorPhoto) : ((post.authorPhoto)?.src ?? "")} alt={post.author} className="h-11 w-11 rounded-full object-cover" loading="lazy" />
             <div>
               <p className="text-sm font-semibold text-primary">{post.author}</p>
               <p className="text-xs text-muted-foreground">{post.authorRole}</p>
@@ -62,7 +54,7 @@ const BlogDetail = () => {
             initial={{ opacity: 0, scale: 1.02 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.7 }}
-            src={post.cover}
+            src={typeof (post.cover) === "string" ? (post.cover) : ((post.cover)?.src ?? "")}
             alt={post.title}
             className="mt-8 w-full rounded-2xl border border-border/60 aspect-[16/9] object-cover"
             loading="lazy"
@@ -96,7 +88,7 @@ const BlogDetail = () => {
             <div className="grid md:grid-cols-3 gap-6">
               {suggestions.map((p) => (
                 <Link key={p.slug} href={`/blog/${p.slug}`} className="group">
-                  <img src={p.cover} alt={p.title} loading="lazy" className="w-full h-40 rounded-xl object-cover border border-border/60 group-hover:scale-[1.02] transition-transform" />
+                  <img src={typeof (p.cover) === "string" ? (p.cover) : ((p.cover)?.src ?? "")} alt={p.title} loading="lazy" className="w-full h-40 rounded-xl object-cover border border-border/60 group-hover:scale-[1.02] transition-transform" />
                   <span className="mt-3 inline-block text-[10px] uppercase tracking-[0.25em] font-bold text-primary-glow">{p.category}</span>
                   <h3 className="font-display text-lg text-primary mt-1 leading-tight group-hover:underline">{p.title}</h3>
                   <p className="text-xs text-muted-foreground mt-2 inline-flex items-center gap-1">By {p.author} <ArrowRight className="h-3 w-3" /></p>
@@ -105,9 +97,7 @@ const BlogDetail = () => {
             </div>
           </div>
         </section>
-      </main>
-      <Footer />
-    </div>
+      </main></div>
   );
 };
 

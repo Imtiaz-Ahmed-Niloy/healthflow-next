@@ -1,16 +1,12 @@
 'use client';
 import { motion } from "framer-motion";
 import { Check, X } from "lucide-react";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 import { usePricing } from "@/hooks/usePricing";
 
 const Pricing = () => {
   const { hero, plans, compareRows, faqs } = usePricing();
   return (
-    <div className="min-h-screen bg-gradient-hero">
-      <Navbar />
-      <main>
+    <div className="min-h-screen bg-gradient-hero"><main>
         <section className="container mx-auto pt-16 pb-12 text-center">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
             <span className="inline-flex rounded-full bg-chip text-chip-foreground px-4 py-1.5 text-xs font-semibold">{hero.eyebrow}</span>
@@ -101,9 +97,7 @@ const Pricing = () => {
             </div>
           </div>
         </section>
-      </main>
-      <Footer />
-    </div>
+      </main></div>
   );
 };
 export default Pricing;

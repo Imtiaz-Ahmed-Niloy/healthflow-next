@@ -5,8 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { FlaskConical, Search, Plus, Minus, Trash2, Clock, ArrowRight, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 import { Input } from "@/components/ui/input";
 import { hospitals } from "@/data/hospitals";
 
@@ -40,9 +38,7 @@ const LabBooking = () => {
   const remove = (name: string) => setCart((c) => { const n = { ...c }; delete n[name]; return n; });
 
   return (
-    <div className="min-h-screen bg-gradient-hero">
-      <Navbar />
-      <main className="container mx-auto py-16">
+    <div className="min-h-screen bg-gradient-hero"><main className="container mx-auto py-16">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1 text-[11px] font-semibold uppercase tracking-wider">
           <FlaskConical className="h-3 w-3" /> Diagnostics
         </span>
@@ -124,9 +120,7 @@ const LabBooking = () => {
             <Link href="/hospitals" className="mt-3 block text-center text-xs text-primary hover:underline">Browse hospitals →</Link>
           </aside>
         </div>
-      </main>
-      <Footer />
-    </div>
+      </main></div>
   );
 };
 

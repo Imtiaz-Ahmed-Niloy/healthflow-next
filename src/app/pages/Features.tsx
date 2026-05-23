@@ -5,8 +5,6 @@ import {
   Waves, HeartHandshake, Zap, FileText, Clock, Leaf, UserRound,
 } from "lucide-react";
 import { useState } from "react";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 import dashboard from "@/assets/feature-dashboard.jpg";
 import n1 from "@/assets/nature-1.jpg";
 import n2 from "@/assets/nature-2.jpg";
@@ -41,9 +39,7 @@ const Features = () => {
   const [active, setActive] = useState(tabs[0]);
 
   return (
-    <div className="min-h-screen bg-gradient-hero">
-      <Navbar />
-      <main>
+    <div className="min-h-screen bg-gradient-hero"><main>
         {/* Hero */}
         <section className="container mx-auto pt-12 pb-16">
           <div className="grid lg:grid-cols-2 gap-10 items-center">
@@ -62,7 +58,7 @@ const Features = () => {
               </div>
             </motion.div>
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8, delay: 0.2 }} className="relative">
-              <img src={dashboard} alt="HealthFlow precision dashboard" width={1280} height={1024} className="rounded-2xl shadow-card w-full object-cover aspect-[4/3]" />
+              <img src={typeof (dashboard) === "string" ? (dashboard) : ((dashboard)?.src ?? "")} alt="HealthFlow precision dashboard" width={1280} height={1024} className="rounded-2xl shadow-card w-full object-cover aspect-[4/3]" />
             </motion.div>
           </div>
         </section>
@@ -105,7 +101,7 @@ const Features = () => {
           <div className="container mx-auto grid lg:grid-cols-2 gap-12 items-center">
             <div className="grid grid-cols-2 gap-4">
               {[n1, n2, n3, n4].map((src, i) => (
-                <motion.img key={i} src={src} alt="" width={800} height={800} loading="lazy"
+                <motion.img key={i} src={typeof (src) === "string" ? (src) : ((src)?.src ?? "")} alt="" width={800} height={800} loading="lazy"
                   initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ duration: 0.6, delay: i * 0.1 }}
                   className={`rounded-2xl object-cover w-full aspect-square ${i === 1 ? "row-span-1" : ""}`} />
               ))}
@@ -163,9 +159,7 @@ const Features = () => {
             </div>
           </div>
         </section>
-      </main>
-      <Footer />
-    </div>
+      </main></div>
   );
 };
 export default Features;

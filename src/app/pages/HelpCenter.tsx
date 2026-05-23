@@ -3,8 +3,6 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Calendar, UserCircle, Wallet, Briefcase, Phone, Mail, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 import { usePageContent } from "@/data/pageContent";
 
 const cats = [
@@ -28,9 +26,7 @@ const HelpCenter = () => {
   const onSubmit = (e: React.FormEvent) => { e.preventDefault(); toast.success("Message sent", { description: "We'll respond within 24 hours." }); };
 
   return (
-    <div className="min-h-screen bg-gradient-hero">
-      <Navbar />
-      <main>
+    <div className="min-h-screen bg-gradient-hero"><main>
         <section className="container mx-auto pt-16 pb-12 text-center">
           <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
             className="font-display text-4xl md:text-6xl text-primary">{p.title}</motion.h1>
@@ -110,9 +106,7 @@ const HelpCenter = () => {
             ))}
           </div>
         </section>
-      </main>
-      <Footer />
-    </div>
+      </main></div>
   );
 };
 export default HelpCenter;

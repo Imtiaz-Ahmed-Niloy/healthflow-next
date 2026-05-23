@@ -54,7 +54,7 @@ const Directory = () => {
               <motion.button key={p.id} onClick={() => setSelected(p)} whileHover={{ y: -2 }}
                 className={`w-full text-left rounded-2xl bg-card p-4 border-2 transition-all ${selected.id === p.id ? "border-primary shadow-glow" : "border-transparent hover:border-border"}`}>
                 <div className="flex items-center gap-3">
-                  <img src={p.img} alt={p.name} loading="lazy" width={44} height={44} className="h-11 w-11 rounded-full object-cover" />
+                  <img src={typeof (p.img) === "string" ? (p.img) : ((p.img)?.src ?? "")} alt={p.name} loading="lazy" width={44} height={44} className="h-11 w-11 rounded-full object-cover" />
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-primary truncate">{p.name}</p>
                     <p className="text-[11px] text-muted-foreground">ID: {p.id} • {p.age}</p>
@@ -106,7 +106,7 @@ const Directory = () => {
         {/* Right detail */}
         <motion.div key={selected.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="space-y-5">
           <div className="rounded-2xl bg-card p-6 shadow-soft flex items-center gap-5">
-            <img src={selected.img} alt={selected.name} loading="lazy" width={80} height={80} className="h-20 w-20 rounded-full object-cover" />
+            <img src={typeof (selected.img) === "string" ? (selected.img) : ((selected.img)?.src ?? "")} alt={selected.name} loading="lazy" width={80} height={80} className="h-20 w-20 rounded-full object-cover" />
             <div className="flex-1">
               <div className="flex items-center gap-3">
                 <h2 className="font-display text-3xl text-primary">{selected.name}</h2>

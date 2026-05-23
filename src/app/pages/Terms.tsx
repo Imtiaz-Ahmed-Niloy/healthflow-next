@@ -1,8 +1,6 @@
 'use client';
 import { motion } from "framer-motion";
 import { AlertTriangle, CheckCircle2, Lock, MessageSquare, CreditCard, Building2, Wallet, HelpCircle } from "lucide-react";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 import { usePageContent } from "@/data/pageContent";
 
 const toc = [
@@ -14,9 +12,7 @@ const Terms = () => {
   const { content } = usePageContent();
   const p = content.terms;
   return (
-  <div className="min-h-screen bg-gradient-hero">
-    <Navbar />
-    <main className="container mx-auto py-12">
+  <div className="min-h-screen bg-gradient-hero"><main className="container mx-auto py-12">
       <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6 }}
         className="rounded-3xl bg-gradient-dark text-surface-dark-foreground p-12 md:p-16 text-center">
         <span className="inline-flex rounded-full bg-accent/30 text-surface-dark-foreground px-4 py-1.5 text-xs font-semibold border border-accent/40">{p.badge}</span>
@@ -134,9 +130,7 @@ const Terms = () => {
           </div>
         </div>
       </div>
-    </main>
-    <Footer />
-  </div>
+    </main></div>
   );
 };
 export default Terms;

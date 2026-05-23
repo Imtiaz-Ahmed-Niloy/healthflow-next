@@ -4,8 +4,6 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Search, Calendar, Clock, ArrowRight, BookOpen, Tag, TrendingUp, Mail } from "lucide-react";
 import { toast } from "sonner";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 import { Input } from "@/components/ui/input";
 import { posts, categories } from "@/data/blog";
 
@@ -32,9 +30,7 @@ const Blog = () => {
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <main>
+    <div className="min-h-screen bg-background"><main>
         {/* Masthead */}
         <header className="border-b-4 border-double border-primary/30 bg-gradient-to-b from-accent/30 to-background">
           <div className="container mx-auto pt-10 pb-6">
@@ -122,10 +118,10 @@ const Blog = () => {
                 a reminder that walls, windows and air can be instruments of healing.
               </p>
               <div className="mt-5 overflow-hidden rounded-2xl border border-border/60">
-                <img src={lead.cover} alt={lead.title} className="w-full h-[340px] object-cover transition-transform duration-700 group-hover:scale-[1.02]" loading="lazy" />
+                <img src={typeof (lead.cover) === "string" ? (lead.cover) : ((lead.cover)?.src ?? "")} alt={lead.title} className="w-full h-[340px] object-cover transition-transform duration-700 group-hover:scale-[1.02]" loading="lazy" />
               </div>
               <div className="mt-4 flex items-center gap-3 text-xs text-muted-foreground">
-                <img src={lead.authorPhoto} alt={lead.author} className="h-8 w-8 rounded-full object-cover" loading="lazy" />
+                <img src={typeof (lead.authorPhoto) === "string" ? (lead.authorPhoto) : ((lead.authorPhoto)?.src ?? "")} alt={lead.author} className="h-8 w-8 rounded-full object-cover" loading="lazy" />
                 <span className="font-semibold text-primary">{lead.author}</span>
                 <span>·</span>
                 <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" />{lead.date}</span>
@@ -178,7 +174,7 @@ const Blog = () => {
                 >
                   <Link href={`/blog/${p.slug}`} className="block overflow-hidden rounded-xl border border-border/60 mb-4">
                     <img
-                      src={p.cover}
+                      src={typeof (p.cover) === "string" ? (p.cover) : ((p.cover)?.src ?? "")}
                       alt={p.title}
                       loading="lazy"
                       className="w-full h-52 object-cover grayscale-[15%] transition-all duration-700 group-hover:grayscale-0 group-hover:scale-105"
@@ -192,7 +188,7 @@ const Blog = () => {
                   </h3>
                   <p className="text-sm text-foreground/70 mt-2 leading-relaxed line-clamp-3">{p.dek}</p>
                   <div className="mt-4 pt-4 border-t border-border/60 flex items-center gap-3">
-                    <img src={p.authorPhoto} alt={p.author} className="h-9 w-9 rounded-full object-cover" loading="lazy" />
+                    <img src={typeof (p.authorPhoto) === "string" ? (p.authorPhoto) : ((p.authorPhoto)?.src ?? "")} alt={p.author} className="h-9 w-9 rounded-full object-cover" loading="lazy" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-primary truncate">{p.author}</p>
                       <p className="text-[10px] text-muted-foreground">{p.date} · {p.readTime} min read</p>
@@ -219,9 +215,7 @@ const Blog = () => {
             </form>
           </div>
         </section>
-      </main>
-      <Footer />
-    </div>
+      </main></div>
   );
 };
 

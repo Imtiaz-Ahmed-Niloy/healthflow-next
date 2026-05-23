@@ -11,6 +11,7 @@ import Chatbot from "@/components/site/Chatbot";
 const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-hero">
+      
         <Hero />
         <SearchBar />
         <Specialists />
@@ -19,6 +20,7 @@ const Index = () => {
         <Pricing />
         <Testimonials />
       <Chatbot />
+      
     </div>
   );
 };

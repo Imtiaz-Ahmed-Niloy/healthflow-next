@@ -41,7 +41,7 @@ const ResetPassword = () => {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
           className="rounded-3xl bg-card shadow-soft overflow-hidden w-full max-w-lg border border-accent/40">
           <div className="relative">
-            <img src={orbImg} alt="Secure account" loading="lazy" width={1024} height={768} className="w-full h-56 object-cover" />
+            <img src={typeof (orbImg) === "string" ? (orbImg) : ((orbImg)?.src ?? "")} alt="Secure account" loading="lazy" width={1024} height={768} className="w-full h-56 object-cover" />
             <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent to-card" />
             <div className="absolute -bottom-7 left-8 h-14 w-14 rounded-full bg-card flex items-center justify-center border-2 border-accent shadow-soft">
               <ShieldCheck className="h-6 w-6 text-primary" />

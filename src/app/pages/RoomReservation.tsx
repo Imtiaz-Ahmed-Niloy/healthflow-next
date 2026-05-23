@@ -5,8 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Hotel, Calendar, BedDouble, ArrowRight, ShieldCheck, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 import { Input } from "@/components/ui/input";
 import { hospitals } from "@/data/hospitals";
 
@@ -25,9 +23,7 @@ const RoomReservation = () => {
   const total = selected.price * nights;
 
   return (
-    <div className="min-h-screen bg-gradient-hero">
-      <Navbar />
-      <main className="container mx-auto py-12">
+    <div className="min-h-screen bg-gradient-hero"><main className="container mx-auto py-12">
         <Link href="/hospitals" className="inline-flex items-center gap-1.5 text-sm text-primary mb-6">
           <ArrowLeft className="h-4 w-4" /> Back to Hospitals
         </Link>
@@ -101,9 +97,7 @@ const RoomReservation = () => {
             </form>
           </aside>
         </div>
-      </main>
-      <Footer />
-    </div>
+      </main></div>
   );
 };
 

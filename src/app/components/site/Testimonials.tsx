@@ -33,7 +33,7 @@ const Testimonials = () => {
               transition={{ duration: 0.5, delay: i * 0.1 }}
               className="relative rounded-3xl bg-card border border-border/60 p-6 shadow-soft">
               <div className="flex items-center gap-3">
-                <img src={r.img} alt={r.name} width={48} height={48} loading="lazy" className="h-12 w-12 rounded-full object-cover" />
+                <img src={typeof (r.img) === "string" ? (r.img) : ((r.img)?.src ?? "")} alt={r.name} width={48} height={48} loading="lazy" className="h-12 w-12 rounded-full object-cover" />
                 <div>
                   <div className="font-semibold text-primary">{r.name}</div>
                   <div className="text-xs text-muted-foreground">{r.role}</div>

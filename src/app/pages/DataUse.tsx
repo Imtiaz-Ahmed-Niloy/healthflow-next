@@ -1,17 +1,13 @@
 'use client';
 import { motion } from "framer-motion";
 import { Shield, ShieldPlus, Lock, Eye, Accessibility, ArrowRight, LogIn, MessageSquareQuote, Archive } from "lucide-react";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 import { usePageContent } from "@/data/pageContent";
 
 const DataUse = () => {
   const { content } = usePageContent();
   const p = content.dataUse;
   return (
-  <div className="min-h-screen bg-gradient-hero">
-    <Navbar />
-    <main className="container mx-auto py-16">
+  <div className="min-h-screen bg-gradient-hero"><main className="container mx-auto py-16">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="max-w-2xl">
         <span className="inline-flex rounded-full bg-chip text-chip-foreground px-4 py-1.5 text-xs font-semibold">{p.badge}</span>
         <h1 className="mt-5 font-display text-5xl md:text-7xl text-primary">{p.title}</h1>
@@ -93,9 +89,7 @@ const DataUse = () => {
           <a href="/help-center" className="rounded-full bg-card text-primary px-5 py-3 text-sm font-semibold border border-border hover:bg-muted/60 transition-colors">Read FAQ</a>
         </div>
       </motion.section>
-    </main>
-    <Footer />
-  </div>
+    </main></div>
   );
 };
 export default DataUse;

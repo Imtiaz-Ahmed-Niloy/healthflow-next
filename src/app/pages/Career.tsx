@@ -2,8 +2,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Leaf, FlaskConical, Palette, ClipboardList, MapPin, Clock, Search, ArrowRight } from "lucide-react";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 import careerHero from "@/assets/career-hero.jpg";
 
 const tabs = ["All", "Medical Research", "Wellness Tips", "Nutrition", "Mental Health"];
@@ -20,9 +18,7 @@ const Career = () => {
   const filtered = jobs.filter(j => j.t.toLowerCase().includes(q.toLowerCase()));
 
   return (
-    <div className="min-h-screen bg-gradient-hero">
-      <Navbar />
-      <main>
+    <div className="min-h-screen bg-gradient-hero"><main>
         <section className="container mx-auto py-16 grid md:grid-cols-2 gap-12 items-center">
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }}>
             <span className="inline-flex rounded-full bg-chip text-chip-foreground px-4 py-1.5 text-xs font-semibold">WORK WITH PURPOSE</span>
@@ -34,7 +30,7 @@ const Career = () => {
             </div>
           </motion.div>
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6 }} className="relative">
-            <img src={careerHero} alt="HealthFlow team at work" width={1024} height={1024} className="rounded-3xl shadow-glow w-full" />
+            <img src={typeof (careerHero) === "string" ? (careerHero) : ((careerHero)?.src ?? "")} alt="HealthFlow team at work" width={1024} height={1024} className="rounded-3xl shadow-glow w-full" />
             <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 4, repeat: Infinity }}
               className="absolute -bottom-4 left-6 bg-card rounded-2xl shadow-soft border border-border/60 px-4 py-3 flex items-center gap-3">
               <div className="h-9 w-9 rounded-full bg-chip flex items-center justify-center text-primary"><Leaf className="h-4 w-4" /></div>
@@ -109,9 +105,7 @@ const Career = () => {
             <a href="#openings" className="mt-7 inline-block rounded-full bg-accent text-primary px-8 py-3 text-sm font-semibold hover:bg-accent/80 transition-colors">Explore All Roles</a>
           </motion.div>
         </section>
-      </main>
-      <Footer />
-    </div>
+      </main></div>
   );
 };
 export default Career;

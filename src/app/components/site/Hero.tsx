@@ -1,6 +1,7 @@
 'use client';
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import hero from "@/assets/hero-clinic.jpg";
 import { useHomeContent } from "@/data/homeContent";
@@ -40,8 +41,16 @@ const Hero = () => {
           transition={{ duration: 0.9, delay: 0.2 }}
           className="relative"
         >
-          <img src={hero} alt="Modern restorative clinical room" width={1280} height={1024}
-            className="rounded-[2rem] w-full aspect-[4/3] object-cover shadow-card" />
+          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[2rem] shadow-card">
+            <Image
+              src={hero}
+              alt="Modern restorative clinical room"
+              fill
+              priority
+              sizes="(min-width: 1024px) 50vw, 100vw"
+              className="object-cover"
+            />
+          </div>
           <div className="absolute -inset-4 -z-10 rounded-[2.5rem] bg-accent/40 blur-3xl" />
         </motion.div>
       </div>

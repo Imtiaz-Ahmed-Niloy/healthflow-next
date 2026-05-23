@@ -33,7 +33,7 @@ const demos = [
 const AdCard = ({ a }: { a: typeof sideAds.left[0] }) => (
   <motion.div whileHover={{ y: -4 }} className="rounded-3xl bg-card border border-border/60 overflow-hidden shadow-soft">
     <div className="relative">
-      <img src={a.img} alt={a.t} loading="lazy" width={512} height={512} className="aspect-square w-full object-cover" />
+      <img src={typeof (a.img) === "string" ? (a.img) : ((a.img)?.src ?? "")} alt={a.t} loading="lazy" width={512} height={512} className="aspect-square w-full object-cover" />
       <span className={`absolute top-4 left-4 rounded-full px-3 py-1 text-[10px] font-bold tracking-wider ${a.tagColor}`}>{a.tag}</span>
     </div>
     <div className="p-5">

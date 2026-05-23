@@ -3,8 +3,6 @@ import { motion } from "framer-motion";
 import { Mail, Phone, MapPin, Leaf, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 
 const Contact = () => {
   const [form, setForm] = useState({ name: "", email: "", subject: "General Inquiry", message: "" });
@@ -16,9 +14,7 @@ const Contact = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-hero">
-      <Navbar />
-      <main className="container mx-auto py-16">
+    <div className="min-h-screen bg-gradient-hero"><main className="container mx-auto py-16">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="max-w-3xl">
           <span className="text-xs font-bold tracking-[0.2em] text-primary-glow">GET IN TOUCH</span>
           <h1 className="font-display text-4xl md:text-6xl text-primary mt-4 leading-[1.05]">
@@ -125,9 +121,7 @@ const Contact = () => {
             </div>
           </motion.div>
         </div>
-      </main>
-      <Footer />
-    </div>
+      </main></div>
   );
 };
 export default Contact;

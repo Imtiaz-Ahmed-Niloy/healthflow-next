@@ -3,8 +3,6 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Star, Calendar, Video, ArrowLeft, Search, MapPin } from "lucide-react";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 import { Input } from "@/components/ui/input";
 import { slugify } from "@/lib/slug";
 import { doctors, specialtyTabs as tabs, type SpecialtyTab as Tab } from "@/data/doctors";
@@ -27,9 +25,7 @@ const Doctors = () => {
   }, [active, query]);
 
   return (
-    <div className="min-h-screen bg-gradient-hero">
-      <Navbar />
-      <main className="container mx-auto py-16">
+    <div className="min-h-screen bg-gradient-hero"><main className="container mx-auto py-16">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
           <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-primary hover:gap-2 transition-all mb-6">
             <ArrowLeft className="h-4 w-4" /> Back to Home
@@ -89,7 +85,7 @@ const Doctors = () => {
                   className="rounded-3xl bg-card border border-border/60 p-5 shadow-soft hover:shadow-card transition-all hover:-translate-y-1"
                 >
                   <div className="flex items-start gap-3">
-                    <img src={d.img} alt={d.name} width={64} height={64} loading="lazy" className="h-16 w-16 rounded-full object-cover" />
+                    <img src={typeof (d.img) === "string" ? (d.img) : ((d.img)?.src ?? "")} alt={d.name} width={64} height={64} loading="lazy" className="h-16 w-16 rounded-full object-cover" />
                     <div>
                       <h3 className="font-display text-lg leading-tight text-primary">{d.name}</h3>
                       <p className="text-xs font-semibold text-primary-glow mt-0.5">{d.specialty}</p>
@@ -119,9 +115,7 @@ const Doctors = () => {
             </div>
           )}
         </motion.div>
-      </main>
-      <Footer />
-    </div>
+      </main></div>
   );
 };
 

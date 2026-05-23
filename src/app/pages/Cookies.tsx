@@ -3,8 +3,6 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Cookie, Shield, Settings, BarChart2 } from "lucide-react";
 import { toast } from "sonner";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 import { usePageContent } from "@/data/pageContent";
 
 const Toggle = ({ on, onChange, disabled }: { on: boolean; onChange?: () => void; disabled?: boolean }) => (
@@ -23,9 +21,7 @@ const Cookies = () => {
   const p = content.cookies;
 
   return (
-    <div className="min-h-screen bg-gradient-hero">
-      <Navbar />
-      <main className="container mx-auto py-16 max-w-4xl">
+    <div className="min-h-screen bg-gradient-hero"><main className="container mx-auto py-16 max-w-4xl">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="text-center">
           <div className="mx-auto h-14 w-14 rounded-2xl bg-chip flex items-center justify-center text-primary"><Cookie className="h-6 w-6" /></div>
           <h1 className="mt-5 font-display text-3xl md:text-5xl text-primary">{p.title}</h1>
@@ -72,9 +68,7 @@ const Cookies = () => {
             <a href="/help-center" className="rounded-full bg-card text-primary px-5 py-3 text-sm font-semibold border border-border hover:bg-muted/60 transition-colors">Read FAQ</a>
           </div>
         </motion.section>
-      </main>
-      <Footer />
-    </div>
+      </main></div>
   );
 };
 export default Cookies;

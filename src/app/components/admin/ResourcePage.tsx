@@ -16,7 +16,7 @@ function ImageUploadField({ name, required, defaultValue }: { name: string; requ
   return (
     <div className="flex items-center gap-4">
       <div className="h-24 w-24 rounded-xl bg-muted/40 border border-border/60 overflow-hidden flex items-center justify-center shrink-0">
-        {preview ? <img src={preview} alt="preview" className="h-full w-full object-cover" /> : <Upload className="h-5 w-5 text-muted-foreground" />}
+        {preview ? <img src={typeof (preview) === "string" ? (preview) : ((preview)?.src ?? "")} alt="preview" className="h-full w-full object-cover" /> : <Upload className="h-5 w-5 text-muted-foreground" />}
       </div>
       <div className="flex-1">
         <input type="hidden" name={name} value={preview} required={required} />

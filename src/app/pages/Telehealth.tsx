@@ -3,8 +3,6 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Video, Calendar, Clock, ShieldCheck, Stethoscope, Check } from "lucide-react";
 import { toast } from "sonner";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 import { Input } from "@/components/ui/input";
 
 const slots = ["Today, 2:30 PM", "Today, 4:00 PM", "Tomorrow, 9:00 AM", "Tomorrow, 11:30 AM", "Fri, 10:00 AM", "Fri, 3:30 PM"];
@@ -15,9 +13,7 @@ const Telehealth = () => {
   const [reason, setReason] = useState(reasons[0]);
 
   return (
-    <div className="min-h-screen bg-gradient-hero">
-      <Navbar />
-      <main className="container mx-auto py-16">
+    <div className="min-h-screen bg-gradient-hero"><main className="container mx-auto py-16">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1 text-[11px] font-semibold uppercase tracking-wider">
             <Video className="h-3 w-3" /> Virtual Care
@@ -96,9 +92,7 @@ const Telehealth = () => {
             </div>
           </aside>
         </div>
-      </main>
-      <Footer />
-    </div>
+      </main></div>
   );
 };
 

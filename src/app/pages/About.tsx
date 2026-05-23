@@ -1,8 +1,6 @@
 'use client';
 import { motion } from "framer-motion";
 import { Leaf, HeartPulse, ShieldCheck, Link2, Mail } from "lucide-react";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 import hero from "@/assets/about-hero.jpg";
 import t1 from "@/assets/team-1.jpg";
 import t2 from "@/assets/team-2.jpg";
@@ -30,14 +28,12 @@ const stats = [
 ];
 
 const About = () => (
-  <div className="min-h-screen bg-gradient-hero">
-    <Navbar />
-    <main>
+  <div className="min-h-screen bg-gradient-hero"><main>
       {/* Hero with overlay */}
       <section className="container mx-auto pt-8">
         <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8 }}
           className="relative rounded-3xl overflow-hidden">
-          <img src={hero} alt="HealthFlow clinical environment" width={1600} height={900} className="w-full h-[460px] object-cover" />
+          <img src={typeof (hero) === "string" ? (hero) : ((hero)?.src ?? "")} alt="HealthFlow clinical environment" width={1600} height={900} className="w-full h-[460px] object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/70 to-background/10" />
           <div className="absolute inset-0 p-8 md:p-14 flex flex-col justify-center max-w-2xl">
             <span className="text-xs font-bold tracking-[0.2em] text-primary-glow">OUR STORY</span>
@@ -84,7 +80,7 @@ const About = () => (
                 initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: i * 0.08 }}
                 className="rounded-3xl bg-card border border-border/60 overflow-hidden shadow-soft hover:shadow-card transition-all hover:-translate-y-1 group">
                 <div className="overflow-hidden">
-                  <img src={m.img} alt={m.name} width={600} height={800} loading="lazy" className="w-full h-72 object-cover transition-transform duration-700 group-hover:scale-105" />
+                  <img src={typeof (m.img) === "string" ? (m.img) : ((m.img)?.src ?? "")} alt={m.name} width={600} height={800} loading="lazy" className="w-full h-72 object-cover transition-transform duration-700 group-hover:scale-105" />
                 </div>
                 <div className="p-5">
                   <div className="font-semibold text-primary">{m.name}</div>
@@ -112,8 +108,6 @@ const About = () => (
           ))}
         </div>
       </section>
-    </main>
-    <Footer />
-  </div>
+    </main></div>
 );
 export default About;

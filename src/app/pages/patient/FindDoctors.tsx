@@ -92,7 +92,7 @@ const FindDoctors = () => {
             whileHover={{ y: -3 }} className="rounded-2xl bg-card border border-border/60 p-5 shadow-soft relative">
             {d.starred && <div className="absolute -top-2 -right-2 h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center"><Star className="h-4 w-4 fill-current" /></div>}
             <div className="flex gap-4">
-              <img src={d.img} alt={d.name} loading="lazy" width={64} height={64} className="h-16 w-16 rounded-full object-cover" />
+              <img src={typeof (d.img) === "string" ? (d.img) : ((d.img)?.src ?? "")} alt={d.name} loading="lazy" width={64} height={64} className="h-16 w-16 rounded-full object-cover" />
               <div>
                 <p className="font-semibold text-primary">{d.name}</p>
                 <p className="text-xs text-primary-glow font-semibold">{d.role}</p>
@@ -122,7 +122,7 @@ const FindDoctors = () => {
           </div>
         </div>
         <div className="bg-chip relative min-h-[280px]">
-          <img src={patientSarah} alt="Dr. Sarah Liao" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+          <img src={typeof (patientSarah) === "string" ? (patientSarah) : ((patientSarah)?.src ?? "")} alt="Dr. Sarah Liao" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
         </div>
       </motion.div>
 
@@ -131,7 +131,7 @@ const FindDoctors = () => {
           <motion.div key={d.name} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
             whileHover={{ y: -3 }} className="rounded-2xl bg-card border border-border/60 p-5 shadow-soft">
             <div className="flex gap-4">
-              <img src={d.img} alt={d.name} loading="lazy" width={64} height={64} className="h-16 w-16 rounded-full object-cover" />
+              <img src={typeof (d.img) === "string" ? (d.img) : ((d.img)?.src ?? "")} alt={d.name} loading="lazy" width={64} height={64} className="h-16 w-16 rounded-full object-cover" />
               <div>
                 <p className="font-semibold text-primary">{d.name}</p>
                 <p className="text-xs text-primary-glow font-semibold">{d.role}</p>
@@ -177,7 +177,7 @@ const FindDoctors = () => {
           {listVisible.map((d, i) => (
             <motion.div key={d.name} initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }}
               className={`rounded-2xl bg-card border ${d.urgent ? "border-l-4 border-l-destructive border-y-border/60 border-r-border/60" : "border-border/60"} p-4 flex items-center gap-5 shadow-soft`}>
-              <img src={d.img} alt={d.name} loading="lazy" width={48} height={48} className="h-12 w-12 rounded-xl object-cover" />
+              <img src={typeof (d.img) === "string" ? (d.img) : ((d.img)?.src ?? "")} alt={d.name} loading="lazy" width={48} height={48} className="h-12 w-12 rounded-xl object-cover" />
               <div className="min-w-[180px]">
                 <div className="flex items-center gap-2">
                   <p className="font-semibold text-primary text-sm">{d.name}</p>

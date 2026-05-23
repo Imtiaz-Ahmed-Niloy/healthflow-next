@@ -221,7 +221,7 @@ const Appointments = () => {
               return visible.map((a, i) => (
                 <motion.div key={a.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
                   whileHover={{ y: -2 }} className="rounded-2xl bg-card border border-border/60 p-5 flex items-center gap-5 shadow-soft">
-                  <img src={a.img} alt={a.name} loading="lazy" width={80} height={80} className="h-20 w-20 rounded-2xl object-cover" />
+                  <img src={typeof (a.img) === "string" ? (a.img) : ((a.img)?.src ?? "")} alt={a.name} loading="lazy" width={80} height={80} className="h-20 w-20 rounded-2xl object-cover" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3">
                       <p className="font-semibold text-primary text-lg">{a.name}</p>

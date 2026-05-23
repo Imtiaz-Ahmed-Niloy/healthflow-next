@@ -2,8 +2,6 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { User, FileText, Stethoscope, Globe, HelpCircle, Lock, Shield, CloudOff, Eye, Pencil, Trash2, ShieldCheck } from "lucide-react";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 import hipaaImg from "@/assets/hipaa-shield.jpg";
 import { usePageContent } from "@/data/pageContent";
 
@@ -34,9 +32,7 @@ const Privacy = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-hero">
-      <Navbar />
-      <main className="container mx-auto py-16">
+    <div className="min-h-screen bg-gradient-hero"><main className="container mx-auto py-16">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="max-w-3xl">
           <span className="inline-flex rounded-full bg-chip text-chip-foreground px-4 py-1.5 text-xs font-semibold">{p.badge}</span>
           <h1 className="mt-5 font-display text-4xl md:text-6xl text-primary">{p.title}</h1>
@@ -135,7 +131,7 @@ const Privacy = () => {
                   <p className="mt-3 text-sm text-foreground/80 max-w-md">HealthFlow is a "covered entity" under the Health Insurance Portability and Accountability Act (HIPAA). This means we are legally required to maintain the privacy of your protected health information (PHI) and to provide you with notice of our legal duties and privacy practices.</p>
                   <div className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-primary"><ShieldCheck className="h-4 w-4" /> Fully HIPAA Certified & Audited</div>
                 </div>
-                <img src={hipaaImg} alt="HIPAA compliance badge" loading="lazy" width={180} height={180} className="rounded-2xl shadow-glow" />
+                <img src={typeof (hipaaImg) === "string" ? (hipaaImg) : ((hipaaImg)?.src ?? "")} alt="HIPAA compliance badge" loading="lazy" width={180} height={180} className="rounded-2xl shadow-glow" />
               </motion.div>
             </section>
 
@@ -182,9 +178,7 @@ const Privacy = () => {
             </section>
           </div>
         </div>
-      </main>
-      <Footer />
-    </div>
+      </main></div>
   );
 };
 export default Privacy;

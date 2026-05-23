@@ -64,7 +64,7 @@ const Hubs = () => {
                   className="block relative overflow-hidden rounded-2xl shadow-card h-[420px] group/card"
                 >
                   <img
-                    src={h.image}
+                    src={typeof (h.image) === "string" ? (h.image) : ((h.image as unknown as { src?: string })?.src ?? "")}
                     alt={h.name}
                     loading="lazy"
                     className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-110"

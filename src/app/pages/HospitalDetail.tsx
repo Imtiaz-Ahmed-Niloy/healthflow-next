@@ -10,8 +10,6 @@ import {
   Linkedin, Briefcase, Maximize2, Eye, Wifi, Utensils, Sparkles,
   Facebook, Twitter, Instagram, Youtube,
 } from "lucide-react";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { findHospital, useHospitals } from "@/hooks/useHospitals";
@@ -56,32 +54,26 @@ const HospitalDetail = () => {
 
   if (!hospital) {
     return (
-      <div className="min-h-screen bg-gradient-hero">
-        <Navbar />
-        <main className="container mx-auto py-32 text-center">
+      <div className="min-h-screen bg-gradient-hero"><main className="container mx-auto py-32 text-center">
           <h1 className="font-display text-4xl text-primary">Hospital not found</h1>
           <Link href="/hospitals" className="mt-6 inline-flex items-center gap-2 text-primary">
             <ArrowLeft className="h-4 w-4" /> Back to all hospitals
           </Link>
-        </main>
-        <Footer />
-      </div>
+        </main></div>
     );
   }
 
   const related = hospitals.filter((h) => h.slug !== hospital.slug).slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-gradient-hero">
-      <Navbar />
-      <main>
+    <div className="min-h-screen bg-gradient-hero"><main>
         {/* Hero */}
         <section className="relative h-[60vh] min-h-[420px] overflow-hidden">
           <motion.img
             initial={{ scale: 1.1 }}
             animate={{ scale: 1 }}
             transition={{ duration: 1.2 }}
-            src={hospital.image}
+            src={typeof (hospital.image) === "string" ? (hospital.image) : ((hospital.image)?.src ?? "")}
             alt={hospital.name}
             className="absolute inset-0 w-full h-full object-cover"
           />
@@ -332,7 +324,7 @@ const HospitalDetail = () => {
               >
                 <div className="relative h-56 overflow-hidden bg-gradient-to-br from-accent/40 to-primary/10">
                   <img
-                    src={d.photo}
+                    src={typeof (d.photo) === "string" ? (d.photo) : ((d.photo)?.src ?? "")}
                     alt={d.name}
                     loading="lazy"
                     width={512}
@@ -578,7 +570,7 @@ const HospitalDetail = () => {
               >
                 <div className="relative h-48 overflow-hidden">
                   <img
-                    src={m.photo}
+                    src={typeof (m.photo) === "string" ? (m.photo) : ((m.photo)?.src ?? "")}
                     alt={m.name}
                     loading="lazy"
                     width={512}
@@ -619,7 +611,7 @@ const HospitalDetail = () => {
                 className="group rounded-3xl overflow-hidden bg-card border border-border/60 shadow-soft hover:shadow-card hover:-translate-y-1 transition-all"
               >
                 <div className="h-40 overflow-hidden">
-                  <img src={h.image} alt={h.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                  <img src={typeof (h.image) === "string" ? (h.image) : ((h.image)?.src ?? "")} alt={h.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                 </div>
                 <div className="p-5">
                   <h4 className="font-display text-lg text-primary">{h.name}</h4>
@@ -630,9 +622,7 @@ const HospitalDetail = () => {
             ))}
           </div>
         </section>
-      </main>
-      <Footer />
-    </div>
+      </main></div>
   );
 };
 

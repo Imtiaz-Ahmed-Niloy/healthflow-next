@@ -3,8 +3,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { MapPin, Award, Star, Phone, ArrowLeft, Search, BedDouble, Stethoscope } from "lucide-react";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 import { useHospitals } from "@/hooks/useHospitals";
 
 const Hospitals = () => {
@@ -18,9 +16,7 @@ const Hospitals = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-hero">
-      <Navbar />
-      <main className="container mx-auto py-16">
+    <div className="min-h-screen bg-gradient-hero"><main className="container mx-auto py-16">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
           <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-primary hover:gap-2 transition-all mb-6">
             <ArrowLeft className="h-4 w-4" /> Back to Home
@@ -98,9 +94,7 @@ const Hospitals = () => {
         {filtered.length === 0 && (
           <p className="text-center text-muted-foreground py-16">No hospitals match your search.</p>
         )}
-      </main>
-      <Footer />
-    </div>
+      </main></div>
   );
 };
 
