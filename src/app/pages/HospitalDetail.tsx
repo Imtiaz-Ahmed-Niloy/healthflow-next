@@ -1,19 +1,22 @@
 'use client';
 import Link from "next/link";
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ComponentType } from "react";
 import {
   MapPin, Award, Star, Phone, Mail, Globe, ArrowLeft, BedDouble,
   Stethoscope, Calendar, Clock, CheckCircle2, Building2, Search,
   FlaskConical, Hotel, Users, GraduationCap, Languages, Heart,
-  Linkedin, Briefcase, Maximize2, Eye, Wifi, Utensils, Sparkles,
-  Facebook, Twitter, Instagram, Youtube,
+  Briefcase, Maximize2, Eye, Wifi, Utensils, Sparkles,
 } from "lucide-react";
+import { FaFacebookF, FaTwitter, FaInstagram, FaLinkedinIn, FaYoutube } from "react-icons/fa";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { findHospital, useHospitals } from "@/hooks/useHospitals";
 import { slugify } from "@/lib/slug";
+
+type SocialIcon = ComponentType<{ className?: string }>;
 
 const HospitalDetail = () => {
   const params = useParams<{ slug?: string }>();
@@ -69,14 +72,14 @@ const HospitalDetail = () => {
     <div className="min-h-screen bg-gradient-hero"><main>
         {/* Hero */}
         <section className="relative h-[60vh] min-h-[420px] overflow-hidden">
-          <motion.img
+          <motion.div
             initial={{ scale: 1.1 }}
             animate={{ scale: 1 }}
             transition={{ duration: 1.2 }}
-            src={typeof (hospital.image) === "string" ? (hospital.image) : ((hospital.image)?.src ?? "")}
-            alt={hospital.name}
-            className="absolute inset-0 w-full h-full object-cover"
-          />
+            className="absolute inset-0"
+          >
+            <Image src={hospital.image} alt={hospital.name} fill priority sizes="100vw" className="object-cover" />
+          </motion.div>
           <div className="absolute inset-0 bg-gradient-to-t from-primary/95 via-primary/60 to-primary/30" />
           <div className="container mx-auto relative h-full flex flex-col justify-end pb-12 text-primary-foreground">
             <Link href="/hospitals" className="inline-flex items-center gap-1.5 text-sm opacity-90 hover:opacity-100 mb-6 w-fit">
@@ -197,13 +200,13 @@ const HospitalDetail = () => {
                 const emails = hospital.emails?.length ? hospital.emails : (hospital.email ? [hospital.email] : []);
                 const websites = hospital.websites?.length ? hospital.websites : (hospital.website ? [hospital.website] : []);
                 const socials = hospital.social ?? [];
-                const socialIcon = (p: string) => {
+                const socialIcon = (p: string): SocialIcon => {
                   const k = p.toLowerCase();
-                  if (k === "facebook") return Facebook;
-                  if (k === "twitter") return Twitter;
-                  if (k === "instagram") return Instagram;
-                  if (k === "linkedin") return Linkedin;
-                  if (k === "youtube") return Youtube;
+                  if (k === "facebook") return FaFacebookF;
+                  if (k === "twitter") return FaTwitter;
+                  if (k === "instagram") return FaInstagram;
+                  if (k === "linkedin") return FaLinkedinIn;
+                  if (k === "youtube") return FaYoutube;
                   return Globe;
                 };
                 return (
@@ -323,13 +326,12 @@ const HospitalDetail = () => {
                 className="group relative rounded-3xl bg-card border border-border/60 overflow-hidden hover:shadow-card hover:-translate-y-1.5 transition-all duration-500"
               >
                 <div className="relative h-56 overflow-hidden bg-gradient-to-br from-accent/40 to-primary/10">
-                  <img
-                    src={typeof (d.photo) === "string" ? (d.photo) : ((d.photo)?.src ?? "")}
+                  <Image
+                    src={d.photo}
                     alt={d.name}
-                    loading="lazy"
-                    width={512}
-                    height={512}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    className="object-cover transition-transform duration-700 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-primary/10 to-transparent opacity-90" />
                   <div className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-card/95 backdrop-blur px-2.5 py-1 text-[11px] font-semibold text-primary">
@@ -569,13 +571,12 @@ const HospitalDetail = () => {
                 className="group relative rounded-3xl bg-card border border-border/60 overflow-hidden hover:shadow-card hover:-translate-y-1.5 transition-all duration-500"
               >
                 <div className="relative h-48 overflow-hidden">
-                  <img
-                    src={typeof (m.photo) === "string" ? (m.photo) : ((m.photo)?.src ?? "")}
+                  <Image
+                    src={m.photo}
                     alt={m.name}
-                    loading="lazy"
-                    width={512}
-                    height={512}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    className="object-cover transition-transform duration-700 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-card via-card/30 to-transparent" />
                 </div>
@@ -591,7 +592,7 @@ const HospitalDetail = () => {
                       <Mail className="h-3 w-3" />Email
                     </a>
                     <a href={`https://${m.linkedin}`} target="_blank" rel="noopener noreferrer" className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-full bg-primary text-primary-foreground py-2 text-[11px] font-semibold hover:bg-primary-glow transition-colors">
-                      <Linkedin className="h-3 w-3" />LinkedIn
+                      <FaLinkedinIn className="h-3 w-3" />LinkedIn
                     </a>
                   </div>
                 </div>
@@ -610,8 +611,8 @@ const HospitalDetail = () => {
                 href={`/hospitals/${h.slug}`}
                 className="group rounded-3xl overflow-hidden bg-card border border-border/60 shadow-soft hover:shadow-card hover:-translate-y-1 transition-all"
               >
-                <div className="h-40 overflow-hidden">
-                  <img src={typeof (h.image) === "string" ? (h.image) : ((h.image)?.src ?? "")} alt={h.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                <div className="relative h-40 overflow-hidden">
+                  <Image src={h.image} alt={h.name} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover transition-transform duration-700 group-hover:scale-110" />
                 </div>
                 <div className="p-5">
                   <h4 className="font-display text-lg text-primary">{h.name}</h4>

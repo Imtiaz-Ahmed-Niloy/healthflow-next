@@ -1,6 +1,7 @@
 'use client';
 import { useState } from "react";
 import { motion } from "framer-motion";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ShieldPlus, User, Stethoscope, BarChart3, ShieldCheck } from "lucide-react";
@@ -33,7 +34,7 @@ const demos = [
 const AdCard = ({ a }: { a: typeof sideAds.left[0] }) => (
   <motion.div whileHover={{ y: -4 }} className="rounded-3xl bg-card border border-border/60 overflow-hidden shadow-soft">
     <div className="relative">
-      <img src={typeof (a.img) === "string" ? (a.img) : ((a.img)?.src ?? "")} alt={a.t} loading="lazy" width={512} height={512} className="aspect-square w-full object-cover" />
+      <Image src={a.img} alt={a.t} width={512} height={512} className="aspect-square w-full object-cover" />
       <span className={`absolute top-4 left-4 rounded-full px-3 py-1 text-[10px] font-bold tracking-wider ${a.tagColor}`}>{a.tag}</span>
     </div>
     <div className="p-5">
@@ -88,7 +89,7 @@ const SignIn = () => {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
           className="rounded-3xl bg-card shadow-soft p-8 md:p-10">
           <div className="text-center">
-            <img src="/favicon.png" alt="HealthFlow logo" className="mx-auto h-24 w-24 object-contain" />
+            <Image src="/favicon.png" alt="HealthFlow logo" width={96} height={96} className="mx-auto h-24 w-24 object-contain" />
             <h1 className="mt-3 font-display text-3xl text-primary">HealthFlow</h1>
             <p className="text-sm text-muted-foreground mt-1">Welcome back!</p>
           </div>

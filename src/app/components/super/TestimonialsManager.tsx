@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Image, { type StaticImageData } from "next/image";
 import { toast } from "sonner";
 import { Btn, Pill } from "@/components/admin/ui";
 import { Pencil, Trash2, Quote, Plus, Upload } from "lucide-react";
@@ -13,7 +14,7 @@ type FormState = {
   audience: TestimonialAudience;
   name: string;
   role: string;
-  img: string;
+  img: string | StaticImageData;
   text: string;
 };
 const empty: FormState = { audience: "Patients", name: "", role: "", img: sampleAvatars[0], text: "" };
@@ -63,7 +64,7 @@ const TestimonialsManager = () => {
           {items.map(t => (
             <li key={t.id} className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-4 py-3">
               <div className="flex items-center gap-3 min-w-0">
-                <img src={typeof (t.img) === "string" ? (t.img) : ((t.img)?.src ?? "")} alt={t.name} className="h-10 w-10 rounded-full object-cover shrink-0" />
+                <Image src={t.img} alt={t.name} width={40} height={40} unoptimized className="h-10 w-10 rounded-full object-cover shrink-0" />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-semibold text-primary truncate">{t.name}</p>
@@ -114,12 +115,12 @@ const TestimonialsManager = () => {
                       onClick={() => setForm({ ...form, img: src })}
                       className={`h-10 w-10 rounded-full overflow-hidden border-2 transition ${form.img === src ? "border-primary" : "border-transparent opacity-60 hover:opacity-100"}`}
                     >
-                      <img src={typeof (src) === "string" ? (src) : ((src)?.src ?? "")} alt="" className="h-full w-full object-cover" />
+                      <Image src={src} alt="" width={40} height={40} unoptimized className="h-full w-full object-cover" />
                     </button>
                   ))}
-                  {form.img && !sampleAvatars.includes(form.img) && (
+                  {form.img && !sampleAvatars.some(src => src === form.img) && (
                     <div className="h-10 w-10 rounded-full overflow-hidden border-2 border-primary">
-                      <img src={typeof (form.img) === "string" ? (form.img) : ((form.img)?.src ?? "")} alt="" className="h-full w-full object-cover" />
+                      <Image src={form.img} alt="" width={40} height={40} unoptimized className="h-full w-full object-cover" />
                     </div>
                   )}
                   <label className="h-10 px-3 rounded-full border border-dashed border-border/70 text-xs font-semibold text-foreground/70 hover:text-primary hover:border-primary/60 cursor-pointer inline-flex items-center gap-1.5 transition">

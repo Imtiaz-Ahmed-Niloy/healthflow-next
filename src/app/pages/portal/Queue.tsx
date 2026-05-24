@@ -1,5 +1,6 @@
 'use client';
 import { motion } from "framer-motion";
+import Image from "next/image";
 import { CheckCircle2, Clock, ArrowRightLeft, Plus, SlidersHorizontal, ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -182,7 +183,7 @@ const Queue = () => {
             <motion.div key={p.name} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: i * 0.08 }}
               whileHover={{ y: -2 }} className="rounded-2xl bg-card border border-border/60 p-4 flex items-center gap-5 shadow-soft">
               <div className="relative shrink-0">
-                <img src={typeof (p.img) === "string" ? (p.img) : ((p.img)?.src ?? "")} alt={p.name} loading="lazy" width={56} height={56} className="h-14 w-14 rounded-full object-cover" />
+                <Image src={p.img} alt={p.name} width={56} height={56} className="h-14 w-14 rounded-full object-cover" />
                 <span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-card ${p.dot}`} />
               </div>
               <div className="min-w-[180px]">

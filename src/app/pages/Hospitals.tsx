@@ -1,6 +1,7 @@
 'use client';
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { MapPin, Award, Star, Phone, ArrowLeft, Search, BedDouble, Stethoscope } from "lucide-react";
 import { useHospitals } from "@/hooks/useHospitals";
@@ -50,11 +51,12 @@ const Hospitals = () => {
               className="group rounded-3xl overflow-hidden bg-card border border-border/60 shadow-soft hover:shadow-card hover:-translate-y-1 transition-all"
             >
               <div className="relative h-48 overflow-hidden">
-                <img
+                <Image
                   src={h.image}
                   alt={h.name}
-                  loading="lazy"
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  className="object-cover transition-transform duration-700 group-hover:scale-110"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-primary/70 via-transparent" />
                 <span className="absolute top-3 left-3 inline-flex items-center rounded-full bg-accent/90 text-primary px-3 py-1 text-[11px] font-semibold">

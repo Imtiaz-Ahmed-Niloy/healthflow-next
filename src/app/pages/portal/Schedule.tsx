@@ -1,5 +1,6 @@
 'use client';
 import { motion } from "framer-motion";
+import Image from "next/image";
 import { useState } from "react";
 import { Calendar, ChevronLeft, ChevronRight, ClipboardList, Heart } from "lucide-react";
 import Link from "next/link";
@@ -76,7 +77,7 @@ const Schedule = () => {
               <p className="font-semibold text-primary mt-3">{a.name}</p>
               <p className="text-xs text-muted-foreground mt-1">{a.reason}</p>
               <div className="flex items-center gap-2 mt-3">
-                <img src={typeof (a.img) === "string" ? (a.img) : ((a.img)?.src ?? "")} alt={a.name} loading="lazy" width={20} height={20} className="h-5 w-5 rounded-full object-cover" />
+                <Image src={a.img} alt={a.name} width={20} height={20} className="h-5 w-5 rounded-full object-cover" />
                 <span className="text-[11px] text-foreground/70">{a.tag}</span>
               </div>
             </motion.div>
@@ -149,7 +150,7 @@ const Schedule = () => {
           <motion.div key={a.name} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }}
             className="flex items-center gap-5 py-4">
             <span className="font-semibold text-primary bg-chip px-3 py-1 rounded-md text-xs min-w-[88px] text-center">{a.time}</span>
-            <img src={typeof (a.img) === "string" ? (a.img) : ((a.img)?.src ?? "")} alt={a.name} loading="lazy" width={40} height={40} className="h-10 w-10 rounded-full object-cover" />
+            <Image src={a.img} alt={a.name} width={40} height={40} className="h-10 w-10 rounded-full object-cover" />
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-primary">{a.name}</p>
               <p className="text-xs text-muted-foreground">{a.reason}</p>

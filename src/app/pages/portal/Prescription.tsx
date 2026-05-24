@@ -1,6 +1,7 @@
 'use client';
 import { useState } from "react";
 import { motion } from "framer-motion";
+import Image from "next/image";
 import { Plus, ClipboardList, ClipboardCheck, FlaskConical, Stethoscope, Lightbulb, Sparkles, History, AlertTriangle, Users, Printer, X } from "lucide-react";
 import { toast } from "sonner";
 import { PortalLayout } from "@/components/portal/PortalLayout";
@@ -387,7 +388,7 @@ const Prescription = () => {
             <div className="mt-4 space-y-2">
               {queue.map(p => (
                 <div key={p.name} className={`flex items-center gap-3 rounded-xl p-2 ${p.active ? "bg-chip" : ""}`}>
-                  <img src={typeof (p.img) === "string" ? (p.img) : ((p.img)?.src ?? "")} alt={p.name} loading="lazy" width={36} height={36} className="h-9 w-9 rounded-full object-cover shrink-0" />
+                  <Image src={p.img} alt={p.name} width={36} height={36} className="h-9 w-9 rounded-full object-cover shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-primary truncate">{p.name}</p>
                     <p className="text-[10px] tracking-widest font-bold text-primary-glow">{p.status}</p>

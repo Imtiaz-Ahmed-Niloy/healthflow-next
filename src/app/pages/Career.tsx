@@ -1,6 +1,7 @@
 'use client';
 import { useState } from "react";
 import { motion } from "framer-motion";
+import Image from "next/image";
 import { Leaf, FlaskConical, Palette, ClipboardList, MapPin, Clock, Search, ArrowRight } from "lucide-react";
 import careerHero from "@/assets/career-hero.jpg";
 
@@ -30,7 +31,7 @@ const Career = () => {
             </div>
           </motion.div>
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6 }} className="relative">
-            <img src={typeof (careerHero) === "string" ? (careerHero) : ((careerHero)?.src ?? "")} alt="HealthFlow team at work" width={1024} height={1024} className="rounded-3xl shadow-glow w-full" />
+            <Image src={careerHero} alt="HealthFlow team at work" width={1024} height={1024} className="rounded-3xl shadow-glow w-full" />
             <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 4, repeat: Infinity }}
               className="absolute -bottom-4 left-6 bg-card rounded-2xl shadow-soft border border-border/60 px-4 py-3 flex items-center gap-3">
               <div className="h-9 w-9 rounded-full bg-chip flex items-center justify-center text-primary"><Leaf className="h-4 w-4" /></div>

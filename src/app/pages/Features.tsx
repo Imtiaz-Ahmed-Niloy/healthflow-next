@@ -1,5 +1,6 @@
 'use client';
 import { motion } from "framer-motion";
+import Image from "next/image";
 import {
   Video, Brain, FolderKanban, Receipt, HeartPulse, BarChart3,
   Waves, HeartHandshake, Zap, FileText, Clock, Leaf, UserRound,
@@ -58,7 +59,7 @@ const Features = () => {
               </div>
             </motion.div>
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8, delay: 0.2 }} className="relative">
-              <img src={typeof (dashboard) === "string" ? (dashboard) : ((dashboard)?.src ?? "")} alt="HealthFlow precision dashboard" width={1280} height={1024} className="rounded-2xl shadow-card w-full object-cover aspect-[4/3]" />
+              <Image src={dashboard} alt="HealthFlow precision dashboard" width={1280} height={1024} className="rounded-2xl shadow-card w-full object-cover aspect-[4/3]" />
             </motion.div>
           </div>
         </section>
@@ -101,9 +102,11 @@ const Features = () => {
           <div className="container mx-auto grid lg:grid-cols-2 gap-12 items-center">
             <div className="grid grid-cols-2 gap-4">
               {[n1, n2, n3, n4].map((src, i) => (
-                <motion.img key={i} src={typeof (src) === "string" ? (src) : ((src)?.src ?? "")} alt="" width={800} height={800} loading="lazy"
+                <motion.div key={i}
                   initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ duration: 0.6, delay: i * 0.1 }}
-                  className={`rounded-2xl object-cover w-full aspect-square ${i === 1 ? "row-span-1" : ""}`} />
+                  className={`overflow-hidden rounded-2xl w-full aspect-square ${i === 1 ? "row-span-1" : ""}`}>
+                  <Image src={src} alt="" width={800} height={800} className="h-full w-full object-cover" />
+                </motion.div>
               ))}
             </div>
             <div>

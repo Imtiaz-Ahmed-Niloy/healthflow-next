@@ -1,5 +1,6 @@
 'use client';
 import Link from "next/link";
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowLeft, Calendar, Clock, Eye, Share2, Bookmark, ArrowRight } from "lucide-react";
@@ -38,7 +39,7 @@ const BlogDetail = () => {
           </motion.div>
 
           <div className="mt-8 flex flex-wrap items-center gap-4 pb-6 border-b border-border/60">
-            <img src={typeof (post.authorPhoto) === "string" ? (post.authorPhoto) : ((post.authorPhoto)?.src ?? "")} alt={post.author} className="h-11 w-11 rounded-full object-cover" loading="lazy" />
+            <Image src={post.authorPhoto} alt={post.author} width={44} height={44} className="h-11 w-11 rounded-full object-cover" />
             <div>
               <p className="text-sm font-semibold text-primary">{post.author}</p>
               <p className="text-xs text-muted-foreground">{post.authorRole}</p>
@@ -50,15 +51,14 @@ const BlogDetail = () => {
             </div>
           </div>
 
-          <motion.img
+          <motion.div
             initial={{ opacity: 0, scale: 1.02 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.7 }}
-            src={typeof (post.cover) === "string" ? (post.cover) : ((post.cover)?.src ?? "")}
-            alt={post.title}
-            className="mt-8 w-full rounded-2xl border border-border/60 aspect-[16/9] object-cover"
-            loading="lazy"
-          />
+            className="relative mt-8 aspect-[16/9] w-full overflow-hidden rounded-2xl border border-border/60"
+          >
+            <Image src={post.cover} alt={post.title} fill sizes="(max-width: 1024px) 100vw, 1024px" className="object-cover" />
+          </motion.div>
 
           <div className="mt-10 space-y-6 text-lg leading-relaxed text-foreground/85">
             <p className="first-letter:font-display first-letter:text-6xl first-letter:float-left first-letter:mr-3 first-letter:leading-[0.8] first-letter:text-primary">
@@ -88,7 +88,7 @@ const BlogDetail = () => {
             <div className="grid md:grid-cols-3 gap-6">
               {suggestions.map((p) => (
                 <Link key={p.slug} href={`/blog/${p.slug}`} className="group">
-                  <img src={typeof (p.cover) === "string" ? (p.cover) : ((p.cover)?.src ?? "")} alt={p.title} loading="lazy" className="w-full h-40 rounded-xl object-cover border border-border/60 group-hover:scale-[1.02] transition-transform" />
+                  <Image src={p.cover} alt={p.title} width={640} height={360} className="w-full h-40 rounded-xl object-cover border border-border/60 group-hover:scale-[1.02] transition-transform" />
                   <span className="mt-3 inline-block text-[10px] uppercase tracking-[0.25em] font-bold text-primary-glow">{p.category}</span>
                   <h3 className="font-display text-lg text-primary mt-1 leading-tight group-hover:underline">{p.title}</h3>
                   <p className="text-xs text-muted-foreground mt-2 inline-flex items-center gap-1">By {p.author} <ArrowRight className="h-3 w-3" /></p>

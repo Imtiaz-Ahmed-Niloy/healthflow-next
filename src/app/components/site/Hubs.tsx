@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { MapPin, ArrowRight, Building2, Star, ChevronLeft, ChevronRight } from "lucide-react";
 import { useHospitals } from "@/hooks/useHospitals";
@@ -63,11 +64,12 @@ const Hubs = () => {
                   href={`/hospitals/${h.slug}`}
                   className="block relative overflow-hidden rounded-2xl shadow-card h-[420px] group/card"
                 >
-                  <img
-                    src={typeof (h.image) === "string" ? (h.image) : ((h.image as unknown as { src?: string })?.src ?? "")}
+                  <Image
+                    src={h.image}
                     alt={h.name}
-                    loading="lazy"
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-110"
+                    fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    className="object-cover transition-transform duration-700 group-hover/card:scale-110"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-primary/95 via-primary/40 to-transparent" />
                   <div className="absolute inset-0 p-6 flex flex-col justify-end text-primary-foreground">

@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { motion } from "framer-motion";
-import { LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 export const Card = ({ children, className = "" }: { children: ReactNode; className?: string }) => (
   <div className={`rounded-2xl bg-card border border-border/60 shadow-soft ${className}`}>{children}</div>

@@ -1,5 +1,6 @@
 'use client';
 import { motion } from "framer-motion";
+import Image, { type StaticImageData } from "next/image";
 import { Plus, Calendar, Clock, MapPin, Video, Leaf, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 
@@ -22,7 +23,7 @@ const tabs: { label: string; bucket: Bucket }[] = [
   { label: "Cancelled Appointments", bucket: "cancelled" },
 ];
 
-type Appt = { id: string; name: string; role: string; date: string; time: string; loc: string; icon: typeof Video; status: string; statusClass: string; img: string; bucket: Bucket };
+type Appt = { id: string; name: string; role: string; date: string; time: string; loc: string; icon: typeof Video; status: string; statusClass: string; img: string | StaticImageData; bucket: Bucket };
 
 const initialAppointments: Appt[] = [
   { id: "a1", name: "Dr. Alistair Vance", role: "Molecular Cardiologist", date: "Oct 24, 2024", time: "09:30 AM", loc: "Telehealth", icon: Video, status: "CONFIRMED", statusClass: "bg-chip text-primary", img: doctor1, bucket: "upcoming" },
@@ -221,7 +222,7 @@ const Appointments = () => {
               return visible.map((a, i) => (
                 <motion.div key={a.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
                   whileHover={{ y: -2 }} className="rounded-2xl bg-card border border-border/60 p-5 flex items-center gap-5 shadow-soft">
-                  <img src={typeof (a.img) === "string" ? (a.img) : ((a.img)?.src ?? "")} alt={a.name} loading="lazy" width={80} height={80} className="h-20 w-20 rounded-2xl object-cover" />
+                  <Image src={a.img} alt={a.name} width={80} height={80} className="h-20 w-20 rounded-2xl object-cover" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3">
                       <p className="font-semibold text-primary text-lg">{a.name}</p>

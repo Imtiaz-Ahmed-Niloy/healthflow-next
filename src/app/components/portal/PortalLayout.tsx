@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { LayoutGrid, Users, BookUser, Calendar, LogOut, Bell, Settings } from "lucide-react";
 import { toast } from "sonner";
@@ -18,7 +19,7 @@ const links = [
 export const PortalSidebar = () => (
   <aside className="w-64 bg-chip/40 border-r border-border/50 flex flex-col py-6 sticky top-0 h-screen">
     <Link href="/" className="px-6 flex items-center gap-2">
-      <img src="/favicon.png" alt="HealthFlow logo" className="h-12 w-12 object-contain" />
+      <Image src="/favicon.png" alt="HealthFlow logo" width={48} height={48} className="h-12 w-12 object-contain" />
       <div>
         <div className="font-display text-xl text-primary font-bold">HealthFlow</div>
         <p className="text-[10px] tracking-widest font-semibold text-primary-glow mt-0.5">DOCTOR PORTAL</p>
@@ -26,7 +27,7 @@ export const PortalSidebar = () => (
     </Link>
 
     <div className="px-6 mt-10 flex items-center gap-3">
-      <img src={typeof (doctorAvatar) === "string" ? (doctorAvatar) : ((doctorAvatar)?.src ?? "")} alt="Doctor" loading="lazy" width={48} height={48} className="h-12 w-12 rounded-full object-cover" />
+      <Image src={doctorAvatar} alt="Doctor" width={48} height={48} className="h-12 w-12 rounded-full object-cover" />
       <div>
         <p className="font-display text-lg text-primary leading-tight">Dr. Jhon</p>
         <p className="text-[11px] text-muted-foreground">Internal Medicine</p>
@@ -62,7 +63,7 @@ export const PortalTopbar = () => {
               <p className="font-semibold text-sm text-primary leading-tight">Elena Verdant</p>
               <p className="text-[10px] tracking-widest font-bold text-primary-glow">PREMIUM PATIENT</p>
             </div>
-            <img src={typeof (patientEleanor) === "string" ? (patientEleanor) : ((patientEleanor)?.src ?? "")} alt="user" loading="lazy" width={40} height={40} className="h-10 w-10 rounded-full object-cover" />
+            <Image src={patientEleanor} alt="user" width={40} height={40} className="h-10 w-10 rounded-full object-cover" />
           </div>
           <button onClick={() => { toast.success("Signed out"); router.push("/signin"); }}
             className="flex items-center gap-2 text-sm font-semibold text-foreground/70 hover:text-destructive">
