@@ -1,6 +1,7 @@
 'use client';
 import { useRef, useState } from "react";
 import Link from "next/link";
+import Image, { type StaticImageData } from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { BadgeCheck, Leaf, Pencil, IdCard, UserSquare2, Mail, Phone, Bell, Activity, Heart, Droplet, AlertTriangle, ScanLine, Scissors, FileDown, Plus, Send, Shield, BookCheck, Calendar as CalIcon, UploadCloud, FileText, Image as ImageIcon, Search, Filter, ShieldCheck, Users, UserPlus, IdCard as IdCardIcon, BookOpen } from "lucide-react";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
@@ -47,7 +48,7 @@ type EmergencyContact = {
   address: string;
   nid: string;
   contactAddress: string;
-  photo: string;
+  photo: string | StaticImageData;
 };
 
 const defaultEmergencyContact: EmergencyContact = {
@@ -104,7 +105,7 @@ const EmergencyContactCard = () => {
         <div className="flex flex-col md:flex-row gap-6">
           <div className="text-center">
             <div className="relative h-24 w-24 mx-auto group">
-              <img src={typeof (editing ? draft.photo : data.photo) === "string" ? (editing ? draft.photo : data.photo) : ((editing ? draft.photo : data.photo)?.src ?? "")} loading="lazy" width={96} height={96} alt="emergency" className="h-24 w-24 rounded-full object-cover ring-4 ring-primary/20" />
+              <Image src={editing ? draft.photo : data.photo} width={96} height={96} unoptimized alt="emergency" className="h-24 w-24 rounded-full object-cover ring-4 ring-primary/20" />
               {editing && (
                 <>
                   <input ref={fileRef} type="file" accept="image/*" onChange={onPickFile} className="hidden" />
@@ -299,7 +300,7 @@ const NidCardUpload = ({ title = "NID / Passport Card", className }: { title?: s
         <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-2">FRONT SIDE</p>
         {front ? (
           <div className="relative group rounded-xl overflow-hidden ring-1 ring-border aspect-[1.6/1] bg-muted/30">
-            <img src={typeof (front) === "string" ? (front) : ((front)?.src ?? "")} alt="NID front" className="w-full h-full object-cover" />
+            <Image src={front} alt="NID front" fill unoptimized sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" />
             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
               <button onClick={() => frontRef.current?.click()} className="rounded-full bg-card text-primary px-3 py-1.5 text-[10px] font-bold tracking-widest">REPLACE</button>
               <button onClick={() => setFront(null)} className="rounded-full bg-destructive text-destructive-foreground px-3 py-1.5 text-[10px] font-bold tracking-widest">REMOVE</button>
@@ -319,7 +320,7 @@ const NidCardUpload = ({ title = "NID / Passport Card", className }: { title?: s
         <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-2">BACK SIDE</p>
         {back ? (
           <div className="relative group rounded-xl overflow-hidden ring-1 ring-border aspect-[1.6/1] bg-muted/30">
-            <img src={typeof (back) === "string" ? (back) : ((back)?.src ?? "")} alt="NID back" className="w-full h-full object-cover" />
+            <Image src={back} alt="NID back" fill unoptimized sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" />
             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
               <button onClick={() => backRef.current?.click()} className="rounded-full bg-card text-primary px-3 py-1.5 text-[10px] font-bold tracking-widest">REPLACE</button>
               <button onClick={() => setBack(null)} className="rounded-full bg-destructive text-destructive-foreground px-3 py-1.5 text-[10px] font-bold tracking-widest">REMOVE</button>
@@ -880,7 +881,7 @@ const Family = () => {
             {members.map((m, i) => (
               <motion.div key={m.name} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }} whileHover={{ y: -4 }} className="rounded-2xl bg-card p-5 shadow-soft text-center">
                 <div className="relative w-fit mx-auto">
-                  <img src={typeof (m.img) === "string" ? (m.img) : ((m.img)?.src ?? "")} loading="lazy" width={88} height={88} alt={m.name} className="h-22 w-22 h-[88px] w-[88px] rounded-full object-cover ring-4 ring-primary/20" />
+                  <Image src={m.img} width={88} height={88} alt={m.name} className="h-[88px] w-[88px] rounded-full object-cover ring-4 ring-primary/20" />
                   <span className="absolute bottom-1 right-1 h-3.5 w-3.5 rounded-full bg-primary-glow ring-2 ring-card" />
                 </div>
                 <h3 className="font-display text-xl text-primary mt-4">{m.name}</h3>
@@ -906,7 +907,7 @@ const Family = () => {
 
 const Profile = () => {
   const [tab, setTab] = useState<Tab>("General");
-  const [avatarSrc, setAvatarSrc] = useState<string>(avatar);
+  const [avatarSrc, setAvatarSrc] = useState<string>(avatar.src);
   const avatarRef = useRef<HTMLInputElement>(null);
   const onAvatarPick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -921,7 +922,9 @@ const Profile = () => {
       {/* Header */}
       <div className="flex flex-wrap items-start gap-8 max-w-6xl mx-auto">
         <div className="relative">
-          <motion.img initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} src={typeof (avatarSrc) === "string" ? (avatarSrc) : ((avatarSrc)?.src ?? "")} loading="lazy" width={160} height={160} alt="Elena Vance" className="h-40 w-40 rounded-3xl object-cover shadow-card" />
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="relative h-40 w-40 overflow-hidden rounded-3xl shadow-card">
+            <Image src={avatarSrc} alt="Elena Vance" fill unoptimized sizes="160px" className="object-cover" />
+          </motion.div>
           <input ref={avatarRef} type="file" accept="image/*" className="hidden" onChange={onAvatarPick} />
           <button onClick={() => avatarRef.current?.click()} aria-label="Change profile picture" className="absolute bottom-2 right-2 h-9 w-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-glow hover:opacity-90 transition"><Pencil className="h-4 w-4" /></button>
         </div>

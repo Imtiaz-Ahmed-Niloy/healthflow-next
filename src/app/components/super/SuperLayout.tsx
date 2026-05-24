@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -40,7 +41,7 @@ const grouped = superNav.reduce<Record<string, typeof superNav>>((a, i) => {
 export const SuperSidebar = ({ onNavigate }: { onNavigate?: () => void }) => (
   <aside className="w-64 bg-chip/40 border-r border-border/50 flex flex-col py-6 sticky top-0 h-screen shrink-0 overflow-hidden">
     <Link href="/" className="px-6 flex items-center gap-2">
-      <img src="/favicon.png" alt="HealthFlow logo" className="h-12 w-12 object-contain" />
+      <Image src="/favicon.png" alt="HealthFlow logo" width={48} height={48} className="h-12 w-12 object-contain" />
       <div>
         <div className="font-display text-xl text-primary font-bold">HealthFlow</div>
         <p className="text-[10px] tracking-widest font-semibold text-primary-glow mt-0.5">SUPER ADMIN</p>

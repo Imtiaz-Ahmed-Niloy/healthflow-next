@@ -1,5 +1,6 @@
 'use client';
 import { useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Star, Calendar, Video, ArrowLeft, Search, MapPin } from "lucide-react";
@@ -85,7 +86,7 @@ const Doctors = () => {
                   className="rounded-3xl bg-card border border-border/60 p-5 shadow-soft hover:shadow-card transition-all hover:-translate-y-1"
                 >
                   <div className="flex items-start gap-3">
-                    <img src={typeof (d.img) === "string" ? (d.img) : ((d.img)?.src ?? "")} alt={d.name} width={64} height={64} loading="lazy" className="h-16 w-16 rounded-full object-cover" />
+                    <Image src={d.img} alt={d.name} width={64} height={64} className="h-16 w-16 rounded-full object-cover" />
                     <div>
                       <h3 className="font-display text-lg leading-tight text-primary">{d.name}</h3>
                       <p className="text-xs font-semibold text-primary-glow mt-0.5">{d.specialty}</p>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 export const PromoBar = () => (
@@ -24,7 +25,7 @@ export const AuthHeader = () => {
     <header className="bg-background border-b border-border/50">
       <nav className="container mx-auto flex items-center justify-between py-4">
         <Link href="/" className="flex items-center gap-2 font-display text-2xl font-semibold text-primary">
-          <img src="/favicon.png" alt="HealthFlow logo" className="h-12 w-12 object-contain" />
+          <Image src="/favicon.png" alt="HealthFlow logo" width={48} height={48} className="h-12 w-12 object-contain" />
           HealthFlow
         </Link>
         <ul className="hidden md:flex items-center gap-10 text-xs font-bold tracking-widest">

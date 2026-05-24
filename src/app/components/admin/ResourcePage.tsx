@@ -1,5 +1,9 @@
-import { ReactNode, useState, useMemo, useRef } from "react";
-import { Upload, X, Plus, Facebook, Twitter, Instagram, Linkedin, Youtube, Globe } from "lucide-react";
+"use client";
+
+import Image from "next/image";
+import { ReactNode, useState, useMemo, useRef, type ComponentType } from "react";
+import { Upload, X, Plus, Globe } from "lucide-react";
+import { FaFacebookF, FaTwitter, FaInstagram, FaLinkedinIn, FaYoutube } from "react-icons/fa";
 import { Card, Pill } from "./ui";
 import { DataTable, Toolbar, Modal, ConfirmDialog, RowActions, Drawer, exportCSV, useCrud, Field, Input, Select, Chips, statusTone, type Column } from "./crud";
 
@@ -15,8 +19,8 @@ function ImageUploadField({ name, required, defaultValue }: { name: string; requ
   };
   return (
     <div className="flex items-center gap-4">
-      <div className="h-24 w-24 rounded-xl bg-muted/40 border border-border/60 overflow-hidden flex items-center justify-center shrink-0">
-        {preview ? <img src={typeof (preview) === "string" ? (preview) : ((preview)?.src ?? "")} alt="preview" className="h-full w-full object-cover" /> : <Upload className="h-5 w-5 text-muted-foreground" />}
+      <div className="relative h-24 w-24 rounded-xl bg-muted/40 border border-border/60 overflow-hidden flex items-center justify-center shrink-0">
+        {preview ? <Image src={preview} alt="preview" fill unoptimized sizes="96px" className="object-cover" /> : <Upload className="h-5 w-5 text-muted-foreground" />}
       </div>
       <div className="flex-1">
         <input type="hidden" name={name} value={preview} required={required} />
@@ -76,12 +80,14 @@ function ListField({ name, defaultValue, inputType = "text", placeholder }: { na
   );
 }
 
-const SOCIAL_PLATFORMS = [
-  { key: "facebook", label: "Facebook", Icon: Facebook },
-  { key: "twitter", label: "Twitter / X", Icon: Twitter },
-  { key: "instagram", label: "Instagram", Icon: Instagram },
-  { key: "linkedin", label: "LinkedIn", Icon: Linkedin },
-  { key: "youtube", label: "YouTube", Icon: Youtube },
+type SocialIcon = ComponentType<{ className?: string }>;
+
+const SOCIAL_PLATFORMS: { key: string; label: string; Icon: SocialIcon }[] = [
+  { key: "facebook", label: "Facebook", Icon: FaFacebookF },
+  { key: "twitter", label: "Twitter / X", Icon: FaTwitter },
+  { key: "instagram", label: "Instagram", Icon: FaInstagram },
+  { key: "linkedin", label: "LinkedIn", Icon: FaLinkedinIn },
+  { key: "youtube", label: "YouTube", Icon: FaYoutube },
   { key: "other", label: "Other", Icon: Globe },
 ];
 

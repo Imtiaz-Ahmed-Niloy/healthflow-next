@@ -1,6 +1,7 @@
 'use client';
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Search, Calendar, Clock, ArrowRight, BookOpen, Tag, TrendingUp, Mail } from "lucide-react";
 import { toast } from "sonner";
@@ -118,10 +119,10 @@ const Blog = () => {
                 a reminder that walls, windows and air can be instruments of healing.
               </p>
               <div className="mt-5 overflow-hidden rounded-2xl border border-border/60">
-                <img src={typeof (lead.cover) === "string" ? (lead.cover) : ((lead.cover)?.src ?? "")} alt={lead.title} className="w-full h-[340px] object-cover transition-transform duration-700 group-hover:scale-[1.02]" loading="lazy" />
+                <Image src={lead.cover} alt={lead.title} width={1200} height={680} className="w-full h-[340px] object-cover transition-transform duration-700 group-hover:scale-[1.02]" />
               </div>
               <div className="mt-4 flex items-center gap-3 text-xs text-muted-foreground">
-                <img src={typeof (lead.authorPhoto) === "string" ? (lead.authorPhoto) : ((lead.authorPhoto)?.src ?? "")} alt={lead.author} className="h-8 w-8 rounded-full object-cover" loading="lazy" />
+                <Image src={lead.authorPhoto} alt={lead.author} width={32} height={32} className="h-8 w-8 rounded-full object-cover" />
                 <span className="font-semibold text-primary">{lead.author}</span>
                 <span>·</span>
                 <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" />{lead.date}</span>
@@ -173,10 +174,11 @@ const Blog = () => {
                   className="group flex flex-col"
                 >
                   <Link href={`/blog/${p.slug}`} className="block overflow-hidden rounded-xl border border-border/60 mb-4">
-                    <img
-                      src={typeof (p.cover) === "string" ? (p.cover) : ((p.cover)?.src ?? "")}
+                    <Image
+                      src={p.cover}
                       alt={p.title}
-                      loading="lazy"
+                      width={640}
+                      height={360}
                       className="w-full h-52 object-cover grayscale-[15%] transition-all duration-700 group-hover:grayscale-0 group-hover:scale-105"
                     />
                   </Link>
@@ -188,7 +190,7 @@ const Blog = () => {
                   </h3>
                   <p className="text-sm text-foreground/70 mt-2 leading-relaxed line-clamp-3">{p.dek}</p>
                   <div className="mt-4 pt-4 border-t border-border/60 flex items-center gap-3">
-                    <img src={typeof (p.authorPhoto) === "string" ? (p.authorPhoto) : ((p.authorPhoto)?.src ?? "")} alt={p.author} className="h-9 w-9 rounded-full object-cover" loading="lazy" />
+                    <Image src={p.authorPhoto} alt={p.author} width={36} height={36} className="h-9 w-9 rounded-full object-cover" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-primary truncate">{p.author}</p>
                       <p className="text-[10px] text-muted-foreground">{p.date} · {p.readTime} min read</p>

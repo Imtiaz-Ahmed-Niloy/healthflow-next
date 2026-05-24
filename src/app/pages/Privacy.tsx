@@ -1,5 +1,6 @@
 'use client';
 import { motion } from "framer-motion";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { User, FileText, Stethoscope, Globe, HelpCircle, Lock, Shield, CloudOff, Eye, Pencil, Trash2, ShieldCheck } from "lucide-react";
 import hipaaImg from "@/assets/hipaa-shield.jpg";
@@ -131,7 +132,7 @@ const Privacy = () => {
                   <p className="mt-3 text-sm text-foreground/80 max-w-md">HealthFlow is a "covered entity" under the Health Insurance Portability and Accountability Act (HIPAA). This means we are legally required to maintain the privacy of your protected health information (PHI) and to provide you with notice of our legal duties and privacy practices.</p>
                   <div className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-primary"><ShieldCheck className="h-4 w-4" /> Fully HIPAA Certified & Audited</div>
                 </div>
-                <img src={typeof (hipaaImg) === "string" ? (hipaaImg) : ((hipaaImg)?.src ?? "")} alt="HIPAA compliance badge" loading="lazy" width={180} height={180} className="rounded-2xl shadow-glow" />
+                <Image src={hipaaImg} alt="HIPAA compliance badge" width={180} height={180} className="rounded-2xl shadow-glow" />
               </motion.div>
             </section>
 

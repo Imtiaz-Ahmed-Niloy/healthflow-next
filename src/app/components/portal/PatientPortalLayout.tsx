@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { LayoutGrid, Calendar, Users, CreditCard, FileText, User, LogOut, Bell, Settings } from "lucide-react";
 import { toast } from "sonner";
@@ -21,7 +22,7 @@ export const PatientSidebar = () => {
   return (
     <aside className="w-64 bg-chip/40 border-r border-border/50 flex flex-col py-6 sticky top-0 h-screen shrink-0">
       <Link href="/" className="px-6 flex items-center gap-2">
-        <img src="/favicon.png" alt="HealthFlow logo" className="h-12 w-12 object-contain" />
+        <Image src="/favicon.png" alt="HealthFlow logo" width={48} height={48} className="h-12 w-12 object-contain" />
         <div>
           <div className="font-display text-xl text-primary font-bold">HealthFlow</div>
           <p className="text-[10px] tracking-widest font-semibold text-primary-glow mt-0.5">{t("sidebar.patientPortal")}</p>
@@ -62,7 +63,7 @@ export const PatientTopbar = () => {
               <p className="font-semibold text-sm text-primary leading-tight">Elena Verdant</p>
               <p className="text-[10px] tracking-widest font-bold text-primary-glow">PREMIUM PATIENT</p>
             </div>
-            <img src={typeof (patientEleanor) === "string" ? (patientEleanor) : ((patientEleanor)?.src ?? "")} alt="user" loading="lazy" width={40} height={40} className="h-10 w-10 rounded-full object-cover" />
+            <Image src={patientEleanor} alt="user" width={40} height={40} className="h-10 w-10 rounded-full object-cover" />
           </div>
           <button onClick={() => { toast.success("Signed out"); router.push("/signin"); }}
             className="flex items-center gap-2 text-sm font-semibold text-foreground/70 hover:text-destructive">
