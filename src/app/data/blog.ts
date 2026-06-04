@@ -6,15 +6,16 @@ import doc3 from "@/assets/doctors/doc-3.jpg";
 import doc4 from "@/assets/doctors/doc-4.jpg";
 import doc5 from "@/assets/doctors/doc-5.jpg";
 import doc6 from "@/assets/doctors/doc-6.jpg";
+import type { StaticImageData } from "next/image";
 
 export type Post = {
   slug: string;
   title: string;
   dek: string;
   category: string;
-  cover: string;
+  cover: StaticImageData;
   author: string;
-  authorPhoto: string;
+  authorPhoto: StaticImageData;
   authorRole: string;
   date: string;
   readTime: number;

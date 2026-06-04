@@ -1,9 +1,10 @@
 import patientEleanor from "@/assets/patient-eleanor.jpg";
 import patientMarcus from "@/assets/patient-marcus.jpg";
 import patientSarah from "@/assets/patient-sarah.jpg";
+import type { StaticImageData } from "next/image";
 
 export type QueuePatient = {
-  img: string;
+  img: string | StaticImageData;
   name: string;
   dob: string;
   time: string;

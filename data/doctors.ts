@@ -2,6 +2,7 @@ import doc1 from "@/assets/doctor-1.jpg";
 import doc2 from "@/assets/doctor-avatar.jpg";
 import doc3 from "@/assets/patient-sarah.jpg";
 import doc4 from "@/assets/patient-eleanor.jpg";
+import type { StaticImageData } from "next/image";
 
 export const specialtyTabs = [
   "All",
@@ -32,7 +33,7 @@ export type Doctor = {
   date: string;
   time: string;
   mode: "Telehealth" | "In-Person";
-  img: string;
+  img: StaticImageData;
 };
 
 export const doctors: Doctor[] = [

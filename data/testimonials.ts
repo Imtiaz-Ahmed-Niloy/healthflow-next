@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import t1 from "@/assets/testimonial-1.jpg";
 import t2 from "@/assets/testimonial-2.jpg";
 import t3 from "@/assets/testimonial-3.jpg";
+import type { StaticImageData } from "next/image";
 
 export type TestimonialAudience = "Patients" | "Doctors";
 
@@ -10,7 +11,7 @@ export type Testimonial = {
   audience: TestimonialAudience;
   name: string;
   role: string;
-  img: string;
+  img: string | StaticImageData;
   text: string;
 };
 

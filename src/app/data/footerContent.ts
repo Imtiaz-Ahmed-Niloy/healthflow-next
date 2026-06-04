@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-export type FooterLink = { label: string; to: string };
+export type FooterLink = { label: string; to: string; href?: string };
 export type FooterColumn = { title: string; links: FooterLink[] };
 export type FooterSocial = { twitter: string; facebook: string; instagram: string };
 

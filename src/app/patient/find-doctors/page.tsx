@@ -1,5 +1,10 @@
+import { Suspense } from "react";
 import FindDoctors from "@/pages/patient/FindDoctors";
 
 export default function PatientFindDoctorsPage() {
-  return <FindDoctors />;
+  return (
+    <Suspense fallback={null}>
+      <FindDoctors />
+    </Suspense>
+  );
 }

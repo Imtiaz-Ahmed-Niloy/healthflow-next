@@ -12,6 +12,7 @@ import exec3 from "@/assets/management/exec-3.jpg";
 import exec4 from "@/assets/management/exec-4.jpg";
 import exec5 from "@/assets/management/exec-5.jpg";
 import exec6 from "@/assets/management/exec-6.jpg";
+import type { StaticImageData } from "next/image";
 
 export type Doctor = {
   name: string;
@@ -20,7 +21,7 @@ export type Doctor = {
   rating: number;
   fee: number;
   available: string;
-  photo: string;
+  photo: string | StaticImageData;
   education: string;
   languages: string[];
   patients: number;
@@ -30,7 +31,7 @@ export type ManagementMember = {
   name: string;
   role: string;
   bio: string;
-  photo: string;
+  photo: string | StaticImageData;
   email: string;
   linkedin: string;
   tenure: string;
@@ -69,7 +70,7 @@ export type Hospital = {
   emails?: string[];
   websites?: string[];
   social?: { platform: string; url: string }[];
-  image: string;
+  image: string | StaticImageData;
   summary: string;
   about: string;
   facilities: string[];
