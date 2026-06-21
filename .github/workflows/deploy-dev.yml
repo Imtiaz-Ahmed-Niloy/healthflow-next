@@ -6,32 +6,24 @@ on:
       - dev
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v5
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build Next.js app
-        run: npm run build
-
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
           script: |
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            nvm use 22
+
+            export PATH="$HOME/.local/share/pnpm:$PATH"
+
             cd /opt/healthflow-web-dev
 
             git fetch origin dev
@@ -40,7 +32,6 @@ jobs:
             npm ci
             npm run build
 
-            pm2 delete healthflow-web-dev || true
-            pm2 start npm --name healthflow-web-dev -- start -- -p 9001
+            pm2 restart healthflow-web-dev || pm2 start npm --name healthflow-web-dev -- start -- -p 9001
 
             pm2 save
