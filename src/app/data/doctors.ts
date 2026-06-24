@@ -1,24 +1,28 @@
-import doc1 from "@/assets/doctor-1.jpg";
-import doc2 from "@/assets/doctor-avatar.jpg";
-import doc3 from "@/assets/patient-sarah.jpg";
-import doc4 from "@/assets/patient-eleanor.jpg";
+import male1 from "@/assets/doctors/male-1.jpg";
+import male2 from "@/assets/doctors/male-2.jpg";
+import male3 from "@/assets/doctors/male-3.jpg";
+import female1 from "@/assets/doctors/female-1.jpg";
+import female2 from "@/assets/doctors/female-2.jpg";
+import female3 from "@/assets/doctors/female-3.jpg";
 import type { StaticImageData } from "next/image";
 
 export const specialtyTabs = [
   "All",
   "Cardiology",
-  "Neurology",
-  "Dermatology",
-  "Pediatrics",
-  "Orthopedics",
-  "Oncology",
-  "Psychiatry",
-  "Gynecology",
-  "Ophthalmology",
-  "ENT",
   "Dentistry",
+  "ENT",
   "Endocrinology",
   "Gastroenterology",
+  "General Medicine",
+  "Gynecology",
+  "Nephrology",
+  "Neurology",
+  "Oncology",
+  "Orthopedics",
+  "Pediatrics",
+  "Psychiatry",
+  "Surgery",
+  "Urology",
 ] as const;
 
 export type SpecialtyTab = (typeof specialtyTabs)[number];
@@ -27,52 +31,74 @@ export type Doctor = {
   name: string;
   specialty: string;
   category: Exclude<SpecialtyTab, "All">;
+  location: string;
   rating: number;
   reviews: number;
   blurb: string;
   date: string;
   time: string;
   mode: "Telehealth" | "In-Person";
+  gender: "male" | "female";
   img: StaticImageData;
 };
 
-export const doctors: Doctor[] = [
-  { name: "Dr. Aris Thorne", specialty: "Interventional Cardiologist", category: "Cardiology", rating: 4.9, reviews: 240, blurb: "Pioneer in minimally-invasive cardiac procedures with sub-millimeter precision.", date: "May 14th", time: "08:00 AM", mode: "In-Person", img: doc1 },
-  { name: "Dr. Priya Patel", specialty: "Heart Failure Specialist", category: "Cardiology", rating: 4.8, reviews: 178, blurb: "Long-term cardiac rehabilitation and lifestyle-first treatment plans.", date: "May 16th", time: "10:00 AM", mode: "Telehealth", img: doc4 },
+const maleImages = { male1, male2, male3 } as const;
+const femaleImages = { female1, female2, female3 } as const;
 
-  { name: "Dr. Elena Vance", specialty: "Neurobiology Expert", category: "Neurology", rating: 4.8, reviews: 132, blurb: "Leading research in cognitive longevity and neuro-restoration with a holistic approach.", date: "May 12th", time: "10:30 AM", mode: "Telehealth", img: doc3 },
-  { name: "Dr. Lukas Berg", specialty: "Stroke Neurologist", category: "Neurology", rating: 4.7, reviews: 88, blurb: "Acute stroke response and post-event neuroplastic recovery programs.", date: "May 13th", time: "15:00 PM", mode: "In-Person", img: doc2 },
-
-  { name: "Dr. Sophia Patel", specialty: "Cosmetic Dermatology", category: "Dermatology", rating: 4.9, reviews: 318, blurb: "Restorative skincare blending laser therapy with botanical-based regimens.", date: "May 13th", time: "13:00 PM", mode: "In-Person", img: doc4 },
-  { name: "Dr. Idris Okafor", specialty: "Pediatric Dermatology", category: "Dermatology", rating: 4.8, reviews: 154, blurb: "Gentle, evidence-based treatments for pediatric skin conditions and allergies.", date: "May 12th", time: "11:00 AM", mode: "Telehealth", img: doc2 },
-
-  { name: "Dr. Mei Tanaka", specialty: "Pediatrician", category: "Pediatrics", rating: 5.0, reviews: 412, blurb: "Whole-family pediatric care from newborn screening to adolescent wellness.", date: "May 11th", time: "09:00 AM", mode: "In-Person", img: doc3 },
-  { name: "Dr. Julian Marsh", specialty: "Neonatologist", category: "Pediatrics", rating: 4.9, reviews: 196, blurb: "NICU lead with expertise in early-life respiratory and cardiac care.", date: "May 11th", time: "16:00 PM", mode: "Telehealth", img: doc2 },
-
-  { name: "Dr. Maya Brennan", specialty: "Orthopedic Surgeon", category: "Orthopedics", rating: 4.7, reviews: 96, blurb: "Joint reconstruction specialist with a focus on athlete recovery pathways.", date: "May 15th", time: "09:30 AM", mode: "In-Person", img: doc4 },
-  { name: "Dr. Rafael Costa", specialty: "Sports Medicine", category: "Orthopedics", rating: 4.8, reviews: 142, blurb: "Non-surgical management of musculoskeletal injuries and return-to-play plans.", date: "May 17th", time: "11:30 AM", mode: "In-Person", img: doc1 },
-
-  { name: "Dr. Nadia Rahman", specialty: "Medical Oncologist", category: "Oncology", rating: 4.9, reviews: 221, blurb: "Precision chemotherapy and targeted-therapy planning for solid tumors.", date: "May 18th", time: "10:00 AM", mode: "In-Person", img: doc3 },
-  { name: "Dr. Henry Liang", specialty: "Radiation Oncologist", category: "Oncology", rating: 4.8, reviews: 167, blurb: "Image-guided radiotherapy with adaptive treatment planning.", date: "May 19th", time: "14:00 PM", mode: "In-Person", img: doc2 },
-
-  { name: "Dr. Clara Fields", specialty: "Clinical Psychiatrist", category: "Psychiatry", rating: 4.9, reviews: 305, blurb: "Mood and anxiety disorders with evidence-based talk and pharmacotherapy.", date: "May 12th", time: "17:00 PM", mode: "Telehealth", img: doc4 },
-  { name: "Dr. Omar Haddad", specialty: "Child & Adolescent Psychiatrist", category: "Psychiatry", rating: 4.8, reviews: 119, blurb: "Family-centered care for ADHD, anxiety and adolescent mental health.", date: "May 14th", time: "12:00 PM", mode: "Telehealth", img: doc1 },
-
-  { name: "Dr. Aisha Bello", specialty: "Obstetrician–Gynecologist", category: "Gynecology", rating: 4.9, reviews: 264, blurb: "Comprehensive women's health, prenatal care and minimally-invasive surgery.", date: "May 15th", time: "08:30 AM", mode: "In-Person", img: doc3 },
-  { name: "Dr. Hannah Reyes", specialty: "Reproductive Endocrinologist", category: "Gynecology", rating: 4.8, reviews: 138, blurb: "Fertility evaluation and IVF planning with personalized hormonal protocols.", date: "May 16th", time: "13:30 PM", mode: "Telehealth", img: doc4 },
-
-  { name: "Dr. Victor Sato", specialty: "Cataract & Refractive Surgeon", category: "Ophthalmology", rating: 4.9, reviews: 211, blurb: "Vision correction with premium IOLs and same-day cataract procedures.", date: "May 13th", time: "09:00 AM", mode: "In-Person", img: doc1 },
-  { name: "Dr. Ingrid Solberg", specialty: "Retina Specialist", category: "Ophthalmology", rating: 4.8, reviews: 97, blurb: "Diabetic retinopathy and macular degeneration management.", date: "May 17th", time: "10:30 AM", mode: "In-Person", img: doc2 },
-
-  { name: "Dr. Marco Silva", specialty: "ENT Surgeon", category: "ENT", rating: 4.7, reviews: 102, blurb: "Sinus, voice and sleep-disordered breathing care for adults and children.", date: "May 14th", time: "14:30 PM", mode: "In-Person", img: doc1 },
-  { name: "Dr. Yuki Mori", specialty: "Audiologist", category: "ENT", rating: 4.9, reviews: 80, blurb: "Hearing diagnostics and modern hearing-aid fitting for all ages.", date: "May 15th", time: "11:00 AM", mode: "In-Person", img: doc3 },
-
-  { name: "Dr. Amelia Ross", specialty: "Cosmetic Dentist", category: "Dentistry", rating: 4.9, reviews: 198, blurb: "Smile design, veneers and whitening with conservative tooth preservation.", date: "May 12th", time: "10:00 AM", mode: "In-Person", img: doc4 },
-  { name: "Dr. Samir Khanna", specialty: "Orthodontist", category: "Dentistry", rating: 4.8, reviews: 121, blurb: "Modern aligner therapy and complex bite correction for teens and adults.", date: "May 18th", time: "16:00 PM", mode: "In-Person", img: doc2 },
-
-  { name: "Dr. Sarah Kim", specialty: "Endocrinologist", category: "Endocrinology", rating: 4.8, reviews: 156, blurb: "Diabetes, thyroid and hormone disorders with continuous-monitoring tech.", date: "May 13th", time: "15:30 PM", mode: "Telehealth", img: doc4 },
-  { name: "Dr. Daniel Park", specialty: "Diabetes Specialist", category: "Endocrinology", rating: 4.7, reviews: 89, blurb: "Type 1 and 2 diabetes management with personalized nutrition planning.", date: "May 16th", time: "09:30 AM", mode: "Telehealth", img: doc1 },
-
-  { name: "Dr. Olivia Hart", specialty: "Gastroenterologist", category: "Gastroenterology", rating: 4.9, reviews: 174, blurb: "Endoscopic diagnostics and IBD care with a focus on gut microbiome health.", date: "May 14th", time: "11:00 AM", mode: "In-Person", img: doc3 },
-  { name: "Dr. Karim Aziz", specialty: "Hepatologist", category: "Gastroenterology", rating: 4.8, reviews: 112, blurb: "Liver disease management including fatty liver and post-transplant care.", date: "May 19th", time: "13:00 PM", mode: "Telehealth", img: doc2 },
-];
+export const doctors: Doctor[] = ([
+  { name: "Dr. Mohammad Shoyeb", specialty: "Dental Surgeon", category: "Dentistry", location: "Cumilla, Bangladesh", rating: 4.5, reviews: 60, blurb: "Experienced dental surgeon practicing in Cumilla, Bangladesh, with a patient-first approach.", date: "May 14th", time: "09:00 AM", mode: "Telehealth", gender: "male", img: "male1" },
+  { name: "Dr. Md. Ashiqur Rahman", specialty: "Endocrinologist", category: "Endocrinology", location: "Dhaka, Bangladesh", rating: 4.6, reviews: 97, blurb: "Experienced endocrinologist practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 16th", time: "10:30 AM", mode: "In-Person", gender: "male", img: "male2" },
+  { name: "Dr. Md. Hasanuzzaman", specialty: "Homeopathic Specialist", category: "General Medicine", location: "Dhaka, Bangladesh", rating: 4.7, reviews: 134, blurb: "Experienced homeopathic specialist practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 12th", time: "11:00 AM", mode: "In-Person", gender: "male", img: "male3" },
+  { name: "Asso. Prof. Dr. Abdur Rabban Talukder", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.8, reviews: 171, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 18th", time: "14:00 PM", mode: "Telehealth", gender: "male", img: "male1" },
+  { name: "Prof. Dr. Jannatul Islam Jinnah", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.9, reviews: 208, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 20th", time: "15:30 PM", mode: "In-Person", gender: "female", img: "female1" },
+  { name: "Prof. Dr. Abm Ali Akbar Biswas", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.5, reviews: 245, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 22nd", time: "16:00 PM", mode: "In-Person", gender: "male", img: "male2" },
+  { name: "Dr. Md. Khademul Bashar", specialty: "Cancer Surgeon", category: "Oncology", location: "Dhaka, Bangladesh", rating: 4.6, reviews: 282, blurb: "Experienced cancer surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 24th", time: "09:00 AM", mode: "Telehealth", gender: "male", img: "male3" },
+  { name: "Dr. Golam Mahmud Rayhan", specialty: "Hepatobiliary Surgeon", category: "Gastroenterology", location: "Dhaka, Bangladesh", rating: 4.7, reviews: 319, blurb: "Experienced hepatobiliary surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 14th", time: "10:30 AM", mode: "In-Person", gender: "male", img: "male1" },
+  { name: "Dr. Ishrat Jahan", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.8, reviews: 76, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 16th", time: "11:00 AM", mode: "In-Person", gender: "female", img: "female2" },
+  { name: "Dr. Shakil Muhmmod", specialty: "Pediatrician", category: "Pediatrics", location: "Bangladesh, Bangladesh", rating: 4.9, reviews: 113, blurb: "Experienced pediatrician practicing in Bangladesh, Bangladesh, with a patient-first approach.", date: "May 12th", time: "14:00 PM", mode: "Telehealth", gender: "male", img: "male2" },
+  { name: "Prof. Dr. Sami Ahmad", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.5, reviews: 150, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 18th", time: "15:30 PM", mode: "In-Person", gender: "male", img: "male3" },
+  { name: "Prof. Dr. A. K. M. Shamsuddin", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.6, reviews: 187, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 20th", time: "16:00 PM", mode: "In-Person", gender: "male", img: "male1" },
+  { name: "Dr. Kazi Saiful Islam Shakil", specialty: "Cardiac Surgeon", category: "Cardiology", location: "Dhaka, Bangladesh", rating: 4.7, reviews: 224, blurb: "Experienced cardiac surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 22nd", time: "09:00 AM", mode: "Telehealth", gender: "male", img: "male2" },
+  { name: "Dr. Nazmul Hakim Shahin", specialty: "Hepatobiliary Surgeon", category: "Gastroenterology", location: "Dhaka, Bangladesh", rating: 4.8, reviews: 261, blurb: "Experienced hepatobiliary surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 24th", time: "10:30 AM", mode: "In-Person", gender: "male", img: "male3" },
+  { name: "Prof. Dr. Md. Margub Hossain", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.9, reviews: 298, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 14th", time: "11:00 AM", mode: "In-Person", gender: "male", img: "male1" },
+  { name: "Asso. Prof. Dr. Abdur Rabban Talukder", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.5, reviews: 335, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 16th", time: "14:00 PM", mode: "Telehealth", gender: "male", img: "male2" },
+  { name: "Lt. Gen. Dr. Zafarullah Siddiq", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.6, reviews: 92, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 12th", time: "15:30 PM", mode: "In-Person", gender: "male", img: "male3" },
+  { name: "Dr. Md. Nahid Sikder", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.7, reviews: 129, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 18th", time: "16:00 PM", mode: "In-Person", gender: "male", img: "male1" },
+  { name: "Dr. Shafqat Wahid Shishir", specialty: "Psychiatrist", category: "Psychiatry", location: "Pabna, Bangladesh", rating: 4.8, reviews: 166, blurb: "Experienced psychiatrist practicing in Pabna, Bangladesh, with a patient-first approach.", date: "May 20th", time: "09:00 AM", mode: "Telehealth", gender: "male", img: "male2" },
+  { name: "Dr. M. Mamun Miah", specialty: "Cancer Surgeon", category: "Oncology", location: "Dhaka, Bangladesh", rating: 4.9, reviews: 203, blurb: "Experienced cancer surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 22nd", time: "10:30 AM", mode: "In-Person", gender: "male", img: "male3" },
+  { name: "Prof. Dr. Md. Jamal Abu Nasser", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.5, reviews: 240, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 24th", time: "11:00 AM", mode: "In-Person", gender: "male", img: "male1" },
+  { name: "Prof. Dr. Akram Hossain", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.6, reviews: 277, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 14th", time: "14:00 PM", mode: "Telehealth", gender: "male", img: "male2" },
+  { name: "Dr. Md. Mahfuzul Momen", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.7, reviews: 314, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 16th", time: "15:30 PM", mode: "In-Person", gender: "male", img: "male3" },
+  { name: "Dr. Leea Amin", specialty: "Breast Surgeon", category: "Oncology", location: "Dhaka, Bangladesh", rating: 4.8, reviews: 71, blurb: "Experienced breast surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 12th", time: "16:00 PM", mode: "In-Person", gender: "female", img: "female3" },
+  { name: "Dr. Sadia Sajmin Siddiqua", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.9, reviews: 108, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 18th", time: "09:00 AM", mode: "Telehealth", gender: "female", img: "female1" },
+  { name: "Dr. Muhammad Nuruzzaman", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.5, reviews: 145, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 20th", time: "10:30 AM", mode: "In-Person", gender: "male", img: "male1" },
+  { name: "Dr. Md. Ahad Ibne Ilias", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.6, reviews: 182, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 22nd", time: "11:00 AM", mode: "In-Person", gender: "male", img: "male2" },
+  { name: "Dr. Muhammad Nuruzzaman", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.7, reviews: 219, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 24th", time: "14:00 PM", mode: "Telehealth", gender: "male", img: "male3" },
+  { name: "Prof. Dr. M. I. M. Nasim Sobhani Khondker", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.8, reviews: 256, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 14th", time: "15:30 PM", mode: "In-Person", gender: "male", img: "male1" },
+  { name: "Dr. Rahad Bin Kashem", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.9, reviews: 293, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 16th", time: "16:00 PM", mode: "In-Person", gender: "male", img: "male2" },
+  { name: "Lt. Col. Dr. Md. Maksud Rahman", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.5, reviews: 330, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 12th", time: "09:00 AM", mode: "Telehealth", gender: "male", img: "male3" },
+  { name: "Prof. Dr. Deb Prasad Pal", specialty: "Urologist", category: "Urology", location: "Dhaka, Bangladesh", rating: 4.6, reviews: 87, blurb: "Experienced urologist practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 18th", time: "10:30 AM", mode: "In-Person", gender: "male", img: "male1" },
+  { name: "Dr. Bidyut Chandra Debnath", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.7, reviews: 124, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 20th", time: "11:00 AM", mode: "In-Person", gender: "male", img: "male2" },
+  { name: "Dr. Md. Hafizur Rahman", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.8, reviews: 161, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 22nd", time: "14:00 PM", mode: "Telehealth", gender: "male", img: "male3" },
+  { name: "Prof. Dr. Anwarul Azim", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.9, reviews: 198, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 24th", time: "15:30 PM", mode: "In-Person", gender: "male", img: "male1" },
+  { name: "Prof. Dr. Mohammad Ali", specialty: "Hepatobiliary Surgeon", category: "Gastroenterology", location: "Dhaka, Bangladesh", rating: 4.5, reviews: 235, blurb: "Experienced hepatobiliary surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 14th", time: "16:00 PM", mode: "In-Person", gender: "male", img: "male2" },
+  { name: "Prof. Dr. Feroze Quader", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.6, reviews: 272, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 16th", time: "09:00 AM", mode: "Telehealth", gender: "male", img: "male3" },
+  { name: "Prof. Dr. A. K. Mostaque", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.7, reviews: 309, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 12th", time: "10:30 AM", mode: "In-Person", gender: "male", img: "male1" },
+  { name: "Prof. Dr. Md. Nizamul Haque", specialty: "Oncologist", category: "Oncology", location: "Dhaka, Bangladesh", rating: 4.8, reviews: 66, blurb: "Experienced oncologist practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 18th", time: "11:00 AM", mode: "In-Person", gender: "male", img: "male2" },
+  { name: "Dr. Md. Iftekharul Alam", specialty: "Orthopedic Specialist", category: "Orthopedics", location: "Dhaka, Bangladesh", rating: 4.9, reviews: 103, blurb: "Experienced orthopedic specialist practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 20th", time: "14:00 PM", mode: "Telehealth", gender: "male", img: "male3" },
+  { name: "Dr. Md. Mahmudul Haque Morshed", specialty: "Neurosurgeon", category: "Neurology", location: "Dhaka, Bangladesh", rating: 4.5, reviews: 140, blurb: "Experienced neurosurgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 22nd", time: "15:30 PM", mode: "In-Person", gender: "male", img: "male1" },
+  { name: "Dr. Kanu Lal Saha", specialty: "ENT Specialist", category: "ENT", location: "Dhaka, Bangladesh", rating: 4.6, reviews: 177, blurb: "Experienced ent specialist practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 24th", time: "16:00 PM", mode: "In-Person", gender: "male", img: "male2" },
+  { name: "Prof. Dr. Sufia Begum Shampy", specialty: "Gynecologist", category: "Gynecology", location: "Dhaka, Bangladesh", rating: 4.7, reviews: 214, blurb: "Experienced gynecologist practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 14th", time: "09:00 AM", mode: "Telehealth", gender: "female", img: "female2" },
+  { name: "Dr. Kanu Lal Saha", specialty: "ENT Specialist", category: "ENT", location: "Dhaka, Bangladesh", rating: 4.8, reviews: 251, blurb: "Experienced ent specialist practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 16th", time: "10:30 AM", mode: "In-Person", gender: "male", img: "male3" },
+  { name: "Dr. Momena Begum", specialty: "Pediatrician", category: "Pediatrics", location: "Dhaka, Bangladesh", rating: 4.9, reviews: 288, blurb: "Experienced pediatrician practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 12th", time: "11:00 AM", mode: "In-Person", gender: "female", img: "female3" },
+  { name: "Prof. Dr. Mohammed Yousuf", specialty: "ENT Specialist", category: "ENT", location: "Dhaka, Bangladesh", rating: 4.5, reviews: 325, blurb: "Experienced ent specialist practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 18th", time: "14:00 PM", mode: "Telehealth", gender: "male", img: "male1" },
+  { name: "Dr. Beena Sarker", specialty: "Nephrologist", category: "Nephrology", location: "Dhaka, Bangladesh", rating: 4.6, reviews: 82, blurb: "Experienced nephrologist practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 20th", time: "15:30 PM", mode: "In-Person", gender: "female", img: "female1" },
+  { name: "Prof. Dr. Md. Rafiqul Islam Delta", specialty: "Pediatrician", category: "Pediatrics", location: "Dhaka, Bangladesh", rating: 4.7, reviews: 119, blurb: "Experienced pediatrician practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 22nd", time: "16:00 PM", mode: "In-Person", gender: "male", img: "male2" },
+  { name: "Dr. Nadia Farzana Islam", specialty: "General Surgeon", category: "Surgery", location: "Dhaka, Bangladesh", rating: 4.8, reviews: 156, blurb: "Experienced general surgeon practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 24th", time: "09:00 AM", mode: "Telehealth", gender: "female", img: "female2" },
+  { name: "Dr. Md. Mobassar Hussain Mullick", specialty: "Pediatrician", category: "Pediatrics", location: "Dhaka, Bangladesh", rating: 4.9, reviews: 193, blurb: "Experienced pediatrician practicing in Dhaka, Bangladesh, with a patient-first approach.", date: "May 14th", time: "10:30 AM", mode: "In-Person", gender: "male", img: "male3" },
+] as const).map((d) => ({
+  ...d,
+  img: d.gender === "male"
+    ? maleImages[d.img as keyof typeof maleImages]
+    : femaleImages[d.img as keyof typeof femaleImages],
+}));

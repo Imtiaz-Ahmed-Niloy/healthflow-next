@@ -1,80 +1,103 @@
 'use client';
 import { useState } from "react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
-import { Card, Btn, SectionTitle, Pill } from "@/components/admin/ui";
-import { Field, Input, TextArea, Select } from "@/components/admin/crud";
 import { toast } from "sonner";
+import { Save, Building2, Users } from "lucide-react";
+import { AdminLayout } from "@/components/admin/AdminLayout";
+import { Card, SectionTitle } from "@/components/admin/ui";
+import { RecordFormFields } from "@/components/admin/ResourcePage";
+import { HOSPITAL_FIELDS, HOSPITAL_STEPS } from "@/data/hospitalFields";
+import { load, save } from "@/lib/storage";
 
-const tabs = ["Identity", "Branches", "Licenses", "Contacts"] as const;
-type Tab = typeof tabs[number];
+type Hospital = { id: string; [k: string]: unknown };
+
+const STORE_KEY = "super-hospitals";
 
 const HospitalProfile = () => {
-  const [tab, setTab] = useState<Tab>("Identity");
+  const [hospitals, setHospitals] = useState<Hospital[]>(() => load<Hospital[]>(STORE_KEY, []));
+  const [step, setStep] = useState(0);
+
+  const hospital = hospitals[0] || null;
+  const stepIds = HOSPITAL_STEPS.map(s => s.id);
+  const activeStepId = HOSPITAL_STEPS[step]?.id;
+
+  const stepIcons = [Building2, Users];
+
+  const onSave = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!hospital) return;
+    const fd = new FormData(e.currentTarget);
+    const patch: Record<string, unknown> = {};
+    HOSPITAL_FIELDS.forEach(f => { patch[f.name] = String(fd.get(f.name) ?? ""); });
+    const next = hospitals.map(h => h.id === hospital.id ? { ...h, ...patch } : h);
+    setHospitals(next);
+    save(STORE_KEY, next);
+    toast.success("Hospital profile saved");
+  };
+
+  if (!hospital) {
+    return (
+      <AdminLayout title="Hospital Profile" subtitle="Identity, owners, licenses & contacts">
+        <Card className="p-10 text-center">
+          <p className="text-sm text-muted-foreground">No hospital found. Ask the super admin to register your hospital first.</p>
+        </Card>
+      </AdminLayout>
+    );
+  }
+
+
   return (
-    <AdminLayout title="Hospital Profile" subtitle="Identity, branches, licenses & contacts">
-      <div className="inline-flex items-center gap-1 bg-muted/40 rounded-full p-1 mb-5 flex-wrap">
-        {tabs.map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold ${tab === t ? "bg-card text-primary shadow-soft" : "text-muted-foreground"}`}>{t}</button>
-        ))}
+    <AdminLayout title="Hospital Profile" subtitle="Update every detail registered for your hospital">
+      {/* Step nav */}
+      <div className="flex items-center gap-2 mb-5 flex-wrap">
+        {HOSPITAL_STEPS.map((s, i) => {
+          const Icon = stepIcons[i] || Building2;
+          const active = i === step;
+          return (
+            <button key={s.id} type="button" onClick={() => setStep(i)}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition ${active ? "bg-primary text-primary-foreground shadow-soft" : "bg-muted/60 text-muted-foreground hover:text-primary"}`}>
+              <Icon className="h-4 w-4" />
+              <span className={`h-5 w-5 rounded-full inline-flex items-center justify-center text-[10px] ${active ? "bg-primary-foreground/20" : "bg-background"}`}>{i + 1}</span>
+              {s.label}
+            </button>
+          );
+        })}
       </div>
 
-      {tab === "Identity" && (
-        <Card className="p-5">
-          <SectionTitle title="Identity" action={<Btn onClick={() => toast.success("Saved")}>Save</Btn>} />
-          <div className="grid md:grid-cols-2 gap-4">
-            <Field label="Hospital name"><Input defaultValue="Greenfield Hospital" /></Field>
-            <Field label="Type"><Select defaultValue="General"><option>General</option><option>Specialty</option><option>Teaching</option></Select></Field>
-            <Field label="Address"><Input defaultValue="221B Health Ave, NY" /></Field>
-            <Field label="Phone"><Input defaultValue="+1 555 0000" /></Field>
-            <Field label="Tagline"><Input defaultValue="Compassionate care, modern medicine" /></Field>
-            <Field label="Description"><TextArea defaultValue="A 320-bed multi-specialty hospital serving the metropolitan area." /></Field>
+      <Card className="p-6">
+        <SectionTitle
+          title={HOSPITAL_STEPS[step]?.label || ""}
+          action={
+            <button type="submit" form="hospital-profile-form"
+              className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90">
+              <Save className="h-4 w-4 mr-1.5" /> Save changes
+            </button>
+          }
+        />
+        <form id="hospital-profile-form" onSubmit={onSave}>
+          <RecordFormFields
+            fields={HOSPITAL_FIELDS}
+            editing={hospital as Record<string, unknown>}
+            activeStepId={activeStepId}
+            stepIds={stepIds}
+          />
+          <div className="flex justify-between items-center mt-6 pt-5 border-t border-border/40">
+            <button type="button" disabled={step === 0} onClick={() => setStep(s => Math.max(0, s - 1))}
+              className="px-4 py-2 rounded-full text-sm font-semibold border border-border disabled:opacity-40">Previous</button>
+            {step < HOSPITAL_STEPS.length - 1 ? (
+              <button type="button" onClick={() => setStep(s => Math.min(HOSPITAL_STEPS.length - 1, s + 1))}
+                className="px-4 py-2 rounded-full text-sm font-semibold border border-border">Next section</button>
+            ) : (
+              <button type="submit" form="hospital-profile-form"
+                className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90">
+                <Save className="h-4 w-4 mr-1.5" /> Save changes
+              </button>
+            )}
           </div>
-        </Card>
-      )}
-
-      {tab === "Branches" && (
-        <Card className="p-5">
-          <SectionTitle title="Branches" action={<Btn onClick={() => toast.success("Branch added")}>+ Add Branch</Btn>} />
-          {[{ n: "Main Campus", a: "221B Health Ave, NY", b: 320 }, { n: "Westside Clinic", a: "12 Care Rd, NJ", b: 48 }].map(b => (
-            <div key={b.n} className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3 mb-2">
-              <div>
-                <p className="font-semibold text-primary">{b.n}</p>
-                <p className="text-xs text-muted-foreground">{b.a} · {b.b} beds</p>
-              </div>
-              <Btn variant="ghost" onClick={() => toast.info("Editing")}>Edit</Btn>
-            </div>
-          ))}
-        </Card>
-      )}
-
-      {tab === "Licenses" && (
-        <Card className="p-5">
-          <SectionTitle title="Licenses & Accreditations" action={<Btn onClick={() => toast.success("License uploaded")}>+ Upload</Btn>} />
-          {[{ n: "Operating License 2026", e: "2026-12-31", s: "Active" }, { n: "JCI Accreditation", e: "2027-08-15", s: "Active" }, { n: "Lab CLIA Certificate", e: "2026-06-30", s: "Renewal" }].map(l => (
-            <div key={l.n} className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3 mb-2">
-              <div><p className="font-semibold text-primary">{l.n}</p><p className="text-xs text-muted-foreground">Expires {l.e}</p></div>
-              <Pill tone={l.s === "Active" ? "ok" : "warn"}>{l.s}</Pill>
-            </div>
-          ))}
-        </Card>
-      )}
-
-      {tab === "Contacts" && (
-        <Card className="p-5">
-          <SectionTitle title="Key Contacts" />
-          <div className="grid sm:grid-cols-2 gap-3">
-            {[{ r: "Medical Director", n: "Dr. Imran Khan", c: "+1 555 0001" }, { r: "CFO", n: "Lila Ahmed", c: "+1 555 0002" }, { r: "Head of Nursing", n: "Nadia Sultana", c: "+1 555 0003" }, { r: "IT Manager", n: "Bilal Hossain", c: "+1 555 0004" }].map(p => (
-              <div key={p.r} className="rounded-xl bg-muted/40 p-4">
-                <p className="text-[10px] tracking-widest text-muted-foreground">{p.r.toUpperCase()}</p>
-                <p className="font-semibold text-primary mt-1">{p.n}</p>
-                <p className="text-xs text-muted-foreground">{p.c}</p>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
+        </form>
+      </Card>
     </AdminLayout>
   );
 };
+
 export default HospitalProfile;
+
