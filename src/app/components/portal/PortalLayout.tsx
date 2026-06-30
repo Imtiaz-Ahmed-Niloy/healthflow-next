@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { LayoutGrid, Users, BookUser, Calendar, LogOut, Bell, Settings } from "lucide-react";
+import { LayoutGrid, Users, BookUser, Calendar, LogOut, Bell, Settings, BookOpen, BookText, MessagesSquare } from "lucide-react";
 import { toast } from "sonner";
 import { NavLink } from "@/components/NavLink";
 import LanguageSwitcher from "@/components/site/LanguageSwitcher";
@@ -14,6 +14,9 @@ const links = [
   { to: "/portal/queue", icon: Users, label: "Patient Queue" },
   { to: "/portal/directory", icon: BookUser, label: "Patient Directory" },
   { to: "/portal/schedule", icon: Calendar, label: "Schedule" },
+  { to: "/portal/community", icon: MessagesSquare, label: "Community" },
+  { to: "/portal/user-guide", icon: BookOpen, label: "User Guide" },
+  { to: "/portal/medical-dictionary", icon: BookText, label: "Medical Dictionary" },
 ];
 
 export const PortalSidebar = () => (

@@ -1,10 +1,11 @@
 import { ReactNode, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Building2, ShieldCheck, FileBarChart, Package, Globe2, ListChecks,
-  FileCode2, Receipt, Settings, LogOut, Bell, Menu, X, Network, Megaphone, LifeBuoy, ScrollText, Workflow,
+  FileCode2, Receipt, Settings, LogOut, Bell, Menu, X, Network, Megaphone, LifeBuoy, Workflow,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { NotificationProvider, useNotifications } from "@/components/admin/NotificationProvider";
@@ -21,10 +22,11 @@ export const superNav = [
   { to: "/super/hospitals", icon: Building2, label: "Hospital Management", group: "Tenants" },
   { to: "/super/onboarding", icon: Workflow, label: "Onboarding Queue", group: "Tenants" },
   { to: "/super/roles", icon: ShieldCheck, label: "User Role Management", group: "Tenants" },
+  { to: "/super/package-management", icon: Package, label: "Package Management", group: "Tenants" },
   { to: "/super/logs", icon: FileBarChart, label: "Log Reports", group: "Monitoring" },
-  { to: "/super/audit", icon: ScrollText, label: "Audit Trail", group: "Monitoring" },
+  
   { to: "/super/whitelisting", icon: ListChecks, label: "Whitelisting", group: "Monitoring" },
-  { to: "/super/packages", icon: Package, label: "Package Management", group: "Commerce" },
+  
   { to: "/super/billing", icon: Receipt, label: "Billing", group: "Commerce" },
   { to: "/super/cms", icon: FileCode2, label: "CMS Management", group: "Content" },
   { to: "/super/announcements", icon: Megaphone, label: "Announcements", group: "Content" },
@@ -38,7 +40,23 @@ const grouped = superNav.reduce<Record<string, typeof superNav>>((a, i) => {
   (a[i.group] ||= []).push(i); return a;
 }, {});
 
-export const SuperSidebar = ({ onNavigate }: { onNavigate?: () => void }) => (
+const CMS_SUBLINKS = [
+  { to: "/super/cms/home", label: "Home" },
+  { to: "/super/cms/features", label: "Features" },
+  { to: "/super/cms/pricing", label: "Pricing" },
+  { to: "/super/cms/about", label: "About Us" },
+  { to: "/super/cms/contact", label: "Contact" },
+  { to: "/super/cms/blog", label: "Blog" },
+];
+
+export const SuperSidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
+  const pathname = usePathname();
+  const cmsActive = pathname.startsWith("/super/cms");
+  const cmsOverviewActive = pathname === "/super/cms";
+  const [cmsOpen, setCmsOpen] = useState(false);
+  const showCmsLinks = cmsActive || cmsOpen;
+
+  return (
   <aside className="w-64 bg-chip/40 border-r border-border/50 flex flex-col py-6 sticky top-0 h-screen shrink-0 overflow-hidden">
     <Link href="/" className="px-6 flex items-center gap-2">
       <Image src="/favicon.png" alt="HealthFlow logo" width={48} height={48} className="h-12 w-12 object-contain" />
@@ -52,23 +70,66 @@ export const SuperSidebar = ({ onNavigate }: { onNavigate?: () => void }) => (
         <div key={g}>
           <p className="px-3 mb-1.5 text-[10px] tracking-widest font-bold text-muted-foreground/70">{g.toUpperCase()}</p>
           <div className="flex flex-col gap-0.5">
-            {items.map(l => (
-              <NavLink key={l.to} to={l.to} onClick={onNavigate}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
-                    isActive ? "bg-card text-primary shadow-soft" : "text-foreground/70 hover:bg-card/60"
-                  }`
-                }>
-                <l.icon className="h-4 w-4 shrink-0" /> <span className="truncate">{l.label}</span>
-              </NavLink>
-            ))}
+            {items.map(l => {
+              if (l.to === "/super/cms") {
+                return (
+                  <div key={l.to}>
+                    <button
+                      type="button"
+                      onClick={() => setCmsOpen(o => !o)}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
+                        cmsActive ? "bg-card text-primary shadow-soft" : "text-foreground/70 hover:bg-card/60"
+                      }`}
+                    >
+                      <l.icon className="h-4 w-4 shrink-0" />
+                      <span className="truncate flex-1 text-left">{l.label}</span>
+                      <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showCmsLinks ? "rotate-180" : ""}`} />
+                    </button>
+                    {showCmsLinks && (
+                      <div className="mt-1 ml-4 pl-3 border-l border-border/60 flex flex-col gap-0.5">
+                        <Link
+                          href="/super/cms"
+                          onClick={onNavigate}
+                          className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all ${
+                            cmsOverviewActive ? "bg-card text-primary" : "text-foreground/60 hover:text-primary hover:bg-card/40"
+                          }`}
+                        >
+                          Overview
+                        </Link>
+                        {CMS_SUBLINKS.map(s => (
+                          <NavLink key={s.to} to={s.to} onClick={onNavigate}
+                            className={({ isActive }) =>
+                              `px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all ${
+                                isActive ? "bg-card text-primary" : "text-foreground/60 hover:text-primary hover:bg-card/40"
+                              }`
+                            }>
+                            {s.label}
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+              return (
+                <NavLink key={l.to} to={l.to} onClick={onNavigate}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
+                      isActive ? "bg-card text-primary shadow-soft" : "text-foreground/70 hover:bg-card/60"
+                    }`
+                  }>
+                  <l.icon className="h-4 w-4 shrink-0" /> <span className="truncate">{l.label}</span>
+                </NavLink>
+              );
+            })}
           </div>
         </div>
       ))}
     </nav>
     <div className="px-6 pt-4 text-[10px] tracking-widest font-semibold text-muted-foreground">© 2026 HEALTHFLOW</div>
   </aside>
-);
+  );
+};
 
 const TopbarInner = ({ title, subtitle, onMenu, menuOpen }: { title: string; subtitle?: string; onMenu: () => void; menuOpen: boolean }) => {
   const router = useRouter();
