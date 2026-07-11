@@ -1,0 +1,98 @@
+{
+  "nav": {
+    "features": "Features",
+    "pricing": "Pricing",
+    "about": "About Us",
+    "contact": "Contact",
+    "signIn": "Sign In",
+    "getStarted": "Get Started"
+  },
+  "common": {
+    "language": "Language",
+    "english": "English",
+    "bangla": "বাংলা",
+    "search": "Search",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "add": "Add",
+    "submit": "Submit",
+    "loading": "Loading...",
+    "back": "Back",
+    "next": "Next",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "hero": {
+    "badge": "RESTORATIVE CARE FOR EVERYONE",
+    "title1": "Your Health,",
+    "title2": "Connected in One Place.",
+    "desc": "Find trusted hospitals, clinics, doctors, diagnostics, and pharmacies — all in one powerful platform designed for your complete healthcare journey. \n\n\nBook appointments. Compare services. Access reports. Order medicines. Get better care — faster, smarter.",
+    "book": "Book a Consultation",
+    "explore": "Explore Hubs"
+  },
+  "stats": {
+    "clinics": "Health Specialists",
+    "patients": "Patients Served",
+    "uptime": "Satisfaction Rate\u00a0",
+    "awards": "Verified Health Hubs" ,
+    "hubs_desc": "Access verified hospitals, clinics, and diagnostic centers you can trust — all in one secure platform designed to connect you with quality healthcare, faster decisions, and better patient outcomes."
+  },
+  "pricing": {
+    "heading": "Plan For Health Hubs",
+    "subheading": "Choose a plan that aligns with your journey.\nAll plans include 24/7 digital access to your care team.",
+    "recommended": "RECOMMENDED",
+    "perMonth": "TK/month",
+    "essential": "Essential",
+    "vitality": "Vitality",
+    "holistic": "Enterprise",
+    "startEssential": "Choose Essential",
+    "chooseVitality": "Choose Vitality",
+    "inquire": "Inquire Now",
+    "feat": {
+      "patientFull": "Patient Portal (Full Data Access)",
+      "doctorLimited": "Doctor Panel (Limited Access)",
+      "mgmtLimited": "Management Panel (Limited Access)",
+      "doctorFull": "Doctor Panel (Full Access)",
+      "mgmtFull": "Management Panel (Full Access)",
+      "lab": "Lab Management",
+      "fullPlatform": "Full Platform Access",
+      "hr": "HR & Payroll Panel",
+      "finance": "Accounts & Finance Panel"
+    }
+  },
+  "footer": {
+    "tagline": "Your Complete Digital Healthcare Partner.",
+    "resources": "RESOURCES",
+    "legal": "LEGAL",
+    "newsletter": "NEWSLETTER",
+    "emailPlaceholder": "Email address",
+    "rights": "© 2026 HealthFlow. All rights reserved.",
+    "helpCenter": "Help Center",
+    "blog": "Blog",
+    "career": "Career",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "dataUse": "Data Use Policy",
+    "cookies": "Cookie Settings"
+  },
+  "testimonials": {
+    "heading": "What Do People Think About Us?",
+    "patients": "Patients",
+    "doctors": "Doctors"
+  },
+  "sidebar": {
+    "dashboard": "Dashboard",
+    "appointments": "Appointments",
+    "findDoctors": "Find Doctors",
+    "billing": "Billing",
+    "medicalRecords": "Medical Records",
+    "myProfile": "My Profile",
+    "patientPortal": "PATIENT PORTAL",
+    "adminPortal": "ADMIN PORTAL",
+    "superPortal": "SUPER ADMIN",
+    "doctorPortal": "DOCTOR PORTAL",
+    "signOut": "Sign Out"
+  }
+}
