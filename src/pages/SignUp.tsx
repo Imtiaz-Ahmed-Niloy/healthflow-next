@@ -1,41 +1,177 @@
-"use client";
+﻿"use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { User, Mail, Lock, Eye, EyeOff, Briefcase, Settings, Shield, CheckCircle2 } from "lucide-react";
+import { BadgeInfo, CalendarDays, ChevronDown, Eye, EyeOff, Lock, Mail, Phone, Shield, User } from "lucide-react";
 import { toast } from "sonner";
+import { useForm, type SubmitErrorHandler, type SubmitHandler } from "react-hook-form";
 import { AuthLayout } from "@/components/site/AuthLayout";
+import { usePatientSignupMutation, type PatientSignupRequest, type PatientSignupResponse } from "@/redux/features/auth/authApi";
+import { clearSignupResult, setSignupResult } from "@/redux/features/auth/authSlice";
+import { useAppDispatch } from "@/redux/hooks";
+import { parseApiError } from "@/lib/rtkQueryError";
 
-const SignUp = () => {
-  const router = useRouter();
-  const [show, setShow] = useState(false);
-  const [role, setRole] = useState<"provider" | "admin">("provider");
+type PatientSignupFormValues = PatientSignupRequest;
 
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    toast.success("Account created", { description: "Welcome to HealthFlow!" });
-    setTimeout(() => router.push("/portal/queue"), 600);
+const genderOptions = ["Female", "Male", "Non-binary", "Prefer not to say"] as const;
+const signupFieldNames = ["fullName", "email", "phone", "password", "gender", "dateOfBirth"] as const;
+
+const isSignupGender = (value: string): value is (typeof genderOptions)[number] =>
+  genderOptions.includes(value as (typeof genderOptions)[number]);
+
+const getLocalDateValue = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+const parseLocalDateValue = (value: string) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const parsed = new Date(year, month - 1, day);
+
+  if (
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month - 1 ||
+    parsed.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return parsed;
+};
+
+const isSignupField = (field: string): field is (typeof signupFieldNames)[number] =>
+  signupFieldNames.includes(field as (typeof signupFieldNames)[number]);
+
+const Signup = () => {
+  const dispatch = useAppDispatch();
+  const [showPassword, setShowPassword] = useState(false);
+  const [patientSignup, { isLoading }] = usePatientSignupMutation();
+  const {
+    register,
+    handleSubmit,
+    setError,
+    clearErrors,
+    reset,
+    formState: { errors },
+  } = useForm<PatientSignupFormValues>({
+    mode: "onTouched",
+    reValidateMode: "onChange",
+    defaultValues: {
+      fullName: "",
+      email: "",
+      phone: "",
+      password: "",
+      gender: "",
+      dateOfBirth: "",
+    },
+  });
+
+  useEffect(() => {
+    dispatch(clearSignupResult());
+  }, [dispatch]);
+
+  const onSubmit: SubmitHandler<PatientSignupFormValues> = async (values) => {
+    try {
+      clearErrors();
+      dispatch(clearSignupResult());
+
+      const payload: PatientSignupRequest = {
+        fullName: values.fullName.trim(),
+        email: values.email.trim().toLowerCase(),
+        phone: values.phone.trim(),
+        password: values.password,
+        gender: values.gender,
+        dateOfBirth: values.dateOfBirth,
+      };
+
+      const response = await patientSignup(payload).unwrap();
+      const signupResponse: PatientSignupResponse = response;
+      const signupData = signupResponse.patient ?? signupResponse.user ?? signupResponse.data ?? null;
+
+      dispatch(
+        setSignupResult({
+          data: signupData,
+          success: true,
+        }),
+      );
+
+      toast.success(signupResponse.message ?? "Account created", {
+        description: "Your patient account has been created successfully.",
+      });
+      reset();
+    } catch (error) {
+      const parsed = parseApiError(error);
+
+      Object.entries(parsed.fieldErrors).forEach(([field, message]) => {
+        if (!isSignupField(field)) {
+          return;
+        }
+
+        setError(field, {
+          type: "server",
+          message,
+        });
+      });
+
+      toast.error(parsed.message);
+    }
   };
+
+  const onInvalid: SubmitErrorHandler<PatientSignupFormValues> = () => {
+    toast.error("Please complete all required fields correctly.");
+  };
+
+  const today = getLocalDateValue();
 
   return (
     <AuthLayout>
       <div className="flex justify-center items-start pt-8">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
-          className="rounded-3xl bg-card shadow-soft p-8 md:p-10 w-full max-w-lg">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="rounded-3xl bg-card shadow-soft p-8 md:p-10 w-full max-w-lg"
+        >
           <div className="text-center">
-            <span className="inline-flex rounded-full bg-chip text-chip-foreground px-4 py-1.5 text-[10px] font-bold tracking-widest">HEALTHFLOW</span>
-            <h1 className="mt-5 font-display text-3xl text-primary">Create your account</h1>
-            <p className="text-sm text-muted-foreground mt-2">Start your Month free trial. No credit card required.</p>
+            <span className="inline-flex rounded-full bg-chip text-chip-foreground px-4 py-1.5 text-[10px] font-bold tracking-widest">
+              HEALTHFLOW
+            </span>
+            <h1 className="mt-5 font-display text-3xl text-primary">Create your patient account</h1>
+            <p className="text-sm text-muted-foreground mt-2">
+              Join HealthFlow and start managing your care from one place.
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3 mt-6">
-            <button type="button" onClick={() => toast("Google sign-up coming soon")} className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card hover:bg-muted/40 py-3 text-sm font-semibold transition-colors">
-              <span className="h-5 w-5 rounded-full bg-gradient-dark grid place-items-center text-[10px] text-surface-dark-foreground font-bold">G</span> Google
+            <button
+              type="button"
+              onClick={() => toast("Google sign-up coming soon")}
+              className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card hover:bg-muted/40 py-3 text-sm font-semibold transition-colors"
+            >
+              <span className="h-5 w-5 rounded-full bg-gradient-dark grid place-items-center text-[10px] text-surface-dark-foreground font-bold">
+                G
+              </span>
+              Google
             </button>
-            <button type="button" onClick={() => toast("SSO coming soon")} className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card hover:bg-muted/40 py-3 text-sm font-semibold transition-colors">
-              <Shield className="h-4 w-4 text-primary" /> SSO
+            <button
+              type="button"
+              onClick={() => toast("SSO coming soon")}
+              className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card hover:bg-muted/40 py-3 text-sm font-semibold transition-colors"
+            >
+              <Shield className="h-4 w-4 text-primary" />
+              SSO
             </button>
           </div>
 
@@ -45,49 +181,258 @@ const SignUp = () => {
             <hr className="flex-1 border-border/60" />
           </div>
 
-          <form onSubmit={onSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-4" noValidate>
             <div>
-              <label className="text-[11px] tracking-widest font-bold text-primary">FULL NAME</label>
+              <label htmlFor="fullName" className="text-[11px] tracking-widest font-bold text-primary">
+                FULL NAME
+              </label>
               <div className="relative mt-2">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input required placeholder="Dr. Julian Reed" className="w-full bg-muted/60 rounded-xl pl-10 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary" />
+                <input
+                  id="fullName"
+                  placeholder="Ayesha Rahman"
+                  aria-invalid={Boolean(errors.fullName)}
+                  aria-describedby={errors.fullName ? "fullName-error" : undefined}
+                  className="w-full bg-muted/60 rounded-xl pl-10 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
+                  {...register("fullName", {
+                    required: "Full name is required.",
+                    validate: (value) => {
+                      const trimmed = value.trim();
+
+                      if (trimmed.length < 2) {
+                        return "Full name must be at least 2 characters.";
+                      }
+
+                      if (trimmed.length > 100) {
+                        return "Full name must be 100 characters or fewer.";
+                      }
+
+                      return trimmed.length > 0 || "Full name is required.";
+                    },
+                  })}
+                />
               </div>
+              {errors.fullName?.message ? (
+                <p id="fullName-error" role="alert" className="mt-1.5 text-xs text-destructive">
+                  {errors.fullName.message}
+                </p>
+              ) : null}
             </div>
+
             <div>
-              <label className="text-[11px] tracking-widest font-bold text-primary">EMAIL ADDRESS</label>
+              <label htmlFor="email" className="text-[11px] tracking-widest font-bold text-primary">
+                EMAIL ADDRESS
+              </label>
               <div className="relative mt-2">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input required type="email" placeholder="j.reed@medical.com" className="w-full bg-muted/60 rounded-xl pl-10 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary" />
+                <input
+                  id="email"
+                  type="email"
+                  placeholder="patient@example.com"
+                  aria-invalid={Boolean(errors.email)}
+                  aria-describedby={errors.email ? "email-error" : undefined}
+                  className="w-full bg-muted/60 rounded-xl pl-10 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
+                  {...register("email", {
+                    required: "Email address is required.",
+                    validate: (value) => {
+                      const trimmed = value.trim();
+                      if (!trimmed) {
+                        return "Email address is required.";
+                      }
+
+                      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                      return emailPattern.test(trimmed) || "Please enter a valid email address.";
+                    },
+                  })}
+                />
               </div>
+              {errors.email?.message ? (
+                <p id="email-error" role="alert" className="mt-1.5 text-xs text-destructive">
+                  {errors.email.message}
+                </p>
+              ) : null}
             </div>
+
             <div>
-              <label className="text-[11px] tracking-widest font-bold text-primary">PASSWORD</label>
+              <label htmlFor="phone" className="text-[11px] tracking-widest font-bold text-primary">
+                PHONE NUMBER
+              </label>
+              <div className="relative mt-2">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  id="phone"
+                  type="tel"
+                  inputMode="tel"
+                  placeholder="01712345678 or +8801712345678"
+                  aria-invalid={Boolean(errors.phone)}
+                  aria-describedby={errors.phone ? "phone-error" : undefined}
+                  className="w-full bg-muted/60 rounded-xl pl-10 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
+                  {...register("phone", {
+                    required: "Phone number is required.",
+                    validate: (value) => {
+                      const trimmed = value.trim();
+                      if (!trimmed) {
+                        return "Phone number is required.";
+                      }
+
+                      const localPattern = /^01\d{9}$/;
+                      const internationalPattern = /^\+8801\d{9}$/;
+                      const plainCountryPattern = /^8801\d{9}$/;
+
+                      return (
+                        localPattern.test(trimmed) ||
+                        internationalPattern.test(trimmed) ||
+                        plainCountryPattern.test(trimmed) ||
+                        "Please enter a valid phone number."
+                      );
+                    },
+                  })}
+                />
+              </div>
+              {errors.phone?.message ? (
+                <p id="phone-error" role="alert" className="mt-1.5 text-xs text-destructive">
+                  {errors.phone.message}
+                </p>
+              ) : null}
+            </div>
+
+            <div>
+              <label htmlFor="password" className="text-[11px] tracking-widest font-bold text-primary">
+                PASSWORD
+              </label>
               <div className="relative mt-2">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input required type={show ? "text" : "password"} placeholder="••••••••" className="w-full bg-muted/60 rounded-xl pl-10 pr-10 py-3 text-sm outline-none focus:ring-2 focus:ring-primary" />
-                <button type="button" onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  aria-invalid={Boolean(errors.password)}
+                  aria-describedby={errors.password ? "password-error" : undefined}
+                  className="w-full bg-muted/60 rounded-xl pl-10 pr-10 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
+                  {...register("password", {
+                    required: "Password is required.",
+                    validate: (value) => {
+                      if (value.length < 8) {
+                        return "Password must be at least 8 characters.";
+                      }
+
+                      if (value.length > 128) {
+                        return "Password must be 128 characters or fewer.";
+                      }
+
+                      const hasLetter = /[A-Za-z]/.test(value);
+                      const hasNumber = /\d/.test(value);
+
+                      return hasLetter && hasNumber
+                        ? true
+                        : "Password must contain at least one letter and one number.";
+                    },
+                  })}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((current) => !current)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              {errors.password?.message ? (
+                <p id="password-error" role="alert" className="mt-1.5 text-xs text-destructive">
+                  {errors.password.message}
+                </p>
+              ) : null}
             </div>
 
             <div>
-              <label className="text-[11px] tracking-widest font-bold text-primary">PROFESSIONAL ROLE</label>
-              <div className="mt-2 space-y-2">
-                {[
-                  { id: "provider" as const, icon: Briefcase, t: "Medical Provider" },
-                  { id: "admin" as const, icon: Settings, t: "Administrative Staff" },
-                ].map(r => (
-                  <button key={r.id} type="button" onClick={() => setRole(r.id)}
-                    className={`w-full flex items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold transition-all border-2 ${role === r.id ? "bg-chip border-primary text-primary" : "bg-muted/40 border-transparent text-foreground/70 hover:bg-muted/60"}`}>
-                    <span className="flex items-center gap-3"><r.icon className="h-4 w-4" /> {r.t}</span>
-                    {role === r.id && <CheckCircle2 className="h-4 w-4" />}
-                  </button>
-                ))}
+              <label htmlFor="gender" className="text-[11px] tracking-widest font-bold text-primary">
+                GENDER
+              </label>
+              <div className="relative mt-2">
+                <BadgeInfo className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <select
+                  id="gender"
+                  aria-invalid={Boolean(errors.gender)}
+                  aria-describedby={errors.gender ? "gender-error" : undefined}
+                  className="w-full appearance-none bg-muted/60 rounded-xl pl-10 pr-10 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
+                  {...register("gender", {
+                    required: "Please select a gender.",
+                    validate: (value) => isSignupGender(value) || "Please select a gender.",
+                  })}
+                >
+                  <option value="">Select gender</option>
+                  {genderOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               </div>
+              {errors.gender?.message ? (
+                <p id="gender-error" role="alert" className="mt-1.5 text-xs text-destructive">
+                  {errors.gender.message}
+                </p>
+              ) : null}
             </div>
 
-            <button className="w-full rounded-full bg-gradient-dark text-surface-dark-foreground py-3.5 text-sm font-semibold hover:opacity-90 shadow-glow transition-opacity">Create Account</button>
+            <div>
+              <label htmlFor="dateOfBirth" className="text-[11px] tracking-widest font-bold text-primary">
+                DATE OF BIRTH
+              </label>
+              <div className="relative mt-2">
+                <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  id="dateOfBirth"
+                  type="date"
+                  max={today}
+                  aria-invalid={Boolean(errors.dateOfBirth)}
+                  aria-describedby={errors.dateOfBirth ? "dateOfBirth-error" : undefined}
+                  className="w-full bg-muted/60 rounded-xl pl-10 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
+                  {...register("dateOfBirth", {
+                    required: "Date of birth is required.",
+                    validate: (value) => {
+                      const trimmed = value.trim();
+                      if (!trimmed) {
+                        return "Date of birth is required.";
+                      }
+
+                      const parsedDate = parseLocalDateValue(trimmed);
+
+                      if (!parsedDate) {
+                        return "Please enter a valid date of birth.";
+                      }
+
+                      const limit = parseLocalDateValue(today);
+
+                      if (!limit) {
+                        return "Please enter a valid date of birth.";
+                      }
+
+                      if (parsedDate > limit) {
+                        return "Date of birth cannot be in the future.";
+                      }
+
+                      return true;
+                    },
+                  })}
+                />
+              </div>
+              {errors.dateOfBirth?.message ? (
+                <p id="dateOfBirth-error" role="alert" className="mt-1.5 text-xs text-destructive">
+                  {errors.dateOfBirth.message}
+                </p>
+              ) : null}
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full rounded-full bg-gradient-dark text-surface-dark-foreground py-3.5 text-sm font-semibold hover:opacity-90 shadow-glow transition-opacity disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {isLoading ? "Creating account..." : "Create Account"}
+            </button>
 
             <div className="rounded-2xl bg-muted/40 p-3 flex items-center gap-3 text-xs text-muted-foreground">
               <div className="flex -space-x-2">
@@ -97,12 +442,17 @@ const SignUp = () => {
               <p>"The most intuitive clinical platform I've ever used."</p>
             </div>
 
-            <p className="text-center text-xs text-muted-foreground">Already have an account? <Link href="/signin" className="font-semibold text-primary-glow hover:underline">Sign In</Link></p>
+            <p className="text-center text-xs text-muted-foreground">
+              Already have an account?{" "}
+              <Link href="/signin" className="font-semibold text-primary-glow hover:underline">
+                Sign In
+              </Link>
+            </p>
           </form>
         </motion.div>
       </div>
     </AuthLayout>
   );
 };
-export default SignUp;
 
+export default Signup;

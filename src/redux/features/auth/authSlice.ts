@@ -1,4 +1,5 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import type { PatientAuthUser } from "@/redux/features/auth/authApi";
 
 export interface AuthUser {
   id?: string | number;
@@ -10,11 +11,18 @@ export interface AuthUser {
 export interface AuthState {
   user: AuthUser | null;
   token: string | null;
+  signupData: PatientAuthUser | null;
+  signupSuccess: boolean;
 }
 
 export interface SetUserPayload {
   user: AuthUser | null;
   token?: string | null;
+}
+
+export interface SetSignupResultPayload {
+  data: PatientAuthUser | null;
+  success: boolean;
 }
 
 const isClient = () => typeof window !== "undefined";
@@ -35,6 +43,8 @@ const setStoredToken = (token: string | null | undefined) => {
 const initialState: AuthState = {
   user: null,
   token: null,
+  signupData: null,
+  signupSuccess: false,
 };
 
 const authSlice = createSlice({
@@ -51,8 +61,16 @@ const authSlice = createSlice({
       state.token = null;
       setStoredToken(null);
     },
+    setSignupResult: (state, action: PayloadAction<SetSignupResultPayload>) => {
+      state.signupData = action.payload.data;
+      state.signupSuccess = action.payload.success;
+    },
+    clearSignupResult: (state) => {
+      state.signupData = null;
+      state.signupSuccess = false;
+    },
   },
 });
 
-export const { setUser, logout } = authSlice.actions;
+export const { setUser, logout, setSignupResult, clearSignupResult } = authSlice.actions;
 export default authSlice.reducer;
