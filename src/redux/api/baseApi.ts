@@ -1,6 +1,6 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
-const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
+const baseUrl = "https://api.dev.healthflowbd.com/api/v1";
 
 export const baseApi = createApi({
   reducerPath: "baseApi",
@@ -18,6 +18,6 @@ export const baseApi = createApi({
       return headers;
     },
   }),
-  tagTypes: ["Auth", "User", "Doctor", "Appointment", "Health"],
+  tagTypes: ["Auth", "User", "Doctor", "Appointment", "Health", "PatientAuth"],
   endpoints: () => ({}),
 });
