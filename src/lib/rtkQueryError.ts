@@ -52,6 +52,14 @@ const mapFriendlyMessage = (source: string, status?: number | string): string =>
     return "Network error. Please check your connection and try again.";
   }
 
+  if (status === 401) {
+    return "Invalid email or password.";
+  }
+
+  if (status === 403 || contains(normalized, ["inactive", "disabled", "suspended"])) {
+    return "This account is not active. Please contact support.";
+  }
+
   if (status === "FETCH_ERROR") {
     return "Network error. Please check your connection and try again.";
   }

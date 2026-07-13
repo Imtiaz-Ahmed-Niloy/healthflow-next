@@ -4,10 +4,17 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShieldPlus, User, Stethoscope, BarChart3, ShieldCheck } from "lucide-react";
+import { BarChart3, Eye, EyeOff, ShieldCheck, Stethoscope, User } from "lucide-react";
 import { toast } from "sonner";
+import { useForm, type SubmitErrorHandler, type SubmitHandler } from "react-hook-form";
 import { AuthLayout } from "@/components/site/AuthLayout";
-import { authenticateTenant, startSession, provisionTenant } from "@/lib/tenants";
+import { authenticateTenant, provisionTenant, startSession } from "@/lib/tenants";
+import { persistTokens } from "@/lib/auth/tokenStorage";
+import { parseApiError } from "@/lib/rtkQueryError";
+import { useLoginMutation } from "@/redux/features/auth/authApi";
+import { setCredentials } from "@/redux/features/auth/authSlice";
+import { useAppDispatch } from "@/redux/hooks";
+
 const vitamin = "/assets/product-vitamin.jpg";
 const brain = "/assets/product-brain.jpg";
 const sanitizer = "/assets/product-sanitizer.jpg";
@@ -15,12 +22,12 @@ const mist = "/assets/product-mist.jpg";
 
 const sideAds = {
   left: [
-    { tag: "SPONSORED", img: vitamin, t: "VitaBoost Pro™", d: "Advanced multivitamin complex for daily performance and immunity support.", tagColor: "bg-primary text-primary-foreground" },
-    { tag: "NEW ARRIVAL", img: sanitizer, t: "EcoSanit™ Max", d: "Eco-friendly medical grade sanitization for healthcare professionals.", tagColor: "bg-primary text-primary-foreground" },
+    { tag: "SPONSORED", img: vitamin, t: "VitaBoost Pro", d: "Advanced multivitamin complex for daily performance and immunity support.", tagColor: "bg-primary text-primary-foreground" },
+    { tag: "NEW ARRIVAL", img: sanitizer, t: "EcoSanit Max", d: "Eco-friendly medical grade sanitization for healthcare professionals.", tagColor: "bg-primary text-primary-foreground" },
   ],
   right: [
-    { tag: "LIMITED OFFER", img: brain, t: "NeuroPlus™", d: "Nootropic formulation for enhanced cognitive focus and mental clarity.", tagColor: "bg-destructive text-destructive-foreground" },
-    { tag: "HEALTH TIP", img: mist, t: "SleepWell™ Mist", d: "Calming lavender and melatonin pillow spray for restorative sleep cycles.", tagColor: "bg-accent text-primary" },
+    { tag: "LIMITED OFFER", img: brain, t: "NeuroPlus", d: "Nootropic formulation for enhanced cognitive focus and mental clarity.", tagColor: "bg-destructive text-destructive-foreground" },
+    { tag: "HEALTH TIP", img: mist, t: "SleepWell Mist", d: "Calming lavender and melatonin pillow spray for restorative sleep cycles.", tagColor: "bg-accent text-primary" },
   ],
 };
 
@@ -31,7 +38,7 @@ const demos = [
   { icon: Stethoscope, t: "Super Admin", e: "root@demo.pro", p: "system000" },
 ];
 
-const AdCard = ({ a }: { a: typeof sideAds.left[0] }) => (
+const AdCard = ({ a }: { a: (typeof sideAds.left)[0] }) => (
   <motion.div whileHover={{ y: -4 }} className="rounded-3xl bg-card border border-border/60 overflow-hidden shadow-soft">
     <div className="relative">
       <img src={a.img} alt={a.t} loading="lazy" width={512} height={512} className="aspect-square w-full object-cover" />
@@ -44,10 +51,31 @@ const AdCard = ({ a }: { a: typeof sideAds.left[0] }) => (
   </motion.div>
 );
 
+interface SignInFormValues {
+  email: string;
+  password: string;
+}
+
 const SignIn = () => {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const dispatch = useAppDispatch();
+  const [showPassword, setShowPassword] = useState(false);
+  const [generalError, setGeneralError] = useState<string | null>(null);
+  const [login, { isLoading }] = useLoginMutation();
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    clearErrors,
+    formState: { errors },
+  } = useForm<SignInFormValues>({
+    mode: "onTouched",
+    reValidateMode: "onChange",
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
 
   const routeFor = (mail: string) => {
     if (mail.startsWith("dr-")) return "/portal/queue";
@@ -56,8 +84,12 @@ const SignIn = () => {
     return "/patient/dashboard";
   };
 
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit: SubmitHandler<SignInFormValues> = async (values) => {
+    clearErrors();
+    setGeneralError(null);
+    const email = values.email.trim().toLowerCase();
+    const password = values.password;
+
     const tenant = authenticateTenant(email, password);
     if (tenant) {
       startSession(tenant);
@@ -65,14 +97,43 @@ const SignIn = () => {
       setTimeout(() => router.push("/admin/dashboard"), 500);
       return;
     }
-    // Fallback: demo routing
-    toast.success("Welcome back!", { description: "Redirecting to your portal..." });
-    setTimeout(() => router.push(routeFor(email)), 600);
+
+    try {
+      const response = await login({
+        email,
+        password,
+      }).unwrap();
+
+      dispatch(setCredentials(response.data));
+      persistTokens({
+        accessToken: response.data.accessToken,
+        refreshToken: response.data.refreshToken,
+      });
+
+      toast.success("Welcome back!", { description: "Redirecting to your portal..." });
+      setTimeout(() => router.push(routeFor(email)), 600);
+    } catch (error) {
+      const parsed = parseApiError(error);
+      const message = parsed.message === "Signup failed. Please try again."
+        ? "Sign in failed. Please try again."
+        : parsed.message;
+
+      setValue("password", "");
+      setGeneralError(message);
+      toast.error(message);
+    }
+  };
+
+  const onInvalid: SubmitErrorHandler<SignInFormValues> = () => {
+    setGeneralError(null);
+    toast.error("Please complete all required fields correctly.");
   };
 
   const fillDemo = (mail: string, p: string) => {
-    setEmail(mail);
-    setPassword(p);
+    setValue("email", mail, { shouldDirty: true, shouldValidate: true });
+    setValue("password", p, { shouldDirty: true, shouldValidate: true });
+    clearErrors();
+    setGeneralError(null);
     toast.success("Demo sign in", { description: "Redirecting..." });
     if (mail.startsWith("mgmt")) {
       const t = provisionTenant({ hospital: "Demo General Hospital", username: mail, password: p, contact: mail, plan: "Demo" });
@@ -94,24 +155,101 @@ const SignIn = () => {
             <p className="text-sm text-muted-foreground mt-1">Welcome back!</p>
           </div>
 
-          <form onSubmit={onSubmit} className="mt-8 space-y-5">
+          <form data-testid="signin-form" onSubmit={handleSubmit(onSubmit, onInvalid)} className="mt-8 space-y-5" noValidate>
             <div>
-              <label className="text-[11px] tracking-widest font-bold text-primary">EMAIL / USER ID</label>
-              <input value={email} onChange={e => setEmail(e.target.value)} required type="text" placeholder="name@healthflow.pro or admin-riverside"
-                className="mt-2 w-full bg-muted/60 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary transition-all" />
+              <label htmlFor="signin-email" className="text-[11px] tracking-widest font-bold text-primary">EMAIL / USER ID</label>
+              <input
+                id="signin-email"
+                data-testid="signin-email-input"
+                type="email"
+                placeholder="name@healthflow.pro or admin-riverside"
+                aria-invalid={Boolean(errors.email)}
+                aria-describedby={errors.email ? "signin-email-error" : undefined}
+                className="mt-2 w-full bg-muted/60 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary transition-all"
+                {...register("email", {
+                  required: "Email address is required.",
+                  validate: (value) => {
+                    const trimmed = value.trim();
+
+                    if (!trimmed) {
+                      return "Email address is required.";
+                    }
+
+                    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    return emailPattern.test(trimmed) || "Please enter a valid email address.";
+                  },
+                })}
+              />
+              {errors.email?.message ? (
+                <p id="signin-email-error" data-testid="signin-email-error" role="alert" className="mt-1.5 text-xs text-destructive">
+                  {errors.email.message}
+                </p>
+              ) : null}
             </div>
             <div>
-              <label className="text-[11px] tracking-widest font-bold text-primary">PASSWORD</label>
-              <input value={password} onChange={e => setPassword(e.target.value)} required type="password" placeholder="••••••••"
-                className="mt-2 w-full bg-muted/60 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary transition-all" />
+              <label htmlFor="signin-password" className="text-[11px] tracking-widest font-bold text-primary">PASSWORD</label>
+              <div className="relative mt-2">
+                <input
+                  id="signin-password"
+                  data-testid="signin-password-input"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="********"
+                  aria-invalid={Boolean(errors.password)}
+                  aria-describedby={errors.password ? "signin-password-error" : undefined}
+                  className="w-full bg-muted/60 rounded-xl px-4 py-3 pr-10 text-sm outline-none focus:ring-2 focus:ring-primary transition-all"
+                  {...register("password", {
+                    required: "Password is required.",
+                    minLength: {
+                      value: 8,
+                      message: "Password must be at least 8 characters.",
+                    },
+                    maxLength: {
+                      value: 128,
+                      message: "Password must be 128 characters or fewer.",
+                    },
+                  })}
+                />
+                <button
+                  type="button"
+                  data-testid="signin-password-toggle"
+                  onClick={() => setShowPassword((current) => !current)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {errors.password?.message ? (
+                <p id="signin-password-error" data-testid="signin-password-error" role="alert" className="mt-1.5 text-xs text-destructive">
+                  {errors.password.message}
+                </p>
+              ) : null}
             </div>
+            {generalError ? (
+              <p data-testid="signin-general-error" role="alert" className="text-xs text-destructive">
+                {generalError}
+              </p>
+            ) : null}
             <div className="flex items-center justify-between text-xs">
               <label className="flex items-center gap-2 text-foreground/70 cursor-pointer">
                 <input type="checkbox" className="rounded border-border" /> Remember me
               </label>
               <Link href="/forgot-password" className="font-semibold text-primary-glow hover:underline">Forgot password?</Link>
             </div>
-            <button className="w-full rounded-full bg-gradient-dark text-surface-dark-foreground py-3.5 text-sm font-semibold hover:opacity-90 shadow-glow transition-opacity">Sign In</button>
+            <button
+              type="submit"
+              data-testid="signin-submit-button"
+              disabled={isLoading}
+              className="w-full rounded-full bg-gradient-dark text-surface-dark-foreground py-3.5 text-sm font-semibold hover:opacity-90 shadow-glow transition-opacity disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {isLoading ? (
+                <span data-testid="signin-loading" className="inline-flex items-center justify-center">
+                  Signing in...
+                </span>
+              ) : (
+                "Sign In"
+              )}
+            </button>
             <p className="text-center text-xs text-muted-foreground">Don't have an account? <Link href="/signup" className="font-semibold text-primary-glow hover:underline">Create One</Link></p>
           </form>
 
@@ -136,5 +274,5 @@ const SignIn = () => {
     </AuthLayout>
   );
 };
-export default SignIn;
 
+export default SignIn;

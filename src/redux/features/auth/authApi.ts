@@ -1,4 +1,10 @@
 import { baseApi } from "@/redux/api/baseApi";
+import type {
+  LoginRequest,
+  LoginResponse,
+  RefreshTokenRequest,
+  RefreshTokenResponse,
+} from "@/redux/features/auth/authTypes";
 
 export interface PatientSignupRequest {
   fullName: string;
@@ -33,6 +39,21 @@ export interface PatientSignupResponse {
 
 export const authApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    login: builder.mutation<LoginResponse, LoginRequest>({
+      query: (body) => ({
+        url: "/auth/login",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Auth"],
+    }),
+    refreshToken: builder.mutation<RefreshTokenResponse, RefreshTokenRequest>({
+      query: (body) => ({
+        url: "/auth/refresh",
+        method: "POST",
+        body,
+      }),
+    }),
     patientSignup: builder.mutation<PatientSignupResponse, PatientSignupRequest>(
       {
         query: (body) => ({
@@ -46,4 +67,17 @@ export const authApi = baseApi.injectEndpoints({
   }),
 });
 
-export const { usePatientSignupMutation } = authApi;
+export const {
+  useLoginMutation,
+  useRefreshTokenMutation,
+  usePatientSignupMutation,
+} = authApi;
+export type {
+  AuthUser,
+  LoginData,
+  LoginRequest,
+  LoginResponse,
+  RefreshTokenRequest,
+  RefreshTokenResponse,
+  Tenant,
+} from "@/redux/features/auth/authTypes";
