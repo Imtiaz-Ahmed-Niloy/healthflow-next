@@ -107,9 +107,12 @@ const Signup = () => {
         }),
       );
 
-      toast.success(signupResponse.message ?? "Account created", {
-        description: "Your patient account has been created successfully.",
-      });
+      toast.success(
+        <span data-testid="signup-success-message">{signupResponse.message ?? "Account created"}</span>,
+        {
+          description: "Your patient account has been created successfully.",
+        },
+      );
       reset();
     } catch (error) {
       const parsed = parseApiError(error);
@@ -125,7 +128,7 @@ const Signup = () => {
         });
       });
 
-      toast.error(parsed.message);
+      toast.error(<span data-testid="signup-general-error">{parsed.message}</span>);
     }
   };
 
@@ -181,7 +184,7 @@ const Signup = () => {
             <hr className="flex-1 border-border/60" />
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-4" noValidate>
+          <form data-testid="signup-form" onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-4" noValidate>
             <div>
               <label htmlFor="fullName" className="text-[11px] tracking-widest font-bold text-primary">
                 FULL NAME
@@ -190,6 +193,7 @@ const Signup = () => {
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
                   id="fullName"
+                  data-testid="signup-full-name-input"
                   placeholder="Ayesha Rahman"
                   aria-invalid={Boolean(errors.fullName)}
                   aria-describedby={errors.fullName ? "fullName-error" : undefined}
@@ -213,7 +217,12 @@ const Signup = () => {
                 />
               </div>
               {errors.fullName?.message ? (
-                <p id="fullName-error" role="alert" className="mt-1.5 text-xs text-destructive">
+                <p
+                  id="fullName-error"
+                  data-testid="signup-full-name-error"
+                  role="alert"
+                  className="mt-1.5 text-xs text-destructive"
+                >
                   {errors.fullName.message}
                 </p>
               ) : null}
@@ -227,6 +236,7 @@ const Signup = () => {
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
                   id="email"
+                  data-testid="signup-email-input"
                   type="email"
                   placeholder="patient@example.com"
                   aria-invalid={Boolean(errors.email)}
@@ -247,7 +257,12 @@ const Signup = () => {
                 />
               </div>
               {errors.email?.message ? (
-                <p id="email-error" role="alert" className="mt-1.5 text-xs text-destructive">
+                <p
+                  id="email-error"
+                  data-testid="signup-email-error"
+                  role="alert"
+                  className="mt-1.5 text-xs text-destructive"
+                >
                   {errors.email.message}
                 </p>
               ) : null}
@@ -261,6 +276,7 @@ const Signup = () => {
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
                   id="phone"
+                  data-testid="signup-phone-input"
                   type="tel"
                   inputMode="tel"
                   placeholder="01712345678 or +8801712345678"
@@ -290,7 +306,12 @@ const Signup = () => {
                 />
               </div>
               {errors.phone?.message ? (
-                <p id="phone-error" role="alert" className="mt-1.5 text-xs text-destructive">
+                <p
+                  id="phone-error"
+                  data-testid="signup-phone-error"
+                  role="alert"
+                  className="mt-1.5 text-xs text-destructive"
+                >
                   {errors.phone.message}
                 </p>
               ) : null}
@@ -304,6 +325,7 @@ const Signup = () => {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
                   id="password"
+                  data-testid="signup-password-input"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   aria-invalid={Boolean(errors.password)}
@@ -331,6 +353,7 @@ const Signup = () => {
                 />
                 <button
                   type="button"
+                  data-testid="signup-toggle-password"
                   onClick={() => setShowPassword((current) => !current)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                   aria-label={showPassword ? "Hide password" : "Show password"}
@@ -339,7 +362,12 @@ const Signup = () => {
                 </button>
               </div>
               {errors.password?.message ? (
-                <p id="password-error" role="alert" className="mt-1.5 text-xs text-destructive">
+                <p
+                  id="password-error"
+                  data-testid="signup-password-error"
+                  role="alert"
+                  className="mt-1.5 text-xs text-destructive"
+                >
                   {errors.password.message}
                 </p>
               ) : null}
@@ -353,6 +381,7 @@ const Signup = () => {
                 <BadgeInfo className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <select
                   id="gender"
+                  data-testid="signup-gender-select"
                   aria-invalid={Boolean(errors.gender)}
                   aria-describedby={errors.gender ? "gender-error" : undefined}
                   className="w-full appearance-none bg-muted/60 rounded-xl pl-10 pr-10 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
@@ -371,7 +400,12 @@ const Signup = () => {
                 <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               </div>
               {errors.gender?.message ? (
-                <p id="gender-error" role="alert" className="mt-1.5 text-xs text-destructive">
+                <p
+                  id="gender-error"
+                  data-testid="signup-gender-error"
+                  role="alert"
+                  className="mt-1.5 text-xs text-destructive"
+                >
                   {errors.gender.message}
                 </p>
               ) : null}
@@ -385,6 +419,7 @@ const Signup = () => {
                 <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
                   id="dateOfBirth"
+                  data-testid="signup-date-of-birth-input"
                   type="date"
                   max={today}
                   aria-invalid={Boolean(errors.dateOfBirth)}
@@ -420,7 +455,12 @@ const Signup = () => {
                 />
               </div>
               {errors.dateOfBirth?.message ? (
-                <p id="dateOfBirth-error" role="alert" className="mt-1.5 text-xs text-destructive">
+                <p
+                  id="dateOfBirth-error"
+                  data-testid="signup-date-of-birth-error"
+                  role="alert"
+                  className="mt-1.5 text-xs text-destructive"
+                >
                   {errors.dateOfBirth.message}
                 </p>
               ) : null}
@@ -428,10 +468,17 @@ const Signup = () => {
 
             <button
               type="submit"
+              data-testid="signup-submit-button"
               disabled={isLoading}
               className="w-full rounded-full bg-gradient-dark text-surface-dark-foreground py-3.5 text-sm font-semibold hover:opacity-90 shadow-glow transition-opacity disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {isLoading ? "Creating account..." : "Create Account"}
+              {isLoading ? (
+                <span data-testid="signup-loading" className="inline-flex items-center justify-center">
+                  <span data-testid="signup-loading-text">Creating account...</span>
+                </span>
+              ) : (
+                "Create Account"
+              )}
             </button>
 
             <div className="rounded-2xl bg-muted/40 p-3 flex items-center gap-3 text-xs text-muted-foreground">
