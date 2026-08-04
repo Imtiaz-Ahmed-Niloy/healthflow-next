@@ -34,6 +34,11 @@ yarn-error.log*
 .env*
 !.env.example
 
+# Private docs. Anything in docs/ starting with an underscore is local-only
+# and never committed — planning notes, scratch, drafts.
+# Name it docs/_whatever.md and it stays on your machine.
+docs/_*
+
 # vercel
 .vercel
 

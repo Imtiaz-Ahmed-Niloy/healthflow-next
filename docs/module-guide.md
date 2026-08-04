@@ -205,7 +205,7 @@ const { data, isLoading } = thingsApi.useList({ page: 1, q: search });
 
 ## 5. Definition of done
 
-From `mvp-plan.md`, and the reviewer checks every one:
+The reviewer checks every one of these:
 
 1. Migration + RLS policy merged
 2. Resource config + route handler
@@ -286,5 +286,5 @@ Branch `feat/<module>-<who>`, one small PR per task, Ridwan reviews and merges
 everything. A PR must build clean, typecheck clean, lint clean, and the
 reviewer must be able to log in as the affected role and use the feature.
 
-Blocked for more than an hour? Say so at standup or before. An intern stuck
-for a full day is a lost day this schedule does not have.
+Blocked for more than an hour? Say so at standup or before. Surfacing a
+blocker early is always cheaper than losing a day to it.

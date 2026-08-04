@@ -4,8 +4,7 @@ import { FlatCompat } from "@eslint/eslintrc";
 // eslint-config-next 15 still ships legacy eslintrc configs
 // (`module.exports = { extends: [...] }`), which cannot be spread into a flat
 // config array. FlatCompat converts them. Without this eslint fails to start
-// at all, which silently disables the "lint clean" PR gate in
-// docs/mvp-plan.md.
+// at all, which silently disables the "lint clean" PR gate.
 const compat = new FlatCompat({ baseDirectory: import.meta.dirname });
 
 const eslintConfig = defineConfig([

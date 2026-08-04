@@ -2,9 +2,8 @@
 -- The one reviewed RLS template every hospital-scoped table copies, plus the
 -- claim readers it depends on, plus policies for the core tables.
 --
--- Risk mitigation from docs/mvp-plan.md: "Every table's policy is copied from
--- one reviewed template." Rather than copy-pasting SQL per module and hoping
--- it stays identical, a module calls:
+-- Every table's policy comes from one reviewed template. Rather than
+-- copy-pasting SQL per module and hoping it stays identical, a module calls:
 --
 --     select public.apply_tenant_rls('public.doctors');
 --

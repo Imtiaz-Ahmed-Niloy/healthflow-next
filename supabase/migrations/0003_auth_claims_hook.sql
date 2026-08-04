@@ -3,8 +3,6 @@
 -- access token at login/refresh, so RLS reads them straight off auth.jwt()
 -- with no per-query lookup against profiles.
 --
--- Decision 3 in docs/mvp-plan.md.
---
 -- IMPORTANT: creating the function is not enough. The hook must also be
 -- enabled on the hosted project:
 --   Dashboard -> Authentication -> Hooks -> Customize Access Token (JWT) Claims

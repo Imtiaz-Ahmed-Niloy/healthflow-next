@@ -1,8 +1,8 @@
 -- 0001_core_schema.sql
 -- Core multi-tenant foundation: packages, tenants, roles, profiles.
 --
--- Week 1 of docs/mvp-plan.md. RLS policies live in 0002, the JWT claims hook
--- in 0003 — this file only defines shape.
+-- RLS policies live in 0002, the JWT claims hook in 0003 — this file only
+-- defines shape.
 
 create extension if not exists pgcrypto;
 
