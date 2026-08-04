@@ -4,6 +4,7 @@ import { ReactNode, useState, useMemo, useRef, useEffect } from "react";
 import { Upload, X, Plus, Facebook, Twitter, Instagram, Linkedin, Youtube, Globe, FileText, Paperclip, User, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, Pill } from "./ui";
 import { DataTable, Toolbar, Modal, ConfirmDialog, RowActions, Drawer, exportCSV, useCrud, Field, Input, Select, Chips, statusTone, type Column } from "./crud";
+import { useResourceCrud } from "./useResourceCrud";
 
 function ImageUploadField({ name, required, defaultValue }: { name: string; required?: boolean; defaultValue?: string }) {
   const [preview, setPreview] = useState<string>(defaultValue || "");
@@ -349,7 +350,13 @@ export function RecordFormFields({
 
 export type ResourceConfig<T extends { id: string; status?: string }> = {
   storeKey: string;
-  seed: T[];
+  /**
+   * Module name under /api/v1. When set, the page reads and writes real data
+   * through RTK Query and `seed` is ignored. When absent it falls back to the
+   * original localStorage behaviour, so pages not yet migrated are unaffected.
+   */
+  resource?: string;
+  seed?: T[];
   searchFields: (keyof T)[];
   columns: Column<T>[];
   fields: FieldDef[];
@@ -365,7 +372,14 @@ export type ResourceConfig<T extends { id: string; status?: string }> = {
 };
 
 export function ResourcePage<T extends { id: string; status?: string }>({ config, extra }: { config: ResourceConfig<T>; extra?: ReactNode }) {
-  const crud = useCrud<T>(config.storeKey, config.seed);
+  // Both hooks run every render — React forbids calling one conditionally.
+  // useResourceCrud skips its request when config.resource is undefined, and
+  // useCrud is cheap, so the unused one costs nothing.
+  const local = useCrud<T>(config.storeKey, config.seed ?? []);
+  const remote = useResourceCrud<T>(config.resource);
+  const crud = config.resource ? remote : local;
+  const isLoading = config.resource ? remote.isLoading : false;
+  const loadError = config.resource ? remote.error : undefined;
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [sel, setSel] = useState<string[]>([]);
@@ -409,18 +423,33 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
             </div>
           )}
         />
-        <DataTable<T>
-          rows={rows} columns={config.columns}
-          selected={sel} onSelect={setSel}
-          onRow={r => setViewing(r)}
-          actions={r => (
-            <RowActions
-              onView={() => setViewing(r)}
-              onEdit={() => setEditing(r)}
-              onDelete={() => setConfirm(r.id)}
-            />
-          )}
-        />
+        {loadError ? (
+          <div className="py-12 text-center">
+            <p className="text-sm font-semibold text-destructive">Could not load records.</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              You may not have access to this module, or the request failed.
+            </p>
+            <button type="button" onClick={() => remote.refetch()}
+              className="mt-3 px-4 py-2 rounded-full text-xs font-semibold border border-border hover:bg-muted">
+              Try again
+            </button>
+          </div>
+        ) : isLoading ? (
+          <div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>
+        ) : (
+          <DataTable<T>
+            rows={rows} columns={config.columns}
+            selected={sel} onSelect={setSel}
+            onRow={r => setViewing(r)}
+            actions={r => (
+              <RowActions
+                onView={() => setViewing(r)}
+                onEdit={() => setEditing(r)}
+                onDelete={() => setConfirm(r.id)}
+              />
+            )}
+          />
+        )}
       </Card>
 
       {extra}
@@ -457,17 +486,20 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
             ))}
           </div>
         )}
-        <form id="resource-form" onSubmit={e => {
+        <form id="resource-form" onSubmit={async e => {
           e.preventDefault();
+          // Read the form before any await: currentTarget is null afterwards.
           const fd = new FormData(e.currentTarget);
           const obj: Record<string, unknown> = { ...((config.defaults as Record<string, unknown>) || {}) };
           config.fields.forEach(f => { obj[f.name] = String(fd.get(f.name) ?? ""); });
           if (editing) {
-            crud.update(editing.id, obj as never);
+            await crud.update(editing.id, obj as never);
             config.onUpdate?.({ ...editing, ...(obj as object) } as T);
           } else {
-            const created = crud.create(obj as never);
-            config.onCreate?.(created);
+            // Remote creates return undefined when the request failed; the
+            // hook has already surfaced the error, so just skip the callback.
+            const created = await crud.create(obj as never);
+            if (created) config.onCreate?.(created as T);
           }
           setCreating(false); setEditing(null);
         }}>

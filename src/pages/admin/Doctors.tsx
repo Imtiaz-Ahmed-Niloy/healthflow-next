@@ -6,54 +6,41 @@ import { ResourcePage } from "@/components/admin/ResourcePage";
 import { Card, Kpi, Pill, Btn, SectionTitle } from "@/components/admin/ui";
 import { statusTone } from "@/components/admin/crud";
 import { load, save, uid } from "@/lib/storage";
+import { useListResourceQuery } from "@/redux/api/createResourceApi";
 import {
   Stethoscope, Users, DollarSign, Star, CalendarRange, ClipboardList,
   Plus, Trash2, TrendingUp, Activity,
 } from "lucide-react";
 import { toast } from "sonner";
 
+// Mirrors public.doctors (supabase/migrations/0005_doctors.sql). Column names
+// are the database's, so form values post straight through with no mapping.
+// `hospital` is gone: which hospital a doctor belongs to is tenant_id, set
+// from the session, not typed in.
 type Doctor = {
   id: string;
+  tenant_id?: string;
+  slug?: string;
   name: string;
   specialty: string;
   email: string;
   phone: string;
-  experience: string;
   status: string;
   education: string;
   languages: string;
-  rating: string;
-  fee: string;
-  patients: string;
-  available: string;
-  photo: string;
-  hospital: string;
-  consultationDuration: string;
   expertise: string;
   bio: string;
+  availability: string;
+  photo_url: string;
+  experience_years: string;
+  rating: string;
+  consultation_fee: string;
+  patients_treated: string;
+  consultation_duration_minutes: string;
 };
 
-const seed: Doctor[] = [
-  {
-    id: "d1", name: "Dr. Imran Khan", specialty: "Cardiology",
-    email: "imran@hf.pro", phone: "+1 555 0101", experience: "12",
-    status: "Active", education: "MBBS, MD (Cardiology)",
-    languages: "English, Bangla, Urdu", rating: "4.8", fee: "120",
-    patients: "5400", available: "Mon–Fri", photo: "",
-    hospital: "Atrium Health", consultationDuration: "30 min",
-    expertise: "Interventional Cardiology, Preventive Care",
-    bio: "Board-certified cardiologist with extensive experience.",
-  },
-  {
-    id: "d2", name: "Dr. Sara Ahmed", specialty: "Neurology",
-    email: "sara@hf.pro", phone: "+1 555 0102", experience: "9",
-    status: "Active", education: "MBBS, FCPS (Neurology)",
-    languages: "English, Bangla", rating: "4.7", fee: "150",
-    patients: "3200", available: "Tue–Sat", photo: "",
-    hospital: "Coastal Medical", consultationDuration: "30 min",
-    expertise: "Stroke care, Epilepsy", bio: "",
-  },
-];
+// The hardcoded seed is gone: this page reads public.doctors now. Demo rows
+// belong in supabase seed files (Dip, week 1), not in the component.
 
 const TABS = ["Directory", "Performance", "Scheduling"] as const;
 type Tab = (typeof TABS)[number];
@@ -80,35 +67,37 @@ const Doctors = () => {
 const DirectoryTab = () => (
   <ResourcePage<Doctor> config={{
     storeKey: "doctors",
-    seed,
+    // Reads and writes public.doctors through /api/v1/doctors. `seed` is no
+    // longer used by this tab — Performance and Scheduling below still run on
+    // localStorage until their own tables land in week 3.
+    resource: "doctors",
     searchFields: ["name", "specialty", "email"],
-    statuses: ["Active", "On Leave", "Suspended"],
+    statuses: ["active", "on_leave", "suspended"],
     columns: [
       { key: "name", label: "Name", accessor: r => r.name, sortable: true,
         render: r => <span className="font-semibold text-primary">{r.name}</span> },
       { key: "specialty", label: "Specialization", accessor: r => r.specialty, sortable: true },
       { key: "education", label: "Qualifications", accessor: r => r.education },
-      { key: "available", label: "Availability", accessor: r => r.available },
-      { key: "experience", label: "Exp (yrs)", accessor: r => r.experience, sortable: true },
-      { key: "fee", label: "Fee", accessor: r => r.fee },
+      { key: "availability", label: "Availability", accessor: r => r.availability },
+      { key: "experience_years", label: "Exp (yrs)", accessor: r => r.experience_years, sortable: true },
+      { key: "consultation_fee", label: "Fee", accessor: r => r.consultation_fee },
       { key: "status", label: "Status", render: r => <Pill tone={statusTone(r.status)}>{r.status}</Pill> },
     ],
     fields: [
-      { name: "photo", label: "Doctor photo", type: "image" },
+      { name: "photo_url", label: "Doctor photo", type: "image" },
       { name: "name", label: "Full name", type: "text", required: true },
       { name: "specialty", label: "Specialization", type: "select", options: ["Cardiology", "Neurology", "Orthopedics", "Pediatrics", "Oncology", "Dermatology", "Gynecology", "General"] },
       { name: "education", label: "Education / Qualifications", type: "text", required: true },
-      { name: "experience", label: "Experience (years)", type: "number", required: true },
+      { name: "experience_years", label: "Experience (years)", type: "number", required: true },
       { name: "rating", label: "Rating (0–5)", type: "number" },
-      { name: "fee", label: "Consultation Fee (USD)", type: "number", required: true },
-      { name: "patients", label: "Patients treated", type: "number" },
-      { name: "consultationDuration", label: "Consultation duration", type: "text" },
+      { name: "consultation_fee", label: "Consultation Fee (USD)", type: "number", required: true },
+      { name: "patients_treated", label: "Patients treated", type: "number" },
+      { name: "consultation_duration_minutes", label: "Consultation duration (minutes)", type: "number" },
       { name: "languages", label: "Languages (comma separated)", type: "text" },
-      { name: "available", label: "Availability (e.g. Mon–Fri 09:00–17:00)", type: "text" },
-      { name: "hospital", label: "Practicing Hospital", type: "text" },
+      { name: "availability", label: "Availability (e.g. Mon–Fri 09:00–17:00)", type: "text" },
       { name: "email", label: "Email", type: "email", required: true },
       { name: "phone", label: "Phone", type: "tel" },
-      { name: "status", label: "Status", type: "select", options: ["Active", "On Leave", "Suspended"] },
+      { name: "status", label: "Status", type: "select", options: ["active", "on_leave", "suspended"] },
       { name: "expertise", label: "Areas of Expertise (comma separated)", type: "textarea" },
       { name: "bio", label: "About / Biography", type: "textarea" },
     ],
@@ -128,12 +117,23 @@ const seedPerf = (docs: Doctor[]): Perf[] => docs.map((d, i) => ({
   doctorId: d.id,
   patientVolume: 120 + i * 35,
   consultations: 80 + i * 22,
-  revenue: (Number(d.fee) || 100) * (80 + i * 22),
+  revenue: (Number(d.consultation_fee) || 100) * (80 + i * 22),
   feedback: Math.min(5, Number(d.rating) || 4.5),
 }));
 
+/**
+ * Doctor list for the read-only tabs. These two tabs still keep their own
+ * metrics and shifts in localStorage — those tables arrive in week 3 — but
+ * the doctors they hang off must come from the database, or they would list
+ * nothing now that Directory no longer writes to localStorage.
+ */
+const useDoctorList = () => {
+  const { data } = useListResourceQuery({ resource: "doctors", limit: 100 });
+  return (data?.data ?? []) as Doctor[];
+};
+
 const PerformanceTab = () => {
-  const docs = load<Doctor[]>("doctors", seed);
+  const docs = useDoctorList();
   const [perf, setPerf] = useState<Perf[]>(() => {
     const stored = load<Perf[]>("doctor-perf", []);
     const merged = docs.map(d => stored.find(p => p.doctorId === d.id) || seedPerf([d])[0]);
@@ -256,7 +256,7 @@ const SHIFT_TONES: Record<Shift["type"], string> = {
 };
 
 const SchedulingTab = () => {
-  const docs = load<Doctor[]>("doctors", seed);
+  const docs = useDoctorList();
   const [shifts, setShifts] = useState<Shift[]>(() => load<Shift[]>("doctor-shifts", [
     { id: uid(), doctorId: docs[0]?.id || "", day: "Mon", start: "09:00", end: "17:00", type: "Regular", ward: "Cardiology OPD" },
     { id: uid(), doctorId: docs[1]?.id || docs[0]?.id || "", day: "Wed", start: "14:00", end: "20:00", type: "On-Call", ward: "Emergency" },

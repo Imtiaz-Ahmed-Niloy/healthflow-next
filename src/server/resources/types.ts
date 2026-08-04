@@ -26,11 +26,18 @@ export type ResourceDefinition<TCreate = unknown, TUpdate = unknown> = {
    */
   tenantScoped: boolean;
 
-  /** Validates POST bodies. */
-  createSchema: z.ZodType<TCreate>;
+  /**
+   * Validates POST bodies.
+   *
+   * The input type is `unknown` rather than TCreate because request bodies
+   * arrive unparsed, and because schemas that use .transform() (coercing
+   * form strings to numbers, "" to undefined) have an input type that
+   * differs from their output.
+   */
+  createSchema: z.ZodType<TCreate, z.ZodTypeDef, unknown>;
 
   /** Validates PATCH bodies. Usually createSchema.partial(). */
-  updateSchema: z.ZodType<TUpdate>;
+  updateSchema: z.ZodType<TUpdate, z.ZodTypeDef, unknown>;
 
   /** PostgREST select list. Use this to embed relations. Defaults to "*". */
   select?: string;
