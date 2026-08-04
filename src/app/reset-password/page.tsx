@@ -1,1 +1,1 @@
-export { default } from "@/pages/ResetPassword";
+export { default } from "@/views/ResetPassword";

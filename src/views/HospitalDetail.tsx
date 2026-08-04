@@ -19,7 +19,7 @@ import { findHospital, useHospitals } from "@/hooks/useHospitals";
 import { slugify } from "@/lib/slug";
 
 const HospitalDetail = () => {
-  const { slug } = useParams<{ slug: string }>();
+  const slug = useParams<{ slug: string }>()?.slug;
   const hospitals = useHospitals();
   const hospital = findHospital(slug ?? "");
 

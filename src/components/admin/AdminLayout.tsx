@@ -15,8 +15,8 @@ import { NotificationProvider, useNotifications } from "./NotificationProvider";
 import { CommandPalette } from "./CommandPalette";
 import { Drawer } from "./crud";
 import { Pill as Badge } from "./ui";
-import { getRole, setRole, type Role } from "@/lib/rbac";
-import { getSession, clearSession } from "@/lib/tenants";
+import { useSession, displayName } from "@/lib/auth/useSession";
+import { roleLabel } from "@/lib/auth/permissions";
 import { formatDistanceToNow } from "date-fns";
 import LanguageSwitcher from "@/components/site/LanguageSwitcher";
 import { HeaderClock } from "@/components/common/HeaderClock";
@@ -91,20 +91,12 @@ export const AdminSidebar = ({ onNavigate, hospital }: { onNavigate?: () => void
   </aside>
 );
 
-const ROLES: { v: Role; l: string }[] = [
-  { v: "hospital_admin", l: "Hospital Admin" },
-  { v: "hr_admin", l: "HR Admin" },
-  { v: "finance_admin", l: "Finance Admin" },
-  { v: "lab_admin", l: "Lab Admin" },
-  { v: "pharmacy_admin", l: "Pharmacy Admin" },
-];
-
 const TopbarInner = ({ title, subtitle, onMenu, menuOpen, hospital }: { title: string; subtitle?: string; onMenu: () => void; menuOpen: boolean; hospital?: string }) => {
   const router = useRouter();
   const { items, unread, markAllRead } = useNotifications();
   const [palette, setPalette] = useState(false);
   const [drawer, setDrawer] = useState(false);
-  const [role, setR] = useState<Role>(getRole());
+  const { user, signOut } = useSession();
   useEffect(() => {
     const f = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setPalette(true); } };
     window.addEventListener("keydown", f);
@@ -126,24 +118,23 @@ const TopbarInner = ({ title, subtitle, onMenu, menuOpen, hospital }: { title: s
           <div className="flex items-center gap-3 lg:gap-5">
             <HeaderClock />
             <LanguageSwitcher compact />
-            <select value={role} onChange={e => { const v = e.target.value as Role; setRole(v); setR(v); toast.info(`Viewing as ${v}`); }}
-              className="hidden lg:block bg-muted/40 rounded-lg px-3 py-1.5 text-xs font-semibold outline-none">
-              {ROLES.map(r => <option key={r.v} value={r.v}>{r.l}</option>)}
-            </select>
+            {/* The role switcher that used to live here let anyone view the
+                panel as any role by writing to localStorage. Role now comes
+                from the signed-in user's verified token and cannot be picked. */}
             <button onClick={() => setDrawer(true)} className="relative text-foreground/70 hover:text-primary">
               <Bell className="h-5 w-5" />
               {unread > 0 && <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold grid place-items-center">{unread}</span>}
             </button>
             <div className="hidden sm:flex items-center gap-3 border-l border-border/60 pl-5">
               <div className="text-right">
-                <p className="font-semibold text-sm text-primary leading-tight truncate max-w-[180px]">{hospital || "Hospital Admin"}</p>
-                <p className="text-[10px] tracking-widest font-bold text-primary-glow">{role.replace("_", " ").toUpperCase()}</p>
+                <p className="font-semibold text-sm text-primary leading-tight truncate max-w-[180px]">{displayName(user)}</p>
+                <p className="text-[10px] tracking-widest font-bold text-primary-glow">{roleLabel(user?.role).toUpperCase()}</p>
               </div>
               <div className="h-10 w-10 rounded-full bg-gradient-dark grid place-items-center text-surface-dark-foreground text-xs font-bold">
-                {(hospital || "HA").split(" ").map(s => s[0]).slice(0, 2).join("").toUpperCase()}
+                {displayName(user).split(" ").map(s => s[0]).slice(0, 2).join("").toUpperCase()}
               </div>
             </div>
-            <button onClick={() => { clearSession(); toast.success("Signed out"); router.push("/signin"); }}
+            <button onClick={async () => { await signOut(); toast.success("Signed out"); router.replace("/signin"); router.refresh(); }}
               className="hidden md:flex items-center gap-2 text-sm font-semibold text-foreground/70 hover:text-destructive">
               <LogOut className="h-4 w-4" /> Sign Out
             </button>
@@ -176,27 +167,23 @@ const TopbarInner = ({ title, subtitle, onMenu, menuOpen, hospital }: { title: s
 export const AdminLayout = ({ children, title, subtitle }: { children: ReactNode; title: string; subtitle?: string }) => {
   const [open, setOpen] = useState(false);
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
-  const [session, setSession] = useState<ReturnType<typeof getSession>>(null);
+  const { user, isLoading } = useSession();
+
+  // src/middleware.ts already blocks this route server-side, so by the time
+  // anything renders the user is authorised. This only covers the case where
+  // a session expires while the tab is open.
   useEffect(() => {
-    setMounted(true);
-    setSession(getSession());
-    const sync = () => setSession(getSession());
-    window.addEventListener("storage", sync);
-    return () => window.removeEventListener("storage", sync);
-  }, []);
-  useEffect(() => {
-    if (!mounted) {
-      return;
-    }
-    if (!session) {
+    if (!isLoading && !user) {
       toast.error("Please sign in to access the hospital admin panel.");
       router.replace("/signin");
-      return;
     }
-  }, [mounted, session, router]);
-  if (!mounted || !session) return null;
-  const hospital = session.hospital;
+  }, [isLoading, user, router]);
+
+  if (isLoading || !user) return null;
+
+  // TODO: resolve the hospital name from tenant_id once provisioning lands.
+  // Until then the header shows the person, not the hospital.
+  const hospital = undefined;
   return (
     <NotificationProvider>
       <div className="min-h-screen flex bg-gradient-hero">

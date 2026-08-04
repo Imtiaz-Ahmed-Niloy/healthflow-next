@@ -51,7 +51,7 @@ type BookingTarget = { name: string; role: string; img: string; loc?: string };
 const FindDoctors = () => {
   const [cat, setCat] = useState(0);
   const searchParams = useSearchParams();
-  const [query, setQuery] = useState(searchParams.get("q") ?? "");
+  const [query, setQuery] = useState(searchParams?.get("q") ?? "");
   const router = useRouter();
   const [booking, setBooking] = useState<BookingTarget | null>(null);
   const [form, setForm] = useState({ date: "", time: "", loc: "Telehealth", reason: "" });

@@ -52,7 +52,7 @@ const CMS_SUBLINKS = [
 
 export const SuperSidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
   const pathname = usePathname();
-  const cmsActive = pathname.startsWith("/super/cms");
+  const cmsActive = Boolean(pathname?.startsWith("/super/cms"));
   const [cmsOpen, setCmsOpen] = useState(cmsActive);
   useEffect(() => { if (cmsActive) setCmsOpen(true); }, [cmsActive]);
 

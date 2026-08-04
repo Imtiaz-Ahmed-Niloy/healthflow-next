@@ -1,1 +1,3 @@
-export { default } from "@/pages/patient/Dashboard";
+export const dynamic = "force-dynamic";
+
+export { default } from "@/views/patient/Dashboard";

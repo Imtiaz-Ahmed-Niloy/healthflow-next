@@ -6,7 +6,8 @@ import { Search, Filter, Download, Plus, Trash2, Pencil, Eye, X, ChevronUp, Chev
 import { toast } from "sonner";
 import { Card, Btn, Pill } from "./ui";
 import { load, save, uid } from "@/lib/storage";
-import { can, getRole, type Action } from "@/lib/rbac";
+import { can, type Action } from "@/lib/auth/permissions";
+import { useSession } from "@/lib/auth/useSession";
 
 // ============ useCrud hook ============
 export function useCrud<T extends { id: string }>(key: string, seed: T[]) {
@@ -215,14 +216,17 @@ export const exportCSV = <T extends Record<string, unknown>>(rows: T[], filename
 };
 
 // ============ Can wrapper ============
+/**
+ * Hides UI a role cannot use. Not a security boundary — RLS is. This only
+ * stops us rendering buttons whose request the database would reject.
+ *
+ * Previously listened for an "hf:role" event fired by the localStorage role
+ * switcher. Role now comes from the signed-in user's token, so it changes
+ * only on sign-in or sign-out, which useSession already tracks.
+ */
 export const Can = ({ action, resource, children, fallback = null }: { action: Action; resource: string; children: ReactNode; fallback?: ReactNode }) => {
-  const [, force] = useState(0);
-  useEffect(() => {
-    const f = () => force(n => n + 1);
-    window.addEventListener("hf:role", f);
-    return () => window.removeEventListener("hf:role", f);
-  }, []);
-  return can(action, resource, getRole()) ? <>{children}</> : <>{fallback}</>;
+  const { user } = useSession();
+  return can(action, resource, user?.role) ? <>{children}</> : <>{fallback}</>;
 };
 
 // ============ Status pill helper ============

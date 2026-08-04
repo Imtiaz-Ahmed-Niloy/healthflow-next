@@ -1,1 +1,3 @@
-export { default } from "@/pages/admin/Lab";
+export const dynamic = "force-dynamic";
+
+export { default } from "@/views/admin/Lab";

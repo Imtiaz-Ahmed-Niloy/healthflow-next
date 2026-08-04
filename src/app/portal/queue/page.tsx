@@ -1,1 +1,3 @@
-export { default } from "@/pages/portal/Queue";
+export const dynamic = "force-dynamic";
+
+export { default } from "@/views/portal/Queue";

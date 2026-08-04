@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { ShieldCheck, Lock, Shield, ArrowRight, CheckCircle2, Circle } from "lucide-react";
 import { toast } from "sonner";
 import { AuthLayout } from "@/components/site/AuthLayout";
+import { supabase } from "@/lib/supabase/client";
 const orbImg = "/assets/secure-orb.jpg";
 
 const checks = (pw: string) => ({
@@ -20,14 +21,40 @@ const ResetPassword = () => {
   const router = useRouter();
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const c = checks(pw);
 
-  const onSubmit = (e: React.FormEvent) => {
+  /**
+   * Sets the new password.
+   *
+   * This works because following the emailed reset link puts a recovery
+   * session in the browser, so updateUser knows which account to change. Open
+   * this page directly without that link and Supabase rejects the update —
+   * which is the correct behaviour, not a bug.
+   */
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (pw !== pw2) return toast.error("Passwords do not match");
     if (!c.len || !c.num) return toast.error("Password does not meet requirements");
-    toast.success("Password updated");
-    setTimeout(() => router.push("/signin"), 600);
+
+    setIsSaving(true);
+    const { error } = await supabase.auth.updateUser({ password: pw });
+    setIsSaving(false);
+
+    if (error) {
+      toast.error(
+        error.message.toLowerCase().includes("session")
+          ? "This reset link has expired. Request a new one."
+          : error.message,
+      );
+      return;
+    }
+
+    toast.success("Password updated", { description: "Sign in with your new password." });
+    // Drop the recovery session so the next sign-in is a real one.
+    await supabase.auth.signOut();
+    router.replace("/signin");
+    router.refresh();
   };
 
   const Req = ({ ok, t }: { ok: boolean; t: string }) => (
@@ -81,8 +108,9 @@ const ResetPassword = () => {
                 </div>
               </div>
 
-              <button className="w-full rounded-full bg-gradient-dark text-surface-dark-foreground py-3.5 text-sm font-bold tracking-wider hover:opacity-90 shadow-glow transition-opacity flex items-center justify-center gap-2">
-                UPDATE PASSWORD <ArrowRight className="h-4 w-4" />
+              <button disabled={isSaving}
+                className="w-full rounded-full bg-gradient-dark text-surface-dark-foreground py-3.5 text-sm font-bold tracking-wider hover:opacity-90 shadow-glow transition-opacity flex items-center justify-center gap-2 disabled:opacity-60">
+                {isSaving ? "UPDATING…" : <>UPDATE PASSWORD <ArrowRight className="h-4 w-4" /></>}
               </button>
               <p className="text-center text-xs text-muted-foreground">Having trouble? <Link href="/contact" className="font-semibold text-primary-glow hover:underline">Contact Support</Link></p>
             </form>

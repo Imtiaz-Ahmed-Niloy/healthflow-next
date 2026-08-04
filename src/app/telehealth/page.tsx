@@ -1,1 +1,1 @@
-export { default } from "@/pages/Telehealth";
+export { default } from "@/views/Telehealth";
