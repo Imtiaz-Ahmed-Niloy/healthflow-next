@@ -10,7 +10,13 @@ import { clearTokens, getAccessToken, getRefreshToken, persistTokens } from "@/l
 import type { RootState } from "@/redux/store";
 import type { RefreshTokenResponse } from "@/redux/features/auth/authTypes";
 
-const baseUrl = "https://api.dev.healthflowbd.com/api/v1";
+// Decision 1 in docs/mvp-plan.md: the external Node API is dropped and every
+// call goes to the Next.js Route Handlers under /api/v1. Same-origin, so the
+// Supabase session cookie is sent automatically.
+//
+// The override exists only as an escape hatch while the old API is still
+// standing — set NEXT_PUBLIC_API_BASE_URL in .env.local to point back at it.
+const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/v1";
 let refreshPromise: Promise<RefreshTokenResponse> | null = null;
 
 const rawBaseQuery = fetchBaseQuery({

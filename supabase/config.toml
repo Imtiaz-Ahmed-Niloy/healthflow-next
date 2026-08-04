@@ -1,4 +1,13 @@
-project_id = "pcannufkngxhzhlfsgvi"
+project_id = "hrpninjpfppgrsatbzmv"
 
 [functions.chat]
 verify_jwt = false
+
+# Injects `user_role` and `tenant_id` into every access token so RLS can read
+# them from auth.jwt() without an extra query. See migration 0003.
+# NOTE: this block configures the *local* CLI stack only. For the hosted
+# project the hook must also be enabled in the Dashboard:
+#   Authentication -> Hooks -> Custom Access Token -> public.custom_access_token_hook
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://postgres/public/custom_access_token_hook"
