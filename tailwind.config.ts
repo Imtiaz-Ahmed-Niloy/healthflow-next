@@ -8,9 +8,8 @@ export default {
     "./src/data/**/*.{ts,tsx}",
     "./src/hooks/**/*.{ts,tsx}",
     "./src/i18n/**/*.{ts,tsx}",
-    "./src/integrations/**/*.{ts,tsx}",
     "./src/lib/**/*.{ts,tsx}",
-    "./src/pages/**/*.{ts,tsx}",
+    "./src/views/**/*.{ts,tsx}",
   ],
   prefix: "",
   theme: {

@@ -258,7 +258,10 @@ const SignIn = () => {
 
           <div className="mt-10 pt-6 border-t border-border/60">
             <p className="text-center text-[10px] tracking-widest font-bold text-muted-foreground">DEMO ACCESS</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
+            {/* Always two columns. sm:grid-cols-4 fired on viewport width, but
+                this card is a fixed 520px at every breakpoint, so four cards
+                got ~80px each and the emails truncated. */}
+            <div className="grid grid-cols-2 gap-2.5 mt-4">
               {demos.map(d => (
                 <button key={d.t} type="button" onClick={() => fillDemo(d.e, d.p)}
                   className="text-left rounded-xl bg-muted/40 hover:bg-chip transition-colors p-3 border border-border/40">
