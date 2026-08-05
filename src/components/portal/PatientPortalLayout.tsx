@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/site/LanguageSwitcher";
 import { HeaderClock } from "@/components/common/HeaderClock";
+import { useSession, displayName } from "@/lib/auth/useSession";
+import { roleLabel } from "@/lib/auth/permissions";
 const patientEleanor = "/assets/patient-eleanor.jpg";
 
 export const PatientSidebar = () => {
@@ -46,6 +48,7 @@ export const PatientSidebar = () => {
 
 export const PatientTopbar = () => {
   const router = useRouter();
+  const { user, signOut } = useSession();
   const { t } = useTranslation();
   return (
     <header className="bg-card border-b border-border/50">
@@ -61,12 +64,12 @@ export const PatientTopbar = () => {
           </NavLink>
           <div className="flex items-center gap-3 border-l border-border/60 pl-5">
             <div className="text-right">
-              <p className="font-semibold text-sm text-primary leading-tight">Elena Verdant</p>
-              <p className="text-[10px] tracking-widest font-bold text-primary-glow">PREMIUM PATIENT</p>
+              <p className="font-semibold text-sm text-primary leading-tight">{displayName(user)}</p>
+              <p className="text-[10px] tracking-widest font-bold text-primary-glow">{roleLabel(user?.role).toUpperCase()}</p>
             </div>
             <img src={patientEleanor} alt="user" loading="lazy" width={40} height={40} className="h-10 w-10 rounded-full object-cover" />
           </div>
-          <button onClick={() => { toast.success("Signed out"); router.push("/signin"); }}
+          <button onClick={async () => { await signOut(); toast.success("Signed out"); router.replace("/signin"); router.refresh(); }}
             className="flex items-center gap-2 text-sm font-semibold text-foreground/70 hover:text-destructive">
             <LogOut className="h-4 w-4" /> {t("sidebar.signOut")}
           </button>

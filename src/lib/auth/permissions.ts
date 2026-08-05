@@ -74,7 +74,16 @@ export const can = (
   return actions.includes(action);
 };
 
-/** Where a role lands after signing in. */
+/**
+ * Where a role lands after signing in.
+ *
+ * Every path here must be a real route under src/app. Middleware also
+ * redirects here when someone hits a panel they are not allowed into, so a
+ * wrong path sends them to the 404 page instead of their own panel — and it
+ * looks like a broken login rather than a bad constant.
+ *
+ * The doctor portal has no /dashboard: its landing page is the patient queue.
+ */
 export const homePathForRole = (role: AppRole | null | undefined): string => {
   switch (role) {
     case "super_admin":
@@ -86,7 +95,7 @@ export const homePathForRole = (role: AppRole | null | undefined): string => {
     case "pharmacy_admin":
       return "/admin/dashboard";
     case "doctor":
-      return "/portal/dashboard";
+      return "/portal/queue";
     case "patient":
       return "/patient/dashboard";
     default:

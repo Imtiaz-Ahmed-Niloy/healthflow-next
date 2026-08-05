@@ -87,17 +87,16 @@ const SignIn = () => {
     return homePathForRole(role);
   };
 
-  const onSubmit: SubmitHandler<SignInFormValues> = async (values) => {
-    clearErrors();
+  /**
+   * The single sign-in path. Both the form and the demo buttons go through
+   * here, so there is no way for a shortcut to skip authentication — which is
+   * exactly what the old demo buttons did.
+   */
+  const signInWith = async (email: string, password: string) => {
     setGeneralError(null);
     setIsLoading(true);
 
-    const email = values.email.trim().toLowerCase();
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password: values.password,
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       setIsLoading(false);
@@ -125,24 +124,32 @@ const SignIn = () => {
     router.refresh();
   };
 
+  const onSubmit: SubmitHandler<SignInFormValues> = async (values) => {
+    clearErrors();
+    await signInWith(values.email.trim().toLowerCase(), values.password);
+  };
+
   const onInvalid: SubmitErrorHandler<SignInFormValues> = () => {
     setGeneralError(null);
     toast.error("Please complete all required fields correctly.");
   };
 
   /**
-   * Fills the form only — it no longer signs anyone in.
+   * One-click demo sign-in.
    *
-   * These buttons used to fabricate a session and redirect without checking
-   * anything. Now the credentials have to exist in Supabase like everyone
-   * else's, so demo accounts come from the seed data.
+   * These accounts are real Supabase users created by supabase/seed.sql, so
+   * this goes through the same signInWith path as the form — no fabricated
+   * session, no bypass. Previously the buttons forged a session client-side
+   * and redirected on an email prefix, which meant the demo shortcut was also
+   * an authentication bypass.
+   *
+   * Development convenience only. Remove this block before production.
    */
-  const fillDemo = (mail: string, p: string) => {
+  const fillDemo = async (mail: string, p: string) => {
     setValue("email", mail, { shouldDirty: true, shouldValidate: true });
     setValue("password", p, { shouldDirty: true, shouldValidate: true });
     clearErrors();
-    setGeneralError(null);
-    toast.info("Demo credentials filled", { description: "Press Sign in to continue." });
+    await signInWith(mail, p);
   };
 
   return (

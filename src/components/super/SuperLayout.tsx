@@ -17,6 +17,8 @@ import { Pill as Badge } from "@/components/admin/ui";
 import { formatDistanceToNow } from "date-fns";
 import LanguageSwitcher from "@/components/site/LanguageSwitcher";
 import { HeaderClock } from "@/components/common/HeaderClock";
+import { useSession, displayName } from "@/lib/auth/useSession";
+import { roleLabel } from "@/lib/auth/permissions";
 
 export const superNav = [
   { to: "/super/dashboard", icon: LayoutDashboard, label: "Dashboard", group: "Overview" },
@@ -136,6 +138,7 @@ export const SuperSidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
 
 const TopbarInner = ({ title, subtitle, onMenu, menuOpen }: { title: string; subtitle?: string; onMenu: () => void; menuOpen: boolean }) => {
   const router = useRouter();
+  const { user, signOut } = useSession();
   const { items, unread, markAllRead } = useNotifications();
   const [palette, setPalette] = useState(false);
   const [drawer, setDrawer] = useState(false);
@@ -166,12 +169,14 @@ const TopbarInner = ({ title, subtitle, onMenu, menuOpen }: { title: string; sub
             </button>
             <div className="hidden sm:flex items-center gap-3 border-l border-border/60 pl-5">
               <div className="text-right">
-                <p className="font-semibold text-sm text-primary leading-tight">Root Operator</p>
-                <p className="text-[10px] tracking-widest font-bold text-primary-glow">SUPER ADMIN</p>
+                <p className="font-semibold text-sm text-primary leading-tight">{displayName(user)}</p>
+                <p className="text-[10px] tracking-widest font-bold text-primary-glow">{roleLabel(user?.role).toUpperCase()}</p>
               </div>
-              <div className="h-10 w-10 rounded-full bg-gradient-dark grid place-items-center text-surface-dark-foreground text-xs font-bold">RO</div>
+              <div className="h-10 w-10 rounded-full bg-gradient-dark grid place-items-center text-surface-dark-foreground text-xs font-bold">
+                {displayName(user).split(" ").map(s => s[0]).slice(0, 2).join("").toUpperCase()}
+              </div>
             </div>
-            <button onClick={() => { toast.success("Signed out"); router.push("/signin"); }}
+            <button onClick={async () => { await signOut(); toast.success("Signed out"); router.replace("/signin"); router.refresh(); }}
               className="hidden md:flex items-center gap-2 text-sm font-semibold text-foreground/70 hover:text-destructive">
               <LogOut className="h-4 w-4" /> Sign Out
             </button>
