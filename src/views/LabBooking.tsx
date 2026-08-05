@@ -15,7 +15,7 @@ const allTests = hospitals[0].lab_tests;
 
 const LabBooking = () => {
   const params = useSearchParams();
-  const preselect = params.get("test");
+  const preselect = params?.get("test");
   const [query, setQuery] = useState("");
   const [cart, setCart] = useState<Record<string, number>>(preselect ? { [preselect]: 1 } : {});
   const cats = useMemo(() => ["All", ...Array.from(new Set(allTests.map((t) => t.category)))], []);

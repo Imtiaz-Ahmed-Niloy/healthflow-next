@@ -1,1 +1,3 @@
-export { default } from "@/pages/super/cms/Home";
+export const dynamic = "force-dynamic";
+
+export { default } from "@/views/super/cms/Home";

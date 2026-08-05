@@ -1,1 +1,3 @@
-export { default } from "@/pages/super/Integrations";
+export const dynamic = "force-dynamic";
+
+export { default } from "@/views/super/Integrations";

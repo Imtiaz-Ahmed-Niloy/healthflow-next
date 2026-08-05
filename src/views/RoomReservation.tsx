@@ -15,8 +15,8 @@ const allRooms = hospitals.flatMap((h) => h.rooms.map((r) => ({ ...r, hospital: 
 
 const RoomReservation = () => {
   const params = useSearchParams();
-  const initial = params.get("room");
-  const initialHospital = params.get("hospital");
+  const initial = params?.get("room");
+  const initialHospital = params?.get("hospital");
   const [selected, setSelected] = useState(
     () => allRooms.find((r) => r.type === initial && (!initialHospital || r.hospital.slug === initialHospital)) ?? allRooms[0],
   );

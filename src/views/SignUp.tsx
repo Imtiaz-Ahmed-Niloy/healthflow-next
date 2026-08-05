@@ -6,11 +6,13 @@ import Link from "next/link";
 import { BadgeInfo, CalendarDays, ChevronDown, Eye, EyeOff, Lock, Mail, Phone, Shield, User } from "lucide-react";
 import { toast } from "sonner";
 import { useForm, type SubmitErrorHandler, type SubmitHandler } from "react-hook-form";
+import { useRouter } from "next/navigation";
 import { AuthLayout } from "@/components/site/AuthLayout";
-import { usePatientSignupMutation, type PatientSignupRequest, type PatientSignupResponse } from "@/redux/features/auth/authApi";
+import { type PatientSignupRequest } from "@/redux/features/auth/authApi";
 import { clearSignupResult, setSignupResult } from "@/redux/features/auth/authSlice";
 import { useAppDispatch } from "@/redux/hooks";
-import { parseApiError } from "@/lib/rtkQueryError";
+import { supabase } from "@/lib/supabase/client";
+import { homePathForRole } from "@/lib/auth/permissions";
 
 type PatientSignupFormValues = PatientSignupRequest;
 
@@ -51,13 +53,11 @@ const parseLocalDateValue = (value: string) => {
   return parsed;
 };
 
-const isSignupField = (field: string): field is (typeof signupFieldNames)[number] =>
-  signupFieldNames.includes(field as (typeof signupFieldNames)[number]);
-
 const Signup = () => {
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
-  const [patientSignup, { isLoading }] = usePatientSignupMutation();
+  const [isLoading, setIsSubmitting] = useState(false);
   const {
     register,
     handleSubmit,
@@ -82,53 +82,81 @@ const Signup = () => {
     dispatch(clearSignupResult());
   }, [dispatch]);
 
+  /**
+   * Public signup, which only ever creates a patient.
+   *
+   * Role and tenant are NOT sent from here. The handle_new_user trigger
+   * (migration 0006) defaults anyone without role metadata to 'patient' with
+   * no hospital. Staff accounts are created by provisioning with the service
+   * role, never through this form — otherwise anyone could register as a
+   * super admin.
+   *
+   * The extra profile fields go into user metadata, which the trigger copies
+   * onto the profiles row.
+   */
   const onSubmit: SubmitHandler<PatientSignupFormValues> = async (values) => {
-    try {
-      clearErrors();
-      dispatch(clearSignupResult());
+    clearErrors();
+    dispatch(clearSignupResult());
+    setIsSubmitting(true);
 
-      const payload: PatientSignupRequest = {
-        fullName: values.fullName.trim(),
-        email: values.email.trim().toLowerCase(),
-        phone: values.phone.trim(),
-        password: values.password,
-        gender: values.gender,
-        dateOfBirth: values.dateOfBirth,
-      };
-
-      const response = await patientSignup(payload).unwrap();
-      const signupResponse: PatientSignupResponse = response;
-      const signupData = signupResponse.patient ?? signupResponse.user ?? signupResponse.data ?? null;
-
-      dispatch(
-        setSignupResult({
-          data: signupData,
-          success: true,
-        }),
-      );
-
-      toast.success(
-        <span data-testid="signup-success-message">{signupResponse.message ?? "Account created"}</span>,
-        {
-          description: "Your patient account has been created successfully.",
+    const { data, error } = await supabase.auth.signUp({
+      email: values.email.trim().toLowerCase(),
+      password: values.password,
+      options: {
+        data: {
+          full_name: values.fullName.trim(),
+          phone: values.phone.trim(),
+          gender: values.gender,
+          date_of_birth: values.dateOfBirth,
         },
-      );
-      reset();
-    } catch (error) {
-      const parsed = parseApiError(error);
+      },
+    });
 
-      Object.entries(parsed.fieldErrors).forEach(([field, message]) => {
-        if (!isSignupField(field)) {
-          return;
-        }
+    setIsSubmitting(false);
 
-        setError(field, {
-          type: "server",
-          message,
-        });
-      });
+    if (error) {
+      const message =
+        error.message === "User already registered"
+          ? "An account with this email already exists. Try signing in instead."
+          : error.message;
 
-      toast.error(<span data-testid="signup-general-error">{parsed.message}</span>);
+      if (message.toLowerCase().includes("email")) {
+        setError("email", { type: "server", message });
+      } else if (message.toLowerCase().includes("password")) {
+        setError("password", { type: "server", message });
+      }
+
+      toast.error(<span data-testid="signup-general-error">{message}</span>);
+      return;
+    }
+
+    // Store only what the success screen renders. Supabase's User carries a
+    // lot more and does not match the slice's shape.
+    dispatch(
+      setSignupResult({
+        data: data.user ? { id: data.user.id, email: data.user.email ?? "" } : null,
+        success: true,
+      }),
+    );
+
+    // With email confirmation on, there is no session yet — say so plainly
+    // rather than leaving someone waiting to be redirected.
+    const needsConfirmation = !data.session;
+
+    toast.success(
+      <span data-testid="signup-success-message">Account created</span>,
+      {
+        description: needsConfirmation
+          ? "Check your email to confirm your account, then sign in."
+          : "Your patient account is ready.",
+      },
+    );
+
+    reset();
+
+    if (!needsConfirmation) {
+      router.replace(homePathForRole("patient"));
+      router.refresh();
     }
   };
 

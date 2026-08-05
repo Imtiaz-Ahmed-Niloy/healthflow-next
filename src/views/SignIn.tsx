@@ -3,17 +3,13 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { BarChart3, Eye, EyeOff, ShieldCheck, Stethoscope, User } from "lucide-react";
 import { toast } from "sonner";
 import { useForm, type SubmitErrorHandler, type SubmitHandler } from "react-hook-form";
 import { AuthLayout } from "@/components/site/AuthLayout";
-import { authenticateTenant, provisionTenant, startSession } from "@/lib/tenants";
-import { persistTokens } from "@/lib/auth/tokenStorage";
-import { parseApiError } from "@/lib/rtkQueryError";
-import { useLoginMutation } from "@/redux/features/auth/authApi";
-import { setCredentials } from "@/redux/features/auth/authSlice";
-import { useAppDispatch } from "@/redux/hooks";
+import { supabase } from "@/lib/supabase/client";
+import { homePathForRole, type AppRole } from "@/lib/auth/permissions";
 
 const vitamin = "/assets/product-vitamin.jpg";
 const brain = "/assets/product-brain.jpg";
@@ -58,10 +54,10 @@ interface SignInFormValues {
 
 const SignIn = () => {
   const router = useRouter();
-  const dispatch = useAppDispatch();
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
-  const [login, { isLoading }] = useLoginMutation();
+  const [isLoading, setIsLoading] = useState(false);
   const {
     register,
     handleSubmit,
@@ -77,51 +73,60 @@ const SignIn = () => {
     },
   });
 
-  const routeFor = (mail: string) => {
-    if (mail.startsWith("dr-")) return "/portal/queue";
-    if (mail.startsWith("mgmt")) return "/admin/dashboard";
-    if (mail.startsWith("root")) return "/super/dashboard";
-    return "/patient/dashboard";
+  /**
+   * Where to send someone after signing in.
+   *
+   * Comes from the role claim, not from the email address. The old version
+   * routed on email prefixes ("dr-", "mgmt", "root"), which meant anyone who
+   * registered as root@… landed in the super admin panel.
+   */
+  const destinationFor = (role: AppRole | null) => {
+    const next = searchParams?.get("next");
+    // Only honour relative paths — an absolute URL here is an open redirect.
+    if (next && next.startsWith("/") && !next.startsWith("//")) return next;
+    return homePathForRole(role);
+  };
+
+  /**
+   * The single sign-in path. Both the form and the demo buttons go through
+   * here, so there is no way for a shortcut to skip authentication — which is
+   * exactly what the old demo buttons did.
+   */
+  const signInWith = async (email: string, password: string) => {
+    setGeneralError(null);
+    setIsLoading(true);
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      setIsLoading(false);
+      setValue("password", "");
+      const message =
+        error.message === "Invalid login credentials"
+          ? "That email and password do not match an account."
+          : error.message;
+      setGeneralError(message);
+      toast.error(message);
+      return;
+    }
+
+    // Read the role back off the freshly-issued token rather than guessing.
+    const { data } = await supabase.auth.getClaims();
+    const role =
+      typeof data?.claims?.user_role === "string"
+        ? (data.claims.user_role as AppRole)
+        : null;
+
+    toast.success("Welcome back!", { description: "Redirecting to your portal..." });
+
+    // refresh() so server components re-render with the new session cookie.
+    router.replace(destinationFor(role));
+    router.refresh();
   };
 
   const onSubmit: SubmitHandler<SignInFormValues> = async (values) => {
     clearErrors();
-    setGeneralError(null);
-    const email = values.email.trim().toLowerCase();
-    const password = values.password;
-
-    const tenant = authenticateTenant(email, password);
-    if (tenant) {
-      startSession(tenant);
-      toast.success(`Welcome, ${tenant.hospital}`, { description: "Opening your admin portal..." });
-      setTimeout(() => router.push("/admin/dashboard"), 500);
-      return;
-    }
-
-    try {
-      const response = await login({
-        email,
-        password,
-      }).unwrap();
-
-      dispatch(setCredentials(response.data));
-      persistTokens({
-        accessToken: response.data.accessToken,
-        refreshToken: response.data.refreshToken,
-      });
-
-      toast.success("Welcome back!", { description: "Redirecting to your portal..." });
-      setTimeout(() => router.push(routeFor(email)), 600);
-    } catch (error) {
-      const parsed = parseApiError(error);
-      const message = parsed.message === "Signup failed. Please try again."
-        ? "Sign in failed. Please try again."
-        : parsed.message;
-
-      setValue("password", "");
-      setGeneralError(message);
-      toast.error(message);
-    }
+    await signInWith(values.email.trim().toLowerCase(), values.password);
   };
 
   const onInvalid: SubmitErrorHandler<SignInFormValues> = () => {
@@ -129,17 +134,22 @@ const SignIn = () => {
     toast.error("Please complete all required fields correctly.");
   };
 
-  const fillDemo = (mail: string, p: string) => {
+  /**
+   * One-click demo sign-in.
+   *
+   * These accounts are real Supabase users created by supabase/seed.sql, so
+   * this goes through the same signInWith path as the form — no fabricated
+   * session, no bypass. Previously the buttons forged a session client-side
+   * and redirected on an email prefix, which meant the demo shortcut was also
+   * an authentication bypass.
+   *
+   * Development convenience only. Remove this block before production.
+   */
+  const fillDemo = async (mail: string, p: string) => {
     setValue("email", mail, { shouldDirty: true, shouldValidate: true });
     setValue("password", p, { shouldDirty: true, shouldValidate: true });
     clearErrors();
-    setGeneralError(null);
-    toast.success("Demo sign in", { description: "Redirecting..." });
-    if (mail.startsWith("mgmt")) {
-      const t = provisionTenant({ hospital: "Demo General Hospital", username: mail, password: p, contact: mail, plan: "Demo" });
-      startSession(t);
-    }
-    setTimeout(() => router.push(routeFor(mail)), 500);
+    await signInWith(mail, p);
   };
 
   return (
@@ -255,7 +265,10 @@ const SignIn = () => {
 
           <div className="mt-10 pt-6 border-t border-border/60">
             <p className="text-center text-[10px] tracking-widest font-bold text-muted-foreground">DEMO ACCESS</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
+            {/* Always two columns. sm:grid-cols-4 fired on viewport width, but
+                this card is a fixed 520px at every breakpoint, so four cards
+                got ~80px each and the emails truncated. */}
+            <div className="grid grid-cols-2 gap-2.5 mt-4">
               {demos.map(d => (
                 <button key={d.t} type="button" onClick={() => fillDemo(d.e, d.p)}
                   className="text-left rounded-xl bg-muted/40 hover:bg-chip transition-colors p-3 border border-border/40">

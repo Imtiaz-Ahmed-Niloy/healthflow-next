@@ -10,7 +10,7 @@ import Footer from "@/components/site/Footer";
 import { useBlogContent, getBlogPost } from "@/data/cmsBlog";
 
 const BlogDetail = () => {
-  const { slug } = useParams<{ slug: string }>();
+  const slug = useParams<{ slug: string }>()?.slug;
   const { content } = useBlogContent();
   const posts = content.posts;
   const post = posts.find(p => p.slug === (slug ?? "")) ?? getBlogPost(slug ?? "");

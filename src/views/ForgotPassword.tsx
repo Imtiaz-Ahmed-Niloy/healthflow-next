@@ -6,16 +6,37 @@ import Link from "next/link";
 import { RotateCcw, Mail, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { AuthLayout } from "@/components/site/AuthLayout";
+import { supabase } from "@/lib/supabase/client";
 
-type Step = "email" | "otp" | "done";
+// Supabase emails a reset link, not a numeric code, so the old OTP step has
+// been removed rather than left to collect a code that never arrives.
+type Step = "email" | "done";
 
 const ForgotPassword = () => {
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
+  const [isSending, setIsSending] = useState(false);
 
-  const sendLink = (e: React.FormEvent) => { e.preventDefault(); toast.success("Reset link sent", { description: `Check ${email}` }); setStep("otp"); };
-  const verify = (e: React.FormEvent) => { e.preventDefault(); setStep("done"); };
+  const sendLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSending(true);
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+
+    setIsSending(false);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    // Always report success, even for an address with no account. Telling the
+    // caller which emails are registered is an account-enumeration hole.
+    toast.success("Reset link sent", { description: `Check ${email}` });
+    setStep("done");
+  };
 
   return (
     <AuthLayout>
@@ -33,7 +54,6 @@ const ForgotPassword = () => {
             <h1 className="mt-6 font-display text-3xl text-primary">{step === "done" ? "Check your inbox!" : "Forgot Password?"}</h1>
             <p className="text-sm text-muted-foreground mt-3 max-w-xs mx-auto">
               {step === "email" && "No worries, it happens. Enter the email address associated with your account and we will send you a reset link."}
-              {step === "otp" && "Enter the 6-digit verification code we just sent to your email address."}
               {step === "done" && "We've sent password reset instructions. Follow the link in the email to set a new password."}
             </p>
 
@@ -47,23 +67,11 @@ const ForgotPassword = () => {
                       className="w-full bg-muted/60 rounded-xl pl-10 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary" />
                   </div>
                 </div>
-                <button className="w-full rounded-full bg-gradient-dark text-surface-dark-foreground py-3.5 text-sm font-semibold hover:opacity-90 shadow-glow transition-opacity">Send Reset Link</button>
+                <button disabled={isSending}
+                  className="w-full rounded-full bg-gradient-dark text-surface-dark-foreground py-3.5 text-sm font-semibold hover:opacity-90 shadow-glow transition-opacity disabled:opacity-60">
+                  {isSending ? "Sending…" : "Send Reset Link"}
+                </button>
               </form>
-            )}
-
-            {step === "otp" && (
-              <form onSubmit={verify} className="mt-8 space-y-5 text-left">
-                <div>
-                  <label className="text-sm font-medium text-primary">OTP Code</label>
-                  <input value={otp} onChange={e => setOtp(e.target.value)} required maxLength={6} placeholder="123456"
-                    className="mt-2 w-full bg-muted/60 rounded-xl px-4 py-3 text-center text-2xl tracking-[0.5em] font-mono outline-none focus:ring-2 focus:ring-primary" />
-                </div>
-                <button className="w-full rounded-full bg-gradient-dark text-surface-dark-foreground py-3.5 text-sm font-semibold hover:opacity-90 shadow-glow transition-opacity">Submit</button>
-              </form>
-            )}
-
-            {step === "done" && (
-              <Link href="/reset-password" className="mt-8 inline-block w-full rounded-full bg-gradient-dark text-surface-dark-foreground py-3.5 text-sm font-semibold hover:opacity-90 shadow-glow transition-opacity">Continue to Reset</Link>
             )}
 
             <Link href="/signin" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">

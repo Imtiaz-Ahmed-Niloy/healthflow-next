@@ -1,1 +1,1 @@
-export { default } from "@/pages/DataUse";
+export { default } from "@/views/DataUse";

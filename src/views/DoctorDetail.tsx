@@ -41,7 +41,7 @@ const buildAllDoctors = () => {
 };
 
 const DoctorDetail = () => {
-  const { slug } = useParams<{ slug: string }>();
+  const slug = useParams<{ slug: string }>()?.slug;
   const allDoctors = buildAllDoctors();
   const found = allDoctors.find((x) => x.d.slug === (slug ?? ""));
 

@@ -1,1 +1,1 @@
-export { default } from "@/pages/Cookies";
+export { default } from "@/views/Cookies";

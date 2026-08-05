@@ -7,6 +7,8 @@ import { LayoutGrid, Users, BookUser, Calendar, LogOut, Bell, Settings, BookOpen
 import { toast } from "sonner";
 import LanguageSwitcher from "@/components/site/LanguageSwitcher";
 import { HeaderClock } from "@/components/common/HeaderClock";
+import { useSession, displayName } from "@/lib/auth/useSession";
+import { roleLabel } from "@/lib/auth/permissions";
 const doctorAvatar = "/assets/doctor-avatar.jpg";
 const patientEleanor = "/assets/patient-eleanor.jpg";
 
@@ -20,7 +22,10 @@ const links = [
   { to: "/portal/medical-dictionary", icon: BookText, label: "Medical Dictionary" },
 ];
 
-export const PortalSidebar = () => (
+export const PortalSidebar = () => {
+  const { user } = useSession();
+
+  return (
   <aside className="w-64 bg-chip/40 border-r border-border/50 flex flex-col py-6 sticky top-0 h-screen">
     <Link href="/" className="px-6 flex items-center gap-2">
       <img src="/favicon.png" alt="HealthFlow logo" className="h-12 w-12 object-contain" />
@@ -33,7 +38,9 @@ export const PortalSidebar = () => (
     <div className="px-6 mt-10 flex items-center gap-3">
       <img src={doctorAvatar} alt="Doctor" loading="lazy" width={48} height={48} className="h-12 w-12 rounded-full object-cover" />
       <div>
-        <p className="font-display text-lg text-primary leading-tight">Dr. Jhon</p>
+        <p className="font-display text-lg text-primary leading-tight">{displayName(user)}</p>
+        {/* TODO: specialty comes from the doctors row for this profile_id.
+            Needs a lookup that does not exist yet, so left static. */}
         <p className="text-[11px] text-muted-foreground">Internal Medicine</p>
       </div>
     </div>
@@ -49,10 +56,12 @@ export const PortalSidebar = () => (
 
     <div className="px-6 text-[10px] tracking-widest font-semibold text-muted-foreground">© 2026 HEALTHFLOW</div>
   </aside>
-);
+  );
+};
 
 export const PortalTopbar = () => {
   const router = useRouter();
+  const { user, signOut } = useSession();
   return (
     <header className="bg-card border-b border-border/50">
       <div className="flex items-center justify-between px-8 py-4">
@@ -64,12 +73,12 @@ export const PortalTopbar = () => {
           <button className="text-foreground/70 hover:text-primary"><Settings className="h-5 w-5" /></button>
           <div className="flex items-center gap-3 border-l border-border/60 pl-5">
             <div className="text-right">
-              <p className="font-semibold text-sm text-primary leading-tight">Elena Verdant</p>
-              <p className="text-[10px] tracking-widest font-bold text-primary-glow">PREMIUM PATIENT</p>
+              <p className="font-semibold text-sm text-primary leading-tight">{displayName(user)}</p>
+              <p className="text-[10px] tracking-widest font-bold text-primary-glow">{roleLabel(user?.role).toUpperCase()}</p>
             </div>
             <img src={patientEleanor} alt="user" loading="lazy" width={40} height={40} className="h-10 w-10 rounded-full object-cover" />
           </div>
-          <button onClick={() => { toast.success("Signed out"); router.push("/signin"); }}
+          <button onClick={async () => { await signOut(); toast.success("Signed out"); router.replace("/signin"); router.refresh(); }}
             className="flex items-center gap-2 text-sm font-semibold text-foreground/70 hover:text-destructive">
             <LogOut className="h-4 w-4" /> Sign Out
           </button>
