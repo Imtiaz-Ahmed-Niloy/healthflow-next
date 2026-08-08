@@ -20,33 +20,30 @@ import { roleLabel } from "@/lib/auth/permissions";
 import { formatDistanceToNow } from "date-fns";
 import LanguageSwitcher from "@/components/site/LanguageSwitcher";
 import { HeaderClock } from "@/components/common/HeaderClock";
+import { BRAND_INFO } from "@/constants/brand";
 
 export const adminNav = [
   { to: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard", group: "Overview" },
+  { to: "/admin/admissions", icon: BedDouble, label: "Admissions", group: "Clinical" },
   { to: "/admin/doctors", icon: Stethoscope, label: "Doctors", group: "Clinical" },
-  { to: "/admin/doctor-assistants", icon: UserCog, label: "Doctor Assistants", group: "Clinical" },
-  { to: "/admin/nurses", icon: HeartPulse, label: "Nurses", group: "Clinical" },
-  { to: "/admin/support-staff", icon: Wrench, label: "Support Staff", group: "Clinical" },
-  { to: "/admin/patients", icon: UserPlus, label: "Patients", group: "Clinical" },
-  { to: "/admin/appointments", icon: CalendarDays, label: "Appointments", group: "Clinical" },
-  { to: "/admin/wards", icon: BedDouble, label: "Wards & Beds", group: "Operations" },
-  { to: "/admin/admissions", icon: UserPlus, label: "Admissions", group: "Operations" },
-  { to: "/admin/lab", icon: FlaskConical, label: "Laboratory", group: "Operations" },
-  { to: "/admin/pharmacy", icon: Pill, label: "Pharmacy", group: "Operations" },
-  { to: "/admin/hospital-profile", icon: Building2, label: "Hospital Profile", group: "Operations" },
-  { to: "/admin/hr", icon: Users2, label: "HR Dashboard", group: "HR & Administration" },
-  { to: "/admin/onboarding", icon: UserPlus, label: "Employees", group: "HR & Administration" },
-  { to: "/admin/personal-files", icon: FolderLock, label: "Personal Files", group: "HR & Administration" },
-  { to: "/admin/attendance", icon: CalendarCheck2, label: "Attendance & Leave", group: "HR & Administration" },
-  { to: "/admin/accounts", icon: BookOpen, label: "Accounts (Tally)", group: "Accounts & Finance" },
-  { to: "/admin/finance", icon: Calculator, label: "Invoices & AR/AP", group: "Accounts & Finance" },
-  { to: "/admin/payroll", icon: Wallet, label: "Payroll", group: "HR & Administration" },
-  { to: "/admin/reports", icon: FileBarChart, label: "Financial Reports", group: "Accounts & Finance" },
-  { to: "/admin/assets", icon: Boxes, label: "Assets", group: "Business" },
-  { to: "/admin/procurement", icon: ClipboardList, label: "Procurement", group: "Business" },
-  { to: "/admin/vendors", icon: Truck, label: "Vendors", group: "Business" },
-  { to: "/admin/reports", icon: FileBarChart, label: "Reports", group: "Business" },
-  { to: "/admin/notifications", icon: BellRing, label: "Notifications", group: "System" },
+  { to: "/admin/patients", icon: UserCog, label: "Patients", group: "Clinical" },
+  { to: "/admin/records", icon: HeartPulse, label: "Medical Records", group: "Clinical" },
+  { to: "/admin/labs", icon: FlaskConical, label: "Lab Orders", group: "Clinical" },
+  { to: "/admin/pharmacy", icon: Pill, label: "Pharmacy Inventory", group: "Clinical" },
+  { to: "/admin/billing", icon: Wallet, label: "Billing & Invoicing", group: "Business" },
+  { to: "/admin/insurance", icon: FolderLock, label: "Insurance Claims", group: "Business" },
+  { to: "/admin/staff", icon: Users2, label: "HR & Staff", group: "Business" },
+  { to: "/admin/roster", icon: CalendarCheck2, label: "Duty Roster", group: "Business" },
+  { to: "/admin/analytics", icon: FileBarChart, label: "Clinical Analytics", group: "Business" },
+  { to: "/admin/departments", icon: Building2, label: "Departments", group: "System" },
+  { to: "/admin/inventory", icon: Boxes, label: "Asset Inventory", group: "System" },
+  { to: "/admin/supplier", icon: Truck, label: "Suppliers", group: "System" },
+  { to: "/admin/referrals", icon: UserPlus, label: "Referrals", group: "System" },
+  { to: "/admin/appointments", icon: CalendarDays, label: "Appointments", group: "System" },
+  { to: "/admin/bed-charges", icon: Calculator, label: "Bed Charges", group: "System" },
+  { to: "/admin/announcements", icon: BellRing, label: "Announcements", group: "System" },
+  { to: "/admin/audits", icon: ClipboardList, label: "Audit Logs", group: "System" },
+  { to: "/admin/user-guide", icon: BookOpen, label: "User Guide", group: "System" },
   { to: "/admin/administration", icon: ShieldCheck, label: "Administration", group: "System" },
   { to: "/admin/settings", icon: Settings, label: "Settings", group: "System" },
 ];
@@ -59,9 +56,9 @@ const groupedNav = adminNav.reduce<Record<string, typeof adminNav>>((acc, item) 
 export const AdminSidebar = ({ onNavigate, hospital }: { onNavigate?: () => void; hospital?: string }) => (
   <aside className="w-64 bg-chip/40 border-r border-border/50 flex flex-col py-6 sticky top-0 h-screen shrink-0 overflow-hidden">
     <Link href="/" className="px-6 flex items-center gap-2">
-      <img src="/favicon.png" alt="HealthFlow logo" className="h-12 w-12 object-contain" />
+      <img src={BRAND_INFO.logo} alt={`${BRAND_INFO.name} logo`} className="h-12 w-12 object-contain" />
       <div>
-      <div className="font-display text-xl text-primary font-bold">HealthFlow</div>
+      <div className="font-display text-xl text-primary font-bold">{BRAND_INFO.name}</div>
       <p className="text-[10px] tracking-widest font-semibold text-primary-glow mt-0.5">HOSPITAL ADMIN</p>
       {hospital && (
         <p className="mt-3 text-[11px] font-bold text-primary truncate" title={hospital}>{hospital}</p>
@@ -87,7 +84,7 @@ export const AdminSidebar = ({ onNavigate, hospital }: { onNavigate?: () => void
         </div>
       ))}
     </nav>
-    <div className="px-6 pt-4 text-[10px] tracking-widest font-semibold text-muted-foreground">© 2026 HEALTHFLOW</div>
+    <div className="px-6 pt-4 text-[10px] tracking-widest font-semibold text-muted-foreground">{BRAND_INFO.copyrightUppercase}</div>
   </aside>
 );
 
