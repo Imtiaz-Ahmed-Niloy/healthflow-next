@@ -185,8 +185,10 @@ const Page = () => {
           { key: "location", label: "Location", sortable: true, accessor: r => r.location || "" },
           { key: "district", label: "District", accessor: r => r.district || "" },
           { key: "trade_license", label: "Trade licence", accessor: r => r.trade_license || "" },
-          { key: "beds", label: "Beds", sortable: true, accessor: r => Number(r.beds ?? 0) },
-          { key: "doctor_count", label: "Doctors", accessor: r => Number(r.doctor_count ?? 0) },
+          // accessor drives sorting, render drives display. A directory row
+          // usually has no bed count, and showing "0" would claim it has none.
+          { key: "beds", label: "Beds", sortable: true, accessor: r => Number(r.beds ?? 0), render: r => r.beds ?? "—" },
+          { key: "doctor_count", label: "Doctors", accessor: r => Number(r.doctor_count ?? 0), render: r => r.doctor_count ?? "—" },
           { key: "created_at", label: "Added", sortable: true, accessor: r => (r.created_at || "").slice(0, 10) },
           { key: "status", label: "Status", render: r => <Pill tone={statusTone(r.status)}>{STATUS_LABELS[r.status] ?? r.status}</Pill> },
         ],

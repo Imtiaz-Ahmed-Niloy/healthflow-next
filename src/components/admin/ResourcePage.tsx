@@ -402,6 +402,27 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [sel, setSel] = useState<string[]>([]);
+
+  // Lets a filtered list be deep-linked: /super/hospitals?status=pending is
+  // where /super/onboarding now redirects, and it has to arrive filtered or the
+  // "queue" is just the full list again.
+  //
+  // Read after mount, not during render: touching window during SSR would make
+  // the server and client disagree and trip a hydration mismatch. Mount-only on
+  // purpose — re-running would overwrite the user's own filter clicks. The ref
+  // keeps the check current without making `statuses` a dependency, which is
+  // rebuilt inline by callers and so changes identity every render.
+  const statusesRef = useRef(config.statuses);
+  statusesRef.current = config.statuses;
+
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("status");
+    if (!wanted) return;
+    const allowed = (statusesRef.current ?? []).map((s) =>
+      typeof s === "string" ? s : s.value,
+    );
+    if (allowed.includes(wanted)) setStatus(wanted);
+  }, []);
   const [editing, setEditing] = useState<T | null>(null);
   const [creating, setCreating] = useState(false);
   const [viewing, setViewing] = useState<T | null>(null);

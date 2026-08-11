@@ -218,6 +218,13 @@ export const createResourceRoute = <TCreate, TUpdate>(
       delete payload.tenant_id;
     }
 
+    // updateSchema is createSchema.partial(), so a body where every field is
+    // blank validates and then reduces to nothing. Sent on, it updates no rows,
+    // maybeSingle() returns null, and the caller gets "Not found" for a record
+    // that exists — which is a lie, and impossible to debug from the client.
+    const changes = Object.keys(payload).filter((key) => payload[key] !== undefined);
+    if (!changes.length) return fail("No changes provided", 400);
+
     const supabase = await untyped();
     const { data, error } = await supabase
       .from(definition.table)
