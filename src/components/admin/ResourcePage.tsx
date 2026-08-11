@@ -361,7 +361,12 @@ export type ResourceConfig<T extends { id: string; status?: string }> = {
   columns: Column<T>[];
   fields: FieldDef[];
   steps?: FormStep[];
-  statuses?: string[];
+  /**
+   * Status filter chips. Plain strings show as-is; pass { value, label } when
+   * the stored value is not what a human should read — a database enum like
+   * "pending" or "on_leave" needs a label.
+   */
+  statuses?: (string | { value: string; label: string })[];
   exportName?: string;
   addLabel?: string;
   defaults?: Partial<T>;
@@ -369,7 +374,21 @@ export type ResourceConfig<T extends { id: string; status?: string }> = {
   onUpdate?: (record: T) => void;
   extraFilters?: ReactNode;
   filterFn?: (row: T) => boolean;
+  /**
+   * Extra buttons per row, rendered before View / Edit / Delete. Use for module
+   * actions that are not CRUD — approving a hospital, say.
+   */
+  rowActions?: (row: T) => ReactNode;
 };
+
+/**
+ * Widgets that post JSON in a hidden input. Their values must be parsed before
+ * submit, because Postgres text[] and jsonb columns cannot accept a JSON string.
+ *
+ * `image` / `file` / `files` are deliberately absent: they embed base64 data
+ * URIs and their consumers still expect the string form.
+ */
+const JSON_VALUED_TYPES = new Set(["list", "social", "people"]);
 
 export function ResourcePage<T extends { id: string; status?: string }>({ config, extra }: { config: ResourceConfig<T>; extra?: ReactNode }) {
   // Both hooks run every render — React forbids calling one conditionally.
@@ -417,7 +436,10 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
             <div className="flex flex-wrap items-center gap-2">
               {config.statuses && (
                 <Chips value={status as never} onChange={setStatus as never}
-                  options={[{ value: "all", label: "All" }, ...config.statuses.map(s => ({ value: s, label: s }))]} />
+                  options={[
+                    { value: "all", label: "All" },
+                    ...config.statuses.map(s => (typeof s === "string" ? { value: s, label: s } : s)),
+                  ]} />
               )}
               {config.extraFilters}
             </div>
@@ -442,11 +464,14 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
             selected={sel} onSelect={setSel}
             onRow={r => setViewing(r)}
             actions={r => (
-              <RowActions
-                onView={() => setViewing(r)}
-                onEdit={() => setEditing(r)}
-                onDelete={() => setConfirm(r.id)}
-              />
+              <div className="flex items-center gap-1">
+                {config.rowActions?.(r)}
+                <RowActions
+                  onView={() => setViewing(r)}
+                  onEdit={() => setEditing(r)}
+                  onDelete={() => setConfirm(r.id)}
+                />
+              </div>
             )}
           />
         )}
@@ -491,7 +516,14 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
           // Read the form before any await: currentTarget is null afterwards.
           const fd = new FormData(e.currentTarget);
           const obj: Record<string, unknown> = { ...((config.defaults as Record<string, unknown>) || {}) };
-          config.fields.forEach(f => { obj[f.name] = String(fd.get(f.name) ?? ""); });
+          config.fields.forEach(f => {
+            const raw = String(fd.get(f.name) ?? "");
+            if (!JSON_VALUED_TYPES.has(f.type)) { obj[f.name] = raw; return; }
+            // Omit rather than send "" or a broken parse — an empty key lets the
+            // column keep its default instead of failing validation.
+            if (raw === "") return;
+            try { obj[f.name] = JSON.parse(raw); } catch { /* omit */ }
+          });
           if (editing) {
             await crud.update(editing.id, obj as never);
             config.onUpdate?.({ ...editing, ...(obj as object) } as T);

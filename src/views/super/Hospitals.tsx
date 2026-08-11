@@ -2,117 +2,53 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Copy, KeyRound, X, CalendarDays, MapPin } from "lucide-react";
+import { Copy, KeyRound, X, CalendarDays, MapPin, BadgeCheck } from "lucide-react";
 import { SuperLayout } from "@/components/super/SuperLayout";
 import { ResourcePage } from "@/components/admin/ResourcePage";
 import { Pill } from "@/components/admin/ui";
 import { Modal } from "@/components/admin/crud";
 import { statusTone } from "@/components/admin/crud";
-import { generateAdminCredentials } from "@/lib/credentials";
-import { load, save, uid } from "@/lib/storage";
 import { BD_DIVISIONS, BD_LOCATIONS } from "@/data/bdLocations";
 import { BD_UPAZILAS } from "@/data/bdUpazilas";
 import { HOSPITAL_FIELDS, HOSPITAL_STEPS } from "@/data/hospitalFields";
+import type { Database } from "@/lib/supabase/types";
 
-type H = {
-  id: string;
-  image: string;
-  name: string;
-  tag: string;
-  location: string;
-  address: string;
-  region: string;
-  division: string;
-  district: string;
-  subdistrict: string;
-  createdAt: string;
-  plan: string;
-  beds: string;
-  doctors: string;
-  founded: string;
-  rating: string;
-  reviews: string;
-  specialties: string;
-  cert: string;
-  phone: string;
+/**
+ * One list for every hospital in Bangladesh, filtered by status. There is no
+ * separate onboarding queue — `pending` IS the queue.
+ *
+ * Field names are Postgres column names throughout; the form posts straight to
+ * /api/v1/hospitals. Approving a hospital provisions its admin login, which is
+ * why credentials appear on approve rather than on create: most rows here are
+ * directory listings that will never have a login.
+ */
+
+type TenantRow = Database["public"]["Tables"]["tenants"]["Row"];
+
+/** What the table and form work with. `id` and `status` satisfy ResourcePage. */
+type H = Pick<
+  TenantRow,
+  | "id" | "name" | "slug" | "location" | "region" | "division" | "district"
+  | "subdistrict" | "beds" | "doctor_count" | "created_at" | "trade_license"
+> & { status: string };
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: "Pending",
+  approved: "Approved",
+  suspended: "Suspended",
+};
+
+type ApproveResult = {
+  hospital: string;
+  alreadyProvisioned: boolean;
   email: string;
-  website: string;
-  social: string;
-  hours: string;
-  facilities: string;
-  awards: string;
-  summary: string;
-  about: string;
-  tin: string;
-  bin: string;
-  tradeLicense: string;
-  operatingLicense: string;
-  otherLicenses: string;
-  status: string;
-  // Owner
-  ownerName: string;
-  ownershipType: string;
-  ownerNid: string;
-  ownerEmail: string;
-  ownerPhone: string;
-  ownerAddress: string;
-  ownerSince: string;
-  // Management body
-  chairman: string;
-  ceo: string;
-  medicalDirector: string;
-  managementBody: string;
-  boardNotes: string;
+  password?: string;
 };
-
-const seed: H[] = [
-  {
-    id: "h1", image: "", name: "Greenfield Hospital", tag: "Multi-specialty tertiary care",
-    location: "Dhaka, Bangladesh", address: "120 Greenfield Ave, Dhaka 1212",
-    region: "Dhaka", division: "Dhaka", district: "Dhaka", subdistrict: "Gulshan",
-    createdAt: "2024-01-15",
-    plan: "Enterprise", beds: "320", doctors: "180",
-    founded: "1986", rating: "4.7", reviews: "2400",
-    specialties: "Cardiology, Neurology, Oncology, Orthopedics",
-    cert: "JCI Accredited",
-    phone: JSON.stringify(["+880 1700 000000"]),
-    email: JSON.stringify(["info@greenfield.hf"]),
-    website: JSON.stringify(["https://greenfield.hf"]),
-    social: JSON.stringify([{ platform: "facebook", url: "https://facebook.com/greenfield" }]),
-    hours: "Mon-Sun: 24/7", facilities: "ICU, Emergency, Pharmacy, Imaging, Lab",
-    awards: "Best Hospital 2023",
-    summary: "Leading tertiary care hospital with advanced specialties.",
-    about: "",
-    tin: "", bin: "", tradeLicense: "", operatingLicense: "", otherLicenses: "",
-    status: "Active",
-    ownerName: "Dr. Rashed Karim",
-    ownershipType: "Private Limited Company",
-    ownerNid: "1990123456789",
-    ownerEmail: "owner@greenfield.hf",
-    ownerPhone: "+880 1700 000111",
-    ownerAddress: "House 12, Road 7, Gulshan 1, Dhaka",
-    ownerSince: "1986-04-12",
-    chairman: "Dr. Rashed Karim",
-    ceo: "Lila Ahmed",
-    medicalDirector: "Dr. Imran Khan",
-    managementBody: JSON.stringify([
-      { name: "Dr. Rashed Karim", role: "Chairman", phone: "+880 1700 000111", email: "chairman@greenfield.hf" },
-      { name: "Lila Ahmed", role: "CEO / Managing Director", phone: "+880 1700 000222", email: "ceo@greenfield.hf" },
-      { name: "Dr. Imran Khan", role: "Medical Director", phone: "+880 1700 000333", email: "md@greenfield.hf" },
-    ]),
-    boardNotes: "Board meets quarterly. AGM held every January.",
-  },
-];
-
-type OnboardingRow = {
-  id: string; hospital: string; plan: string; contact: string;
-  stage: string; status: string; username: string; password: string; createdAt: string;
-};
-
-const ONBOARD_KEY = "onboarding";
 
 const Page = () => {
-  const [creds, setCreds] = useState<{ hospital: string; username: string; password: string } | null>(null);
+  const [creds, setCreds] = useState<ApproveResult | null>(null);
+  const [approving, setApproving] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Filter state
   const [division, setDivision] = useState("");
@@ -128,41 +64,40 @@ const Page = () => {
     if (division && h.division !== division) return false;
     if (district && h.district !== district) return false;
     if (subdistrict && (h.subdistrict || "").toLowerCase() !== subdistrict.toLowerCase()) return false;
-    if (dateFrom && (!h.createdAt || h.createdAt < dateFrom)) return false;
-    if (dateTo && (!h.createdAt || h.createdAt > dateTo)) return false;
+    const added = (h.created_at || "").slice(0, 10);
+    if (dateFrom && (!added || added < dateFrom)) return false;
+    if (dateTo && (!added || added > dateTo)) return false;
     return true;
   };
 
   const hasFilter = !!(division || district || subdistrict || dateFrom || dateTo);
   const clearFilters = () => { setDivision(""); setDistrict(""); setSubdistrict(""); setDateFrom(""); setDateTo(""); };
 
-  const inputCls = "h-8 bg-muted/40 rounded-full px-3 text-xs outline-none focus:ring-2 focus:ring-primary";
-
   const extraFilters = (
     <div className="flex flex-wrap items-center gap-2">
       <div className="inline-flex items-center gap-1.5 bg-muted/40 rounded-full pl-3 pr-1 py-0.5">
         <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
         <select value={division} onChange={e => { setDivision(e.target.value); setDistrict(""); setSubdistrict(""); }}
-          className="h-7 bg-transparent text-xs outline-none pr-1">
+          className="h-7 bg-transparent text-xs outline-none pr-1" aria-label="Division">
           <option value="">Division</option>
           {BD_DIVISIONS.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
         <select value={district} onChange={e => { setDistrict(e.target.value); setSubdistrict(""); }}
-          disabled={!division}
+          disabled={!division} aria-label="District"
           className="h-7 bg-transparent text-xs outline-none pr-1 disabled:opacity-50">
           <option value="">District</option>
           {districtOptions.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
         {upazilaOptions.length > 0 ? (
           <select value={subdistrict} onChange={e => setSubdistrict(e.target.value)}
-            disabled={!district}
+            disabled={!district} aria-label="Subdistrict"
             className="h-7 bg-transparent text-xs outline-none pr-1 disabled:opacity-50">
             <option value="">Subdistrict</option>
             {upazilaOptions.map(d => <option key={d} value={d}>{d}</option>)}
           </select>
         ) : (
           <input value={subdistrict} onChange={e => setSubdistrict(e.target.value)}
-            disabled={!district} placeholder="Subdistrict"
+            disabled={!district} placeholder="Subdistrict" aria-label="Subdistrict"
             className="h-7 w-28 bg-transparent text-xs outline-none disabled:opacity-50" />
         )}
       </div>
@@ -183,23 +118,40 @@ const Page = () => {
     </div>
   );
 
-  const handleCreated = (h: H) => {
-    const { username, password } = generateAdminCredentials(h.name);
-    const existing = load<OnboardingRow[]>(ONBOARD_KEY, []);
-    const row: OnboardingRow = {
-      id: uid(),
-      hospital: h.name,
-      plan: h.plan || "Starter",
-      contact: h.email || "",
-      stage: "KYC",
-      status: "Pending",
-      username,
-      password,
-      createdAt: new Date().toISOString(),
-    };
-    save(ONBOARD_KEY, [row, ...existing]);
-    setCreds({ hospital: h.name, username, password });
-    toast.success("Onboarding entry created", { description: "Awaiting approval in Onboarding queue" });
+  /**
+   * Approving provisions the hospital_admin login. The endpoint is idempotent,
+   * so a second press reports the existing admin instead of creating another —
+   * but the password is only ever returned on the first, so it is shown once and
+   * never stored.
+   */
+  const approve = async (h: H) => {
+    setApproving(h.id);
+    try {
+      const res = await fetch(`/api/v1/hospitals/${h.id}/approve`, { method: "POST" });
+      const body = await res.json();
+
+      if (!res.ok) {
+        toast.error("Could not approve", { description: body?.error?.message ?? "Please try again." });
+        return;
+      }
+
+      const result = body.data as ApproveResult;
+      setRefreshKey(k => k + 1);
+
+      if (result.alreadyProvisioned) {
+        toast.success("Hospital approved", {
+          description: `${result.email} already has the admin login for this hospital.`,
+        });
+        return;
+      }
+
+      setCreds(result);
+      toast.success("Approved and admin login created");
+    } catch {
+      toast.error("Could not approve", { description: "The request failed. Please try again." });
+    } finally {
+      setApproving(null);
+    }
   };
 
   const copy = (v: string, label: string) => {
@@ -208,24 +160,35 @@ const Page = () => {
   };
 
   return (
-    <SuperLayout title="Hospital Management" subtitle="Tenants, subscriptions & lifecycle">
-      <ResourcePage<H> config={{
-        storeKey: "super-hospitals", seed, searchFields: ["name", "region", "location"],
-        statuses: ["Active", "Trial", "Suspended"],
-        onCreate: handleCreated,
-        defaults: { createdAt: new Date().toISOString().slice(0, 10) } as Partial<H>,
+    <SuperLayout title="Hospital Management" subtitle="Every hospital, filtered by status">
+      <ResourcePage<H> key={refreshKey} config={{
+        storeKey: "super-hospitals",
+        resource: "hospitals",
+        searchFields: ["name", "region", "location"],
+        statuses: Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label })),
         extraFilters,
         filterFn,
         steps: HOSPITAL_STEPS,
+        rowActions: h => (h.status === "pending" ? (
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); void approve(h); }}
+            disabled={approving === h.id}
+            title="Approve and create the admin login"
+            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-[11px] font-semibold border border-border hover:bg-muted disabled:opacity-50">
+            <BadgeCheck className="h-3.5 w-3.5" />
+            {approving === h.id ? "Approving…" : "Approve"}
+          </button>
+        ) : null),
         columns: [
           { key: "name", label: "Hospital", sortable: true, accessor: r => r.name, render: r => <span className="font-semibold text-primary">{r.name}</span> },
-          { key: "location", label: "Location", sortable: true, accessor: r => r.location },
+          { key: "location", label: "Location", sortable: true, accessor: r => r.location || "" },
           { key: "district", label: "District", accessor: r => r.district || "" },
-          { key: "plan", label: "Plan" },
-          { key: "beds", label: "Beds", sortable: true, accessor: r => Number(r.beds) },
-          { key: "doctors", label: "Doctors", accessor: r => Number(r.doctors) },
-          { key: "createdAt", label: "Added", sortable: true, accessor: r => r.createdAt || "" },
-          { key: "status", label: "Status", render: r => <Pill tone={statusTone(r.status)}>{r.status}</Pill> },
+          { key: "trade_license", label: "Trade licence", accessor: r => r.trade_license || "" },
+          { key: "beds", label: "Beds", sortable: true, accessor: r => Number(r.beds ?? 0) },
+          { key: "doctor_count", label: "Doctors", accessor: r => Number(r.doctor_count ?? 0) },
+          { key: "created_at", label: "Added", sortable: true, accessor: r => (r.created_at || "").slice(0, 10) },
+          { key: "status", label: "Status", render: r => <Pill tone={statusTone(r.status)}>{STATUS_LABELS[r.status] ?? r.status}</Pill> },
         ],
         fields: HOSPITAL_FIELDS,
       }} />
@@ -245,13 +208,14 @@ const Page = () => {
             <div className="flex items-start gap-3 rounded-xl bg-muted/40 p-4">
               <KeyRound className="h-5 w-5 text-primary mt-0.5 shrink-0" />
               <p className="text-sm text-muted-foreground">
-                Credentials for <span className="font-semibold text-primary">{creds.hospital}</span> have been generated and queued for approval in
-                {" "}<span className="font-semibold text-primary">Onboarding</span>. Share securely — the password is shown only once.
+                <span className="font-semibold text-primary">{creds.hospital}</span> is approved and its
+                admin can now sign in. Share these securely — the password is shown
+                {" "}<span className="font-semibold text-primary">only once</span> and cannot be retrieved again.
               </p>
             </div>
             {[
-              { label: "User ID", value: creds.username },
-              { label: "Password", value: creds.password },
+              { label: "Email", value: creds.email },
+              { label: "Password", value: creds.password ?? "" },
             ].map(({ label, value }) => (
               <div key={label}>
                 <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1.5">{label.toUpperCase()}</p>
@@ -271,4 +235,3 @@ const Page = () => {
   );
 };
 export default Page;
-
