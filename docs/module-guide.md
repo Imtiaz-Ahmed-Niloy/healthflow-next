@@ -28,11 +28,15 @@ yarn install                      # yarn, not npm — package-lock.json is gone
 yarn dev
 ```
 
-To run migrations you also need the Supabase CLI linked once:
+Link the Supabase CLI once, so you can read the schema and generate types:
 
 ```bash
 npx supabase link --project-ref hrpninjpfppgrsatbzmv
 ```
+
+That is the **shared** project — the one database all of us develop against.
+Linking lets you read it. It does not make applying migrations your job; see
+step 1.
 
 ---
 
@@ -74,15 +78,20 @@ add a *restrictive* policy on top and flag it in your PR.
 
 `apply_tenant_rls` refuses any table without a `tenant_id` column, on purpose.
 
-Then apply and regenerate types:
+**Do not apply it.** Commit the `.sql` file and stop there — no `supabase db
+push`, on any task.
 
-```bash
-npx supabase db push
-npx supabase gen types typescript --linked > src/lib/supabase/types.ts
-```
+`db push` applies whatever is in your branch to that shared project, and a
+migration has no down step. One bad push blocks the other six of us, so applying
+is a review gate rather than a step in your task. Ridwan pushes it when your PR
+merges and commits the regenerated `src/lib/supabase/types.ts` alongside it, so
+pull `main` after your merge to pick the new types up.
 
-Never change the database by hand in the dashboard. A change that is not in a
-migration file does not exist as far as the rest of the team is concerned.
+If you need the table to exist while you are still building against it, ask and
+it gets applied early. Asking is free; an unreviewed push is not.
+
+Never change the database by hand in the dashboard either. A change that is not
+in a migration file does not exist as far as the rest of the team is concerned.
 
 ### Global tables
 
@@ -285,6 +294,8 @@ claims until it refreshes. Force a re-login when testing role changes.
 Branch `feat/<module>-<who>`, one small PR per task, Ridwan reviews and merges
 everything. A PR must build clean, typecheck clean, lint clean, and the
 reviewer must be able to log in as the affected role and use the feature.
+
+Migrations are applied by Ridwan only, on merge — never from a feature branch.
 
 Blocked for more than an hour? Say so at standup or before. Surfacing a
 blocker early is always cheaper than losing a day to it.
