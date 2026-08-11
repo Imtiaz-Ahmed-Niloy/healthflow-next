@@ -22,9 +22,42 @@ import {
  * is undefined the query is skipped and this returns an inert object.
  */
 
-const errorMessage = (error: unknown, fallback: string) => {
-  const data = (error as { data?: { error?: { message?: string } } } | undefined)?.data;
-  return data?.error?.message ?? fallback;
+type ApiError = {
+  data?: {
+    error?: {
+      message?: string;
+      details?: { fieldErrors?: Record<string, string[]>; formErrors?: string[] };
+    };
+  };
+};
+
+/**
+ * Turns an API error into a headline plus the reason.
+ *
+ * The 422 body carries `details` from Zod's flatten(), and dropping it left the
+ * user with a bare "Validation failed" and no way to know which of forty fields
+ * the server objected to.
+ */
+const describeError = (error: unknown, fallback: string) => {
+  const apiError = (error as ApiError | undefined)?.data?.error;
+  const { fieldErrors = {}, formErrors = [] } = apiError?.details ?? {};
+
+  const reasons = [
+    ...Object.entries(fieldErrors)
+      .filter(([, messages]) => messages?.length)
+      .map(([field, messages]) => `${field}: ${messages[0]}`),
+    ...formErrors,
+  ];
+
+  return {
+    message: apiError?.message ?? fallback,
+    description: reasons.length ? reasons.join(" · ") : undefined,
+  };
+};
+
+const showError = (error: unknown, fallback: string) => {
+  const { message, description } = describeError(error, fallback);
+  toast.error(message, { description });
 };
 
 export const useResourceCrud = <T extends { id: string }>(resource?: string) => {
@@ -49,7 +82,7 @@ export const useResourceCrud = <T extends { id: string }>(resource?: string) => 
       toast.success("Created");
       return result.data as T;
     } catch (cause) {
-      toast.error(errorMessage(cause, "Could not create"));
+      showError(cause, "Could not create");
       return undefined;
     }
   };
@@ -60,7 +93,7 @@ export const useResourceCrud = <T extends { id: string }>(resource?: string) => 
       await updateTrigger({ resource, id, body: patch }).unwrap();
       toast.success("Updated");
     } catch (cause) {
-      toast.error(errorMessage(cause, "Could not update"));
+      showError(cause, "Could not update");
     }
   };
 
@@ -70,7 +103,7 @@ export const useResourceCrud = <T extends { id: string }>(resource?: string) => 
       await removeTrigger({ resource, id }).unwrap();
       toast.success("Deleted");
     } catch (cause) {
-      toast.error(errorMessage(cause, "Could not delete"));
+      showError(cause, "Could not delete");
     }
   };
 

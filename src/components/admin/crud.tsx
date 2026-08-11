@@ -204,14 +204,49 @@ export const Chips = <T extends string>({ value, onChange, options }: {
 );
 
 // ============ CSV export ============
+/**
+ * Quotes one CSV cell.
+ *
+ * CSV escapes a quote by doubling it. JSON.stringify escapes it as \" instead,
+ * which corrupts the row — one hospital with a quote in its description was
+ * enough to break the whole file. Objects and arrays (jsonb columns) are
+ * serialised to JSON first, then quoted as ordinary text.
+ */
+const csvCell = (value: unknown) => {
+  const text =
+    value === null || value === undefined
+      ? ""
+      : typeof value === "object"
+        ? JSON.stringify(value)
+        : String(value);
+
+  return `"${text.replace(/"/g, '""')}"`;
+};
+
 export const exportCSV = <T extends Record<string, unknown>>(rows: T[], filename: string) => {
   if (!rows.length) { toast.error("Nothing to export"); return; }
   const headers = Object.keys(rows[0]);
-  const csv = [headers.join(","), ...rows.map(r => headers.map(h => JSON.stringify(r[h] ?? "")).join(","))].join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
+  const csv = [
+    headers.map(csvCell).join(","),
+    ...rows.map(r => headers.map(h => csvCell(r[h])).join(",")),
+  ].join("\n");
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.style.display = "none";
+
+  // The anchor has to be in the document for the click to count, and the object
+  // URL has to outlive it: revoking synchronously after click() can cancel the
+  // download before the browser has read the blob, so nothing is saved and
+  // nothing reports an error.
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+
   toast.success("Exported CSV");
 };
 
