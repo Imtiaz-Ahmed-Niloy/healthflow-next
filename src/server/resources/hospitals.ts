@@ -12,52 +12,77 @@ import type { ResourceDefinition } from "./types";
  * See docs/superpowers/specs/2026-08-11-super-hospitals-design.md
  */
 
-/** Treats "" from an HTML form the same as omitted. */
-const optionalText = z.string().trim().max(2000).optional().or(z.literal("")).transform(
-  (value) => (value === "" ? undefined : value),
-);
+/**
+ * An HTML form posts "" for every field the user left alone, and the column
+ * should stay null rather than becoming an empty string or a zero.
+ *
+ * This runs BEFORE coercion, which matters for numbers: `z.coerce.number()`
+ * turns "" into 0, so an untouched "Total beds" would be saved as a hospital
+ * with zero beds instead of an unknown bed count.
+ */
+const blankToUndefined = (value: unknown) =>
+  value === "" || value === null ? undefined : value;
 
-/** Number fields arrive from forms as strings. */
-const optionalNumber = z.coerce.number().optional().or(z.literal("")).transform(
-  (value) => (value === "" ? undefined : value),
-);
-
-/** Date inputs post "" when cleared. */
-const optionalDate = z.string().trim().optional().or(z.literal("")).transform(
-  (value) => (value === "" ? undefined : value),
-);
+const optionalText = z.preprocess(blankToUndefined, z.string().trim().max(2000).optional());
+const optionalNumber = z.preprocess(blankToUndefined, z.coerce.number().optional());
+const optionalDate = z.preprocess(blankToUndefined, z.string().trim().optional());
+const optionalEmail = z.preprocess(blankToUndefined, z.string().trim().email().optional());
 
 /**
  * The form collects these as repeatable text inputs; Postgres holds text[].
  * A single string is accepted and wrapped, so a plain input still works.
  */
-const optionalTextArray = z
-  .union([z.string(), z.array(z.string())])
-  .optional()
-  .transform((value) => {
-    if (value === undefined) return undefined;
-    const list = (Array.isArray(value) ? value : [value])
-      .map((item) => item.trim())
-      .filter(Boolean);
-    return list.length ? list : undefined;
-  });
-
-/** [{ platform, url }] — an array of objects, so jsonb rather than columns. */
-const socialSchema = z
-  .array(z.object({ platform: z.string().trim().min(1), url: z.string().trim().min(1) }))
-  .optional();
-
-/** [{ name, role, phone, email }] — likewise jsonb. */
-const managementBodySchema = z
-  .array(
-    z.object({
-      name: z.string().trim().min(1),
-      role: z.string().trim().optional(),
-      phone: z.string().trim().optional(),
-      email: z.string().trim().optional(),
+const optionalTextArray = z.preprocess(
+  blankToUndefined,
+  z
+    .union([z.string(), z.array(z.string())])
+    .optional()
+    .transform((value) => {
+      if (value === undefined) return undefined;
+      const list = (Array.isArray(value) ? value : [value])
+        .map((item) => item.trim())
+        .filter(Boolean);
+      return list.length ? list : undefined;
     }),
-  )
-  .optional();
+);
+
+/**
+ * [{ platform, url }] and [{ name, role, phone, email }] — arrays of objects, so
+ * jsonb rather than columns.
+ *
+ * Blank rows are DROPPED, not rejected. The repeatable widgets always render one
+ * empty row, and PeopleField pre-selects a role on it, so an untouched
+ * "Management body" section posts [{ name: "", role: "Chairman" }]. Rejecting
+ * that would 422 every create where the user never opened step 2.
+ */
+const socialSchema = z.preprocess(
+  blankToUndefined,
+  z
+    .array(z.object({ platform: z.string().trim().optional(), url: z.string().trim() }))
+    .optional()
+    .transform((list) => {
+      const kept = list?.filter((s) => s.url) ?? [];
+      return kept.length ? kept : undefined;
+    }),
+);
+
+const managementBodySchema = z.preprocess(
+  blankToUndefined,
+  z
+    .array(
+      z.object({
+        name: z.string().trim(),
+        role: z.string().trim().optional(),
+        phone: z.string().trim().optional(),
+        email: z.string().trim().optional(),
+      }),
+    )
+    .optional()
+    .transform((list) => {
+      const kept = list?.filter((m) => m.name) ?? [];
+      return kept.length ? kept : undefined;
+    }),
+);
 
 export const hospitalCreateSchema = z.object({
   // The only two required fields. Everything else is optional so a directory
@@ -80,9 +105,9 @@ export const hospitalCreateSchema = z.object({
   beds: optionalNumber,
   doctor_count: optionalNumber,
   founded_year: optionalNumber,
-  rating: z.coerce.number().min(0).max(5).optional().or(z.literal("")).transform(
-    (value) => (value === "" ? undefined : value),
-  ),
+  // Mirrors the check constraint in 0008, so a bad value is a clean 422 rather
+  // than a 23514 surfaced as "Invalid values".
+  rating: z.preprocess(blankToUndefined, z.coerce.number().min(0).max(5).optional()),
   reviews_count: optionalNumber,
 
   // descriptive
@@ -96,9 +121,7 @@ export const hospitalCreateSchema = z.object({
 
   // contact — contact_email/contact_phone are the canonical single values that
   // provisioning sends credentials to; the arrays are the extras.
-  contact_email: z.string().trim().email().optional().or(z.literal("")).transform(
-    (value) => (value === "" ? undefined : value),
-  ),
+  contact_email: optionalEmail,
   contact_phone: optionalText,
   additional_emails: optionalTextArray,
   additional_phones: optionalTextArray,
@@ -115,9 +138,7 @@ export const hospitalCreateSchema = z.object({
   owner_name: optionalText,
   ownership_type: optionalText,
   owner_nid: optionalText,
-  owner_email: z.string().trim().email().optional().or(z.literal("")).transform(
-    (value) => (value === "" ? undefined : value),
-  ),
+  owner_email: optionalEmail,
   owner_phone: optionalText,
   owner_address: optionalText,
   owner_since: optionalDate,
@@ -131,9 +152,7 @@ export const hospitalCreateSchema = z.object({
 
   // lifecycle
   status: z.enum(["pending", "approved", "suspended"]).optional(),
-  package_id: z.string().uuid().optional().or(z.literal("")).transform(
-    (value) => (value === "" ? undefined : value),
-  ),
+  package_id: z.preprocess(blankToUndefined, z.string().uuid().optional()),
   created_at: optionalDate,
 
   // `slug` is deliberately absent. It is not null unique and is derived by the
