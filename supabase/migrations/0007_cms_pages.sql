@@ -23,7 +23,7 @@ alter table public.cms_pages enable row level security;
 
 -- Public read (marketing site must not require login)
 create policy cms_pages_public_read on public.cms_pages
-  for select to anon, authenticated using (true);
+  for select to anon, authenticated using (published);
 
 -- Only super_admin can write
 create policy cms_pages_super_write on public.cms_pages
