@@ -6,7 +6,7 @@ import { NavLink } from "@/components/NavLink";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Building2, ShieldCheck, FileBarChart, Package, Globe2, ListChecks,
-  FileCode2, Receipt, Settings, LogOut, Bell, Menu, X, Network, Megaphone, LifeBuoy, ScrollText, Workflow,
+  FileCode2, Receipt, Settings, LogOut, Bell, Menu, X, Network, Megaphone, LifeBuoy, ScrollText,
   ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -23,8 +23,9 @@ import { BRAND_INFO } from "@/constants/brand";
 
 export const superNav = [
   { to: "/super/dashboard", icon: LayoutDashboard, label: "Dashboard", group: "Overview" },
+  // No separate onboarding queue: Hospital Management lists every hospital and
+  // `pending` is the queue. /super/onboarding redirects there.
   { to: "/super/hospitals", icon: Building2, label: "Hospital Management", group: "Tenants" },
-  { to: "/super/onboarding", icon: Workflow, label: "Onboarding Queue", group: "Tenants" },
   { to: "/super/roles", icon: ShieldCheck, label: "User Role Management", group: "Tenants" },
   { to: "/super/package-management", icon: Package, label: "Package Management", group: "Tenants" },
   { to: "/super/logs", icon: FileBarChart, label: "Log Reports", group: "Monitoring" },

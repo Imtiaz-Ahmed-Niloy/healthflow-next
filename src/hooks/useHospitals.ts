@@ -1,10 +1,10 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { hospitals as staticHospitals, baseDoctors, baseLabTests, baseRooms, baseManagement, type Hospital, type Doctor } from "@/data/hospitals";
 import { slugify } from "@/lib/slug";
+import { supabase } from "@/lib/supabase/client";
 const atriumFallback = "/assets/hub-atrium.jpg";
 const doctorFallback = "/assets/doctors/doc-1.jpg";
 
-const STORAGE_KEY = "hf:super-hospitals";
 const DOCTORS_KEY = "hf:doctors";
 const LAB_CATALOG_KEY = "hf:lab-catalog";
 
@@ -93,84 +93,66 @@ const doctorsForHospital = (hospitalName: string, hospitalSlug: string): Doctor[
     .map(mapAdminDoctor);
 };
 
-type SuperHospital = {
-  id: string;
-  image?: string;
-  name: string;
-  tag?: string;
-  location?: string;
-  address?: string;
-  region?: string;
-  plan?: string;
-  beds?: string;
-  doctors?: string;
-  founded?: string;
-  rating?: string;
-  reviews?: string;
-  specialties?: string;
-  cert?: string;
-  phone?: string;
-  email?: string;
-  website?: string;
-  social?: string;
-  hours?: string;
-  facilities?: string;
-  awards?: string;
-  summary?: string;
-  about?: string;
-  status?: string;
-};
-
-const splitList = (s?: string) =>
+const splitList = (s?: string | null) =>
   (s || "").split(",").map((x) => x.trim()).filter(Boolean);
 
-const parseListField = (v?: string): string[] => {
-  if (!v) return [];
-  const s = v.trim();
-  if (!s) return [];
-  if (s.startsWith("[")) {
-    try { const p = JSON.parse(s); if (Array.isArray(p)) return p.map(String).filter(Boolean); } catch { /* fallthrough */ }
-  }
-  return [s];
+/** One row of `public.hospitals_public`, the safe public projection of tenants. */
+type PublicHospital = {
+  id: string | null;
+  name: string | null;
+  slug: string | null;
+  tagline: string | null;
+  location: string | null;
+  division: string | null;
+  district: string | null;
+  logo_url: string | null;
+  cover_image_url: string | null;
+  specialties: string | null;
+  facilities: string | null;
+  opening_hours: string | null;
+  summary: string | null;
+  about: string | null;
+  beds: number | null;
+  doctor_count: number | null;
+  founded_year: number | null;
+  rating: number | null;
+  reviews_count: number | null;
 };
 
-const parseSocial = (v?: string): { platform: string; url: string }[] => {
-  if (!v) return [];
-  try { const p = JSON.parse(v); if (Array.isArray(p)) return p.filter((x) => x && x.url); } catch { /* ignore */ }
-  return [];
-};
-
-export const mapSuperToHospital = (r: SuperHospital): Hospital => {
-  const phones = parseListField(r.phone);
-  const emails = parseListField(r.email);
-  const websites = parseListField(r.website);
-  return ({
-  slug: slugify(r.name || r.id),
+/**
+ * Maps a public view row onto the shape the marketing pages already render.
+ *
+ * The view carries no contact details, licences or owner information — those
+ * columns are deliberately not exposed — so phone/email/website resolve empty
+ * rather than being faked.
+ */
+const mapPublicToHospital = (r: PublicHospital): Hospital => ({
+  slug: r.slug || slugify(r.name || r.id || ""),
   name: r.name || "Untitled hospital",
-  tag: r.tag || "Custom",
-  location: r.location || "",
-  address: r.address || r.location || "",
-  rating: Number(r.rating) || 4.5,
-  reviews: Number(r.reviews) || 0,
+  tag: r.tagline || "Partner hospital",
+  location: [r.location, r.district, r.division].filter(Boolean).join(", ") || "",
+  address: r.location || "",
+  rating: Number(r.rating) || 0,
+  reviews: Number(r.reviews_count) || 0,
   beds: Number(r.beds) || 0,
-  doctors: Number(r.doctors) || 0,
-  founded: Number(r.founded) || new Date().getFullYear(),
+  doctors: Number(r.doctor_count) || 0,
+  founded: Number(r.founded_year) || new Date().getFullYear(),
   specialties: splitList(r.specialties),
-  cert: r.cert || "Certified",
-  phone: phones[0] || "",
-  email: emails[0] || "",
-  website: websites[0] || "",
-  phones,
-  emails,
-  websites,
-  social: parseSocial((r as SuperHospital & { social?: string }).social),
-  image: r.image || atriumFallback,
-  summary: r.summary || r.tag || "",
+  cert: "Verified partner",
+  phone: "",
+  email: "",
+  website: "",
+  phones: [],
+  emails: [],
+  websites: [],
+  social: [],
+  image: r.cover_image_url || r.logo_url || atriumFallback,
+  summary: r.summary || r.tagline || "",
   about: r.about || r.summary || "",
   facilities: splitList(r.facilities),
-  awards: splitList(r.awards),
-  hours: r.hours
-    ? [{ day: "All week", time: r.hours }]
+  awards: [],
+  hours: r.opening_hours
+    ? [{ day: "All week", time: r.opening_hours }]
     : [
         { day: "Mon – Fri", time: "9:00 AM – 6:00 PM" },
         { day: "Sat – Sun", time: "10:00 AM – 4:00 PM" },
@@ -181,32 +163,31 @@ export const mapSuperToHospital = (r: SuperHospital): Hospital => {
   rooms: baseRooms,
   management: baseManagement,
 });
+
+/**
+ * Approved hospitals, from the database.
+ *
+ * Reads `hospitals_public` (0008), never `tenants`. That view exposes only
+ * columns safe to publish and filters to `status = 'approved'`, so "which
+ * hospitals appear on the public site" is decided in SQL — and owner NIDs,
+ * TIN/BIN and licence numbers are not reachable at all.
+ *
+ * Before 0008 this job was done by reading the super admin's localStorage, so
+ * the public site only ever showed hospitals typed in the same browser.
+ */
+const fetchApproved = async (): Promise<Hospital[]> => {
+  const { data, error } = await supabase
+    .from("hospitals_public")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error || !data) return [];
+  return data.filter((r) => r.name).map(mapPublicToHospital);
 };
 
-const readCustom = (): Hospital[] => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const arr = JSON.parse(raw) as SuperHospital[];
-    if (!Array.isArray(arr)) return [];
-    return arr
-      .filter((r) => r && r.name && (r.status ?? "Active") !== "Suspended")
-      .map(mapSuperToHospital);
-  } catch {
-    return [];
-  }
-};
-
-export const getAllHospitals = (): Hospital[] => {
-  const custom = readCustom();
-  const seen = new Set<string>();
-  const merged = [...custom, ...staticHospitals].filter((h) => {
-    if (seen.has(h.slug)) return false;
-    seen.add(h.slug);
-    return true;
-  });
-  // Inject admin-added doctors (from /admin/doctors) and lab tests (from /admin/lab) into matching hospital
-  return merged.map((h) => {
+/** Injects admin-managed doctors and lab tests into whichever hospitals match. */
+const withLocalExtras = (list: Hospital[]): Hospital[] =>
+  list.map((h) => {
     let next = h;
     const extras = doctorsForHospital(h.name, h.slug);
     if (extras.length) {
@@ -214,31 +195,82 @@ export const getAllHospitals = (): Hospital[] => {
       const fresh = extras.filter((d) => !existing.has(d.name.toLowerCase()));
       next = { ...next, doctors_list: [...fresh, ...next.doctors_list], doctors: next.doctors + fresh.length };
     }
-    const labs = labTestsForHospital(h.name, h.slug);
-    // Replace lab_tests entirely with admin-managed catalog so add/edit/delete from /admin/lab is reflected
-    next = { ...next, lab_tests: labs };
+    // Replaced entirely so add/edit/delete in /admin/lab is reflected.
+    next = { ...next, lab_tests: labTestsForHospital(h.name, h.slug) };
     return next;
+  });
+
+const dedupeBySlug = (list: Hospital[]): Hospital[] => {
+  const seen = new Set<string>();
+  return list.filter((h) => {
+    if (seen.has(h.slug)) return false;
+    seen.add(h.slug);
+    return true;
   });
 };
 
-export const findHospital = (slug: string): Hospital | undefined =>
-  getAllHospitals().find((h) => h.slug === slug);
+/**
+ * Static marketing hospitals only, synchronously.
+ *
+ * Kept for DoctorDetail, which needs a hospital list during render and is itself
+ * still driven by localStorage doctors. It does NOT include database partners —
+ * anything needing those must use the hooks below.
+ */
+export const getAllHospitals = (): Hospital[] =>
+  withLocalExtras(dedupeBySlug([...staticHospitals]));
 
-export const useHospitals = () => {
-  const [list, setList] = useState<Hospital[]>(() => getAllHospitals());
-  const refresh = useCallback(() => setList(getAllHospitals()), []);
+const useApprovedHospitals = () => {
+  const [approved, setApproved] = useState<Hospital[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [localTick, setLocalTick] = useState(0);
+
   useEffect(() => {
+    let active = true;
+    void fetchApproved().then((rows) => {
+      if (!active) return;
+      setApproved(rows);
+      setLoading(false);
+    });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    const bump = () => setLocalTick((n) => n + 1);
     const onStorage = (e: StorageEvent) => {
-      if (!e.key || e.key === STORAGE_KEY || e.key === DOCTORS_KEY || e.key === LAB_CATALOG_KEY) refresh();
+      if (!e.key || e.key === DOCTORS_KEY || e.key === LAB_CATALOG_KEY) bump();
     };
     window.addEventListener("storage", onStorage);
-    window.addEventListener("focus", refresh);
-    const id = window.setInterval(refresh, 1500);
+    window.addEventListener("focus", bump);
     return () => {
       window.removeEventListener("storage", onStorage);
-      window.removeEventListener("focus", refresh);
-      window.clearInterval(id);
+      window.removeEventListener("focus", bump);
     };
-  }, [refresh]);
-  return list;
+  }, []);
+
+  // localTick is a deliberate dependency: it is how an edit in another tab to
+  // the not-yet-migrated doctor and lab catalogues forces a re-merge.
+  const hospitals = useMemo(
+    () => withLocalExtras(dedupeBySlug([...approved, ...staticHospitals])),
+    [approved, localTick],
+  );
+
+  return { hospitals, loading };
+};
+
+/** Approved partners merged over the static marketing content. */
+export const useHospitals = () => useApprovedHospitals().hospitals;
+
+/**
+ * Single hospital by slug.
+ *
+ * Replaces the old synchronous `findHospital`, which only worked while the data
+ * was in localStorage. `loading` matters: without it a detail page cannot tell
+ * "still fetching" from "no such hospital", and would flash not-found for every
+ * real hospital on first paint.
+ */
+export const useHospital = (slug: string) => {
+  const { hospitals, loading } = useApprovedHospitals();
+  // `hospitals` comes back too so a detail page can render "related" without a
+  // second hook instance, which would mean a second fetch.
+  return { hospital: hospitals.find((h) => h.slug === slug), hospitals, loading };
 };

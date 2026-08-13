@@ -15,13 +15,12 @@ import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { findHospital, useHospitals } from "@/hooks/useHospitals";
+import { useHospital } from "@/hooks/useHospitals";
 import { slugify } from "@/lib/slug";
 
 const HospitalDetail = () => {
   const slug = useParams<{ slug: string }>()?.slug;
-  const hospitals = useHospitals();
-  const hospital = findHospital(slug ?? "");
+  const { hospital, hospitals, loading } = useHospital(slug ?? "");
 
   const [docQuery, setDocQuery] = useState("");
   const [docSpec, setDocSpec] = useState("All");
@@ -53,6 +52,20 @@ const HospitalDetail = () => {
     () => (hospital?.rooms ?? []).filter((r) => roomCat === "All" || r.category === roomCat),
     [hospital, roomCat],
   );
+
+  // Hospitals now arrive from the database, so "not yet loaded" must not be
+  // reported as "does not exist".
+  if (!hospital && loading) {
+    return (
+      <div className="min-h-screen bg-gradient-hero">
+        <Navbar />
+        <main className="container mx-auto py-32 text-center">
+          <p className="text-sm text-muted-foreground">Loading hospital…</p>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!hospital) {
     return (

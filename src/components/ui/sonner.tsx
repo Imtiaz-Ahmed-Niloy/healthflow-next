@@ -13,6 +13,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
       toastOptions={{
+        // Sonner's default is 4s, which is not long enough to read a toast that
+        // carries a reason ("Validation failed" plus which field). Overridable
+        // per call with toast(..., { duration }).
+        duration: 6000,
         classNames: {
           toast:
             "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
