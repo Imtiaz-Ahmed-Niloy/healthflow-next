@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { BRAND_INFO } from "@/constants/brand";
 
 export type FooterLink = { label: string; to: string };
 export type FooterColumn = { title: string; links: FooterLink[] };
@@ -18,11 +19,11 @@ const STORAGE_KEY = "hf:footer-content:v1";
 const EVENT = "hf:footer-content:changed";
 
 export const defaultFooterContent: FooterContent = {
-  brand: "HealthFlow",
-  tagline: "Restorative care, modern medicine, for everyone.",
+  brand: BRAND_INFO.name,
+  tagline: BRAND_INFO.tagline,
   newsletterTitle: "Newsletter",
   newsletterPlaceholder: "Your email",
-  rights: "© HealthFlow. All rights reserved.",
+  rights: `© ${BRAND_INFO.name}. All rights reserved.`,
   columns: [
     {
       title: "Resources",

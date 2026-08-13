@@ -20,6 +20,7 @@ import { roleLabel } from "@/lib/auth/permissions";
 import { formatDistanceToNow } from "date-fns";
 import LanguageSwitcher from "@/components/site/LanguageSwitcher";
 import { HeaderClock } from "@/components/common/HeaderClock";
+import { BRAND_INFO } from "@/constants/brand";
 
 export const adminNav = [
   { to: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard", group: "Overview" },
@@ -59,9 +60,9 @@ const groupedNav = adminNav.reduce<Record<string, typeof adminNav>>((acc, item) 
 export const AdminSidebar = ({ onNavigate, hospital }: { onNavigate?: () => void; hospital?: string }) => (
   <aside className="w-64 bg-chip/40 border-r border-border/50 flex flex-col py-6 sticky top-0 h-screen shrink-0 overflow-hidden">
     <Link href="/" className="px-6 flex items-center gap-2">
-      <img src="/favicon.png" alt="HealthFlow logo" className="h-12 w-12 object-contain" />
+      <img src={BRAND_INFO.logo} alt={`${BRAND_INFO.name} logo`} className="h-12 w-12 object-contain" />
       <div>
-      <div className="font-display text-xl text-primary font-bold">HealthFlow</div>
+      <div className="font-display text-xl text-primary font-bold">{BRAND_INFO.name}</div>
       <p className="text-[10px] tracking-widest font-semibold text-primary-glow mt-0.5">HOSPITAL ADMIN</p>
       {hospital && (
         <p className="mt-3 text-[11px] font-bold text-primary truncate" title={hospital}>{hospital}</p>
@@ -87,7 +88,7 @@ export const AdminSidebar = ({ onNavigate, hospital }: { onNavigate?: () => void
         </div>
       ))}
     </nav>
-    <div className="px-6 pt-4 text-[10px] tracking-widest font-semibold text-muted-foreground">© 2026 HEALTHFLOW</div>
+    <div className="px-6 pt-4 text-[10px] tracking-widest font-semibold text-muted-foreground">{BRAND_INFO.copyrightUppercase}</div>
   </aside>
 );
 
