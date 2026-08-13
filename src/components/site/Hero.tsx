@@ -3,11 +3,11 @@
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
-const hero = "/assets/hero-clinic.jpg";
-import { useHomeContent } from "@/data/homeContent";
+import type { HomeContent } from "@/data/homeContent";
 
-const Hero = () => {
-  const { content } = useHomeContent();
+const hero = "/assets/hero-clinic.jpg";
+
+const Hero = ({ content }: { content: HomeContent }) => {
   return (
     <section className="container mx-auto pt-12 pb-20 lg:pt-20 lg:pb-28">
       <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
@@ -50,4 +50,3 @@ const Hero = () => {
   );
 };
 export default Hero;
-

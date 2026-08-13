@@ -1,1 +1,22 @@
-export { default } from "@/views/Index";
+import Index from "@/views/Index";
+import { createServerSupabase } from "@/lib/supabase/server";
+import { blocksToHomeContent } from "@/data/homeContent";
+
+// Revalidate the homepage every 60s. Edits in the CMS show up within a minute
+// without needing a redeploy or a cache purge.
+export const revalidate = 60;
+
+export default async function HomePage() {
+  const supabase = await createServerSupabase();
+
+  const { data } = await supabase
+    .from("cms_pages")
+    .select("blocks")
+    .eq("slug", "home")
+    .eq("published", true)
+    .maybeSingle();
+
+  const homeContent = blocksToHomeContent(data?.blocks);
+
+  return <Index homeContent={homeContent} />;
+}

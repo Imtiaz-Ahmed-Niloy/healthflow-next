@@ -1,10 +1,9 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useHomeContent } from "@/data/homeContent";
+import type { HomeContent } from "@/data/homeContent";
 
-const Stats = () => {
-  const { content } = useHomeContent();
+const Stats = ({ content }: { content: HomeContent }) => {
   return (
     <section className="container mx-auto py-16">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
@@ -23,4 +22,3 @@ const Stats = () => {
   );
 };
 export default Stats;
-
