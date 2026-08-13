@@ -28,3 +28,6 @@ create policy cms_pages_super_write on public.cms_pages
   for all to authenticated
   using (public.is_super_admin())
   with check (public.is_super_admin());
+
+
+  
