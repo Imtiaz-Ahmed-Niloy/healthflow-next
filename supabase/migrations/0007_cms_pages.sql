@@ -12,8 +12,6 @@ create table public.cms_pages (
   updated_at timestamptz not null default now()
 );
 
-create index cms_pages_slug_idx on public.cms_pages (slug);
-
 create trigger cms_pages_set_updated_at
   before update on public.cms_pages
   for each row execute function public.set_updated_at();
