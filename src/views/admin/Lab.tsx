@@ -132,7 +132,7 @@ const Lab = () => {
           fields: [
             { name: "name", label: "Test name", type: "text", required: true },
             { name: "category", label: "Category", type: "select", options: ["Hematology", "Biochemistry", "Endocrinology", "Imaging", "Microbiology", "Pathology", "Cardiology", "Nutrition", "Immunology", "Other"] },
-            { name: "price", label: "Price (USD)", type: "number", required: true },
+            { name: "price", label: "Price (USD)", type: "number", required: true, min: 0, numberStep: 0.01 },
             { name: "turnaround", label: "Turnaround time", type: "text" },
             { name: "sample", label: "Sample type", type: "text" },
             { name: "prep", label: "Patient preparation", type: "text" },

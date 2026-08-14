@@ -30,7 +30,7 @@ const Vendors = () => (
         { name: "category", label: "Category", type: "text" },
         { name: "contact", label: "Contact person", type: "text" },
         { name: "phone", label: "Phone", type: "tel" },
-        { name: "rating", label: "Rating (1-5)", type: "number" },
+        { name: "rating", label: "Rating (1-5)", type: "number", min: 1, max: 5, numberStep: 0.1 },
         { name: "status", label: "Status", type: "select", options: ["Active", "On Hold", "Suspended"] },
       ],
     }} />

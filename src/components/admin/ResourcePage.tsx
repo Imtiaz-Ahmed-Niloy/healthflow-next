@@ -286,7 +286,20 @@ function PeopleField({ name, defaultValue, roleOptions, addLabel }: { name: stri
 }
 
 export type FieldDef = (
-  | { name: string; label: string; type: "text" | "email" | "tel" | "number" | "date"; required?: boolean; fullWidth?: boolean }
+  /**
+   * `min`, `max` and `numberStep` map onto the HTML attributes of the same
+   * name and matter more than they look.
+   *
+   * A number input with no step defaults to step=1, so the browser rejects
+   * any decimal — and it does it by blocking submit, not by showing an error
+   * the user can see when the field has scrolled out of the dialog. A column
+   * typed numeric(2,1) needs `numberStep: 0.1` or its form can never be
+   * saved. Use "any" when the precision does not matter.
+   *
+   * `numberStep` rather than `step` because `step` below is the wizard page
+   * this field belongs to.
+   */
+  | { name: string; label: string; type: "text" | "email" | "tel" | "number" | "date"; required?: boolean; fullWidth?: boolean; min?: number; max?: number; numberStep?: number | "any" }
   | { name: string; label: string; type: "select"; options: string[]; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "textarea"; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "image"; required?: boolean; fullWidth?: boolean }
@@ -338,7 +351,9 @@ export function RecordFormFields({
               ) : f.type === "people" ? (
                 <PeopleField name={f.name} defaultValue={(editing as never)?.[f.name]} roleOptions={f.roleOptions} addLabel={f.addLabel} />
               ) : (
-                <Input name={f.name} type={f.type} required={f.required} defaultValue={(editing as never)?.[f.name] ?? ""} />
+                <Input name={f.name} type={f.type} required={f.required}
+                        min={f.min} max={f.max} step={f.numberStep}
+                        defaultValue={(editing as never)?.[f.name] ?? ""} />
               )}
             </Field>
           </div>
@@ -532,7 +547,27 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
             ))}
           </div>
         )}
-        <form id="resource-form" onSubmit={async e => {
+        <form id="resource-form"
+          /**
+           * The dialog scrolls, and a field can be far outside the visible
+           * part of it. When the browser blocks submit on such a field it
+           * reports nothing the user can see — the form simply stops
+           * responding to Save, which reads as a broken button.
+           *
+           * onInvalid fires per offending field before that happens, so the
+           * first one is scrolled into view and focused.
+           */
+          onInvalid={e => {
+            const field = e.target as HTMLElement;
+            if (field.dataset.scrolled) return;
+            field.dataset.scrolled = "1";
+            field.scrollIntoView({ block: "center", behavior: "smooth" });
+            requestAnimationFrame(() => {
+              field.focus({ preventScroll: true });
+              delete field.dataset.scrolled;
+            });
+          }}
+          onSubmit={async e => {
           e.preventDefault();
           // Read the form before any await: currentTarget is null afterwards.
           const fd = new FormData(e.currentTarget);
@@ -585,7 +620,9 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
                     ) : f.type === "people" ? (
                       <PeopleField name={f.name} defaultValue={(editing as never)?.[f.name]} roleOptions={f.roleOptions} addLabel={f.addLabel} />
                     ) : (
-                      <Input name={f.name} type={f.type} required={f.required} defaultValue={(editing as never)?.[f.name] ?? ""} />
+                      <Input name={f.name} type={f.type} required={f.required}
+                        min={f.min} max={f.max} step={f.numberStep}
+                        defaultValue={(editing as never)?.[f.name] ?? ""} />
                     )}
                   </Field>
                 </div>

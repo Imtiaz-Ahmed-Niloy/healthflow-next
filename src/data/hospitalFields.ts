@@ -32,7 +32,11 @@ export const HOSPITAL_FIELDS: FieldDef[] = [
   { name: "founded_year", label: "Founded (year)", type: "number", step: 1 },
   { name: "beds", label: "Total beds", type: "number", step: 1 },
   { name: "doctor_count", label: "Doctors count", type: "number", step: 1 },
-  { name: "rating", label: "Rating (0–5)", type: "number", step: 1 },
+  // numberStep, not just the label, because tenants.rating is numeric(2,1).
+  // A number input defaults to step=1, so without this "4.5" makes the whole
+  // form unsubmittable — and silently, since the browser reports it on a field
+  // that has scrolled out of the dialog. (`step` here is the wizard page.)
+  { name: "rating", label: "Rating (0–5)", type: "number", step: 1, min: 0, max: 5, numberStep: 0.1 },
   { name: "reviews_count", label: "Reviews count", type: "number", step: 1 },
   { name: "contact_phone", label: "Main phone", type: "tel", step: 1 },
   // The label carries the warning because `hint` only renders on file widgets.
