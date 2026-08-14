@@ -76,6 +76,24 @@ export const createAdminSupabase = () => {
 };
 
 /**
+ * Public, cookie-less client for reading published content on unauthenticated
+ * pages (marketing site, blog, etc).
+ *
+ * Uses the publishable key, so RLS still applies — anon can only read rows
+ * the public read policy allows. But because it never touches cookies, pages
+ * that use it stay statically renderable, and `export const revalidate = N`
+ * actually caches. `createServerSupabase()` would opt the page out of caching
+ * the moment it reads a cookie.
+ *
+ * Do not use this for anything behind auth — it has no session context.
+ */
+export const createPublicSupabase = () => {
+  return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+};
+
+/**
  * Verified identity of the caller, or null when not signed in.
  *
  * Uses getClaims(), which verifies the JWT signature. Do not swap this for
