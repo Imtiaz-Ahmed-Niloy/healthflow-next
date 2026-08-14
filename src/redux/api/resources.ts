@@ -35,6 +35,19 @@ export type DoctorShiftRow = Tables["doctor_shifts"]["Row"] & {
   doctors: DoctorSummary | null;
 };
 
+export type NurseRow = Tables["nurses"]["Row"];
+
+/** Nurse summary embedded on the two nurse-operations tables. */
+type NurseSummary = Pick<NurseRow, "id" | "name" | "ward">;
+
+export type NurseShiftRow = Tables["nurse_shifts"]["Row"] & {
+  nurses: NurseSummary | null;
+};
+
+export type NursePerformanceRow = Tables["nurse_performance"]["Row"] & {
+  nurses: (NurseSummary & Pick<NurseRow, "shift">) | null;
+};
+
 export type OfferRow = Tables["offers"]["Row"] & {
   packages: Pick<PackageRow, "id" | "name" | "slug"> | null;
 };
@@ -114,3 +127,33 @@ export const doctorShiftsApi = createResourceApi<
   DoctorShiftWrite,
   DoctorShiftWrite
 >("doctor-shifts");
+
+export type NurseShiftWrite = {
+  nurse_id?: string;
+  day_of_week?: string;
+  shift_type?: string;
+  ward?: string | null;
+};
+
+export type NursePerformanceWrite = {
+  nurse_id?: string;
+  patients_handled?: number;
+  hours_worked?: number;
+  attendance_pct?: number;
+  incidents?: number;
+  feedback?: number;
+};
+
+export const nursesApi = createResourceApi<NurseRow>("nurses");
+
+export const nurseShiftsApi = createResourceApi<
+  NurseShiftRow,
+  NurseShiftWrite,
+  NurseShiftWrite
+>("nurse-shifts");
+
+export const nursePerformanceApi = createResourceApi<
+  NursePerformanceRow,
+  NursePerformanceWrite,
+  NursePerformanceWrite
+>("nurse-performance");

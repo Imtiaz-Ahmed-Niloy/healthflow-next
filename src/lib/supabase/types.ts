@@ -387,6 +387,185 @@ export type Database = {
           },
         ]
       }
+      nurse_performance: {
+        Row: {
+          attendance_pct: number
+          created_at: string
+          feedback: number
+          hours_worked: number
+          id: string
+          incidents: number
+          nurse_id: string
+          patients_handled: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          attendance_pct?: number
+          created_at?: string
+          feedback?: number
+          hours_worked?: number
+          id?: string
+          incidents?: number
+          nurse_id: string
+          patients_handled?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          attendance_pct?: number
+          created_at?: string
+          feedback?: number
+          hours_worked?: number
+          id?: string
+          incidents?: number
+          nurse_id?: string
+          patients_handled?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nurse_performance_nurse_fkey"
+            columns: ["nurse_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "nurses"
+            referencedColumns: ["id", "tenant_id"]
+          },
+          {
+            foreignKeyName: "nurse_performance_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nurse_performance_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nurse_shifts: {
+        Row: {
+          created_at: string
+          day_of_week: string
+          id: string
+          nurse_id: string
+          shift_type: string
+          tenant_id: string
+          updated_at: string
+          ward: string | null
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: string
+          id?: string
+          nurse_id: string
+          shift_type?: string
+          tenant_id: string
+          updated_at?: string
+          ward?: string | null
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: string
+          id?: string
+          nurse_id?: string
+          shift_type?: string
+          tenant_id?: string
+          updated_at?: string
+          ward?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nurse_shifts_nurse_fkey"
+            columns: ["nurse_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "nurses"
+            referencedColumns: ["id", "tenant_id"]
+          },
+          {
+            foreignKeyName: "nurse_shifts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nurse_shifts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nurses: {
+        Row: {
+          created_at: string
+          email: string | null
+          experience_years: number | null
+          id: string
+          license: string | null
+          name: string
+          phone: string | null
+          qualification: string | null
+          shift: string
+          status: string
+          tenant_id: string
+          updated_at: string
+          ward: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          experience_years?: number | null
+          id?: string
+          license?: string | null
+          name: string
+          phone?: string | null
+          qualification?: string | null
+          shift?: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          ward?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          experience_years?: number | null
+          id?: string
+          license?: string | null
+          name?: string
+          phone?: string | null
+          qualification?: string | null
+          shift?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          ward?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nurses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nurses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       offers: {
         Row: {
           active: boolean
