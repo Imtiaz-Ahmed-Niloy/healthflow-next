@@ -48,6 +48,9 @@ export type NursePerformanceRow = Tables["nurse_performance"]["Row"] & {
   nurses: (NurseSummary & Pick<NurseRow, "shift">) | null;
 };
 
+/** Support staff carry no relations, so the row is the table row. */
+export type SupportStaffRow = Tables["support_staff"]["Row"];
+
 export type OfferRow = Tables["offers"]["Row"] & {
   packages: Pick<PackageRow, "id" | "name" | "slug"> | null;
 };
