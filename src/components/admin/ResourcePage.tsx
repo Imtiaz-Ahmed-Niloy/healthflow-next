@@ -285,6 +285,12 @@ function PeopleField({ name, defaultValue, roleOptions, addLabel }: { name: stri
   );
 }
 
+export type SelectOption = string | { value: string; label: string };
+
+/** Normalises the two accepted option shapes to the one the markup needs. */
+const toOptions = (options: SelectOption[]) =>
+  options.map(o => (typeof o === "string" ? { value: o, label: o } : o));
+
 export type FieldDef = (
   /**
    * `min`, `max` and `numberStep` map onto the HTML attributes of the same
@@ -300,7 +306,13 @@ export type FieldDef = (
    * this field belongs to.
    */
   | { name: string; label: string; type: "text" | "email" | "tel" | "number" | "date"; required?: boolean; fullWidth?: boolean; min?: number; max?: number; numberStep?: number | "any" }
-  | { name: string; label: string; type: "select"; options: string[]; required?: boolean; fullWidth?: boolean }
+  /**
+   * Options are plain strings when the stored value is what a human should
+   * read. Pass { value, label } when it is not — a database enum like
+   * "on_leave", or a foreign key, where the value is a uuid and the label is
+   * the name it points at. Same shape as `statuses` below.
+   */
+  | { name: string; label: string; type: "select"; options: SelectOption[]; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "textarea"; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "image"; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "file"; accept?: string; hint?: string; required?: boolean; fullWidth?: boolean }
@@ -331,8 +343,8 @@ export function RecordFormFields({
           <div key={f.name} className={`${wide ? "col-span-2" : ""} ${hidden ? "hidden" : ""}`}>
             <Field label={f.label}>
               {f.type === "select" ? (
-                <Select name={f.name} required={f.required} defaultValue={(editing as never)?.[f.name] ?? f.options[0]}>
-                  {f.options.map(o => <option key={o} value={o}>{o}</option>)}
+                <Select name={f.name} required={f.required} defaultValue={(editing as never)?.[f.name] ?? toOptions(f.options)[0]?.value ?? ""}>
+                  {toOptions(f.options).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </Select>
               ) : f.type === "textarea" ? (
                 <textarea name={f.name} required={f.required} defaultValue={(editing as never)?.[f.name] ?? ""} rows={3}
@@ -600,8 +612,8 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
                 <div key={f.name} className={`${wide ? "col-span-2" : ""} ${hidden ? "hidden" : ""}`}>
                   <Field label={f.label}>
                     {f.type === "select" ? (
-                      <Select name={f.name} required={f.required} defaultValue={(editing as never)?.[f.name] ?? f.options[0]}>
-                        {f.options.map(o => <option key={o} value={o}>{o}</option>)}
+                      <Select name={f.name} required={f.required} defaultValue={(editing as never)?.[f.name] ?? toOptions(f.options)[0]?.value ?? ""}>
+                        {toOptions(f.options).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </Select>
                     ) : f.type === "textarea" ? (
                       <textarea name={f.name} required={f.required} defaultValue={(editing as never)?.[f.name] ?? ""} rows={3}
