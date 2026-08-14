@@ -9,12 +9,16 @@ export const revalidate = 60;
 export default async function HomePage() {
   const supabase = createPublicSupabase();
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("cms_pages")
     .select("blocks")
     .eq("slug", "home")
     .eq("published", true)
     .maybeSingle();
+
+  if (error) {
+    console.error("Failed to load homepage CMS content:", error);
+  }
 
   const homeContent = blocksToHomeContent(data?.blocks);
 

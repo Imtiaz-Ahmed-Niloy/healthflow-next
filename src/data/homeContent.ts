@@ -45,18 +45,18 @@ export const useHomeContent = () => {
   const save = async (next: HomeContent) => {
     const blocks = homeContentToBlocks(next);
     if (row) {
-      await update(row.id, { blocks });
+      await update(row.id, { blocks }).unwrap();
     } else {
-      await create({ slug: "home", title: "Home", blocks, published: true });
+      await create({ slug: "home", title: "Home", blocks, published: true }).unwrap();
     }
   };
 
   const reset = async () => {
     const blocks = homeContentToBlocks(defaultHomeContent);
     if (row) {
-      await update(row.id, { blocks });
+      await update(row.id, { blocks }).unwrap();
     } else {
-      await create({ slug: "home", title: "Home", blocks, published: true });
+      await create({ slug: "home", title: "Home", blocks, published: true }).unwrap();
     }
   };
 
