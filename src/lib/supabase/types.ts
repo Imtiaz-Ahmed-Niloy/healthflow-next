@@ -44,6 +44,111 @@ export type Database = {
         }
         Relationships: []
       }
+      doctor_performance: {
+        Row: {
+          consultations: number
+          created_at: string
+          doctor_id: string
+          feedback: number
+          id: string
+          patient_volume: number
+          revenue: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          consultations?: number
+          created_at?: string
+          doctor_id: string
+          feedback?: number
+          id?: string
+          patient_volume?: number
+          revenue?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          consultations?: number
+          created_at?: string
+          doctor_id?: string
+          feedback?: number
+          id?: string
+          patient_volume?: number
+          revenue?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_performance_doctor_fkey"
+            columns: ["doctor_id", "tenant_id"]
+            isOneToOne: true
+            referencedRelation: "doctors"
+            referencedColumns: ["id", "tenant_id"]
+          },
+          {
+            foreignKeyName: "doctor_performance_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      doctor_shifts: {
+        Row: {
+          created_at: string
+          day_of_week: string
+          doctor_id: string
+          end_time: string
+          id: string
+          shift_type: string
+          start_time: string
+          tenant_id: string
+          updated_at: string
+          ward: string | null
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: string
+          doctor_id: string
+          end_time: string
+          id?: string
+          shift_type?: string
+          start_time: string
+          tenant_id: string
+          updated_at?: string
+          ward?: string | null
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: string
+          doctor_id?: string
+          end_time?: string
+          id?: string
+          shift_type?: string
+          start_time?: string
+          tenant_id?: string
+          updated_at?: string
+          ward?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_shifts_doctor_fkey"
+            columns: ["doctor_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id", "tenant_id"]
+          },
+          {
+            foreignKeyName: "doctor_shifts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctors: {
         Row: {
           availability: string | null

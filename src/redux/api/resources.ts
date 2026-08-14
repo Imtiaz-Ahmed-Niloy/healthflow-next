@@ -18,6 +18,19 @@ type Tables = Database["public"]["Tables"];
 export type RoleRow = Tables["roles"]["Row"];
 export type PackageRow = Tables["packages"]["Row"];
 
+export type DoctorRow = Tables["doctors"]["Row"];
+
+/** Doctor summary embedded on the two doctor-operations tables. */
+type DoctorSummary = Pick<DoctorRow, "id" | "name" | "specialty">;
+
+export type DoctorPerformanceRow = Tables["doctor_performance"]["Row"] & {
+  doctors: DoctorSummary | null;
+};
+
+export type DoctorShiftRow = Tables["doctor_shifts"]["Row"] & {
+  doctors: DoctorSummary | null;
+};
+
 export type OfferRow = Tables["offers"]["Row"] & {
   packages: Pick<PackageRow, "id" | "name" | "slug"> | null;
 };
@@ -59,11 +72,41 @@ export type HospitalPackageWrite = {
   notes?: string | null;
 };
 
+export type DoctorPerformanceWrite = {
+  doctor_id?: string;
+  patient_volume?: number;
+  consultations?: number;
+  revenue?: number;
+  feedback?: number;
+};
+
+export type DoctorShiftWrite = {
+  doctor_id?: string;
+  day_of_week?: string;
+  start_time?: string;
+  end_time?: string;
+  shift_type?: string;
+  ward?: string;
+};
+
 export const rolesApi = createResourceApi<RoleRow, RoleWrite, RoleWrite>("roles");
 export const packagesApi = createResourceApi<PackageRow>("packages");
+export const doctorsApi = createResourceApi<DoctorRow>("doctors");
 export const offersApi = createResourceApi<OfferRow, OfferWrite, OfferWrite>("offers");
 export const hospitalPackagesApi = createResourceApi<
   HospitalPackageRow,
   HospitalPackageWrite,
   HospitalPackageWrite
 >("hospital-packages");
+
+export const doctorPerformanceApi = createResourceApi<
+  DoctorPerformanceRow,
+  DoctorPerformanceWrite,
+  DoctorPerformanceWrite
+>("doctor-performance");
+
+export const doctorShiftsApi = createResourceApi<
+  DoctorShiftRow,
+  DoctorShiftWrite,
+  DoctorShiftWrite
+>("doctor-shifts");
