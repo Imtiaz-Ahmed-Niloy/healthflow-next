@@ -80,29 +80,6 @@ export const PANELS: Panel[] = [
   },
 ];
 
-export type RoleDef = {
-  id: string;
-  name: string;
-  scope: "Platform" | "Tenant" | "Clinical" | "Self";
-  users: number;
-  pages: string[]; // allowed paths
-};
-
-export const DEFAULT_ROLES: RoleDef[] = [
-  { id: "super_admin", name: "Super Admin", scope: "Platform", users: 4,
-    pages: PANELS.find(p => p.key === "super")!.pages.map(p => p.path) },
-  { id: "hospital_admin", name: "Hospital Admin", scope: "Tenant", users: 48,
-    pages: PANELS.find(p => p.key === "admin")!.pages.map(p => p.path) },
-  { id: "hr_admin", name: "HR Admin", scope: "Tenant", users: 38,
-    pages: ["/admin/dashboard","/admin/hr","/admin/onboarding","/admin/personal-files","/admin/attendance","/admin/payroll","/admin/nurses","/admin/support-staff","/admin/doctor-assistants"] },
-  { id: "finance_admin", name: "Finance Admin", scope: "Tenant", users: 32,
-    pages: ["/admin/dashboard","/admin/finance","/admin/accounts","/admin/payroll","/admin/procurement","/admin/vendors","/admin/reports"] },
-  { id: "lab_admin", name: "Lab Admin", scope: "Tenant", users: 21,
-    pages: ["/admin/dashboard","/admin/lab","/admin/reports"] },
-  { id: "pharmacy_admin", name: "Pharmacy Admin", scope: "Tenant", users: 19,
-    pages: ["/admin/dashboard","/admin/pharmacy","/admin/procurement","/admin/vendors"] },
-  { id: "doctor", name: "Doctor", scope: "Clinical", users: 612,
-    pages: PANELS.find(p => p.key === "portal")!.pages.map(p => p.path) },
-  { id: "patient", name: "Patient", scope: "Self", users: 11873,
-    pages: PANELS.find(p => p.key === "patient")!.pages.map(p => p.path) },
-];
+// The roles themselves live in `public.roles`, seeded with these same page
+// grants by 0009_roles_management.sql. This file is only the catalogue the
+// Role Management screen renders checkboxes from.

@@ -141,6 +141,127 @@ export type Database = {
           },
         ]
       }
+      hospital_packages: {
+        Row: {
+          base_price: number
+          billing_cycle: string
+          created_at: string
+          discount_pct: number
+          id: string
+          notes: string | null
+          offer_id: string | null
+          package_id: string
+          renew_date: string | null
+          start_date: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          base_price?: number
+          billing_cycle?: string
+          created_at?: string
+          discount_pct?: number
+          id?: string
+          notes?: string | null
+          offer_id?: string | null
+          package_id: string
+          renew_date?: string | null
+          start_date?: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          base_price?: number
+          billing_cycle?: string
+          created_at?: string
+          discount_pct?: number
+          id?: string
+          notes?: string | null
+          offer_id?: string | null
+          package_id?: string
+          renew_date?: string | null
+          start_date?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hospital_packages_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospital_packages_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospital_packages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospital_packages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      offers: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          discount_pct: number
+          id: string
+          label: string
+          package_id: string | null
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          discount_pct?: number
+          id?: string
+          label?: string
+          package_id?: string | null
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          discount_pct?: number
+          id?: string
+          label?: string
+          package_id?: string | null
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offers_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       packages: {
         Row: {
           created_at: string
@@ -238,28 +359,37 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          id: string
           is_system: boolean
           label: string
+          pages: string[]
           permissions: Json
-          role: Database["public"]["Enums"]["app_role"]
+          role: Database["public"]["Enums"]["app_role"] | null
+          scope: string
           updated_at: string
         }
         Insert: {
           created_at?: string
           description?: string | null
+          id?: string
           is_system?: boolean
           label: string
+          pages?: string[]
           permissions?: Json
-          role: Database["public"]["Enums"]["app_role"]
+          role?: Database["public"]["Enums"]["app_role"] | null
+          scope?: string
           updated_at?: string
         }
         Update: {
           created_at?: string
           description?: string | null
+          id?: string
           is_system?: boolean
           label?: string
+          pages?: string[]
           permissions?: Json
-          role?: Database["public"]["Enums"]["app_role"]
+          role?: Database["public"]["Enums"]["app_role"] | null
+          scope?: string
           updated_at?: string
         }
         Relationships: []
