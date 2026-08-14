@@ -63,8 +63,21 @@ export const useHomeContent = () => {
   return { content, save, reset };
 };
 
-export function blocksToHomeContent(blocks: unknown): HomeContent {
-  const b = (blocks ?? {}) as any;
+type HomeBlocks = {
+  hero?: {
+    title1?: string;
+    title2?: string;
+    desc?: string;
+    bookCta?: string;
+    exploreCta?: string;
+  };
+  stats?: {
+    items?: StatItem[];
+  };
+};
+
+export const blocksToHomeContent = (blocks: unknown): HomeContent => {
+  const b = (blocks ?? {}) as HomeBlocks;
   return {
     heroTitle1:     b.hero?.title1     ?? defaultHomeContent.heroTitle1,
     heroTitle2:     b.hero?.title2     ?? defaultHomeContent.heroTitle2,
@@ -73,9 +86,9 @@ export function blocksToHomeContent(blocks: unknown): HomeContent {
     heroExploreCta: b.hero?.exploreCta ?? defaultHomeContent.heroExploreCta,
     stats:          b.stats?.items     ?? defaultHomeContent.stats,
   };
-}
+};
 
-export function homeContentToBlocks(content: HomeContent) {
+export const homeContentToBlocks = (content: HomeContent) => {
   return {
     hero: {
       title1:     content.heroTitle1,
@@ -86,4 +99,4 @@ export function homeContentToBlocks(content: HomeContent) {
     },
     stats: { items: content.stats },
   };
-}
+};

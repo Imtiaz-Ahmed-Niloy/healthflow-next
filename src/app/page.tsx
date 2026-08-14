@@ -1,5 +1,5 @@
 import Index from "@/views/Index";
-import { createServerSupabase } from "@/lib/supabase/server";
+import { createPublicSupabase } from "@/lib/supabase/server";
 import { blocksToHomeContent } from "@/data/homeContent";
 
 // Revalidate the homepage every 60s. Edits in the CMS show up within a minute
@@ -7,7 +7,7 @@ import { blocksToHomeContent } from "@/data/homeContent";
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const supabase = await createServerSupabase();
+  const supabase = createPublicSupabase();
 
   const { data } = await supabase
     .from("cms_pages")
