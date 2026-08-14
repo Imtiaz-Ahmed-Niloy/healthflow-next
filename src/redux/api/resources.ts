@@ -23,6 +23,10 @@ export type DoctorRow = Tables["doctors"]["Row"];
 /** Doctor summary embedded on the two doctor-operations tables. */
 type DoctorSummary = Pick<DoctorRow, "id" | "name" | "specialty">;
 
+export type DoctorAssistantRow = Tables["doctor_assistants"]["Row"] & {
+  doctors: DoctorSummary | null;
+};
+
 export type DoctorPerformanceRow = Tables["doctor_performance"]["Row"] & {
   doctors: DoctorSummary | null;
 };
