@@ -12,8 +12,9 @@ import Testimonials from "@/components/site/Testimonials";
 import Footer from "@/components/site/Footer";
 import Chatbot from "@/components/site/Chatbot";
 import AnnouncementPopup from "@/components/site/AnnouncementPopup";
+import type { HomeContent } from "@/data/homeContent";
 
-const Index = () => {
+const Index = ({ homeContent }: { homeContent: HomeContent }) => {
   const [division, setDivision] = useState("");
   const [zilla, setZilla] = useState("");
   const [upazila, setUpazila] = useState("");
@@ -28,8 +29,8 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-hero">
       <Navbar />
       <main>
-        <Hero />
-        <Stats />
+        <Hero content={homeContent} />
+        <Stats content={homeContent} />
         <SearchBar
           division={division}
           zilla={zilla}

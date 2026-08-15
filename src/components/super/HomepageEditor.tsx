@@ -30,14 +30,28 @@ const HomepageEditor = () => {
     setDirty(true);
   };
 
-  const onSave = () => {
-    save(draft);
-    setDirty(false);
-    toast.success("Homepage updated");
+  const onSave = async () => {
+    try {
+      await save(draft);
+      setDirty(false);
+      toast.success("Homepage updated");
+    } catch (cause) {
+      const message =
+        (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ??
+        "Could not save homepage";
+      toast.error(message);
+    }
   };
-  const onReset = () => {
-    reset();
-    toast.success("Restored defaults");
+  const onReset = async () => {
+    try {
+      await reset();
+      toast.success("Restored defaults");
+    } catch (cause) {
+      const message =
+        (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ??
+        "Could not reset homepage";
+      toast.error(message);
+    }
   };
 
   const [tab, setTab] = useState<"hero" | "stats" | "testimonials">("hero");
