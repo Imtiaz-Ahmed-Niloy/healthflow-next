@@ -6,7 +6,7 @@ import Link from "next/link";
 import { NavLink } from "@/components/NavLink";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "./LanguageSwitcher";
-const logo = "/assets/healthflow-mark.png";
+import { BRAND_INFO } from "@/constants/brand";
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);
@@ -21,8 +21,8 @@ const Navbar = () => {
     <header className="sticky top-0 z-50 backdrop-blur-md bg-background/80 border-b border-border/50">
       <nav className="container mx-auto flex items-center justify-between py-4">
         <Link href="/" className="flex items-center gap-2 font-display text-2xl font-semibold text-primary">
-          <img src={logo} alt="HealthFlow logo" className="h-12 w-12 object-contain" />
-          HealthFlow
+          <img src={BRAND_INFO.logoMark} alt={`${BRAND_INFO.name} logo`} className="h-12 w-12 object-contain" />
+          {BRAND_INFO.name}
         </Link>
         <ul className="hidden md:flex items-center gap-10 text-sm font-medium text-foreground/80">
           {links.map((l) => (

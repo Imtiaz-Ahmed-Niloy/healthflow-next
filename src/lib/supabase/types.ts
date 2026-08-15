@@ -14,6 +14,602 @@ export type Database = {
   }
   public: {
     Tables: {
+      cms_pages: {
+        Row: {
+          blocks: Json
+          created_at: string
+          id: string
+          published: boolean
+          slug: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          blocks?: Json
+          created_at?: string
+          id?: string
+          published?: boolean
+          slug: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          blocks?: Json
+          created_at?: string
+          id?: string
+          published?: boolean
+          slug?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      doctor_assistants: {
+        Row: {
+          created_at: string
+          doctor_id: string | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          shift: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          doctor_id?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          shift?: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          doctor_id?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          shift?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_assistants_doctor_fkey"
+            columns: ["doctor_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id", "tenant_id"]
+          },
+          {
+            foreignKeyName: "doctor_assistants_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_assistants_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      doctor_performance: {
+        Row: {
+          consultations: number
+          created_at: string
+          doctor_id: string
+          feedback: number
+          id: string
+          patient_volume: number
+          revenue: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          consultations?: number
+          created_at?: string
+          doctor_id: string
+          feedback?: number
+          id?: string
+          patient_volume?: number
+          revenue?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          consultations?: number
+          created_at?: string
+          doctor_id?: string
+          feedback?: number
+          id?: string
+          patient_volume?: number
+          revenue?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_performance_doctor_fkey"
+            columns: ["doctor_id", "tenant_id"]
+            isOneToOne: true
+            referencedRelation: "doctors"
+            referencedColumns: ["id", "tenant_id"]
+          },
+          {
+            foreignKeyName: "doctor_performance_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      doctor_shifts: {
+        Row: {
+          created_at: string
+          day_of_week: string
+          doctor_id: string
+          end_time: string
+          id: string
+          shift_type: string
+          start_time: string
+          tenant_id: string
+          updated_at: string
+          ward: string | null
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: string
+          doctor_id: string
+          end_time: string
+          id?: string
+          shift_type?: string
+          start_time: string
+          tenant_id: string
+          updated_at?: string
+          ward?: string | null
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: string
+          doctor_id?: string
+          end_time?: string
+          id?: string
+          shift_type?: string
+          start_time?: string
+          tenant_id?: string
+          updated_at?: string
+          ward?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_shifts_doctor_fkey"
+            columns: ["doctor_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id", "tenant_id"]
+          },
+          {
+            foreignKeyName: "doctor_shifts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      doctors: {
+        Row: {
+          availability: string | null
+          bio: string | null
+          consultation_duration_minutes: number | null
+          consultation_fee: number | null
+          created_at: string
+          education: string | null
+          email: string | null
+          experience_years: number | null
+          expertise: string | null
+          id: string
+          languages: string | null
+          name: string
+          patients_treated: number | null
+          phone: string | null
+          photo_url: string | null
+          profile_id: string | null
+          rating: number | null
+          slug: string
+          specialty: string | null
+          status: Database["public"]["Enums"]["doctor_status"]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          availability?: string | null
+          bio?: string | null
+          consultation_duration_minutes?: number | null
+          consultation_fee?: number | null
+          created_at?: string
+          education?: string | null
+          email?: string | null
+          experience_years?: number | null
+          expertise?: string | null
+          id?: string
+          languages?: string | null
+          name: string
+          patients_treated?: number | null
+          phone?: string | null
+          photo_url?: string | null
+          profile_id?: string | null
+          rating?: number | null
+          slug: string
+          specialty?: string | null
+          status?: Database["public"]["Enums"]["doctor_status"]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          availability?: string | null
+          bio?: string | null
+          consultation_duration_minutes?: number | null
+          consultation_fee?: number | null
+          created_at?: string
+          education?: string | null
+          email?: string | null
+          experience_years?: number | null
+          expertise?: string | null
+          id?: string
+          languages?: string | null
+          name?: string
+          patients_treated?: number | null
+          phone?: string | null
+          photo_url?: string | null
+          profile_id?: string | null
+          rating?: number | null
+          slug?: string
+          specialty?: string | null
+          status?: Database["public"]["Enums"]["doctor_status"]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctors_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctors_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctors_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hospital_packages: {
+        Row: {
+          base_price: number
+          billing_cycle: string
+          created_at: string
+          discount_pct: number
+          id: string
+          notes: string | null
+          offer_id: string | null
+          package_id: string
+          renew_date: string | null
+          start_date: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          base_price?: number
+          billing_cycle?: string
+          created_at?: string
+          discount_pct?: number
+          id?: string
+          notes?: string | null
+          offer_id?: string | null
+          package_id: string
+          renew_date?: string | null
+          start_date?: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          base_price?: number
+          billing_cycle?: string
+          created_at?: string
+          discount_pct?: number
+          id?: string
+          notes?: string | null
+          offer_id?: string | null
+          package_id?: string
+          renew_date?: string | null
+          start_date?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hospital_packages_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospital_packages_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospital_packages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospital_packages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nurse_performance: {
+        Row: {
+          attendance_pct: number
+          created_at: string
+          feedback: number
+          hours_worked: number
+          id: string
+          incidents: number
+          nurse_id: string
+          patients_handled: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          attendance_pct?: number
+          created_at?: string
+          feedback?: number
+          hours_worked?: number
+          id?: string
+          incidents?: number
+          nurse_id: string
+          patients_handled?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          attendance_pct?: number
+          created_at?: string
+          feedback?: number
+          hours_worked?: number
+          id?: string
+          incidents?: number
+          nurse_id?: string
+          patients_handled?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nurse_performance_nurse_fkey"
+            columns: ["nurse_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "nurses"
+            referencedColumns: ["id", "tenant_id"]
+          },
+          {
+            foreignKeyName: "nurse_performance_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nurse_performance_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nurse_shifts: {
+        Row: {
+          created_at: string
+          day_of_week: string
+          id: string
+          nurse_id: string
+          shift_type: string
+          tenant_id: string
+          updated_at: string
+          ward: string | null
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: string
+          id?: string
+          nurse_id: string
+          shift_type?: string
+          tenant_id: string
+          updated_at?: string
+          ward?: string | null
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: string
+          id?: string
+          nurse_id?: string
+          shift_type?: string
+          tenant_id?: string
+          updated_at?: string
+          ward?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nurse_shifts_nurse_fkey"
+            columns: ["nurse_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "nurses"
+            referencedColumns: ["id", "tenant_id"]
+          },
+          {
+            foreignKeyName: "nurse_shifts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nurse_shifts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nurses: {
+        Row: {
+          created_at: string
+          email: string | null
+          experience_years: number | null
+          id: string
+          license: string | null
+          name: string
+          phone: string | null
+          qualification: string | null
+          shift: string
+          status: string
+          tenant_id: string
+          updated_at: string
+          ward: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          experience_years?: number | null
+          id?: string
+          license?: string | null
+          name: string
+          phone?: string | null
+          qualification?: string | null
+          shift?: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          ward?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          experience_years?: number | null
+          id?: string
+          license?: string | null
+          name?: string
+          phone?: string | null
+          qualification?: string | null
+          shift?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          ward?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nurses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nurses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      offers: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          discount_pct: number
+          id: string
+          label: string
+          package_id: string | null
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          discount_pct?: number
+          id?: string
+          label?: string
+          package_id?: string | null
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          discount_pct?: number
+          id?: string
+          label?: string
+          package_id?: string | null
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offers_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       packages: {
         Row: {
           created_at: string
@@ -95,6 +691,13 @@ export type Database = {
             foreignKeyName: "profiles_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
@@ -104,71 +707,257 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          id: string
           is_system: boolean
           label: string
+          pages: string[]
           permissions: Json
-          role: Database["public"]["Enums"]["app_role"]
+          role: Database["public"]["Enums"]["app_role"] | null
+          scope: string
           updated_at: string
         }
         Insert: {
           created_at?: string
           description?: string | null
+          id?: string
           is_system?: boolean
           label: string
+          pages?: string[]
           permissions?: Json
-          role: Database["public"]["Enums"]["app_role"]
+          role?: Database["public"]["Enums"]["app_role"] | null
+          scope?: string
           updated_at?: string
         }
         Update: {
           created_at?: string
           description?: string | null
+          id?: string
           is_system?: boolean
           label?: string
+          pages?: string[]
           permissions?: Json
-          role?: Database["public"]["Enums"]["app_role"]
+          role?: Database["public"]["Enums"]["app_role"] | null
+          scope?: string
           updated_at?: string
         }
         Relationships: []
       }
-      tenants: {
+      support_staff: {
         Row: {
-          address: string | null
-          contact_email: string | null
-          contact_phone: string | null
           created_at: string
+          department: string
+          email: string | null
           id: string
-          logo_url: string | null
           name: string
-          package_id: string | null
-          slug: string
-          status: Database["public"]["Enums"]["tenant_status"]
+          notes: string | null
+          phone: string | null
+          role: string | null
+          status: string
+          tenant_id: string
           updated_at: string
         }
         Insert: {
-          address?: string | null
-          contact_email?: string | null
-          contact_phone?: string | null
           created_at?: string
+          department: string
+          email?: string | null
           id?: string
-          logo_url?: string | null
           name: string
-          package_id?: string | null
-          slug: string
-          status?: Database["public"]["Enums"]["tenant_status"]
+          notes?: string | null
+          phone?: string | null
+          role?: string | null
+          status?: string
+          tenant_id: string
           updated_at?: string
         }
         Update: {
+          created_at?: string
+          department?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          role?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_staff_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_staff_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenants: {
+        Row: {
+          about: string | null
+          additional_emails: string[]
+          additional_phones: string[]
+          address: string | null
+          awards: string | null
+          beds: number | null
+          bin: string | null
+          board_notes: string | null
+          ceo: string | null
+          certifications: string | null
+          chairman: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          cover_image_url: string | null
+          created_at: string
+          district: string | null
+          division: string | null
+          doctor_count: number | null
+          facilities: string | null
+          founded_year: number | null
+          id: string
+          location: string | null
+          logo_url: string | null
+          management_body: Json
+          medical_director: string | null
+          name: string
+          opening_hours: string | null
+          operating_license: string | null
+          other_licenses: string | null
+          owner_address: string | null
+          owner_email: string | null
+          owner_name: string | null
+          owner_nid: string | null
+          owner_phone: string | null
+          owner_since: string | null
+          ownership_type: string | null
+          package_id: string | null
+          rating: number | null
+          region: string | null
+          reviews_count: number | null
+          slug: string
+          social: Json
+          specialties: string | null
+          status: Database["public"]["Enums"]["tenant_status"]
+          subdistrict: string | null
+          summary: string | null
+          tagline: string | null
+          tin: string | null
+          trade_license: string | null
+          updated_at: string
+          websites: string[]
+        }
+        Insert: {
+          about?: string | null
+          additional_emails?: string[]
+          additional_phones?: string[]
           address?: string | null
+          awards?: string | null
+          beds?: number | null
+          bin?: string | null
+          board_notes?: string | null
+          ceo?: string | null
+          certifications?: string | null
+          chairman?: string | null
           contact_email?: string | null
           contact_phone?: string | null
+          cover_image_url?: string | null
           created_at?: string
+          district?: string | null
+          division?: string | null
+          doctor_count?: number | null
+          facilities?: string | null
+          founded_year?: number | null
           id?: string
+          location?: string | null
           logo_url?: string | null
-          name?: string
+          management_body?: Json
+          medical_director?: string | null
+          name: string
+          opening_hours?: string | null
+          operating_license?: string | null
+          other_licenses?: string | null
+          owner_address?: string | null
+          owner_email?: string | null
+          owner_name?: string | null
+          owner_nid?: string | null
+          owner_phone?: string | null
+          owner_since?: string | null
+          ownership_type?: string | null
           package_id?: string | null
-          slug?: string
+          rating?: number | null
+          region?: string | null
+          reviews_count?: number | null
+          slug: string
+          social?: Json
+          specialties?: string | null
           status?: Database["public"]["Enums"]["tenant_status"]
+          subdistrict?: string | null
+          summary?: string | null
+          tagline?: string | null
+          tin?: string | null
+          trade_license?: string | null
           updated_at?: string
+          websites?: string[]
+        }
+        Update: {
+          about?: string | null
+          additional_emails?: string[]
+          additional_phones?: string[]
+          address?: string | null
+          awards?: string | null
+          beds?: number | null
+          bin?: string | null
+          board_notes?: string | null
+          ceo?: string | null
+          certifications?: string | null
+          chairman?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          district?: string | null
+          division?: string | null
+          doctor_count?: number | null
+          facilities?: string | null
+          founded_year?: number | null
+          id?: string
+          location?: string | null
+          logo_url?: string | null
+          management_body?: Json
+          medical_director?: string | null
+          name?: string
+          opening_hours?: string | null
+          operating_license?: string | null
+          other_licenses?: string | null
+          owner_address?: string | null
+          owner_email?: string | null
+          owner_name?: string | null
+          owner_nid?: string | null
+          owner_phone?: string | null
+          owner_since?: string | null
+          ownership_type?: string | null
+          package_id?: string | null
+          rating?: number | null
+          region?: string | null
+          reviews_count?: number | null
+          slug?: string
+          social?: Json
+          specialties?: string | null
+          status?: Database["public"]["Enums"]["tenant_status"]
+          subdistrict?: string | null
+          summary?: string | null
+          tagline?: string | null
+          tin?: string | null
+          trade_license?: string | null
+          updated_at?: string
+          websites?: string[]
         }
         Relationships: [
           {
@@ -182,7 +971,78 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      hospitals_public: {
+        Row: {
+          about: string | null
+          beds: number | null
+          cover_image_url: string | null
+          created_at: string | null
+          district: string | null
+          division: string | null
+          doctor_count: number | null
+          facilities: string | null
+          founded_year: number | null
+          id: string | null
+          location: string | null
+          logo_url: string | null
+          name: string | null
+          opening_hours: string | null
+          rating: number | null
+          reviews_count: number | null
+          slug: string | null
+          specialties: string | null
+          subdistrict: string | null
+          summary: string | null
+          tagline: string | null
+        }
+        Insert: {
+          about?: string | null
+          beds?: number | null
+          cover_image_url?: string | null
+          created_at?: string | null
+          district?: string | null
+          division?: string | null
+          doctor_count?: number | null
+          facilities?: string | null
+          founded_year?: number | null
+          id?: string | null
+          location?: string | null
+          logo_url?: string | null
+          name?: string | null
+          opening_hours?: string | null
+          rating?: number | null
+          reviews_count?: number | null
+          slug?: string | null
+          specialties?: string | null
+          subdistrict?: string | null
+          summary?: string | null
+          tagline?: string | null
+        }
+        Update: {
+          about?: string | null
+          beds?: number | null
+          cover_image_url?: string | null
+          created_at?: string | null
+          district?: string | null
+          division?: string | null
+          doctor_count?: number | null
+          facilities?: string | null
+          founded_year?: number | null
+          id?: string | null
+          location?: string | null
+          logo_url?: string | null
+          name?: string | null
+          opening_hours?: string | null
+          rating?: number | null
+          reviews_count?: number | null
+          slug?: string | null
+          specialties?: string | null
+          subdistrict?: string | null
+          summary?: string | null
+          tagline?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       apply_tenant_rls: { Args: { p_table: unknown }; Returns: undefined }
@@ -204,7 +1064,8 @@ export type Database = {
         | "pharmacy_admin"
         | "doctor"
         | "patient"
-      tenant_status: "pending" | "active" | "suspended"
+      doctor_status: "active" | "on_leave" | "suspended"
+      tenant_status: "pending" | "approved" | "suspended"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -342,7 +1203,8 @@ export const Constants = {
         "doctor",
         "patient",
       ],
-      tenant_status: ["pending", "active", "suspended"],
+      doctor_status: ["active", "on_leave", "suspended"],
+      tenant_status: ["pending", "approved", "suspended"],
     },
   },
 } as const

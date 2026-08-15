@@ -50,8 +50,8 @@ export const Pill = ({ children, tone = "default" }: { children: ReactNode; tone
   return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${tones[tone]}`}>{children}</span>;
 };
 
-export const Btn = ({ children, onClick, variant = "primary", className = "", type = "button" }: {
-  children: ReactNode; onClick?: () => void; variant?: "primary" | "ghost" | "outline" | "danger"; className?: string; type?: "button" | "submit";
+export const Btn = ({ children, onClick, variant = "primary", className = "", type = "button", disabled = false, title }: {
+  children: ReactNode; onClick?: () => void; variant?: "primary" | "ghost" | "outline" | "danger"; className?: string; type?: "button" | "submit"; disabled?: boolean; title?: string;
 }) => {
   const v: Record<string, string> = {
     primary: "bg-primary text-primary-foreground hover:opacity-90",
@@ -60,7 +60,8 @@ export const Btn = ({ children, onClick, variant = "primary", className = "", ty
     danger: "bg-destructive text-destructive-foreground hover:opacity-90",
   };
   return (
-    <button type={type} onClick={onClick} className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all ${v[variant]} ${className}`}>
+    <button type={type} onClick={onClick} disabled={disabled} title={title}
+      className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all disabled:opacity-50 disabled:pointer-events-none ${v[variant]} ${className}`}>
       {children}
     </button>
   );

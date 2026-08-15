@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { BRAND_INFO } from "@/constants/brand";
 
 export const PromoBar = () => (
   <div className="bg-gradient-dark text-surface-dark-foreground">
@@ -26,8 +27,8 @@ export const AuthHeader = () => {
     <header className="bg-background border-b border-border/50">
       <nav className="container mx-auto flex items-center justify-between py-4">
         <Link href="/" className="flex items-center gap-2 font-display text-2xl font-semibold text-primary">
-          <img src="/favicon.png" alt="HealthFlow logo" className="h-12 w-12 object-contain" />
-          HealthFlow
+          <img src={BRAND_INFO.logo} alt={`${BRAND_INFO.name} logo`} className="h-12 w-12 object-contain" />
+          {BRAND_INFO.name}
         </Link>
         <ul className="hidden md:flex items-center gap-10 text-xs font-bold tracking-widest">
           {navLinks.map(l => (
@@ -47,7 +48,7 @@ export const AuthHeader = () => {
 export const AuthFooter = () => (
   <footer className="border-t border-border/50 mt-auto bg-background">
     <div className="container mx-auto py-5 flex flex-wrap items-center justify-between gap-4 text-[11px] tracking-widest font-semibold text-muted-foreground">
-      <p>© 2026 HEALTHFLOW</p>
+      <p>{BRAND_INFO.copyrightUppercase}</p>
       <ul className="flex flex-wrap gap-6">
         <li><Link href="/privacy" className="hover:text-primary">PRIVACY POLICY</Link></li>
         <li><Link href="/terms" className="hover:text-primary">TERMS OF SERVICE</Link></li>

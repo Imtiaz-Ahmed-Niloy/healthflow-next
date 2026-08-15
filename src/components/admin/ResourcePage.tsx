@@ -285,9 +285,34 @@ function PeopleField({ name, defaultValue, roleOptions, addLabel }: { name: stri
   );
 }
 
+export type SelectOption = string | { value: string; label: string };
+
+/** Normalises the two accepted option shapes to the one the markup needs. */
+const toOptions = (options: SelectOption[]) =>
+  options.map(o => (typeof o === "string" ? { value: o, label: o } : o));
+
 export type FieldDef = (
-  | { name: string; label: string; type: "text" | "email" | "tel" | "number" | "date"; required?: boolean; fullWidth?: boolean }
-  | { name: string; label: string; type: "select"; options: string[]; required?: boolean; fullWidth?: boolean }
+  /**
+   * `min`, `max` and `numberStep` map onto the HTML attributes of the same
+   * name and matter more than they look.
+   *
+   * A number input with no step defaults to step=1, so the browser rejects
+   * any decimal — and it does it by blocking submit, not by showing an error
+   * the user can see when the field has scrolled out of the dialog. A column
+   * typed numeric(2,1) needs `numberStep: 0.1` or its form can never be
+   * saved. Use "any" when the precision does not matter.
+   *
+   * `numberStep` rather than `step` because `step` below is the wizard page
+   * this field belongs to.
+   */
+  | { name: string; label: string; type: "text" | "email" | "tel" | "number" | "date"; required?: boolean; fullWidth?: boolean; min?: number; max?: number; numberStep?: number | "any" }
+  /**
+   * Options are plain strings when the stored value is what a human should
+   * read. Pass { value, label } when it is not — a database enum like
+   * "on_leave", or a foreign key, where the value is a uuid and the label is
+   * the name it points at. Same shape as `statuses` below.
+   */
+  | { name: string; label: string; type: "select"; options: SelectOption[]; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "textarea"; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "image"; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "file"; accept?: string; hint?: string; required?: boolean; fullWidth?: boolean }
@@ -318,8 +343,8 @@ export function RecordFormFields({
           <div key={f.name} className={`${wide ? "col-span-2" : ""} ${hidden ? "hidden" : ""}`}>
             <Field label={f.label}>
               {f.type === "select" ? (
-                <Select name={f.name} required={f.required} defaultValue={(editing as never)?.[f.name] ?? f.options[0]}>
-                  {f.options.map(o => <option key={o} value={o}>{o}</option>)}
+                <Select name={f.name} required={f.required} defaultValue={(editing as never)?.[f.name] ?? toOptions(f.options)[0]?.value ?? ""}>
+                  {toOptions(f.options).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </Select>
               ) : f.type === "textarea" ? (
                 <textarea name={f.name} required={f.required} defaultValue={(editing as never)?.[f.name] ?? ""} rows={3}
@@ -338,7 +363,9 @@ export function RecordFormFields({
               ) : f.type === "people" ? (
                 <PeopleField name={f.name} defaultValue={(editing as never)?.[f.name]} roleOptions={f.roleOptions} addLabel={f.addLabel} />
               ) : (
-                <Input name={f.name} type={f.type} required={f.required} defaultValue={(editing as never)?.[f.name] ?? ""} />
+                <Input name={f.name} type={f.type} required={f.required}
+                        min={f.min} max={f.max} step={f.numberStep}
+                        defaultValue={(editing as never)?.[f.name] ?? ""} />
               )}
             </Field>
           </div>
@@ -361,7 +388,12 @@ export type ResourceConfig<T extends { id: string; status?: string }> = {
   columns: Column<T>[];
   fields: FieldDef[];
   steps?: FormStep[];
-  statuses?: string[];
+  /**
+   * Status filter chips. Plain strings show as-is; pass { value, label } when
+   * the stored value is not what a human should read — a database enum like
+   * "pending" or "on_leave" needs a label.
+   */
+  statuses?: (string | { value: string; label: string })[];
   exportName?: string;
   addLabel?: string;
   defaults?: Partial<T>;
@@ -369,7 +401,21 @@ export type ResourceConfig<T extends { id: string; status?: string }> = {
   onUpdate?: (record: T) => void;
   extraFilters?: ReactNode;
   filterFn?: (row: T) => boolean;
+  /**
+   * Extra buttons per row, rendered before View / Edit / Delete. Use for module
+   * actions that are not CRUD — approving a hospital, say.
+   */
+  rowActions?: (row: T) => ReactNode;
 };
+
+/**
+ * Widgets that post JSON in a hidden input. Their values must be parsed before
+ * submit, because Postgres text[] and jsonb columns cannot accept a JSON string.
+ *
+ * `image` / `file` / `files` are deliberately absent: they embed base64 data
+ * URIs and their consumers still expect the string form.
+ */
+const JSON_VALUED_TYPES = new Set(["list", "social", "people"]);
 
 export function ResourcePage<T extends { id: string; status?: string }>({ config, extra }: { config: ResourceConfig<T>; extra?: ReactNode }) {
   // Both hooks run every render — React forbids calling one conditionally.
@@ -383,6 +429,27 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [sel, setSel] = useState<string[]>([]);
+
+  // Lets a filtered list be deep-linked: /super/hospitals?status=pending is
+  // where /super/onboarding now redirects, and it has to arrive filtered or the
+  // "queue" is just the full list again.
+  //
+  // Read after mount, not during render: touching window during SSR would make
+  // the server and client disagree and trip a hydration mismatch. Mount-only on
+  // purpose — re-running would overwrite the user's own filter clicks. The ref
+  // keeps the check current without making `statuses` a dependency, which is
+  // rebuilt inline by callers and so changes identity every render.
+  const statusesRef = useRef(config.statuses);
+  statusesRef.current = config.statuses;
+
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("status");
+    if (!wanted) return;
+    const allowed = (statusesRef.current ?? []).map((s) =>
+      typeof s === "string" ? s : s.value,
+    );
+    if (allowed.includes(wanted)) setStatus(wanted);
+  }, []);
   const [editing, setEditing] = useState<T | null>(null);
   const [creating, setCreating] = useState(false);
   const [viewing, setViewing] = useState<T | null>(null);
@@ -417,7 +484,10 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
             <div className="flex flex-wrap items-center gap-2">
               {config.statuses && (
                 <Chips value={status as never} onChange={setStatus as never}
-                  options={[{ value: "all", label: "All" }, ...config.statuses.map(s => ({ value: s, label: s }))]} />
+                  options={[
+                    { value: "all", label: "All" },
+                    ...config.statuses.map(s => (typeof s === "string" ? { value: s, label: s } : s)),
+                  ]} />
               )}
               {config.extraFilters}
             </div>
@@ -442,11 +512,14 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
             selected={sel} onSelect={setSel}
             onRow={r => setViewing(r)}
             actions={r => (
-              <RowActions
-                onView={() => setViewing(r)}
-                onEdit={() => setEditing(r)}
-                onDelete={() => setConfirm(r.id)}
-              />
+              <div className="flex items-center gap-1">
+                {config.rowActions?.(r)}
+                <RowActions
+                  onView={() => setViewing(r)}
+                  onEdit={() => setEditing(r)}
+                  onDelete={() => setConfirm(r.id)}
+                />
+              </div>
             )}
           />
         )}
@@ -486,12 +559,39 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
             ))}
           </div>
         )}
-        <form id="resource-form" onSubmit={async e => {
+        <form id="resource-form"
+          /**
+           * The dialog scrolls, and a field can be far outside the visible
+           * part of it. When the browser blocks submit on such a field it
+           * reports nothing the user can see — the form simply stops
+           * responding to Save, which reads as a broken button.
+           *
+           * onInvalid fires per offending field before that happens, so the
+           * first one is scrolled into view and focused.
+           */
+          onInvalid={e => {
+            const field = e.target as HTMLElement;
+            if (field.dataset.scrolled) return;
+            field.dataset.scrolled = "1";
+            field.scrollIntoView({ block: "center", behavior: "smooth" });
+            requestAnimationFrame(() => {
+              field.focus({ preventScroll: true });
+              delete field.dataset.scrolled;
+            });
+          }}
+          onSubmit={async e => {
           e.preventDefault();
           // Read the form before any await: currentTarget is null afterwards.
           const fd = new FormData(e.currentTarget);
           const obj: Record<string, unknown> = { ...((config.defaults as Record<string, unknown>) || {}) };
-          config.fields.forEach(f => { obj[f.name] = String(fd.get(f.name) ?? ""); });
+          config.fields.forEach(f => {
+            const raw = String(fd.get(f.name) ?? "");
+            if (!JSON_VALUED_TYPES.has(f.type)) { obj[f.name] = raw; return; }
+            // Omit rather than send "" or a broken parse — an empty key lets the
+            // column keep its default instead of failing validation.
+            if (raw === "") return;
+            try { obj[f.name] = JSON.parse(raw); } catch { /* omit */ }
+          });
           if (editing) {
             await crud.update(editing.id, obj as never);
             config.onUpdate?.({ ...editing, ...(obj as object) } as T);
@@ -512,8 +612,8 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
                 <div key={f.name} className={`${wide ? "col-span-2" : ""} ${hidden ? "hidden" : ""}`}>
                   <Field label={f.label}>
                     {f.type === "select" ? (
-                      <Select name={f.name} required={f.required} defaultValue={(editing as never)?.[f.name] ?? f.options[0]}>
-                        {f.options.map(o => <option key={o} value={o}>{o}</option>)}
+                      <Select name={f.name} required={f.required} defaultValue={(editing as never)?.[f.name] ?? toOptions(f.options)[0]?.value ?? ""}>
+                        {toOptions(f.options).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </Select>
                     ) : f.type === "textarea" ? (
                       <textarea name={f.name} required={f.required} defaultValue={(editing as never)?.[f.name] ?? ""} rows={3}
@@ -532,7 +632,9 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
                     ) : f.type === "people" ? (
                       <PeopleField name={f.name} defaultValue={(editing as never)?.[f.name]} roleOptions={f.roleOptions} addLabel={f.addLabel} />
                     ) : (
-                      <Input name={f.name} type={f.type} required={f.required} defaultValue={(editing as never)?.[f.name] ?? ""} />
+                      <Input name={f.name} type={f.type} required={f.required}
+                        min={f.min} max={f.max} step={f.numberStep}
+                        defaultValue={(editing as never)?.[f.name] ?? ""} />
                     )}
                   </Field>
                 </div>

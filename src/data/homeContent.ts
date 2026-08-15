@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { createResourceApi } from "@/redux/api/createResourceApi";
+import type { Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/types";
+import { useMemo } from "react";
 
 export type StatItem = { value: string; label: string };
 
@@ -10,9 +12,6 @@ export type HomeContent = {
   heroExploreCta: string;
   stats: StatItem[];
 };
-
-const STORAGE_KEY = "hf:home-content:v1";
-const EVENT = "hf:home-content:changed";
 
 export const defaultHomeContent: HomeContent = {
   heroTitle1: "Your Health, Connected in One Place.",
@@ -29,36 +28,75 @@ export const defaultHomeContent: HomeContent = {
   ],
 };
 
-const read = (): HomeContent => {
-  if (typeof window === "undefined") return defaultHomeContent;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultHomeContent;
-    return { ...defaultHomeContent, ...(JSON.parse(raw) as Partial<HomeContent>) };
-  } catch {
-    return defaultHomeContent;
-  }
-};
+type CmsPageRow = Tables<"cms_pages">;
+type CmsPageInsert = TablesInsert<"cms_pages">;
+type CmsPageUpdate = TablesUpdate<"cms_pages">;
 
-const write = (c: HomeContent) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(c));
-  window.dispatchEvent(new Event(EVENT));
-};
+const cmsPagesApi = createResourceApi<CmsPageRow, CmsPageInsert, CmsPageUpdate>("cms-pages");
 
 export const useHomeContent = () => {
-  const [content, setContent] = useState<HomeContent>(() => read());
+  const listResult = cmsPagesApi.useList({ filters: { slug: "home" }, limit: 1 });
+  const row = listResult.data?.data?.[0];
+  const content = useMemo(() => blocksToHomeContent(row?.blocks), [row?.blocks]);
 
-  useEffect(() => {
-    const sync = () => setContent(read());
-    window.addEventListener(EVENT, sync);
-    window.addEventListener("storage", sync);
-    return () => {
-      window.removeEventListener(EVENT, sync);
-      window.removeEventListener("storage", sync);
-    };
-  }, []);
+  const [create] = cmsPagesApi.useCreate();
+  const [update] = cmsPagesApi.useUpdate();
 
-  const save = (patch: Partial<HomeContent>) => write({ ...read(), ...patch });
-  const reset = () => write(defaultHomeContent);
+  const save = async (next: HomeContent) => {
+    const blocks = homeContentToBlocks(next);
+    if (row) {
+      await update(row.id, { blocks }).unwrap();
+    } else {
+      await create({ slug: "home", title: "Home", blocks, published: true }).unwrap();
+    }
+  };
+
+  const reset = async () => {
+    const blocks = homeContentToBlocks(defaultHomeContent);
+    if (row) {
+      await update(row.id, { blocks }).unwrap();
+    } else {
+      await create({ slug: "home", title: "Home", blocks, published: true }).unwrap();
+    }
+  };
+
   return { content, save, reset };
+};
+
+type HomeBlocks = {
+  hero?: {
+    title1?: string;
+    title2?: string;
+    desc?: string;
+    bookCta?: string;
+    exploreCta?: string;
+  };
+  stats?: {
+    items?: StatItem[];
+  };
+};
+
+export const blocksToHomeContent = (blocks: unknown): HomeContent => {
+  const b = (blocks ?? {}) as HomeBlocks;
+  return {
+    heroTitle1:     b.hero?.title1     ?? defaultHomeContent.heroTitle1,
+    heroTitle2:     b.hero?.title2     ?? defaultHomeContent.heroTitle2,
+    heroDesc:       b.hero?.desc       ?? defaultHomeContent.heroDesc,
+    heroBookCta:    b.hero?.bookCta    ?? defaultHomeContent.heroBookCta,
+    heroExploreCta: b.hero?.exploreCta ?? defaultHomeContent.heroExploreCta,
+    stats:          b.stats?.items     ?? defaultHomeContent.stats,
+  };
+};
+
+export const homeContentToBlocks = (content: HomeContent) => {
+  return {
+    hero: {
+      title1:     content.heroTitle1,
+      title2:     content.heroTitle2,
+      desc:       content.heroDesc,
+      bookCta:    content.heroBookCta,
+      exploreCta: content.heroExploreCta,
+    },
+    stats: { items: content.stats },
+  };
 };

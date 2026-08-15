@@ -24,7 +24,7 @@ values (
   '000d0000-0000-0000-0000-00000000d001',
   'Demo General Hospital',
   'demo-general-hospital',
-  'active',
+  'approved',
   'mgmt@demo.pro'
 )
 on conflict (id) do nothing;

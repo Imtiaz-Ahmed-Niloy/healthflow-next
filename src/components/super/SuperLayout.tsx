@@ -6,7 +6,7 @@ import { NavLink } from "@/components/NavLink";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Building2, ShieldCheck, FileBarChart, Package, Globe2, ListChecks,
-  FileCode2, Receipt, Settings, LogOut, Bell, Menu, X, Network, Megaphone, LifeBuoy, ScrollText, Workflow,
+  FileCode2, Receipt, Settings, LogOut, Bell, Menu, X, Network, Megaphone, LifeBuoy, ScrollText,
   ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -19,11 +19,13 @@ import LanguageSwitcher from "@/components/site/LanguageSwitcher";
 import { HeaderClock } from "@/components/common/HeaderClock";
 import { useSession, displayName } from "@/lib/auth/useSession";
 import { roleLabel } from "@/lib/auth/permissions";
+import { BRAND_INFO } from "@/constants/brand";
 
 export const superNav = [
   { to: "/super/dashboard", icon: LayoutDashboard, label: "Dashboard", group: "Overview" },
+  // No separate onboarding queue: Hospital Management lists every hospital and
+  // `pending` is the queue. /super/onboarding redirects there.
   { to: "/super/hospitals", icon: Building2, label: "Hospital Management", group: "Tenants" },
-  { to: "/super/onboarding", icon: Workflow, label: "Onboarding Queue", group: "Tenants" },
   { to: "/super/roles", icon: ShieldCheck, label: "User Role Management", group: "Tenants" },
   { to: "/super/package-management", icon: Package, label: "Package Management", group: "Tenants" },
   { to: "/super/logs", icon: FileBarChart, label: "Log Reports", group: "Monitoring" },
@@ -61,9 +63,9 @@ export const SuperSidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
   return (
   <aside className="w-64 bg-chip/40 border-r border-border/50 flex flex-col py-6 sticky top-0 h-screen shrink-0 overflow-hidden">
     <Link href="/" className="px-6 flex items-center gap-2">
-      <img src="/favicon.png" alt="HealthFlow logo" className="h-12 w-12 object-contain" />
+      <img src={BRAND_INFO.logo} alt={`${BRAND_INFO.name} logo`} className="h-12 w-12 object-contain" />
       <div>
-        <div className="font-display text-xl text-primary font-bold">HealthFlow</div>
+        <div className="font-display text-xl text-primary font-bold">{BRAND_INFO.name}</div>
         <p className="text-[10px] tracking-widest font-semibold text-primary-glow mt-0.5">SUPER ADMIN</p>
       </div>
     </Link>
@@ -131,7 +133,7 @@ export const SuperSidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
         </div>
       ))}
     </nav>
-    <div className="px-6 pt-4 text-[10px] tracking-widest font-semibold text-muted-foreground">© 2026 HEALTHFLOW</div>
+    <div className="px-6 pt-4 text-[10px] tracking-widest font-semibold text-muted-foreground">{BRAND_INFO.copyrightUppercase}</div>
   </aside>
   );
 };

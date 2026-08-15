@@ -9,6 +9,7 @@ import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import { useCmsHero } from "@/data/cmsPageHero";
 import { useContactContent } from "@/data/cmsContact";
+import { BRAND_INFO } from "@/constants/brand";
 
 const Ico = ({ name, className }: { name: string; className?: string }) => {
   const C = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[name] ?? Icons.Sparkles;
@@ -126,13 +127,13 @@ const Contact = () => {
             </div>
             <div className="border-t border-border/60 pt-8">
               <h2 className="font-display text-2xl md:text-3xl text-primary">Follow Us</h2>
-              <p className="text-sm text-muted-foreground mt-3">Stay connected with HealthFlow for the latest updates and insights.</p>
+              <p className="text-sm text-muted-foreground mt-3">Stay connected with {BRAND_INFO.name} for the latest updates and insights.</p>
               <div className="mt-5 flex gap-4">
-                <a href="https://www.linkedin.com/company/healthflowbd" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-xl bg-card border border-border/60 px-5 py-3 hover:border-primary/40 hover:bg-accent/30 transition-colors">
+                <a href={BRAND_INFO.linkedin} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-xl bg-card border border-border/60 px-5 py-3 hover:border-primary/40 hover:bg-accent/30 transition-colors">
                   <Linkedin className="h-5 w-5 text-primary" />
                   <span className="text-sm font-semibold text-primary">LinkedIn</span>
                 </a>
-                <a href="https://www.facebook.com/healthflowbd" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-xl bg-card border border-border/60 px-5 py-3 hover:border-primary/40 hover:bg-accent/30 transition-colors">
+                <a href={BRAND_INFO.facebook} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-xl bg-card border border-border/60 px-5 py-3 hover:border-primary/40 hover:bg-accent/30 transition-colors">
                   <Facebook className="h-5 w-5 text-primary" />
                   <span className="text-sm font-semibold text-primary">Facebook</span>
                 </a>

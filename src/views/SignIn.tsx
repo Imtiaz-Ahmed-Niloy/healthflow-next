@@ -10,6 +10,7 @@ import { useForm, type SubmitErrorHandler, type SubmitHandler } from "react-hook
 import { AuthLayout } from "@/components/site/AuthLayout";
 import { supabase } from "@/lib/supabase/client";
 import { homePathForRole, type AppRole } from "@/lib/auth/permissions";
+import { BRAND_INFO } from "@/constants/brand";
 
 const vitamin = "/assets/product-vitamin.jpg";
 const brain = "/assets/product-brain.jpg";
@@ -160,8 +161,8 @@ const SignIn = () => {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
           className="rounded-3xl bg-card shadow-soft p-8 md:p-10">
           <div className="text-center">
-            <img src="/favicon.png" alt="HealthFlow logo" className="mx-auto h-24 w-24 object-contain" />
-            <h1 className="mt-3 font-display text-3xl text-primary">HealthFlow</h1>
+            <img src={BRAND_INFO.logo} alt={`${BRAND_INFO.name} logo`} className="mx-auto h-24 w-24 object-contain" />
+            <h1 className="mt-3 font-display text-3xl text-primary">{BRAND_INFO.name}</h1>
             <p className="text-sm text-muted-foreground mt-1">Welcome back!</p>
           </div>
 

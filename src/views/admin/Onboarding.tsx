@@ -85,7 +85,7 @@ const Page = () => (
           { name: "designation", label: "Designation", type: "text" },
           { name: "employmentType", label: "Employment type", type: "select", options: ["Full-time", "Part-time", "Contract", "Intern", "Consultant"] },
           { name: "jobStatus", label: "Job status", type: "select", options: ["Active", "Probation", "Suspended", "Terminated", "Resigned"] },
-          { name: "grossSalary", label: "Gross salary", type: "number" },
+          { name: "grossSalary", label: "Gross salary", type: "number", min: 0, numberStep: 0.01 },
           { name: "startDate", label: "Start date", type: "date" },
           { name: "endDate", label: "End date", type: "date" },
           { name: "presentAddress", label: "Present address", type: "textarea", fullWidth: true },
