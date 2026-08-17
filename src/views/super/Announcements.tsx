@@ -219,7 +219,7 @@ const Page = () => {
             <div className="col-span-full rounded-2xl bg-card border border-border/60 shadow-soft p-12 text-center">
               <Megaphone className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
               <p className="font-semibold text-primary">No announcements yet</p>
-              <p className="text-sm text-muted-foreground mt-1">Click "New Announcement" to broadcast your first message.</p>
+              <p className="text-sm text-muted-foreground mt-1">Click &quot;New Announcement&quot; to broadcast your first message.</p>
             </div>
           )}
         </div>

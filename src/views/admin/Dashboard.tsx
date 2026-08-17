@@ -120,18 +120,18 @@ const Dashboard = () => (
       <Card className="p-5">
         <SectionTitle title="Emergency Alerts" action={<Pill tone="bad">Live</Pill>} />
         <ul className="space-y-3">
-          {[
+          {([
             { t: "Code Blue — ICU 3", s: "1m ago", tone: "bad" },
             { t: "Trauma incoming — ER", s: "4m ago", tone: "warn" },
             { t: "Oxygen low — Ward B", s: "12m ago", tone: "warn" },
-          ].map(a => (
+          ] as const).map(a => (
             <li key={a.t} className="flex items-start gap-3">
               <AlertTriangle className="h-4 w-4 text-destructive mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm font-semibold text-primary">{a.t}</p>
                 <p className="text-xs text-muted-foreground">{a.s}</p>
               </div>
-              <Pill tone={a.tone as any}>{a.tone === "bad" ? "Critical" : "High"}</Pill>
+              <Pill tone={a.tone}>{a.tone === "bad" ? "Critical" : "High"}</Pill>
             </li>
           ))}
         </ul>

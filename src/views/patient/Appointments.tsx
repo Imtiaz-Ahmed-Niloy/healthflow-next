@@ -276,7 +276,7 @@ const Appointments = () => {
             className="mt-8 rounded-3xl bg-chip/40 border border-border/40 p-7 relative overflow-hidden">
             <Leaf className="absolute -right-6 -bottom-6 h-48 w-48 text-primary/10" />
             <h3 className="font-display text-2xl text-primary">Sustainable Health Tip</h3>
-            <p className="text-sm text-foreground/70 mt-3 max-w-xl">Regular screenings are the foundation of prevention. Our lab uses 100% renewable energy for all molecular diagnostics, ensuring your health journey doesn't impact the planet.</p>
+            <p className="text-sm text-foreground/70 mt-3 max-w-xl">Regular screenings are the foundation of prevention. Our lab uses 100% renewable energy for all molecular diagnostics, ensuring your health journey doesn&apos;t impact the planet.</p>
             <button onClick={() => toast.info("Sustainability report coming soon")} className="mt-5 text-sm font-semibold text-primary hover:underline">Read Sustainability Report →</button>
           </motion.div>
         </div>

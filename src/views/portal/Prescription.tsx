@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Plus, ClipboardList, ClipboardCheck, FlaskConical, Stethoscope, Lightbulb, Sparkles, History, AlertTriangle, Users, Printer, X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { queue } from "@/data/queue";
 
 
 type EditableSectionProps = {
-  icon: any;
+  icon: LucideIcon;
   title: string;
   action: string;
   items: string[];
@@ -71,7 +72,7 @@ const EditableSection = ({ icon: Icon, title, action, items, onAdd, onRemove, pl
 
       <div className="rounded-xl bg-muted/40 border border-border/40 p-4 min-h-[110px] text-sm text-foreground/80 space-y-1.5">
         {items.length === 0 ? (
-          <p className="text-muted-foreground text-xs italic">No entries yet. Click "{action}" to add.</p>
+          <p className="text-muted-foreground text-xs italic">No entries yet. Click &quot;{action}&quot; to add.</p>
         ) : (
           items.map((it, i) => (
             <div key={i} className="group flex items-start justify-between gap-2">
@@ -382,7 +383,7 @@ const Prescription = () => {
 
           <div className="rounded-2xl bg-muted/40 p-5">
             <div className="flex items-center justify-between">
-              <p className="flex items-center gap-2 text-sm font-semibold text-primary"><Users className="h-4 w-4" /> Today's Queue</p>
+              <p className="flex items-center gap-2 text-sm font-semibold text-primary"><Users className="h-4 w-4" /> Today&apos;s Queue</p>
               <span className="text-[10px] font-bold tracking-widest text-muted-foreground">REMAINING: 8</span>
             </div>
             <div className="mt-4 space-y-2">

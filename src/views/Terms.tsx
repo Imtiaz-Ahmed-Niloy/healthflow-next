@@ -46,7 +46,7 @@ const Terms = () => {
           <section id="sec-1">
             <h2 className="font-display text-2xl text-primary">1. Acceptance of Terms</h2>
             <div className="mt-4 space-y-3 text-sm text-foreground/80 leading-relaxed">
-              <p>By accessing or using the HealthFlow platform, including our website, mobile applications, and telehealth services (collectively, the "Service"), you agree to be bound by these Terms and Conditions and our Privacy Policy. If you do not agree to all of these terms, you must not access or use the Service.</p>
+              <p>By accessing or using the HealthFlow platform, including our website, mobile applications, and telehealth services (collectively, the &quot;Service&quot;), you agree to be bound by these Terms and Conditions and our Privacy Policy. If you do not agree to all of these terms, you must not access or use the Service.</p>
               <p>We reserve the right to modify these terms at any time. Changes will be effective immediately upon posting to the website. Your continued use of the Service after changes are posted constitutes your acceptance of the modified terms.</p>
             </div>
           </section>
@@ -61,7 +61,7 @@ const Terms = () => {
                 { t: "Content", d: "Includes all text, images, medical records, and interaction data generated within the secure platform environment." },
               ].map(d => (
                 <motion.div key={d.t} whileHover={{ y: -3 }} className="rounded-2xl border border-border/60 bg-card p-5">
-                  <h4 className="font-semibold text-primary text-sm">"{d.t}"</h4>
+                  <h4 className="font-semibold text-primary text-sm">&quot;{d.t}&quot;</h4>
                   <p className="text-xs text-muted-foreground mt-2">{d.d}</p>
                 </motion.div>
               ))}

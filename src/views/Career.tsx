@@ -97,7 +97,7 @@ const Career = () => {
           </div>
 
           <div className="text-center mt-10">
-            <p className="text-xs text-muted-foreground">Don't see a role that fits? We're always looking for pioneers.</p>
+            <p className="text-xs text-muted-foreground">Don&apos;t see a role that fits? We&apos;re always looking for pioneers.</p>
             <a href="/contact" className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-primary border-b border-primary">Send a General Application <ArrowRight className="h-3 w-3" /></a>
           </div>
         </section>
@@ -106,7 +106,7 @@ const Career = () => {
           <motion.div initial={{ opacity: 0, scale: 0.97 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ duration: 0.5 }}
             className="rounded-3xl bg-gradient-dark text-surface-dark-foreground p-12 text-center relative overflow-hidden">
             <h2 className="font-display text-3xl md:text-4xl">Ready to grow with us?</h2>
-            <p className="text-sm opacity-80 mt-3 max-w-lg mx-auto">We're building a world where healthcare and nature work in perfect synchrony. Be part of the team making it happen.</p>
+            <p className="text-sm opacity-80 mt-3 max-w-lg mx-auto">We&apos;re building a world where healthcare and nature work in perfect synchrony. Be part of the team making it happen.</p>
             <a href="#openings" className="mt-7 inline-block rounded-full bg-accent text-primary px-8 py-3 text-sm font-semibold hover:bg-accent/80 transition-colors">Explore All Roles</a>
           </motion.div>
         </section>

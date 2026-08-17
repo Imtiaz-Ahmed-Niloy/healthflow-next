@@ -123,7 +123,7 @@ const FindDoctors = () => {
           </button>
         )}
         {query && (
-          <p className="text-xs text-muted-foreground mt-2 ml-2">{totalVisible} match{totalVisible === 1 ? "" : "es"} for "{query}"</p>
+          <p className="text-xs text-muted-foreground mt-2 ml-2">{totalVisible} match{totalVisible === 1 ? "" : "es"} for &quot;{query}&quot;</p>
         )}
       </div>
 

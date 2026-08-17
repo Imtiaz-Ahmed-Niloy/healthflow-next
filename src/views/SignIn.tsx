@@ -261,7 +261,7 @@ const SignIn = () => {
                 "Sign In"
               )}
             </button>
-            <p className="text-center text-xs text-muted-foreground">Don't have an account? <Link href="/signup" className="font-semibold text-primary-glow hover:underline">Create One</Link></p>
+            <p className="text-center text-xs text-muted-foreground">Don&apos;t have an account? <Link href="/signup" className="font-semibold text-primary-glow hover:underline">Create One</Link></p>
           </form>
 
           <div className="mt-10 pt-6 border-t border-border/60">

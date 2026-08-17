@@ -59,7 +59,7 @@ const TestimonialsManager = () => {
         </Btn>
       </div>
       {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-6 text-center">No testimonials yet. Click "Add Testimonial" to create one.</p>
+        <p className="text-sm text-muted-foreground py-6 text-center">No testimonials yet. Click &quot;Add Testimonial&quot; to create one.</p>
       ) : (
         <ul className="space-y-2">
           {items.map(t => (
