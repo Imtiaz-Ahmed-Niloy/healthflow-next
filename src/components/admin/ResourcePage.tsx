@@ -305,7 +305,7 @@ export type FieldDef = (
    * `numberStep` rather than `step` because `step` below is the wizard page
    * this field belongs to.
    */
-  | { name: string; label: string; type: "text" | "email" | "tel" | "number" | "date"; required?: boolean; fullWidth?: boolean; min?: number; max?: number; numberStep?: number | "any" }
+  | { name: string; label: string; type: "text" | "email" | "tel" | "number" | "date" | "time"; required?: boolean; fullWidth?: boolean; min?: number; max?: number; numberStep?: number | "any" }
   /**
    * Options are plain strings when the stored value is what a human should
    * read. Pass { value, label } when it is not — a database enum like

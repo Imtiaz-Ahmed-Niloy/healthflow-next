@@ -88,6 +88,77 @@ export type Database = {
           },
         ]
       }
+      appointments: {
+        Row: {
+          created_at: string
+          department: string | null
+          doctor_id: string | null
+          id: string
+          notes: string | null
+          patient_id: string
+          scheduled_date: string
+          scheduled_time: string
+          status: Database["public"]["Enums"]["appointment_status"]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          department?: string | null
+          doctor_id?: string | null
+          id?: string
+          notes?: string | null
+          patient_id: string
+          scheduled_date?: string
+          scheduled_time?: string
+          status?: Database["public"]["Enums"]["appointment_status"]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          department?: string | null
+          doctor_id?: string | null
+          id?: string
+          notes?: string | null
+          patient_id?: string
+          scheduled_date?: string
+          scheduled_time?: string
+          status?: Database["public"]["Enums"]["appointment_status"]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bed_stays: {
         Row: {
           admission_id: string
@@ -1504,6 +1575,7 @@ export type Database = {
         | "pharmacy_admin"
         | "doctor"
         | "patient"
+      appointment_status: "scheduled" | "completed" | "cancelled"
       bed_status: "available" | "occupied" | "cleaning"
       bed_type: "general" | "icu" | "cabin"
       blood_group:
@@ -1675,6 +1747,7 @@ export const Constants = {
         "doctor",
         "patient",
       ],
+      appointment_status: ["scheduled", "completed", "cancelled"],
       bed_status: ["available", "occupied", "cleaning"],
       bed_type: ["general", "icu", "cabin"],
       blood_group: [

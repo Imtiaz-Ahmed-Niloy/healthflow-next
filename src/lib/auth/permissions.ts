@@ -27,6 +27,7 @@ const matrix: Record<AppRole, Record<string, Action[]>> = {
     attendance: ["view", "approve"],
     nurses: ["view", "edit"],
     patients: ALL,
+    appointments: ALL,
     doctors: ["view"],
     payroll: ["view"],
     "*": ["view"],
