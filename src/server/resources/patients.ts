@@ -3,7 +3,7 @@ import type { ResourceDefinition } from "./types";
 
 /**
  * Patient registry — the foundation Ward/Bed/Cabin/Admission are built on.
- * See supabase/migrations/0007_patients.sql for where each column came from
+ * See supabase/migrations/0016_patients.sql for where each column came from
  * and what was deliberately left out.
  */
 
@@ -37,7 +37,7 @@ export const patientCreateSchema = z.object({
   emergency_contact_phone: optionalText,
   profile_id: z.string().uuid().optional(),
   // mrn and tenant_id are deliberately absent: mrn is trigger-generated
-  // (see 0007_patients.sql), tenant_id is stamped by the route from the JWT.
+  // (see 0016_patients.sql), tenant_id is stamped by the route from the JWT.
 });
 
 export const patientUpdateSchema = patientCreateSchema.partial();

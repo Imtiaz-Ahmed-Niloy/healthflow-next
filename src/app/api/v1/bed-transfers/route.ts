@@ -10,7 +10,7 @@ import { createServerSupabase, getAuthContext } from "@/lib/supabase/server";
  *
  * A transfer closes the admission's current bed_stays row and opens a new
  * one in a single transaction — see transfer_admission() in
- * supabase/migrations/0010_admissions_bed_stays.sql, which this endpoint
+ * supabase/migrations/0019_admissions_bed_stays.sql, which this endpoint
  * does nothing but invoke via supabase.rpc(). No query logic lives here.
  *
  * Not nested under admissions/[id]/transfer: admissions/[[...id]] already
@@ -42,12 +42,26 @@ const json = (body: unknown, status = 200) => NextResponse.json(body, { status }
 const fail = (message: string, status: number, details?: unknown) =>
   json({ error: { message, ...(details ? { details } : {}) } }, status);
 
-/** Maps transfer_admission()'s raise exception messages onto HTTP status. */
+/**
+ * Maps transfer_admission()'s errors onto HTTP status by SQLSTATE, not by
+ * parsing the exception message — the 'HF0..' codes are raised explicitly in
+ * 0019_admissions_bed_stays.sql for exactly this reason. Matching on message
+ * substrings would silently break the day someone rewords a `raise
+ * exception` for clarity; matching on `error.code` doesn't move when the
+ * wording does.
+ *
+ * Messages returned to the client are fixed, generic text — never the raw
+ * exception message, which can carry the internal `transfer_admission:`
+ * prefix and the offending UUID back out.
+ */
 const fromRpcError = (error: PostgrestError) => {
+  // Native Postgres insufficient_privilege, kept as defense in depth even
+  // though the function's own checks should catch this first.
   if (error.code === "42501") return fail("Not allowed", 403);
-  if (error.message?.includes("not allowed")) return fail("Not allowed", 403);
-  if (error.message?.includes("not found")) return fail(error.message, 404);
-  if (error.message?.includes("already discharged")) return fail(error.message, 422);
+  if (error.code === "HF001") return fail("Not found", 404);
+  if (error.code === "HF002") return fail("Not allowed", 403);
+  if (error.code === "HF003") return fail("Admission is already discharged", 422);
+  if (error.code === "HF004") return fail("Choose a bed or a cabin, not both", 422);
   return fail(error.message, 400, error.details);
 };
 

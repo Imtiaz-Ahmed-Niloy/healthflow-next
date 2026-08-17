@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { ResourceDefinition } from "./types";
 
 /**
- * Bed/cabin occupancy history. See supabase/migrations/0010_admissions_bed_stays.sql.
+ * Bed/cabin occupancy history. See supabase/migrations/0019_admissions_bed_stays.sql.
  *
  * Write access is deliberately narrower than every other module: normal
  * transfers go through POST /api/v1/bed-transfers (transfer_admission()),

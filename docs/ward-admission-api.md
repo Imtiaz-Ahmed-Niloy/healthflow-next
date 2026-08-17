@@ -41,7 +41,7 @@ from `createResourceRoute`, nothing module-specific about the response shape.
 
 ## Patients
 
-`supabase/migrations/0007_patients.sql` · `src/server/resources/patients.ts`
+`supabase/migrations/0016_patients.sql` · `src/server/resources/patients.ts`
 
 The registry every other module here points at. `mrn` is server-generated
 (a trigger, not the client) and unique per tenant.
@@ -70,7 +70,7 @@ Not accepted from the client: `mrn` (trigger-derived, `P-<8 hex chars>`),
 
 ## Wards
 
-`supabase/migrations/0008_wards_beds.sql` · `src/server/resources/wards.ts`
+`supabase/migrations/0017_wards_beds.sql` · `src/server/resources/wards.ts`
 
 A ward *type* — pricing and facility config, not a physical bed. One row per
 category like "ICU" or "Maternity".
@@ -93,7 +93,7 @@ category like "ICU" or "Maternity".
 
 ## Beds
 
-`supabase/migrations/0008_wards_beds.sql` · `src/server/resources/beds.ts`
+`supabase/migrations/0017_wards_beds.sql` · `src/server/resources/beds.ts`
 
 Physical inventory, one row per bed, child of a ward.
 
@@ -124,7 +124,7 @@ Physical inventory, one row per bed, child of a ward.
 
 ## Cabins
 
-`supabase/migrations/0009_cabins.sql` · `src/server/resources/cabins.ts`
+`supabase/migrations/0018_cabins.sql` · `src/server/resources/cabins.ts`
 
 A standalone product — not a child of any ward, own rate and amenities.
 
@@ -148,7 +148,7 @@ A standalone product — not a child of any ward, own rate and amenities.
 
 ## Admissions
 
-`supabase/migrations/0010_admissions_bed_stays.sql` · `src/server/resources/admissions.ts`
+`supabase/migrations/0019_admissions_bed_stays.sql` · `src/server/resources/admissions.ts`
 
 One row per hospital stay (episode). **Carries no bed/cabin location** —
 that lives in `bed_stays` so a transfer has somewhere to record where the
@@ -182,7 +182,7 @@ string, so the client picks the open one.
 
 ## Bed stays
 
-`supabase/migrations/0010_admissions_bed_stays.sql` · `src/server/resources/bedStays.ts`
+`supabase/migrations/0019_admissions_bed_stays.sql` · `src/server/resources/bedStays.ts`
 
 Occupancy history — one row per bed/cabin placement.
 
@@ -199,16 +199,25 @@ impossibility regardless of application code: an admission can't have two
 open placements, and a bed/cabin can't have two open occupants
 (`... where ended_at is null`).
 
+A `bed_stays_sync_status` trigger on this table keeps `beds.status`/
+`cabins.status` truthful on every insert/update, regardless of whether the
+row came from `transfer_admission()` or a direct write through this
+resource — see [Bed transfers](#bed-transfers-post-apiv1bed-transfers) for
+why that used to be a gap.
+
 `select` embeds bed/cabin numbers: `*, beds(number), cabins(number)`.
 
 - **Filter:** `admission_id`, `bed_id`, `cabin_id`
 - **Sort default:** `started_at desc`
 - **Roles —** read: `hospital_admin`, `hr_admin`, `doctor` · **write: `hospital_admin` only**
 
-> Why write is this narrow: a bare `PATCH`/`POST` here has no knowledge of
-> the `beds.status`/`cabins.status` cache sync that `transfer_admission()`
-> performs. It exists for manual/emergency correction, not the day-to-day
-> path — that's the endpoint below.
+> Why write is still this narrow even with the sync trigger in place: a bare
+> `PATCH`/`POST` here still has no knowledge of the *business rules*
+> `transfer_admission()` enforces by hand (same-tenant bed/cabin, admission
+> not already discharged, one open placement per admission). The trigger
+> closes the cache-drift gap; it doesn't replace those checks. This path
+> exists for manual/emergency correction, not the day-to-day flow — that's
+> the endpoint below.
 
 ---
 
@@ -216,7 +225,7 @@ open placements, and a bed/cabin can't have two open occupants
 
 `src/app/api/v1/bed-transfers/route.ts` — **not** `createResourceRoute`. The
 one write in this codebase that touches two rows atomically, so it calls a
-database function (`transfer_admission`, defined in `0010_admissions_bed_stays.sql`)
+database function (`transfer_admission`, defined in `0019_admissions_bed_stays.sql`)
 via `supabase.rpc()` instead of a plain insert/update.
 
 **Why it isn't nested under `/admissions/:id/transfer`:** `admissions/[[...id]]`
@@ -236,12 +245,16 @@ top-level route.
 1. Validates the caller's tenant/role against the admission (done by hand
    inside the function — it's `security definer` and bypasses RLS, so it
    can't lean on a policy the way every other write in this codebase does).
-2. Closes the admission's current open `bed_stays` row, if any; sets that
-   bed/cabin's cache `status` to `cleaning`.
+2. Closes the admission's current open `bed_stays` row, if any.
 3. Opens a new `bed_stays` row at the given `bed_id`/`cabin_id`, if one was
-   given; sets its cache `status` to `occupied`.
+   given.
 4. Returns the new `bed_stays` row (or a null-ish row if this was a
    release-only call).
+
+Steps 2 and 3 each fire the `bed_stays_sync_status` trigger (see
+[Bed stays](#bed-stays)), which is what actually sets the old bed/cabin's
+cache `status` to `cleaning` and the new one's to `occupied` — this function
+no longer touches those columns directly.
 
 One function covers three UI actions: assigning the first bed at admission
 time, a mid-stay transfer, and discharge's bed release.
@@ -250,6 +263,11 @@ time, a mid-stay transfer, and discharge's bed release.
 - **Errors:** `401` not signed in · `403` not allowed / cross-tenant target ·
   `404` admission or bed/cabin not found · `422` validation failure or
   admission already discharged
+- Each failure case is raised with its own SQLSTATE (`HF001` not found,
+  `HF002` not allowed, `HF003` already discharged, `HF004` invalid input) so
+  the route's status mapping matches on `error.code`, not on the wording of
+  the message — rewording a `raise exception` message later can't silently
+  change what HTTP status a client sees.
 
 ---
 

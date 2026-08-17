@@ -3,7 +3,7 @@ import type { ResourceDefinition } from "./types";
 
 /**
  * Physical bed inventory, one row per bed, child of a ward config.
- * See supabase/migrations/0008_wards_beds.sql.
+ * See supabase/migrations/0017_wards_beds.sql.
  */
 
 const bedType = z.enum(["general", "icu", "cabin"]);

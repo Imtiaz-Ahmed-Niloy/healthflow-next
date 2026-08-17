@@ -3,7 +3,7 @@ import type { ResourceDefinition } from "./types";
 
 /**
  * Private cabins — a standalone product (own floor/capacity/amenities/rate),
- * not a child of any ward. See supabase/migrations/0009_cabins.sql.
+ * not a child of any ward. See supabase/migrations/0018_cabins.sql.
  */
 
 const cabinCategory = z.enum(["standard", "deluxe", "premium", "suite"]);

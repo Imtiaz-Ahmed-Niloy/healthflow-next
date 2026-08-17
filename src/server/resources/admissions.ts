@@ -3,7 +3,7 @@ import type { ResourceDefinition } from "./types";
 
 /**
  * One row per hospital stay (episode) — deliberately carries no bed/cabin
- * location. See supabase/migrations/0010_admissions_bed_stays.sql for why:
+ * location. See supabase/migrations/0019_admissions_bed_stays.sql for why:
  * that lives in bed_stays instead, so a transfer has somewhere to record
  * where the patient came from.
  *

@@ -3,7 +3,7 @@ import type { ResourceDefinition } from "./types";
 
 /**
  * Ward pricing/category config — one row per ward *type* ("ICU",
- * "Maternity"), not a physical bed. See supabase/migrations/0008_wards_beds.sql.
+ * "Maternity"), not a physical bed. See supabase/migrations/0017_wards_beds.sql.
  */
 
 const wardCategory = z.enum(["general", "semi_private", "icu", "maternity", "pediatric"]);
