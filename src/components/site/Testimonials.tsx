@@ -41,7 +41,7 @@ const Testimonials = () => {
                   <div className="text-xs text-muted-foreground">{r.role}</div>
                 </div>
               </div>
-              <p className="mt-4 text-foreground/80 leading-relaxed italic text-justify text-xs">"{r.text}"</p>
+              <p className="mt-4 text-foreground/80 leading-relaxed italic text-justify text-xs">&quot;{r.text}&quot;</p>
             </motion.div>
           ))}
         </div>

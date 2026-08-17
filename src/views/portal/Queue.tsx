@@ -69,7 +69,7 @@ const Queue = () => {
     <PortalLayout>
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
-          <h1 className="font-display text-4xl text-primary">Today's Queue</h1>
+          <h1 className="font-display text-4xl text-primary">Today&apos;s Queue</h1>
           <p className="text-sm text-muted-foreground mt-1">Thursday, October 26 • 9:45 AM</p>
         </div>
         <div className="flex gap-3">

@@ -78,7 +78,7 @@ const BlogDetail = () => {
               <p key={i}>{p}</p>
             ))}
             <blockquote className="border-l-4 border-primary-glow pl-6 my-8 font-display text-2xl text-primary italic">
-              "Design is medicine. The walls, the windows, and the air are instruments of healing — and the data finally proves it."
+              &quot;Design is medicine. The walls, the windows, and the air are instruments of healing — and the data finally proves it.&quot;
             </blockquote>
           </div>
 

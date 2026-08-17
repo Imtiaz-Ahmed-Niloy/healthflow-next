@@ -133,7 +133,7 @@ const Privacy = () => {
                 className="mt-4 rounded-3xl border border-accent/60 bg-accent/20 p-8 grid md:grid-cols-[1fr_auto] gap-6 items-center">
                 <div>
                   <h2 className="font-display text-2xl text-primary">4. HIPAA Compliance</h2>
-                  <p className="mt-3 text-sm text-foreground/80 max-w-md">HealthFlow is a "covered entity" under the Health Insurance Portability and Accountability Act (HIPAA). This means we are legally required to maintain the privacy of your protected health information (PHI) and to provide you with notice of our legal duties and privacy practices.</p>
+                  <p className="mt-3 text-sm text-foreground/80 max-w-md">HealthFlow is a &quot;covered entity&quot; under the Health Insurance Portability and Accountability Act (HIPAA). This means we are legally required to maintain the privacy of your protected health information (PHI) and to provide you with notice of our legal duties and privacy practices.</p>
                   <div className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-primary"><ShieldCheck className="h-4 w-4" /> Fully HIPAA Certified & Audited</div>
                 </div>
                 <img src={hipaaImg} alt="HIPAA compliance badge" loading="lazy" width={180} height={180} className="rounded-2xl shadow-glow" />

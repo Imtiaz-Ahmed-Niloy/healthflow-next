@@ -78,7 +78,7 @@ const Telehealth = () => {
 
           <aside className="space-y-5">
             <div className="rounded-3xl bg-card border border-border/60 p-6 shadow-soft">
-              <h3 className="font-display text-lg text-primary inline-flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> What's included</h3>
+              <h3 className="font-display text-lg text-primary inline-flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> What&apos;s included</h3>
               <ul className="mt-4 space-y-3 text-sm text-foreground/80">
                 {["HIPAA-compliant video", "Board-certified physician", "E-prescription to your pharmacy", "Visit summary in your portal", "Follow-up message (48h)"].map((x) => (
                   <li key={x} className="flex items-start gap-2"><Check className="h-4 w-4 text-primary-glow mt-0.5 shrink-0" />{x}</li>

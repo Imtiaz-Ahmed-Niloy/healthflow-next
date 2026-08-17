@@ -46,7 +46,7 @@ const Billing = () => (
         className="rounded-3xl bg-chip/60 p-6 border border-border/40 relative overflow-hidden">
         <TreePine className="absolute -right-4 -bottom-4 h-32 w-32 text-primary/15" />
         <p className="flex items-center gap-2 text-[10px] tracking-widest font-bold text-primary-glow"><ShieldCheck className="h-3.5 w-3.5" /> GREEN BILLING IMPACT</p>
-        <p className="text-sm text-foreground/80 mt-3 relative">By using digital invoices, you've saved <span className="font-bold text-primary">12.4kg of paper</span> this year.</p>
+        <p className="text-sm text-foreground/80 mt-3 relative">By using digital invoices, you&apos;ve saved <span className="font-bold text-primary">12.4kg of paper</span> this year.</p>
         <div className="mt-6 flex items-end gap-2 h-16 relative">
           {[40, 55, 35, 70, 90, 60].map((h, i) => (
             <motion.div key={i} initial={{ height: 0 }} animate={{ height: `${h}%` }} transition={{ delay: i * 0.08, duration: 0.6 }}

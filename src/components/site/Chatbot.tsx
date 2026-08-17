@@ -9,6 +9,29 @@ import { toast } from "sonner";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
+/**
+ * The Web Speech API is not in TypeScript's DOM lib and is still vendor
+ * prefixed in Chrome, which is why this used to be `any`. Only the members
+ * this component actually touches are declared.
+ */
+type SpeechResultEvent = { results: ArrayLike<ArrayLike<{ transcript: string }>> };
+
+type SpeechRecognition = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start: () => void;
+  stop: () => void;
+  onresult: ((e: SpeechResultEvent) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+};
+
+type SpeechWindow = Window & {
+  SpeechRecognition?: new () => SpeechRecognition;
+  webkitSpeechRecognition?: new () => SpeechRecognition;
+};
+
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 
 const Chatbot = () => {
@@ -20,7 +43,7 @@ const Chatbot = () => {
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
   const [voiceOn, setVoiceOn] = useState(false);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -29,13 +52,14 @@ const Chatbot = () => {
 
   // Setup speech recognition once
   useEffect(() => {
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const w = window as SpeechWindow;
+    const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
     if (!SR) return;
     const r = new SR();
     r.continuous = false;
     r.interimResults = false;
     r.lang = "en-US";
-    r.onresult = (e: any) => {
+    r.onresult = (e: SpeechResultEvent) => {
       const transcript = e.results[0][0].transcript;
       setInput("");
       send(transcript);
@@ -122,8 +146,8 @@ const Chatbot = () => {
         }
       }
       speak(assistant);
-    } catch (e: any) {
-      toast.error(e.message || "Chat failed");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Chat failed");
       setMessages((m) => [...m, { role: "assistant", content: "Sorry, I couldn't reach the assistant. Please try again." }]);
     } finally {
       setLoading(false);
