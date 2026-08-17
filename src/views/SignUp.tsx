@@ -514,7 +514,7 @@ const Signup = () => {
                 <div className="h-6 w-6 rounded-full bg-chip border-2 border-card" />
                 <div className="h-6 w-6 rounded-full bg-accent border-2 border-card" />
               </div>
-              <p>"The most intuitive clinical platform I've ever used."</p>
+              <p>&quot;The most intuitive clinical platform I&apos;ve ever used.&quot;</p>
             </div>
 
             <p className="text-center text-xs text-muted-foreground">

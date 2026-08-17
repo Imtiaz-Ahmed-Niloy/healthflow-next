@@ -87,11 +87,11 @@ const BlogPageEditor = () => {
           <SectionTitle title="Section copy" action={bar} />
           <div className="grid md:grid-cols-2 gap-3">
             <div className="space-y-1.5"><Label>Lead story eyebrow</Label><Input value={draft.leadEyebrow} onChange={e => upd({ ...draft, leadEyebrow: e.target.value })} /></div>
-            <div className="space-y-1.5"><Label>"Most read" title</Label><Input value={draft.trendingTitle} onChange={e => upd({ ...draft, trendingTitle: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label>&quot;Most read&quot; title</Label><Input value={draft.trendingTitle} onChange={e => upd({ ...draft, trendingTitle: e.target.value })} /></div>
           </div>
           <div className="space-y-1.5"><Label>Lead story closing line (appended after dek)</Label><Textarea rows={2} value={draft.leadKicker} onChange={e => upd({ ...draft, leadKicker: e.target.value })} /></div>
           <div className="grid md:grid-cols-2 gap-3">
-            <div className="space-y-1.5"><Label>Grid title ("All Stories")</Label><Input value={draft.gridTitle} onChange={e => upd({ ...draft, gridTitle: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label>Grid title (&quot;All Stories&quot;)</Label><Input value={draft.gridTitle} onChange={e => upd({ ...draft, gridTitle: e.target.value })} /></div>
             <div className="space-y-1.5"><Label>Empty results text</Label><Input value={draft.emptyText} onChange={e => upd({ ...draft, emptyText: e.target.value })} /></div>
           </div>
         </Card>
@@ -100,7 +100,7 @@ const BlogPageEditor = () => {
       <TabsContent value="categories">
         <Card className="p-5">
           <SectionTitle title="Categories" action={bar} />
-          <p className="text-xs text-muted-foreground mb-3">First entry should be "All" — used as the default filter.</p>
+          <p className="text-xs text-muted-foreground mb-3">First entry should be &quot;All&quot; — used as the default filter.</p>
           <div className="space-y-2">
             {draft.categories.map((c, i) => (
               <div key={i} className="flex gap-2">

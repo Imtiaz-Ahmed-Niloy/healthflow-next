@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { BadgeCheck, Leaf, Pencil, IdCard, UserSquare2, Mail, Phone, Bell, Activity, Heart, Droplet, AlertTriangle, ScanLine, Scissors, FileDown, Plus, Send, Shield, BookCheck, Calendar as CalIcon, UploadCloud, FileText, Image as ImageIcon, Search, Filter, ShieldCheck, Users, UserPlus, IdCard as IdCardIcon, BookOpen } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
 const avatar = "/assets/avatar-elena.jpg";
 const marcus = "/assets/patient-marcus.jpg";
@@ -33,7 +34,7 @@ const Select = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
-const SectionHead = ({ icon: Icon, title, accent = "bg-chip" }: { icon: any; title: string; accent?: string }) => (
+const SectionHead = ({ icon: Icon, title, accent = "bg-chip" }: { icon: LucideIcon; title: string; accent?: string }) => (
   <div className="flex items-center gap-3 mb-5">
     <div className={`h-9 w-9 rounded-lg ${accent} flex items-center justify-center text-primary`}><Icon className="h-4 w-4" /></div>
     <h3 className="font-display text-xl text-primary">{title}</h3>

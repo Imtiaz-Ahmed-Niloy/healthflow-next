@@ -140,7 +140,7 @@ const Dashboard = () => (
               <MessageSquare className="h-5 w-5 text-primary shrink-0" />
               <div>
                 <p className="font-semibold text-primary text-sm">Dr. Markoff</p>
-                <p className="text-xs text-foreground/70 mt-1">"Please review the new dietary plan..."</p>
+                <p className="text-xs text-foreground/70 mt-1">&quot;Please review the new dietary plan...&quot;</p>
               </div>
             </div>
           </div>

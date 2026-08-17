@@ -37,7 +37,7 @@ const RoomReservation = () => {
           <Hotel className="h-3 w-3" /> Reservation
         </span>
         <h1 className="font-display text-5xl text-primary mt-3">Reserve a Room</h1>
-        <p className="text-muted-foreground mt-2 max-w-2xl">Choose your room category, dates and confirm. We'll prepare your space and send a check-in pass.</p>
+        <p className="text-muted-foreground mt-2 max-w-2xl">Choose your room category, dates and confirm. We&apos;ll prepare your space and send a check-in pass.</p>
 
         <div className="grid lg:grid-cols-[1fr_380px] gap-8 mt-10">
           <div>

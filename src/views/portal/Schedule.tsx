@@ -59,7 +59,7 @@ const Schedule = () => {
       <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="rounded-3xl bg-card border border-border/60 p-6 shadow-soft">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-display text-2xl text-primary">Today's Agenda</h2>
+            <h2 className="font-display text-2xl text-primary">Today&apos;s Agenda</h2>
             <p className="text-[10px] tracking-widest font-bold text-primary-glow mt-1">OCTOBER 14, 2023</p>
           </div>
           <div className="h-10 w-10 rounded-full bg-chip flex items-center justify-center text-primary"><Calendar className="h-5 w-5" /></div>
@@ -112,7 +112,7 @@ const Schedule = () => {
                   className={`min-h-[80px] rounded-xl p-2 transition-colors ${isToday ? "bg-gradient-dark text-surface-dark-foreground" : isOther ? "text-muted-foreground/50" : "hover:bg-card cursor-pointer"}`}>
                   <p className={`text-sm font-semibold ${isToday ? "text-surface-dark-foreground" : "text-primary"}`}>{d}</p>
                   {isToday && <div className="mt-2 space-y-1">
-                    <div className="text-[9px] bg-surface-dark-foreground/10 rounded px-1.5 py-0.5">Today's Agenda</div>
+                    <div className="text-[9px] bg-surface-dark-foreground/10 rounded px-1.5 py-0.5">Today&apos;s Agenda</div>
                     <div className="text-[9px] bg-surface-dark-foreground/10 rounded px-1.5 py-0.5">4 Urgent Cases</div>
                   </div>}
                   {slots && <div className="mt-1 space-y-1">

@@ -234,7 +234,7 @@ const CMS = () => {
                   disabled={editing.builtIn}
                 />
                 {editing.builtIn && (
-                  <p className="text-xs text-muted-foreground">Route is wired in the app and can't be changed.</p>
+                  <p className="text-xs text-muted-foreground">Route is wired in the app and can&apos;t be changed.</p>
                 )}
               </div>
               <div className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2">
