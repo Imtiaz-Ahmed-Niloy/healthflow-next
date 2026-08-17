@@ -208,14 +208,24 @@ begin
       using errcode = 'HF003';
   end if;
 
+  -- Checked against v_admission.tenant_id, NOT auth_tenant_id() / is_super_admin():
+  -- the caller-permission question ("is this caller allowed to touch this
+  -- admission at all") was already answered above. This check is a different
+  -- one — "does the target actually belong to the same hospital as the
+  -- admission" — and it must hold no matter who's calling. Gating it on
+  -- is_super_admin() (as an earlier version of this function did) let a
+  -- super_admin transfer Hospital A's admission onto Hospital B's bed, since
+  -- that role bypassed both tenant checks independently instead of tying
+  -- them to each other. A cross-tenant placement is a data-integrity bug
+  -- regardless of who's trusted enough to cause it.
   if p_bed_id is not null then
     select tenant_id into v_bed_tenant from public.beds where id = p_bed_id;
     if v_bed_tenant is null then
       raise exception 'transfer_admission: bed % not found', p_bed_id
         using errcode = 'HF001';
     end if;
-    if not (public.is_super_admin() or v_bed_tenant = public.auth_tenant_id()) then
-      raise exception 'transfer_admission: not allowed'
+    if v_bed_tenant <> v_admission.tenant_id then
+      raise exception 'transfer_admission: bed % does not belong to this admission''s hospital', p_bed_id
         using errcode = 'HF002';
     end if;
   end if;
@@ -226,8 +236,8 @@ begin
       raise exception 'transfer_admission: cabin % not found', p_cabin_id
         using errcode = 'HF001';
     end if;
-    if not (public.is_super_admin() or v_cab_tenant = public.auth_tenant_id()) then
-      raise exception 'transfer_admission: not allowed'
+    if v_cab_tenant <> v_admission.tenant_id then
+      raise exception 'transfer_admission: cabin % does not belong to this admission''s hospital', p_cabin_id
         using errcode = 'HF002';
     end if;
   end if;
