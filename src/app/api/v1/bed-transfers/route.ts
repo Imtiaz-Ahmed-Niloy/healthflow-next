@@ -62,6 +62,12 @@ const fromRpcError = (error: PostgrestError) => {
   if (error.code === "HF002") return fail("Not allowed", 403);
   if (error.code === "HF003") return fail("Admission is already discharged", 422);
   if (error.code === "HF004") return fail("Choose a bed or a cabin, not both", 422);
+  // 23505 = unique_violation. Unlike the HF0.. cases above, this isn't raised
+  // by transfer_admission() itself — it's the bed_stays_one_open_per_bed/
+  // cabin partial unique index firing on the INSERT, which happens after the
+  // function's own checks pass. Without this case the client saw Postgres'
+  // raw "duplicate key value violates unique constraint ..." text.
+  if (error.code === "23505") return fail("That bed or cabin is already occupied", 409);
   return fail(error.message, 400, error.details);
 };
 
