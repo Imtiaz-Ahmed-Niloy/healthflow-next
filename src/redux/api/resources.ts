@@ -51,6 +51,9 @@ export type NursePerformanceRow = Tables["nurse_performance"]["Row"] & {
 /** Support staff carry no relations, so the row is the table row. */
 export type SupportStaffRow = Tables["support_staff"]["Row"];
 
+/** Patients carry no relations on the registry screen — profile_id is a raw uuid, not embedded. */
+export type PatientRow = Tables["patients"]["Row"];
+
 export type OfferRow = Tables["offers"]["Row"] & {
   packages: Pick<PackageRow, "id" | "name" | "slug"> | null;
 };
@@ -148,6 +151,8 @@ export type NursePerformanceWrite = {
 };
 
 export const nursesApi = createResourceApi<NurseRow>("nurses");
+
+export const patientsApi = createResourceApi<PatientRow>("patients");
 
 export const nurseShiftsApi = createResourceApi<
   NurseShiftRow,

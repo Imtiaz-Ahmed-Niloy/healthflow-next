@@ -14,6 +14,276 @@ export type Database = {
   }
   public: {
     Tables: {
+      admissions: {
+        Row: {
+          admitted_at: string
+          created_at: string
+          diagnosis: string | null
+          discharged_at: string | null
+          doctor_id: string | null
+          id: string
+          notes: string | null
+          patient_id: string
+          priority: Database["public"]["Enums"]["admission_priority"]
+          status: Database["public"]["Enums"]["admission_status"]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          admitted_at?: string
+          created_at?: string
+          diagnosis?: string | null
+          discharged_at?: string | null
+          doctor_id?: string | null
+          id?: string
+          notes?: string | null
+          patient_id: string
+          priority?: Database["public"]["Enums"]["admission_priority"]
+          status?: Database["public"]["Enums"]["admission_status"]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          admitted_at?: string
+          created_at?: string
+          diagnosis?: string | null
+          discharged_at?: string | null
+          doctor_id?: string | null
+          id?: string
+          notes?: string | null
+          patient_id?: string
+          priority?: Database["public"]["Enums"]["admission_priority"]
+          status?: Database["public"]["Enums"]["admission_status"]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admissions_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admissions_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admissions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admissions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bed_stays: {
+        Row: {
+          admission_id: string
+          bed_id: string | null
+          cabin_id: string | null
+          created_at: string
+          ended_at: string | null
+          id: string
+          started_at: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          admission_id: string
+          bed_id?: string | null
+          cabin_id?: string | null
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          started_at?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          admission_id?: string
+          bed_id?: string | null
+          cabin_id?: string | null
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          started_at?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bed_stays_admission_id_fkey"
+            columns: ["admission_id"]
+            isOneToOne: false
+            referencedRelation: "admissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bed_stays_bed_id_fkey"
+            columns: ["bed_id"]
+            isOneToOne: false
+            referencedRelation: "beds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bed_stays_cabin_id_fkey"
+            columns: ["cabin_id"]
+            isOneToOne: false
+            referencedRelation: "cabins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bed_stays_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bed_stays_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      beds: {
+        Row: {
+          created_at: string
+          id: string
+          number: string
+          patient: string | null
+          status: Database["public"]["Enums"]["bed_status"]
+          tenant_id: string
+          type: Database["public"]["Enums"]["bed_type"]
+          updated_at: string
+          ward_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          number: string
+          patient?: string | null
+          status?: Database["public"]["Enums"]["bed_status"]
+          tenant_id: string
+          type?: Database["public"]["Enums"]["bed_type"]
+          updated_at?: string
+          ward_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          number?: string
+          patient?: string | null
+          status?: Database["public"]["Enums"]["bed_status"]
+          tenant_id?: string
+          type?: Database["public"]["Enums"]["bed_type"]
+          updated_at?: string
+          ward_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beds_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "beds_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "beds_ward_id_fkey"
+            columns: ["ward_id"]
+            isOneToOne: false
+            referencedRelation: "wards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cabins: {
+        Row: {
+          admitted_on: string | null
+          amenities: string[]
+          attendant: string | null
+          capacity: number
+          category: Database["public"]["Enums"]["cabin_category"]
+          created_at: string
+          daily_rate: number
+          floor: string
+          id: string
+          number: string
+          patient: string | null
+          status: Database["public"]["Enums"]["cabin_status"]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          admitted_on?: string | null
+          amenities?: string[]
+          attendant?: string | null
+          capacity?: number
+          category?: Database["public"]["Enums"]["cabin_category"]
+          created_at?: string
+          daily_rate?: number
+          floor: string
+          id?: string
+          number: string
+          patient?: string | null
+          status?: Database["public"]["Enums"]["cabin_status"]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          admitted_on?: string | null
+          amenities?: string[]
+          attendant?: string | null
+          capacity?: number
+          category?: Database["public"]["Enums"]["cabin_category"]
+          created_at?: string
+          daily_rate?: number
+          floor?: string
+          id?: string
+          number?: string
+          patient?: string | null
+          status?: Database["public"]["Enums"]["cabin_status"]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cabins_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cabins_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cms_pages: {
         Row: {
           blocks: Json
@@ -146,9 +416,16 @@ export type Database = {
           {
             foreignKeyName: "doctor_performance_doctor_fkey"
             columns: ["doctor_id", "tenant_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "doctors"
             referencedColumns: ["id", "tenant_id"]
+          },
+          {
+            foreignKeyName: "doctor_performance_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "doctor_performance_tenant_id_fkey"
@@ -203,6 +480,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "doctors"
             referencedColumns: ["id", "tenant_id"]
+          },
+          {
+            foreignKeyName: "doctor_shifts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "doctor_shifts_tenant_id_fkey"
@@ -649,6 +933,82 @@ export type Database = {
         }
         Relationships: []
       }
+      patients: {
+        Row: {
+          address: string | null
+          blood_group: Database["public"]["Enums"]["blood_group"] | null
+          created_at: string
+          date_of_birth: string | null
+          email: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          full_name: string
+          gender: Database["public"]["Enums"]["patient_gender"] | null
+          id: string
+          mrn: string
+          phone: string | null
+          profile_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          blood_group?: Database["public"]["Enums"]["blood_group"] | null
+          created_at?: string
+          date_of_birth?: string | null
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          full_name: string
+          gender?: Database["public"]["Enums"]["patient_gender"] | null
+          id?: string
+          mrn: string
+          phone?: string | null
+          profile_id?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          blood_group?: Database["public"]["Enums"]["blood_group"] | null
+          created_at?: string
+          date_of_birth?: string | null
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          full_name?: string
+          gender?: Database["public"]["Enums"]["patient_gender"] | null
+          id?: string
+          mrn?: string
+          phone?: string | null
+          profile_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patients_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patients_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patients_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -969,6 +1329,60 @@ export type Database = {
           },
         ]
       }
+      wards: {
+        Row: {
+          category: Database["public"]["Enums"]["ward_category"]
+          created_at: string
+          daily_rate: number
+          facilities: string[]
+          id: string
+          name: string
+          notes: string | null
+          nursing_charge: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["ward_category"]
+          created_at?: string
+          daily_rate?: number
+          facilities?: string[]
+          id?: string
+          name: string
+          notes?: string | null
+          nursing_charge?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["ward_category"]
+          created_at?: string
+          daily_rate?: number
+          facilities?: string[]
+          id?: string
+          name?: string
+          notes?: string | null
+          nursing_charge?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wards_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wards_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       hospitals_public: {
@@ -1053,8 +1467,34 @@ export type Database = {
       auth_tenant_id: { Args: never; Returns: string }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
       is_super_admin: { Args: never; Returns: boolean }
+      transfer_admission: {
+        Args: { p_admission_id: string; p_bed_id?: string; p_cabin_id?: string }
+        Returns: {
+          admission_id: string
+          bed_id: string | null
+          cabin_id: string | null
+          created_at: string
+          ended_at: string | null
+          id: string
+          started_at: string
+          tenant_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "bed_stays"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
+      admission_priority: "routine" | "urgent" | "critical"
+      admission_status:
+        | "admitted"
+        | "under_observation"
+        | "in_surgery"
+        | "discharged"
       app_role:
         | "super_admin"
         | "hospital_admin"
@@ -1064,8 +1504,33 @@ export type Database = {
         | "pharmacy_admin"
         | "doctor"
         | "patient"
+      bed_status: "available" | "occupied" | "cleaning"
+      bed_type: "general" | "icu" | "cabin"
+      blood_group:
+        | "o_positive"
+        | "o_negative"
+        | "a_positive"
+        | "a_negative"
+        | "b_positive"
+        | "b_negative"
+        | "ab_positive"
+        | "ab_negative"
+      cabin_category: "standard" | "deluxe" | "premium" | "suite"
+      cabin_status:
+        | "available"
+        | "occupied"
+        | "cleaning"
+        | "maintenance"
+        | "reserved"
       doctor_status: "active" | "on_leave" | "suspended"
+      patient_gender: "male" | "female" | "other"
       tenant_status: "pending" | "approved" | "suspended"
+      ward_category:
+        | "general"
+        | "semi_private"
+        | "icu"
+        | "maternity"
+        | "pediatric"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1193,6 +1658,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      admission_priority: ["routine", "urgent", "critical"],
+      admission_status: [
+        "admitted",
+        "under_observation",
+        "in_surgery",
+        "discharged",
+      ],
       app_role: [
         "super_admin",
         "hospital_admin",
@@ -1203,8 +1675,36 @@ export const Constants = {
         "doctor",
         "patient",
       ],
+      bed_status: ["available", "occupied", "cleaning"],
+      bed_type: ["general", "icu", "cabin"],
+      blood_group: [
+        "o_positive",
+        "o_negative",
+        "a_positive",
+        "a_negative",
+        "b_positive",
+        "b_negative",
+        "ab_positive",
+        "ab_negative",
+      ],
+      cabin_category: ["standard", "deluxe", "premium", "suite"],
+      cabin_status: [
+        "available",
+        "occupied",
+        "cleaning",
+        "maintenance",
+        "reserved",
+      ],
       doctor_status: ["active", "on_leave", "suspended"],
+      patient_gender: ["male", "female", "other"],
       tenant_status: ["pending", "approved", "suspended"],
+      ward_category: [
+        "general",
+        "semi_private",
+        "icu",
+        "maternity",
+        "pediatric",
+      ],
     },
   },
 } as const
