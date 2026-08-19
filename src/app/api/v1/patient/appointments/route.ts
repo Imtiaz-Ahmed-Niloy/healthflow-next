@@ -32,7 +32,11 @@ import { createServerSupabase, createAdminSupabase, getAuthContext } from "@/lib
  * (`tenant_id = auth_tenant_id()`) would reject a user-scoped insert even
  * though this is exactly the legitimate first booking it should allow.
  *
- * No double-booking guard here on purpose — that is HF-53, a separate ticket.
+ * Double-booking (HF-53): enforced by a real unique index
+ * (appointments_doctor_slot_unique, 0024) rather than a check-then-insert
+ * here — a check here has a race window between two concurrent requests
+ * that the database refusing the second INSERT outright does not. This
+ * route only translates the resulting 23505 into a clean message.
  *
  * GET lists everything this login has ever booked, and PATCH cancels one —
  * both HF-52. A patient can hold a `patients` row in more than one hospital
@@ -172,7 +176,14 @@ export const POST = async (request: Request) => {
     .select("id, scheduled_date, scheduled_time, status")
     .single();
 
-  if (appointmentError) return fail(appointmentError.message, 500);
+  if (appointmentError) {
+    // 23505 = unique_violation, from appointments_doctor_slot_unique (0024) —
+    // someone else already holds this doctor's exact date and time.
+    if (appointmentError.code === "23505") {
+      return fail("That doctor is already booked for this date and time. Please pick another slot.", 409);
+    }
+    return fail(appointmentError.message, 500);
+  }
 
   return json(
     {
