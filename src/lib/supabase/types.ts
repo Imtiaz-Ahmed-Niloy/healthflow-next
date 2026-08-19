@@ -1660,6 +1660,87 @@ export type Database = {
         }
         Relationships: []
       }
+      doctors_public: {
+        Row: {
+          availability: string | null
+          bio: string | null
+          consultation_duration_minutes: number | null
+          consultation_fee: number | null
+          created_at: string | null
+          district: string | null
+          division: string | null
+          education: string | null
+          experience_years: number | null
+          expertise: string | null
+          hospital_name: string | null
+          hospital_slug: string | null
+          id: string | null
+          languages: string | null
+          location: string | null
+          name: string | null
+          patients_treated: number | null
+          photo_url: string | null
+          rating: number | null
+          slug: string | null
+          specialty: string | null
+          status: string | null
+          subdistrict: string | null
+          tenant_id: string | null
+        }
+        Insert: {
+          availability?: string | null
+          bio?: string | null
+          consultation_duration_minutes?: number | null
+          consultation_fee?: number | null
+          created_at?: string | null
+          district?: string | null
+          division?: string | null
+          education?: string | null
+          experience_years?: number | null
+          expertise?: string | null
+          hospital_name?: string | null
+          hospital_slug?: string | null
+          id?: string | null
+          languages?: string | null
+          location?: string | null
+          name?: string | null
+          patients_treated?: number | null
+          photo_url?: string | null
+          rating?: number | null
+          slug?: string | null
+          specialty?: string | null
+          status?: string | null
+          subdistrict?: string | null
+          tenant_id?: string | null
+        }
+        Update: {
+          availability?: string | null
+          bio?: string | null
+          consultation_duration_minutes?: number | null
+          consultation_fee?: number | null
+          created_at?: string | null
+          district?: string | null
+          division?: string | null
+          education?: string | null
+          experience_years?: number | null
+          expertise?: string | null
+          hospital_name?: string | null
+          hospital_slug?: string | null
+          id?: string | null
+          languages?: string | null
+          location?: string | null
+          name?: string | null
+          patients_treated?: number | null
+          photo_url?: string | null
+          rating?: number | null
+          slug?: string | null
+          specialty?: string | null
+          status?: string | null
+          subdistrict?: string | null
+          tenant_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       apply_tenant_rls: { Args: { p_table: unknown }; Returns: undefined }

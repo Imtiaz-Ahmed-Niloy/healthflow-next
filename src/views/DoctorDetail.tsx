@@ -7,43 +7,69 @@ import { ArrowLeft, Star, Calendar, Languages, GraduationCap, Award, Heart, Mail
 import { toast } from "sonner";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
-import { getAllHospitals, readAdminDoctors, mapAdminDoctor } from "@/hooks/useHospitals";
-import type { Hospital, Doctor } from "@/data/hospitals";
-import { slugify } from "@/lib/slug";
-
-const buildAllDoctors = () => {
-  const seen = new Set<string>();
-  const out: { d: Doctor & { slug: string }; hospital: Hospital }[] = [];
-  const all = getAllHospitals();
-  for (const h of all) {
-    for (const d of h.doctors_list) {
-      const slug = slugify(d.name);
-      if (seen.has(slug)) continue;
-      seen.add(slug);
-      out.push({ d: { ...d, slug }, hospital: h });
-    }
-  }
-  // Fallback: include admin-registered doctors whose hospital field
-  // doesn't match any hospital — attach them to a best-guess or first hospital.
-  for (const ad of readAdminDoctors()) {
-    const slug = slugify(ad.name);
-    if (seen.has(slug)) continue;
-    seen.add(slug);
-    const target = (ad.hospital || "").toLowerCase().trim();
-    const hospital =
-      all.find((h) => h.name.toLowerCase().trim() === target) ||
-      all.find((h) => slugify(h.name) === slugify(ad.hospital || "")) ||
-      all[0];
-    if (!hospital) continue;
-    out.push({ d: { ...mapAdminDoctor(ad), slug }, hospital });
-  }
-  return out;
-};
+import { useDoctors } from "@/hooks/useDoctors";
+import { useHospitals } from "@/hooks/useHospitals";
+import { useMemo } from "react";
+import type { Hospital } from "@/data/hospitals";
 
 const DoctorDetail = () => {
   const slug = useParams<{ slug: string }>()?.slug;
-  const allDoctors = buildAllDoctors();
-  const found = allDoctors.find((x) => x.d.slug === (slug ?? ""));
+  const { doctors, loading: loadingDocs } = useDoctors();
+  const hospitals = useHospitals();
+
+  const found = useMemo(() => {
+    if (!slug) return null;
+    const doc = doctors.find((x) => x.slug === slug);
+    if (!doc) return null;
+
+    const hospital = hospitals.find((h) => h.slug === doc.hospital.slug) || {
+      name: doc.hospital.name,
+      slug: doc.hospital.slug,
+      location: doc.hospital.location,
+      image: "/assets/hub-atrium.jpg",
+      phone: "",
+      email: "",
+      doctors_list: [],
+      lab_tests: [],
+      rooms: [],
+      management: [],
+      tag: "Partner Hospital",
+      address: doc.hospital.location,
+      rating: 0,
+      reviews: 0,
+      beds: 0,
+      doctors: 0,
+      founded: new Date().getFullYear(),
+      specialties: [],
+      cert: "Partner Hospital",
+      phones: [],
+      emails: [],
+      websites: [],
+      website: "",
+      social: [],
+      summary: "",
+      about: "",
+      facilities: [],
+      awards: [],
+      hours: []
+    } as Hospital;
+
+    return { d: doc, hospital };
+  }, [doctors, hospitals, slug]);
+
+  if (loadingDocs) {
+    return (
+      <div className="min-h-screen bg-gradient-hero">
+        <Navbar />
+        <main className="container mx-auto py-32 text-center">
+          <div className="flex justify-center items-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!found) {
     return (
@@ -59,7 +85,10 @@ const DoctorDetail = () => {
   }
 
   const { d, hospital } = found;
-  const peers = allDoctors.filter((x) => x.d.slug !== d.slug && x.d.specialty === d.specialty).slice(0, 3);
+  const peers = doctors
+    .filter((x) => x.slug !== d.slug && x.category === d.category)
+    .slice(0, 3)
+    .map((p) => ({ d: p }));
 
   return (
     <div className="min-h-screen bg-gradient-hero">
@@ -131,17 +160,19 @@ const DoctorDetail = () => {
 
             <section className="rounded-3xl bg-card border border-border/60 p-7">
               <h2 className="font-display text-2xl text-primary mb-4">Practicing At</h2>
-              <Link href={`/hospitals/${hospital.slug}`} className="flex items-center gap-4 rounded-2xl bg-accent/20 p-4 hover:bg-accent/30 transition-colors">
-                <img src={hospital.image} alt={hospital.name} className="h-16 w-16 rounded-xl object-cover" />
-                <div className="flex-1">
-                  <p className="font-display text-lg text-primary">{hospital.name}</p>
-                  <p className="text-xs text-muted-foreground inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{hospital.location}</p>
-                </div>
+              <div className="flex items-center gap-4 rounded-2xl bg-accent/20 p-4 hover:bg-accent/30 transition-colors">
+                <Link href={`/hospitals/${hospital.slug}`} className="flex items-center gap-4 flex-1">
+                  <img src={hospital.image} alt={hospital.name} className="h-16 w-16 rounded-xl object-cover" />
+                  <div className="flex-1">
+                    <p className="font-display text-lg text-primary hover:text-primary-glow">{hospital.name}</p>
+                    <p className="text-xs text-muted-foreground inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{hospital.location}</p>
+                  </div>
+                </Link>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  <a href={`tel:${hospital.phone}`} onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 hover:text-primary"><Phone className="h-3 w-3" /></a>
-                  <a href={`mailto:${hospital.email}`} onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 hover:text-primary"><Mail className="h-3 w-3" /></a>
+                  <a href={`tel:${hospital.phone}`} className="inline-flex items-center gap-1 hover:text-primary"><Phone className="h-3 w-3" /></a>
+                  <a href={`mailto:${hospital.email}`} className="inline-flex items-center gap-1 hover:text-primary"><Mail className="h-3 w-3" /></a>
                 </div>
-              </Link>
+              </div>
             </section>
 
             {peers.length > 0 && (
