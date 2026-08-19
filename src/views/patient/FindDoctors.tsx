@@ -1,44 +1,20 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Star, Calendar, MapPin, Video, Search, X } from "lucide-react";
-import { useState } from "react";
+import { Star, Calendar, MapPin, Search, X } from "lucide-react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { slugify } from "@/lib/slug";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-const doctor1 = "/assets/doctor-1.jpg";
-const doctorAvatar = "/assets/doctor-avatar.jpg";
-const patientSarah = "/assets/patient-sarah.jpg";
-const patientEleanor = "/assets/patient-eleanor.jpg";
+import { useDoctors, type UIDoctor } from "@/hooks/useDoctors";
 
-const cats = ["All Specialties", "Cardiology", "Neurology", "Dermatology", "Pediatrics", "Psychiatry", "Oncology"];
-
-const featured = [
-  { name: "Dr. Aris Thorne", role: "Senior Cardiologist", rating: "4.9", reviews: "124 reviews", img: doctor1, slot: "Tomorrow, 09:00 AM", loc: "South Wing", loc_icon: MapPin, starred: true },
-  { name: "Dr. Elena Vance", role: "Neurobiology Expert", rating: "4.8", reviews: "89 reviews", img: patientSarah, slot: "May 12th, 14:30 PM", loc: "Telehealth", loc_icon: Video },
-  { name: "Dr. Julian Marsh", role: "Pediatric Care", rating: "5.0", reviews: "210 reviews", img: doctorAvatar, slot: "Today, 16:00 PM", loc: "Green Pavilion", loc_icon: MapPin },
-];
-
-const second = [
-  { name: "Dr. Michael Chang", role: "Sports Medicine", rating: "4.7", reviews: "64 reviews", img: doctorAvatar, slot: "Next Mon, 11:30 AM", loc: "Rehab Unit", loc_icon: MapPin },
-  { name: "Dr. Sophia Patel", role: "Dermatology", rating: "4.9", reviews: "152 reviews", img: patientEleanor, slot: "Today, 14:00 PM", loc: "Skin Clinic", loc_icon: MapPin },
-];
-
-const list = [
-  { name: "Dr. Maria Lopez", role: "Internal Medicine", exp: "10 Years Exp.", rating: "4.7 (120)", price: "$120.00", img: patientSarah },
-  { name: "Dr. David Grant", role: "Neurology", exp: "18 Years Exp.", rating: "4.9 (430)", price: "$210.00", img: doctor1, urgent: true },
-  { name: "Dr. Sarah Kim", role: "Endocrinology", exp: "6 Years Exp.", rating: "4.6 (56)", price: "$140.00", img: patientEleanor },
-];
-
-const locationOptions = ["Telehealth", "Main Lab - Room 402", "Wing B - Suite 12", "South Wing", "Green Pavilion", "Skin Clinic", "Rehab Unit"];
+const cats = ["All Specialties", "Cardiology", "Neurology", "Dermatology", "Pediatrics", "Psychiatry", "Oncology", "General Medicine"];
 
 const matchesQuery = (q: string, ...fields: string[]) => {
   const s = q.trim().toLowerCase();
@@ -46,57 +22,67 @@ const matchesQuery = (q: string, ...fields: string[]) => {
   return fields.some(f => f.toLowerCase().includes(s));
 };
 
-type BookingTarget = { name: string; role: string; img: string; loc?: string };
-
 const FindDoctors = () => {
+  const { doctors, loading } = useDoctors();
   const [cat, setCat] = useState(0);
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(searchParams?.get("q") ?? "");
   const router = useRouter();
-  const [booking, setBooking] = useState<BookingTarget | null>(null);
-  const [form, setForm] = useState({ date: "", time: "", loc: "Telehealth", reason: "" });
+  const [booking, setBooking] = useState<UIDoctor | null>(null);
+  const [form, setForm] = useState({ date: "", time: "", department: "", reason: "" });
+  const [submitting, setSubmitting] = useState(false);
 
-  const openBooking = (d: BookingTarget) => {
-    setForm({ date: "", time: "", loc: d.loc && locationOptions.includes(d.loc) ? d.loc : "Telehealth", reason: "" });
+  const openBooking = (d: UIDoctor) => {
+    setForm({ date: "", time: "", department: d.specialty, reason: "" });
     setBooking(d);
   };
 
-  const handleConfirm = (e: React.FormEvent) => {
+  const handleConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!booking) return;
     if (!form.date || !form.time) {
       toast.error("Please pick a date and time.");
       return;
     }
-    const dateLabel = new Date(form.date).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
-    const [hh, mm] = form.time.split(":");
-    const h = parseInt(hh, 10);
-    const timeLabel = `${((h + 11) % 12 + 1).toString().padStart(2, "0")}:${mm} ${h >= 12 ? "PM" : "AM"}`;
 
+    setSubmitting(true);
     try {
-      const key = "patient.pendingAppointments";
-      const existing = JSON.parse(localStorage.getItem(key) || "[]");
-      existing.push({
-        id: `b-${Date.now()}`,
-        name: booking.name, role: booking.role, img: booking.img,
-        date: dateLabel, time: timeLabel, loc: form.loc, reason: form.reason,
-        createdAt: new Date().toISOString(),
+      const res = await fetch("/api/v1/patient/appointments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          doctor_id: booking.id,
+          scheduled_date: form.date,
+          scheduled_time: form.time,
+          department: form.department,
+          notes: form.reason,
+        }),
       });
-      localStorage.setItem(key, JSON.stringify(existing));
-    } catch { /* ignore */ }
+      const body = await res.json().catch(() => null);
 
-    toast.success(`Appointment requested with ${booking.name} on ${dateLabel} at ${timeLabel}`);
-    setBooking(null);
-    router.push("/patient/appointments");
+      if (!res.ok) {
+        toast.error(body?.error?.message || "Couldn't book that appointment. Please try again.");
+        return;
+      }
+
+      const dateLabel = new Date(form.date).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
+      toast.success(`Appointment requested with ${booking.name} on ${dateLabel} at ${form.time}`);
+      setBooking(null);
+      router.push("/patient/appointments");
+    } catch {
+      toast.error("Couldn't reach the server. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const activeCat = cats[cat];
-  const inCat = (role: string) => activeCat === "All Specialties" || role.toLowerCase().includes(activeCat.toLowerCase());
-
-  const featuredVisible = featured.filter(d => inCat(d.role) && matchesQuery(query, d.name, d.role, d.loc));
-  const secondVisible = second.filter(d => inCat(d.role) && matchesQuery(query, d.name, d.role, d.loc));
-  const listVisible = list.filter(d => inCat(d.role) && matchesQuery(query, d.name, d.role, d.exp));
-  const totalVisible = featuredVisible.length + secondVisible.length + listVisible.length;
+  const visible = useMemo(() => {
+    return doctors.filter(d =>
+      (activeCat === "All Specialties" || d.category === activeCat) &&
+      matchesQuery(query, d.name, d.specialty, d.location),
+    );
+  }, [doctors, activeCat, query]);
 
   return (
     <PatientPortalLayout>
@@ -123,7 +109,7 @@ const FindDoctors = () => {
           </button>
         )}
         {query && (
-          <p className="text-xs text-muted-foreground mt-2 ml-2">{totalVisible} match{totalVisible === 1 ? "" : "es"} for &quot;{query}&quot;</p>
+          <p className="text-xs text-muted-foreground mt-2 ml-2">{visible.length} match{visible.length === 1 ? "" : "es"} for &quot;{query}&quot;</p>
         )}
       </div>
 
@@ -134,124 +120,46 @@ const FindDoctors = () => {
         ))}
       </div>
 
-      <div className="grid md:grid-cols-3 gap-5 mt-8">
-        {featuredVisible.map((d, i) => (
-          <motion.div key={d.name} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
-            whileHover={{ y: -3 }} className="rounded-2xl bg-card border border-border/60 p-5 shadow-soft relative">
-            {d.starred && <div className="absolute -top-2 -right-2 h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center"><Star className="h-4 w-4 fill-current" /></div>}
-            <div className="flex gap-4">
-              <img src={d.img} alt={d.name} loading="lazy" width={64} height={64} className="h-16 w-16 rounded-full object-cover" />
-              <div>
-                <p className="font-semibold text-primary">{d.name}</p>
-                <p className="text-xs text-primary-glow font-semibold">{d.role}</p>
-                <p className="text-xs text-foreground/70 mt-1 flex items-center gap-1"><Star className="h-3 w-3 fill-accent text-accent" /> {d.rating} <span className="text-muted-foreground">({d.reviews})</span></p>
-              </div>
-            </div>
-            <p className="text-xs text-foreground/70 mt-4">Specializing in advanced diagnostic procedures and patient-centric long-term care plans.</p>
-            <div className="flex gap-2 mt-4">
-              <span className="flex items-center gap-1 text-xs bg-chip rounded-full px-3 py-1.5 text-primary"><Calendar className="h-3 w-3" /> {d.slot}</span>
-              <span className="flex items-center gap-1 text-xs bg-chip rounded-full px-3 py-1.5 text-primary"><d.loc_icon className="h-3 w-3" /> {d.loc}</span>
-            </div>
-            <button onClick={() => openBooking({ name: d.name, role: d.role, img: d.img, loc: d.loc })} className="mt-5 block text-center w-full rounded-full bg-gradient-dark text-surface-dark-foreground py-2.5 text-sm font-semibold shadow-glow hover:opacity-90">Book Appointment</button>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Featured */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-        className="grid md:grid-cols-2 mt-8 rounded-3xl overflow-hidden bg-gradient-dark text-surface-dark-foreground shadow-glow">
-        <div className="p-10">
-          <p className="text-[10px] tracking-widest font-bold opacity-80">FEATURED SPECIALIST</p>
-          <h2 className="font-display text-4xl mt-3">Personalized Care with Dr. Sarah Liao</h2>
-          <p className="text-sm opacity-80 mt-4">Voted Physician of the Year 2023, Dr. Liao is revolutionizing integrative medicine by combining modern diagnostic precision with traditional healing wisdom.</p>
-          <div className="flex gap-3 mt-6">
-            <Link href="/doctors/dr-sarah-liao" className="rounded-full bg-card text-primary px-6 py-3 text-sm font-semibold hover:opacity-90">Explore Biography</Link>
-            <button onClick={() => openBooking({ name: "Dr. Sarah Liao", role: "Integrative Medicine", img: patientSarah, loc: "Telehealth" })} className="rounded-full border border-surface-dark-foreground/30 px-6 py-3 text-sm font-semibold hover:bg-surface-dark-foreground/10">Virtual Consultation</button>
+      <div className="mt-8">
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
           </div>
-        </div>
-        <div className="bg-chip relative min-h-[280px]">
-          <img src={patientSarah} alt="Dr. Sarah Liao" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
-        </div>
-      </motion.div>
-
-      <div className="grid md:grid-cols-3 gap-5 mt-8">
-        {secondVisible.map((d, i) => (
-          <motion.div key={d.name} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
-            whileHover={{ y: -3 }} className="rounded-2xl bg-card border border-border/60 p-5 shadow-soft">
-            <div className="flex gap-4">
-              <img src={d.img} alt={d.name} loading="lazy" width={64} height={64} className="h-16 w-16 rounded-full object-cover" />
-              <div>
-                <p className="font-semibold text-primary">{d.name}</p>
-                <p className="text-xs text-primary-glow font-semibold">{d.role}</p>
-                <p className="text-xs text-foreground/70 mt-1 flex items-center gap-1"><Star className="h-3 w-3 fill-accent text-accent" /> {d.rating} <span className="text-muted-foreground">({d.reviews})</span></p>
-              </div>
-            </div>
-            <p className="text-xs text-foreground/70 mt-4">Expert in patient recovery and integrative wellness. Lead consultant for restorative care.</p>
-            <div className="flex gap-2 mt-4">
-              <span className="flex items-center gap-1 text-xs bg-chip rounded-full px-3 py-1.5 text-primary"><Calendar className="h-3 w-3" /> {d.slot}</span>
-              <span className="flex items-center gap-1 text-xs bg-chip rounded-full px-3 py-1.5 text-primary"><d.loc_icon className="h-3 w-3" /> {d.loc}</span>
-            </div>
-            <button onClick={() => openBooking({ name: d.name, role: d.role, img: d.img, loc: d.loc })} className="mt-5 block text-center w-full rounded-full bg-gradient-dark text-surface-dark-foreground py-2.5 text-sm font-semibold shadow-glow hover:opacity-90">Book Appointment</button>
-          </motion.div>
-        ))}
-
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }}
-          className="rounded-2xl bg-chip/60 p-6">
-          <h3 className="font-display text-xl text-primary">Network Reach</h3>
-          <p className="text-xs text-foreground/70 mt-2">Our living laboratory spans across multiple campuses for integrated healing.</p>
-          <div className="grid grid-cols-2 gap-3 mt-5">
-            {[
-              { v: "450+", l: "SPECIALISTS" }, { v: "12", l: "CAMPUSES" },
-              { v: "98%", l: "SATISFACTION" }, { v: "24/7", l: "SUPPORT" },
-            ].map(s => (
-              <div key={s.l} className="rounded-xl bg-card p-3 text-center">
-                <p className="font-display text-2xl text-primary">{s.v}</p>
-                <p className="text-[9px] tracking-widest font-bold text-primary-glow mt-1">{s.l}</p>
-              </div>
+        ) : visible.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
+            No specialists match your search.
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-3 gap-5">
+            {visible.map((d, i) => (
+              <motion.div key={d.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.06, 0.4) }}
+                whileHover={{ y: -3 }} className="rounded-2xl bg-card border border-border/60 p-5 shadow-soft">
+                <Link href={`/doctors/${d.slug}`} className="flex gap-4">
+                  <img src={d.img} alt={d.name} loading="lazy" width={64} height={64} className="h-16 w-16 rounded-full object-cover" />
+                  <div>
+                    <p className="font-semibold text-primary">{d.name}</p>
+                    <p className="text-xs text-primary-glow font-semibold">{d.specialty}</p>
+                    <p className="text-xs text-foreground/70 mt-1 flex items-center gap-1"><Star className="h-3 w-3 fill-accent text-accent" /> {d.rating} <span className="text-muted-foreground">({d.reviews} reviews)</span></p>
+                  </div>
+                </Link>
+                <p className="text-xs text-foreground/70 mt-4 line-clamp-2">{d.blurb}</p>
+                <div className="flex gap-2 mt-4 flex-wrap">
+                  <span className="flex items-center gap-1 text-xs bg-chip rounded-full px-3 py-1.5 text-primary"><Calendar className="h-3 w-3" /> {d.available}</span>
+                  <span className="flex items-center gap-1 text-xs bg-chip rounded-full px-3 py-1.5 text-primary"><MapPin className="h-3 w-3" /> {d.hospital.name}</span>
+                </div>
+                <button onClick={() => openBooking(d)} className="mt-5 block text-center w-full rounded-full bg-gradient-dark text-surface-dark-foreground py-2.5 text-sm font-semibold shadow-glow hover:opacity-90">Book Appointment</button>
+              </motion.div>
             ))}
           </div>
-        </motion.div>
+        )}
       </div>
 
-      <div className="mt-12">
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-3xl text-primary">Available Specialists</h2>
-          <p className="text-sm text-muted-foreground">Showing {listVisible.length} Specialist{listVisible.length === 1 ? "" : "s"}</p>
-        </div>
-        <div className="mt-5 space-y-3">
-          {listVisible.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">No specialists match your search.</div>
-          )}
-          {listVisible.map((d, i) => (
-            <motion.div key={d.name} initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }}
-              className={`rounded-2xl bg-card border ${d.urgent ? "border-l-4 border-l-destructive border-y-border/60 border-r-border/60" : "border-border/60"} p-4 flex items-center gap-5 shadow-soft`}>
-              <img src={d.img} alt={d.name} loading="lazy" width={48} height={48} className="h-12 w-12 rounded-xl object-cover" />
-              <div className="min-w-[180px]">
-                <div className="flex items-center gap-2">
-                  <p className="font-semibold text-primary text-sm">{d.name}</p>
-                  {d.urgent && <span className="rounded-full bg-destructive/15 text-destructive text-[9px] tracking-widest font-bold px-2 py-0.5">URGENT</span>}
-                </div>
-                <p className="text-xs text-primary-glow font-semibold">{d.role}</p>
-              </div>
-              <p className="text-sm text-foreground/70 hidden md:block">{d.exp}</p>
-              <p className="text-xs text-foreground/70 hidden md:flex items-center gap-1"><Star className="h-3 w-3 fill-accent text-accent" /> {d.rating}</p>
-              <p className="font-semibold text-primary ml-auto">{d.price}</p>
-              <Link href={`/doctors/${slugify(d.name)}`} className="text-[10px] tracking-widest font-bold text-primary-glow hover:underline hidden sm:block">VIEW PROFILE</Link>
-              <button onClick={() => openBooking({ name: d.name, role: d.role, img: d.img })} className="rounded-full bg-gradient-dark text-surface-dark-foreground px-5 py-2 text-xs font-semibold shadow-glow">Book</button>
-            </motion.div>
-          ))}
-        </div>
-        <div className="text-center mt-8">
-          <button onClick={() => toast.success("Loading more specialists")} className="rounded-full bg-chip border border-border px-6 py-3 text-sm font-semibold text-primary hover:bg-chip/70 transition-colors">Load More Specialists</button>
-        </div>
-      </div>
-
-      <Dialog open={!!booking} onOpenChange={(o) => !o && setBooking(null)}>
+      <Dialog open={!!booking} onOpenChange={(o) => !o && !submitting && setBooking(null)}>
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle className="font-display text-2xl text-primary">Book Appointment</DialogTitle>
             <DialogDescription>
-              {booking ? `Schedule a consultation with ${booking.name} (${booking.role}).` : ""}
+              {booking ? `Schedule a consultation with ${booking.name} (${booking.specialty}).` : ""}
             </DialogDescription>
           </DialogHeader>
           {booking && (
@@ -260,37 +168,30 @@ const FindDoctors = () => {
                 <img src={booking.img} alt={booking.name} className="h-12 w-12 rounded-full object-cover" />
                 <div>
                   <p className="font-semibold text-primary text-sm">{booking.name}</p>
-                  <p className="text-xs text-primary-glow">{booking.role}</p>
+                  <p className="text-xs text-primary-glow">{booking.specialty} · {booking.hospital.name}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>Date</Label>
-                  <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} min={new Date().toISOString().split("T")[0]} />
+                  <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} min={new Date().toISOString().split("T")[0]} required />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Time</Label>
-                  <Input type="time" value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} />
+                  <Input type="time" value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} required />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label>Location</Label>
-                <Select value={form.loc} onValueChange={v => setForm(f => ({ ...f, loc: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {locationOptions.map(l => (
-                      <SelectItem key={l} value={l}>{l}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Department</Label>
+                <Input value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))} placeholder="e.g. Cardiology" />
               </div>
               <div className="space-y-1.5">
                 <Label>Reason for visit</Label>
                 <Textarea value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} placeholder="Briefly describe your symptoms or reason..." rows={3} />
               </div>
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setBooking(null)}>Cancel</Button>
-                <Button type="submit">Confirm Booking</Button>
+                <Button type="button" variant="outline" onClick={() => setBooking(null)} disabled={submitting}>Cancel</Button>
+                <Button type="submit" disabled={submitting}>{submitting ? "Booking..." : "Confirm Booking"}</Button>
               </DialogFooter>
             </form>
           )}
@@ -300,4 +201,3 @@ const FindDoctors = () => {
   );
 };
 export default FindDoctors;
-

@@ -111,7 +111,7 @@ const DoctorDetail = () => {
               <span className="text-[10px] uppercase tracking-widest font-bold text-primary-glow">{d.specialty}</span>
               <h1 className="font-display text-3xl text-primary mt-2">{d.name}</h1>
               <p className="text-xs text-muted-foreground inline-flex items-center gap-1 mt-2"><GraduationCap className="h-3 w-3" />{d.education}</p>
-              <Link href="/patient/find-doctors" className="mt-5 block text-center w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors">
+              <Link href={`/patient/find-doctors?q=${encodeURIComponent(d.name)}`} className="mt-5 block text-center w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors">
                 Book Appointment
               </Link>
               <button onClick={() => toast.success(`${d.name} saved to favorites`)} className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-full border border-primary/30 py-2.5 text-sm font-semibold text-primary hover:bg-primary/5">

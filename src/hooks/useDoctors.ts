@@ -29,6 +29,7 @@ export type DBDoctor = {
 };
 
 export type UIDoctor = {
+  id: string;
   name: string;
   specialty: string;
   category: string;
@@ -84,6 +85,7 @@ export const mapDBDoctorToUI = (d: DBDoctor): UIDoctor => {
   const locationStr = locationParts.join(", ") || "Bangladesh";
 
   return {
+    id: d.id,
     name: d.name,
     specialty: d.specialty || "General Practitioner",
     category: getCategoryFromSpecialty(d.specialty || ""),
