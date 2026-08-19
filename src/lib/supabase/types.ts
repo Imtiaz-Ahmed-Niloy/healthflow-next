@@ -667,6 +667,7 @@ export type Database = {
           email: string | null
           experience_years: number | null
           expertise: string | null
+          gender: Database["public"]["Enums"]["patient_gender"] | null
           id: string
           languages: string | null
           name: string
@@ -691,6 +692,7 @@ export type Database = {
           email?: string | null
           experience_years?: number | null
           expertise?: string | null
+          gender?: Database["public"]["Enums"]["patient_gender"] | null
           id?: string
           languages?: string | null
           name: string
@@ -715,6 +717,7 @@ export type Database = {
           email?: string | null
           experience_years?: number | null
           expertise?: string | null
+          gender?: Database["public"]["Enums"]["patient_gender"] | null
           id?: string
           languages?: string | null
           name?: string
@@ -1556,6 +1559,7 @@ export type Database = {
           education: string | null
           experience_years: number | null
           expertise: string | null
+          gender: Database["public"]["Enums"]["patient_gender"] | null
           hospital_name: string | null
           hospital_slug: string | null
           id: string | null

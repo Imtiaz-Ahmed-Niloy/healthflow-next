@@ -26,6 +26,7 @@ export type DBDoctor = {
   subdistrict: string | null;
   hospital_name: string | null;
   hospital_slug: string | null;
+  gender: "male" | "female" | "other" | null;
 };
 
 export type UIDoctor = {
@@ -40,6 +41,7 @@ export type UIDoctor = {
   date: string;
   time: string;
   mode: "Telehealth" | "In-Person";
+  gender: "male" | "female" | "other" | null;
   img: string;
   slug: string;
   experience: number;
@@ -76,11 +78,23 @@ const getCategoryFromSpecialty = (spec: string): string => {
 };
 
 const doctorFallback = "/assets/doctors/doc-1.jpg";
+const maleFallbacks = ["/assets/doctors/male-1.jpg", "/assets/doctors/male-2.jpg", "/assets/doctors/male-3.jpg"];
+const femaleFallbacks = ["/assets/doctors/female-1.jpg", "/assets/doctors/female-2.jpg", "/assets/doctors/female-3.jpg"];
+
+/** Picks deterministically from a doctor's own id, so the same doctor always
+ * gets the same fallback face instead of one that changes on every render. */
+const fallbackPhotoFor = (d: DBDoctor): string => {
+  const pool = d.gender === "male" ? maleFallbacks : d.gender === "female" ? femaleFallbacks : null;
+  if (!pool) return doctorFallback;
+  const index = d.id.charCodeAt(0) % pool.length;
+  return pool[index];
+};
 
 export const mapDBDoctorToUI = (d: DBDoctor): UIDoctor => {
   const rating = Number(d.rating) || 4.5;
   const reviews = Math.floor(rating * 20);
-  
+  const photo = d.photo_url || fallbackPhotoFor(d);
+
   const locationParts = [d.location, d.district, d.division].filter(Boolean);
   const locationStr = locationParts.join(", ") || "Bangladesh";
 
@@ -96,12 +110,13 @@ export const mapDBDoctorToUI = (d: DBDoctor): UIDoctor => {
     date: "Available",
     time: d.availability || "Mon-Fri",
     mode: "In-Person",
-    img: d.photo_url || doctorFallback,
+    gender: d.gender,
+    img: photo,
     slug: d.slug,
     experience: d.experience_years || 1,
     fee: Number(d.consultation_fee) || 500,
     available: d.availability || "Mon-Fri",
-    photo: d.photo_url || doctorFallback,
+    photo,
     education: d.education || "MBBS",
     languages: d.languages ? d.languages.split(",").map(s => s.trim()).filter(Boolean) : ["English", "Bengali"],
     patients: d.patients_treated || 100,

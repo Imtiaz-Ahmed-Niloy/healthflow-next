@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Star, Calendar, Languages, GraduationCap, Award, Heart, Mail, Phone, MapPin, Clock, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Star, Calendar, Languages, GraduationCap, Award, Heart, Mail, Phone, MapPin, Clock, CheckCircle2, User } from "lucide-react";
 import { toast } from "sonner";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
@@ -146,6 +146,9 @@ const DoctorDetail = () => {
                 <div className="flex items-center gap-2 text-foreground/70"><Calendar className="h-4 w-4 text-primary-glow" />Available {d.available}</div>
                 <div className="flex items-center gap-2 text-foreground/70"><MapPin className="h-4 w-4 text-primary-glow" />{hospital.name} · {hospital.location}</div>
                 <div className="flex items-center gap-2 text-foreground/70"><Clock className="h-4 w-4 text-primary-glow" />30 min consultation</div>
+                {d.gender && (
+                  <div className="flex items-center gap-2 text-foreground/70 capitalize"><User className="h-4 w-4 text-primary-glow" />{d.gender}</div>
+                )}
               </div>
             </section>
 

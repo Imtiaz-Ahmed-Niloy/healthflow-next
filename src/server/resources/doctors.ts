@@ -10,6 +10,7 @@ import type { ResourceDefinition } from "./types";
  */
 
 const doctorStatus = z.enum(["active", "on_leave", "suspended"]);
+const doctorGender = z.enum(["male", "female", "other"]);
 
 /** Treats "" from an HTML form the same as omitted. */
 const optionalText = z.string().trim().max(2000).optional().or(z.literal("")).transform(
@@ -33,6 +34,7 @@ export const doctorCreateSchema = z.object({
     (value) => (value === "" ? undefined : value),
   ),
   phone: optionalText,
+  gender: doctorGender.optional(),
   photo_url: optionalText,
   experience_years: optionalNumber,
   rating: optionalNumber,
@@ -57,7 +59,7 @@ export const doctorsResource: ResourceDefinition<DoctorCreate, DoctorUpdate> = {
   createSchema: doctorCreateSchema,
   updateSchema: doctorUpdateSchema,
   searchFields: ["name", "specialty", "email"],
-  filterFields: ["status", "specialty"],
+  filterFields: ["status", "specialty", "gender"],
   defaultSort: { column: "created_at", ascending: false },
   roles: {
     read: ["hospital_admin", "hr_admin", "doctor", "patient"],

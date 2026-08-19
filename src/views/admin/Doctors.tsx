@@ -40,6 +40,7 @@ type Doctor = {
   specialty: string;
   email: string;
   phone: string;
+  gender: string;
   status: string;
   education: string;
   languages: string;
@@ -53,6 +54,12 @@ type Doctor = {
   patients_treated: string;
   consultation_duration_minutes: string;
 };
+
+const GENDERS = [
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+  { value: "other", label: "Other" },
+];
 
 const TABS = ["Directory", "Performance", "Scheduling"] as const;
 type Tab = (typeof TABS)[number];
@@ -165,6 +172,7 @@ const DirectoryTab = () => {
       { key: "name", label: "Name", accessor: r => r.name, sortable: true,
         render: r => <span className="font-semibold text-primary">{r.name}</span> },
       { key: "specialty", label: "Specialization", accessor: r => r.specialty, sortable: true },
+      { key: "gender", label: "Gender", accessor: r => r.gender, render: r => GENDERS.find(g => g.value === r.gender)?.label ?? "—" },
       { key: "education", label: "Qualifications", accessor: r => r.education },
       { key: "availability", label: "Availability", accessor: r => r.availability },
       { key: "experience_years", label: "Exp (yrs)", accessor: r => r.experience_years, sortable: true },
@@ -175,6 +183,7 @@ const DirectoryTab = () => {
       { name: "photo_url", label: "Doctor photo", type: "image" },
       { name: "name", label: "Full name", type: "text", required: true },
       { name: "specialty", label: "Specialization", type: "select", options: ["Cardiology", "Neurology", "Orthopedics", "Pediatrics", "Oncology", "Dermatology", "Gynecology", "General"] },
+      { name: "gender", label: "Gender", type: "select", options: GENDERS },
       { name: "education", label: "Education / Qualifications", type: "text", required: true },
       // min/max/numberStep mirror the check constraints in 0005. Without
       // numberStep a number input is integers-only, so "4.7" in a
