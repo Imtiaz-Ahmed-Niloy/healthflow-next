@@ -4,7 +4,9 @@ import { useMemo, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ResourcePage } from "@/components/admin/ResourcePage";
 import { Card, Kpi, Pill, Btn, SectionTitle } from "@/components/admin/ui";
-import { statusTone, Modal } from "@/components/admin/crud";
+import { statusTone, Modal, ConfirmDialog } from "@/components/admin/crud";
+import { invalidateResource } from "@/redux/api/createResourceApi";
+import { useAppDispatch } from "@/redux/hooks";
 import {
   doctorsApi, doctorPerformanceApi, doctorShiftsApi,
   type DoctorRow, type DoctorPerformanceRow, type DoctorShiftRow,
@@ -84,9 +86,14 @@ const Doctors = () => {
  * stored encrypted (not hashed) specifically so this button keeps working.
  */
 const DirectoryTab = () => {
+  const dispatch = useAppDispatch();
   const [creds, setCreds] = useState<{ doctor: string; email: string; password: string } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
+  // Creating a login is a real, consequential action — a doctor gets a real
+  // account they can sign in with. Confirmed explicitly rather than firing
+  // on the first click. Viewing an existing login is read-only, so it skips
+  // this and fires straight away.
+  const [pendingCreate, setPendingCreate] = useState<Doctor | null>(null);
 
   const copy = (value: string, label: string) => {
     navigator.clipboard.writeText(value);
@@ -103,7 +110,11 @@ const DirectoryTab = () => {
         return;
       }
       setCreds({ doctor: doctor.name, ...body.data });
-      setRefreshKey(k => k + 1);
+      // Bypassed doctorsApi's own mutations (this isn't CRUD on the doctor
+      // row itself), so the cache doesn't know profile_id changed — without
+      // this the row action button would still read "Create Login" and a
+      // second click would 409.
+      dispatch(invalidateResource("doctors", doctor.id));
       toast.success("Login created");
     } catch {
       toast.error("Could not create login", { description: "The request failed. Please try again." });
@@ -131,7 +142,7 @@ const DirectoryTab = () => {
 
   return (
     <>
-      <ResourcePage<Doctor> key={refreshKey} config={{
+      <ResourcePage<Doctor> config={{
     storeKey: "doctors",
     resource: "doctors",
     searchFields: ["name", "specialty", "email"],
@@ -139,12 +150,15 @@ const DirectoryTab = () => {
     rowActions: r => (
       <button
         type="button"
-        onClick={e => { e.stopPropagation(); void (r.profile_id ? viewLogin(r) : createLogin(r)); }}
+        onClick={e => {
+          e.stopPropagation();
+          if (r.profile_id) void viewLogin(r);
+          else setPendingCreate(r);
+        }}
         disabled={busyId === r.id}
         title={r.profile_id ? "View this doctor's login" : "Create a login for this doctor"}
-        className="inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-[11px] font-semibold border border-border hover:bg-muted disabled:opacity-50">
-        <KeyRound className="h-3.5 w-3.5" />
-        {busyId === r.id ? "…" : r.profile_id ? "View Login" : "Create Login"}
+        className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 disabled:opacity-50">
+        {busyId === r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
       </button>
     ),
     columns: [
@@ -179,6 +193,18 @@ const DirectoryTab = () => {
       { name: "bio", label: "About / Biography", type: "textarea" },
     ],
       }} />
+
+      <ConfirmDialog
+        open={!!pendingCreate}
+        onClose={() => setPendingCreate(null)}
+        onConfirm={() => pendingCreate && void createLogin(pendingCreate)}
+        title="Create doctor login?"
+        description={
+          pendingCreate
+            ? `This creates a real login for ${pendingCreate.name} at ${pendingCreate.email || "their email on file"} — they'll be able to sign in and use their own dashboard.`
+            : undefined
+        }
+      />
 
       <Modal
         open={!!creds}

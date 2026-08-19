@@ -55,6 +55,19 @@ const itemTag = (resource: string, id: string) => ({
   id: `${resource}:${id}`,
 });
 
+/**
+ * For the rare mutation that changes a resource row but isn't itself
+ * create/update/delete on that resource — e.g. POST /doctors/:id/login
+ * setting profile_id — so the row's cached data doesn't go stale.
+ *
+ * Dispatching `baseApi.util.invalidateTags` directly from a caller doesn't
+ * type-check: "Resource" is added to the tag registry here via
+ * `enhanceEndpoints`, and that widened type lives on `resourceApi`, not on
+ * the `baseApi` symbol a caller would import.
+ */
+export const invalidateResource = (resource: string, id?: string) =>
+  resourceApi.util.invalidateTags(id ? [listTag(resource), itemTag(resource, id)] : [listTag(resource)]);
+
 const resourceApi = baseApi
   .enhanceEndpoints({ addTagTypes: ["Resource"] })
   .injectEndpoints({
