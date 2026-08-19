@@ -6,7 +6,6 @@ import { motion } from "framer-motion";
 import { Star, Calendar, Video, ArrowLeft, Search, MapPin, SlidersHorizontal, X, Stethoscope } from "lucide-react";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
-import { slugify } from "@/lib/slug";
 import { specialtyTabs as tabs } from "@/data/doctors";
 import { useDoctors } from "@/hooks/useDoctors";
 import { BD_DIVISIONS, BD_LOCATIONS } from "@/data/bdLocations";
@@ -243,7 +242,7 @@ const Doctors = () => {
                       </span>
                     </div>
                   </Link>
-                  <Link href={`/doctors/${slugify(d.name)}`}
+                  <Link href={`/doctors/${d.slug}`}
                     className="mt-4 inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-primary to-primary-glow text-primary-foreground text-sm font-semibold py-2 hover:shadow-glow transition-all"
                   >
                     Book Appointment
