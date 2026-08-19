@@ -4,14 +4,14 @@ import { useMemo, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ResourcePage } from "@/components/admin/ResourcePage";
 import { Card, Kpi, Pill, Btn, SectionTitle } from "@/components/admin/ui";
-import { statusTone } from "@/components/admin/crud";
+import { statusTone, Modal } from "@/components/admin/crud";
 import {
   doctorsApi, doctorPerformanceApi, doctorShiftsApi,
   type DoctorRow, type DoctorPerformanceRow, type DoctorShiftRow,
 } from "@/redux/api/resources";
 import {
   Stethoscope, Users, DollarSign, Star, CalendarRange, ClipboardList,
-  Plus, Trash2, TrendingUp, Activity, AlertCircle, Loader2,
+  Plus, Trash2, TrendingUp, Activity, AlertCircle, Loader2, KeyRound, Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -33,6 +33,7 @@ type Doctor = {
   id: string;
   tenant_id?: string;
   slug?: string;
+  profile_id?: string | null;
   name: string;
   specialty: string;
   email: string;
@@ -73,12 +74,79 @@ const Doctors = () => {
   );
 };
 
-const DirectoryTab = () => (
-  <ResourcePage<Doctor> config={{
+/**
+ * Login credentials, per doctor (HF-32).
+ *
+ * Creating a doctor never creates a login on its own — most rows here are
+ * directory-only, same reasoning hospitals/[id]/approve documents for
+ * tenants. A login is a deliberate extra step, and unlike the hospital-admin
+ * flow, the password can be pulled up again later instead of only once: it's
+ * stored encrypted (not hashed) specifically so this button keeps working.
+ */
+const DirectoryTab = () => {
+  const [creds, setCreds] = useState<{ doctor: string; email: string; password: string } | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const copy = (value: string, label: string) => {
+    navigator.clipboard.writeText(value);
+    toast.success(`${label} copied`);
+  };
+
+  const createLogin = async (doctor: Doctor) => {
+    setBusyId(doctor.id);
+    try {
+      const res = await fetch(`/api/v1/doctors/${doctor.id}/login`, { method: "POST" });
+      const body = await res.json();
+      if (!res.ok) {
+        toast.error("Could not create login", { description: body?.error?.message ?? "Please try again." });
+        return;
+      }
+      setCreds({ doctor: doctor.name, ...body.data });
+      setRefreshKey(k => k + 1);
+      toast.success("Login created");
+    } catch {
+      toast.error("Could not create login", { description: "The request failed. Please try again." });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const viewLogin = async (doctor: Doctor) => {
+    setBusyId(doctor.id);
+    try {
+      const res = await fetch(`/api/v1/doctors/${doctor.id}/login`);
+      const body = await res.json();
+      if (!res.ok) {
+        toast.error("Could not load login", { description: body?.error?.message ?? "Please try again." });
+        return;
+      }
+      setCreds({ doctor: doctor.name, ...body.data });
+    } catch {
+      toast.error("Could not load login", { description: "The request failed. Please try again." });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <>
+      <ResourcePage<Doctor> key={refreshKey} config={{
     storeKey: "doctors",
     resource: "doctors",
     searchFields: ["name", "specialty", "email"],
     statuses: ["active", "on_leave", "suspended"],
+    rowActions: r => (
+      <button
+        type="button"
+        onClick={e => { e.stopPropagation(); void (r.profile_id ? viewLogin(r) : createLogin(r)); }}
+        disabled={busyId === r.id}
+        title={r.profile_id ? "View this doctor's login" : "Create a login for this doctor"}
+        className="inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-[11px] font-semibold border border-border hover:bg-muted disabled:opacity-50">
+        <KeyRound className="h-3.5 w-3.5" />
+        {busyId === r.id ? "…" : r.profile_id ? "View Login" : "Create Login"}
+      </button>
+    ),
     columns: [
       { key: "name", label: "Name", accessor: r => r.name, sortable: true,
         render: r => <span className="font-semibold text-primary">{r.name}</span> },
@@ -110,8 +178,49 @@ const DirectoryTab = () => (
       { name: "expertise", label: "Areas of Expertise (comma separated)", type: "textarea" },
       { name: "bio", label: "About / Biography", type: "textarea" },
     ],
-  }} />
-);
+      }} />
+
+      <Modal
+        open={!!creds}
+        onClose={() => setCreds(null)}
+        title="Doctor login"
+        footer={
+          <button onClick={() => setCreds(null)}
+            className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground">
+            Done
+          </button>
+        }>
+        {creds && (
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 rounded-xl bg-muted/40 p-4">
+              <KeyRound className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+              <p className="text-sm text-muted-foreground">
+                Login for <span className="font-semibold text-primary">{creds.doctor}</span>. Share these
+                securely — unlike a hospital admin&apos;s password, you can come back to this button and view
+                it again any time.
+              </p>
+            </div>
+            {[
+              { label: "Email", value: creds.email },
+              { label: "Password", value: creds.password },
+            ].map(({ label, value }) => (
+              <div key={label}>
+                <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1.5">{label.toUpperCase()}</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 bg-muted/40 rounded-lg px-3 py-2 text-sm font-mono break-all">{value}</code>
+                  <button onClick={() => copy(value, label)}
+                    className="p-2 rounded-lg border border-border hover:bg-muted" title={`Copy ${label}`}>
+                    <Copy className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
+    </>
+  );
+};
 
 /** Doctor list for the two tabs that hang off it. */
 const useDoctors = () => {

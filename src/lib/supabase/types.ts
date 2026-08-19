@@ -66,6 +66,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "admissions_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "admissions_patient_id_fkey"
             columns: ["patient_id"]
             isOneToOne: false
@@ -134,6 +141,13 @@ export type Database = {
             columns: ["doctor_id"]
             isOneToOne: false
             referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors_public"
             referencedColumns: ["id"]
           },
           {
@@ -434,6 +448,13 @@ export type Database = {
             referencedColumns: ["id", "tenant_id"]
           },
           {
+            foreignKeyName: "doctor_assistants_doctor_fkey"
+            columns: ["doctor_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "doctors_public"
+            referencedColumns: ["id", "tenant_id"]
+          },
+          {
             foreignKeyName: "doctor_assistants_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -442,6 +463,59 @@ export type Database = {
           },
           {
             foreignKeyName: "doctor_assistants_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      doctor_login_secrets: {
+        Row: {
+          created_at: string
+          doctor_id: string
+          password_enc: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          doctor_id: string
+          password_enc: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          doctor_id?: string
+          password_enc?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_login_secrets_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: true
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_login_secrets_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: true
+            referencedRelation: "doctors_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_login_secrets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_login_secrets_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -489,6 +563,13 @@ export type Database = {
             columns: ["doctor_id", "tenant_id"]
             isOneToOne: false
             referencedRelation: "doctors"
+            referencedColumns: ["id", "tenant_id"]
+          },
+          {
+            foreignKeyName: "doctor_performance_doctor_fkey"
+            columns: ["doctor_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "doctors_public"
             referencedColumns: ["id", "tenant_id"]
           },
           {
@@ -550,6 +631,13 @@ export type Database = {
             columns: ["doctor_id", "tenant_id"]
             isOneToOne: false
             referencedRelation: "doctors"
+            referencedColumns: ["id", "tenant_id"]
+          },
+          {
+            foreignKeyName: "doctor_shifts_doctor_fkey"
+            columns: ["doctor_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "doctors_public"
             referencedColumns: ["id", "tenant_id"]
           },
           {
@@ -1456,6 +1544,50 @@ export type Database = {
       }
     }
     Views: {
+      doctors_public: {
+        Row: {
+          availability: string | null
+          bio: string | null
+          consultation_duration_minutes: number | null
+          consultation_fee: number | null
+          created_at: string | null
+          district: string | null
+          division: string | null
+          education: string | null
+          experience_years: number | null
+          expertise: string | null
+          hospital_name: string | null
+          hospital_slug: string | null
+          id: string | null
+          languages: string | null
+          location: string | null
+          name: string | null
+          patients_treated: number | null
+          photo_url: string | null
+          rating: number | null
+          slug: string | null
+          specialty: string | null
+          status: Database["public"]["Enums"]["doctor_status"] | null
+          subdistrict: string | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctors_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctors_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hospitals_public: {
         Row: {
           about: string | null
