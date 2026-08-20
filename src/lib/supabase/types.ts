@@ -97,12 +97,14 @@ export type Database = {
       }
       appointments: {
         Row: {
+          consultation_started_at: string | null
           created_at: string
           department: string | null
           doctor_id: string | null
           id: string
           notes: string | null
           patient_id: string
+          priority: Database["public"]["Enums"]["appointment_priority"]
           scheduled_date: string
           scheduled_time: string
           status: Database["public"]["Enums"]["appointment_status"]
@@ -110,12 +112,14 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          consultation_started_at?: string | null
           created_at?: string
           department?: string | null
           doctor_id?: string | null
           id?: string
           notes?: string | null
           patient_id: string
+          priority?: Database["public"]["Enums"]["appointment_priority"]
           scheduled_date?: string
           scheduled_time?: string
           status?: Database["public"]["Enums"]["appointment_status"]
@@ -123,12 +127,14 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          consultation_started_at?: string | null
           created_at?: string
           department?: string | null
           doctor_id?: string | null
           id?: string
           notes?: string | null
           patient_id?: string
+          priority?: Database["public"]["Enums"]["appointment_priority"]
           scheduled_date?: string
           scheduled_time?: string
           status?: Database["public"]["Enums"]["appointment_status"]
@@ -1711,6 +1717,7 @@ export type Database = {
         | "pharmacy_admin"
         | "doctor"
         | "patient"
+      appointment_priority: "high" | "standard" | "routine"
       appointment_status: "scheduled" | "completed" | "cancelled"
       bed_status: "available" | "occupied" | "cleaning"
       bed_type: "general" | "icu" | "cabin"
@@ -1883,6 +1890,7 @@ export const Constants = {
         "doctor",
         "patient",
       ],
+      appointment_priority: ["high", "standard", "routine"],
       appointment_status: ["scheduled", "completed", "cancelled"],
       bed_status: ["available", "occupied", "cleaning"],
       bed_type: ["general", "icu", "cabin"],
