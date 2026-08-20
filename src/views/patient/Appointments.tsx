@@ -8,6 +8,9 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 type Bucket = "upcoming" | "past" | "cancelled";
 
@@ -61,6 +64,9 @@ const Appointments = () => {
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [calMonth, setCalMonth] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [rescheduling, setRescheduling] = useState<ApiAppointment | null>(null);
+  const [rescheduleForm, setRescheduleForm] = useState({ date: "", time: "" });
+  const [savingReschedule, setSavingReschedule] = useState(false);
 
   const load = async () => {
     try {
@@ -88,7 +94,7 @@ const Appointments = () => {
       const res = await fetch("/api/v1/patient/appointments", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ action: "cancel", id }),
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
@@ -101,6 +107,52 @@ const Appointments = () => {
       toast.error("Couldn't reach the server.");
     } finally {
       setCancellingId(null);
+    }
+  };
+
+  const openReschedule = (a: ApiAppointment) => {
+    setRescheduleForm({ date: a.scheduled_date, time: a.scheduled_time.slice(0, 5) });
+    setRescheduling(a);
+  };
+
+  const handleReschedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rescheduling) return;
+    if (!rescheduleForm.date || !rescheduleForm.time) {
+      toast.error("Please pick a date and time.");
+      return;
+    }
+
+    setSavingReschedule(true);
+    try {
+      const res = await fetch("/api/v1/patient/appointments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "reschedule",
+          id: rescheduling.id,
+          scheduled_date: rescheduleForm.date,
+          scheduled_time: rescheduleForm.time,
+        }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(body?.error?.message || "Couldn't reschedule that appointment.");
+        return;
+      }
+      setAppointments(prev =>
+        prev.map(a =>
+          a.id === rescheduling.id
+            ? { ...a, scheduled_date: rescheduleForm.date, scheduled_time: body.data.scheduled_time }
+            : a,
+        ),
+      );
+      toast.success(`Rescheduled appointment with ${rescheduling.doctor?.name ?? "the doctor"}`);
+      setRescheduling(null);
+    } catch {
+      toast.error("Couldn't reach the server.");
+    } finally {
+      setSavingReschedule(false);
     }
   };
 
@@ -174,10 +226,15 @@ const Appointments = () => {
                       </div>
                     </div>
                     {bucketOf(a) === "upcoming" && (
-                      <Button size="sm" variant="outline" disabled={cancellingId === a.id}
-                        onClick={() => handleCancel(a.id, a.doctor?.name ?? "the doctor")}>
-                        {cancellingId === a.id ? "Cancelling..." : "Cancel"}
-                      </Button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button size="sm" variant="outline" onClick={() => openReschedule(a)}>
+                          Reschedule
+                        </Button>
+                        <Button size="sm" variant="outline" disabled={cancellingId === a.id}
+                          onClick={() => handleCancel(a.id, a.doctor?.name ?? "the doctor")}>
+                          {cancellingId === a.id ? "Cancelling..." : "Cancel"}
+                        </Button>
+                      </div>
                     )}
                   </motion.div>
                 );
@@ -270,6 +327,38 @@ const Appointments = () => {
           </motion.div>
         </div>
       </div>
+
+      <Dialog open={!!rescheduling} onOpenChange={(o) => !o && !savingReschedule && setRescheduling(null)}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle className="font-display text-2xl text-primary">Reschedule Appointment</DialogTitle>
+            <DialogDescription>
+              {rescheduling ? `Pick a new date and time with ${rescheduling.doctor?.name ?? "the doctor"}.` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          {rescheduling && (
+            <form onSubmit={handleReschedule} className="space-y-4 mt-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Date</Label>
+                  <Input type="date" value={rescheduleForm.date}
+                    onChange={e => setRescheduleForm(f => ({ ...f, date: e.target.value }))}
+                    min={new Date().toISOString().split("T")[0]} required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Time</Label>
+                  <Input type="time" value={rescheduleForm.time}
+                    onChange={e => setRescheduleForm(f => ({ ...f, time: e.target.value }))} required />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setRescheduling(null)} disabled={savingReschedule}>Cancel</Button>
+                <Button type="submit" disabled={savingReschedule}>{savingReschedule ? "Saving..." : "Save New Time"}</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </PatientPortalLayout>
   );
 };

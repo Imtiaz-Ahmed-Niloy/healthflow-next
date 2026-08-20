@@ -36,13 +36,14 @@ import { createServerSupabase, createAdminSupabase, getAuthContext } from "@/lib
  * (appointments_doctor_slot_unique, 0024) rather than a check-then-insert
  * here — a check here has a race window between two concurrent requests
  * that the database refusing the second INSERT outright does not. This
- * route only translates the resulting 23505 into a clean message.
+ * route only translates the resulting 23505 into a clean message. The same
+ * index guards PATCH reschedule below for the same reason.
  *
- * GET lists everything this login has ever booked, and PATCH cancels one —
- * both HF-52. A patient can hold a `patients` row in more than one hospital
- * (self-registered, then booked again elsewhere — see the POST handler
- * above), so both list across every tenant this login is linked to rather
- * than assuming one.
+ * GET lists everything this login has ever booked. PATCH does one of two
+ * things depending on `action` (HF-52 cancel, HF-55 reschedule). A patient
+ * can hold a `patients` row in more than one hospital (self-registered, then
+ * booked again elsewhere — see the POST handler above), so both list across
+ * every tenant this login is linked to rather than assuming one.
  */
 
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status });
@@ -236,17 +237,53 @@ export const GET = async () => {
   });
 };
 
-const cancelSchema = z.object({ id: z.string().uuid("Which appointment?") });
+const patchSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("cancel"),
+    id: z.string().uuid("Which appointment?"),
+  }),
+  z.object({
+    action: z.literal("reschedule"),
+    id: z.string().uuid("Which appointment?"),
+    scheduled_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date."),
+    scheduled_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, "Pick a time."),
+  }),
+]);
 
-/** Cancel-only. A patient does not get generic appointment edit rights. */
+// Same shape the old cancel-only body used (no `action`), still accepted so
+// nothing already calling this route with `{ id }` alone breaks.
+const legacyCancelSchema = z.object({ id: z.string().uuid("Which appointment?") });
+
+/**
+ * Cancel or reschedule — a patient does not get generic appointment edit
+ * rights, only these two narrow actions.
+ */
 export const PATCH = async (request: Request) => {
   const auth = await getAuthContext();
   if (!auth) return fail("Not signed in", 401);
-  if (auth.role !== "patient") return fail("Only a patient can cancel their own appointment", 403);
+  if (auth.role !== "patient") return fail("Only a patient can manage their own appointment", 403);
 
   const body = await request.json().catch(() => null);
-  const parsed = cancelSchema.safeParse(body);
-  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Invalid request", 400);
+
+  let action: "cancel" | "reschedule";
+  let id: string;
+  let scheduled_date: string | undefined;
+  let scheduled_time: string | undefined;
+
+  const parsed = patchSchema.safeParse(body);
+  if (parsed.success) {
+    action = parsed.data.action;
+    id = parsed.data.id;
+    if (parsed.data.action === "reschedule") {
+      scheduled_date = parsed.data.scheduled_date;
+      scheduled_time = parsed.data.scheduled_time;
+    }
+  } else {
+    const legacy = legacyCancelSchema.safeParse(body);
+    if (!legacy.success) return fail(parsed.error.issues[0]?.message ?? "Invalid request", 400);
+    action = "cancel";
+    id = legacy.data.id;
+  }
 
   const admin = createAdminSupabase();
 
@@ -258,16 +295,41 @@ export const PATCH = async (request: Request) => {
   }
   if (patientIds.length === 0) return fail("Appointment not found", 404);
 
+  if (action === "cancel") {
+    const { data, error } = await admin
+      .from("appointments")
+      .update({ status: "cancelled" })
+      .eq("id", id)
+      .in("patient_id", patientIds) // never lets a patient touch a row that isn't theirs
+      .select("id, status")
+      .maybeSingle();
+
+    if (error) return fail(error.message, 500);
+    if (!data) return fail("Appointment not found", 404);
+
+    return json({ data });
+  }
+
+  // Reschedule: only a still-scheduled appointment can move — a cancelled
+  // one is done, and completed is history.
   const { data, error } = await admin
     .from("appointments")
-    .update({ status: "cancelled" })
-    .eq("id", parsed.data.id)
-    .in("patient_id", patientIds) // never lets a patient touch a row that isn't theirs
-    .select("id, status")
+    .update({ scheduled_date, scheduled_time })
+    .eq("id", id)
+    .eq("status", "scheduled")
+    .in("patient_id", patientIds)
+    .select("id, scheduled_date, scheduled_time, status")
     .maybeSingle();
 
-  if (error) return fail(error.message, 500);
-  if (!data) return fail("Appointment not found", 404);
+  if (error) {
+    // 23505 = appointments_doctor_slot_unique (0024) — someone else already
+    // holds the doctor's slot being rescheduled into.
+    if (error.code === "23505") {
+      return fail("That doctor is already booked for this date and time. Please pick another slot.", 409);
+    }
+    return fail(error.message, 500);
+  }
+  if (!data) return fail("Appointment not found, or it's no longer scheduled", 404);
 
   return json({ data });
 };
