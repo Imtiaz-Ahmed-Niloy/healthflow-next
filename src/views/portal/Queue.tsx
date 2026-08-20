@@ -130,6 +130,16 @@ const Queue = () => {
   };
 
   const handleStartConsult = async (entry: ApiQueueEntry) => {
+    // Already started -- just go back in. Re-PATCHing would stamp a fresh
+    // consultation_started_at over the real one, which is wrong: a doctor
+    // stepping out mid-consult (interrupted, grabbing a chart) and clicking
+    // back in should not reset how long they've actually been with this
+    // patient.
+    if (entry.in_consultation) {
+      router.push("/portal/prescription");
+      return;
+    }
+
     setStartingId(entry.id);
     try {
       const res = await fetch("/api/v1/portal/queue", {
@@ -310,10 +320,10 @@ const Queue = () => {
                   )}
                   <button
                     onClick={() => handleStartConsult(p)}
-                    disabled={p.in_consultation || startingId === p.id}
+                    disabled={startingId === p.id}
                     className="flex items-center gap-1 rounded-full bg-gradient-dark text-surface-dark-foreground px-4 py-2 text-xs font-semibold hover:opacity-90 shadow-glow disabled:opacity-60"
                   >
-                    {p.in_consultation ? "In Consult" : startingId === p.id ? "Starting..." : "Start Consult"} <ArrowRight className="h-3 w-3" />
+                    {startingId === p.id ? "Starting..." : p.in_consultation ? "In Consult" : "Start Consult"} <ArrowRight className="h-3 w-3" />
                   </button>
                 </motion.div>
               );
