@@ -39,7 +39,6 @@ export type UIDoctor = {
   date: string;
   time: string;
   mode: "Telehealth" | "In-Person";
-  gender: "male" | "female";
   img: string;
   slug: string;
   experience: number;
@@ -95,7 +94,6 @@ export const mapDBDoctorToUI = (d: DBDoctor): UIDoctor => {
     date: "Available",
     time: d.availability || "Mon-Fri",
     mode: "In-Person",
-    gender: "male",
     img: d.photo_url || doctorFallback,
     slug: d.slug,
     experience: d.experience_years || 1,

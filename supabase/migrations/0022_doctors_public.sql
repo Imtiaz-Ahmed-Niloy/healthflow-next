@@ -1,4 +1,4 @@
--- 0020_doctors_public.sql
+-- 0022_doctors_public.sql
 -- Exposes active doctors belonging to approved hospitals publicly.
 -- Excluding private columns (email, phone, profile_id).
 
