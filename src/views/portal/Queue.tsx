@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Link from "next/link";
 import { CheckCircle2, Clock, ArrowRightLeft, Plus, SlidersHorizontal, ArrowRight, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -24,8 +25,16 @@ type ApiQueueEntry = {
   patient: { id: string; full_name: string; date_of_birth: string | null; phone: string | null } | null;
 };
 
+type ApiCompletedEntry = {
+  id: string;
+  scheduled_time: string;
+  reason: string | null;
+  patient: { id: string; full_name: string; date_of_birth: string | null; phone: string | null } | null;
+};
+
 type ApiQueueResponse = {
   queue: ApiQueueEntry[];
+  completed: ApiCompletedEntry[];
   stats: { seen: number; remaining: number; total: number; avg_wait_minutes: number };
 };
 
@@ -61,6 +70,7 @@ const initials = (name: string) =>
 const Queue = () => {
   const router = useRouter();
   const [queue, setQueue] = useState<ApiQueueEntry[]>([]);
+  const [completed, setCompleted] = useState<ApiCompletedEntry[]>([]);
   const [stats, setStats] = useState<ApiQueueResponse["stats"]>({ seen: 0, remaining: 0, total: 0, avg_wait_minutes: 0 });
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterKey>("ALL");
@@ -78,6 +88,7 @@ const Queue = () => {
         return;
       }
       setQueue(body.data.queue ?? []);
+      setCompleted(body.data.completed ?? []);
       setStats(body.data.stats ?? { seen: 0, remaining: 0, total: 0, avg_wait_minutes: 0 });
     } catch {
       toast.error("Couldn't reach the server.");
@@ -136,7 +147,7 @@ const Queue = () => {
     // back in should not reset how long they've actually been with this
     // patient.
     if (entry.in_consultation) {
-      router.push("/portal/prescription");
+      router.push(`/portal/prescription?appointment=${entry.id}`);
       return;
     }
 
@@ -152,7 +163,7 @@ const Queue = () => {
         toast.error(body?.error?.message || "Couldn't start that consultation.");
         return;
       }
-      router.push("/portal/prescription");
+      router.push(`/portal/prescription?appointment=${entry.id}`);
     } catch {
       toast.error("Couldn't reach the server.");
     } finally {
@@ -331,6 +342,43 @@ const Queue = () => {
           )}
         </div>
       </div>
+
+      {!loading && completed.length > 0 && (
+        <div className="mt-10">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="h-5 w-1 rounded-full bg-muted-foreground/40" />
+            <h2 className="font-display text-xl text-primary">Seen Today</h2>
+            <span className="rounded-full bg-muted text-muted-foreground text-[10px] font-bold px-2 py-0.5">{completed.length}</span>
+          </div>
+          <div className="space-y-2">
+            {completed.map((p, i) => (
+              <motion.div key={p.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3, delay: i * 0.05 }}
+                className="rounded-2xl bg-card/60 border border-border/40 p-4 flex items-center gap-5">
+                <div className="h-11 w-11 rounded-full bg-muted flex items-center justify-center font-display text-sm text-muted-foreground shrink-0">
+                  {initials(p.patient?.full_name ?? "?")}
+                </div>
+                <div className="min-w-[180px]">
+                  <p className="font-semibold text-primary">{p.patient?.full_name ?? "Patient"}</p>
+                  <p className="text-xs text-muted-foreground">DOB: {dobLabel(p.patient?.date_of_birth ?? null)}</p>
+                </div>
+                <div className="hidden md:block min-w-[120px]">
+                  <p className="text-[10px] tracking-widest font-bold text-muted-foreground">TIME</p>
+                  <p className="text-sm font-semibold text-primary mt-0.5">{formatTime(p.scheduled_time)}</p>
+                </div>
+                <div className="flex-1 hidden lg:block">
+                  <p className="text-[10px] tracking-widest font-bold text-muted-foreground">REASON</p>
+                  <p className="text-sm font-semibold text-primary mt-0.5">{p.reason || "—"}</p>
+                </div>
+                <span className="text-xs font-semibold text-muted-foreground">COMPLETED</span>
+                <Link href={`/portal/prescription?appointment=${p.id}`}
+                  className="flex items-center gap-1 rounded-full border border-border px-4 py-2 text-xs font-semibold text-primary hover:bg-chip transition-colors">
+                  View <ArrowRight className="h-3 w-3" />
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
     </PortalLayout>
   );
 };

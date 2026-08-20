@@ -97,6 +97,8 @@ export type Database = {
       }
       appointments: {
         Row: {
+          bp_diastolic: number | null
+          bp_systolic: number | null
           consultation_started_at: string | null
           created_at: string
           department: string | null
@@ -112,6 +114,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          bp_diastolic?: number | null
+          bp_systolic?: number | null
           consultation_started_at?: string | null
           created_at?: string
           department?: string | null
@@ -127,6 +131,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          bp_diastolic?: number | null
+          bp_systolic?: number | null
           consultation_started_at?: string | null
           created_at?: string
           department?: string | null
@@ -1112,12 +1118,15 @@ export type Database = {
           emergency_contact_phone: string | null
           full_name: string
           gender: Database["public"]["Enums"]["patient_gender"] | null
+          height_feet: number | null
+          height_inches: number | null
           id: string
           mrn: string
           phone: string | null
           profile_id: string | null
           tenant_id: string
           updated_at: string
+          weight_kg: number | null
         }
         Insert: {
           address?: string | null
@@ -1129,12 +1138,15 @@ export type Database = {
           emergency_contact_phone?: string | null
           full_name: string
           gender?: Database["public"]["Enums"]["patient_gender"] | null
+          height_feet?: number | null
+          height_inches?: number | null
           id?: string
           mrn: string
           phone?: string | null
           profile_id?: string | null
           tenant_id: string
           updated_at?: string
+          weight_kg?: number | null
         }
         Update: {
           address?: string | null
@@ -1146,12 +1158,15 @@ export type Database = {
           emergency_contact_phone?: string | null
           full_name?: string
           gender?: Database["public"]["Enums"]["patient_gender"] | null
+          height_feet?: number | null
+          height_inches?: number | null
           id?: string
           mrn?: string
           phone?: string | null
           profile_id?: string | null
           tenant_id?: string
           updated_at?: string
+          weight_kg?: number | null
         }
         Relationships: [
           {
