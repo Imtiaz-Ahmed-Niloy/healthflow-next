@@ -1,9 +1,25 @@
 import { NextResponse } from "next/server";
-import { getAuthContext } from "@/lib/supabase/server";
+import { z } from "zod";
+import { createServerSupabase, getAuthContext } from "@/lib/supabase/server";
 
 /**
  * GET /api/v1/portal/medicines?q=... — search behind the Add Medicine
  * combobox on /portal/prescription (HF-58, re-approached).
+ *
+ * ?recent=1 (no q) instead returns this doctor's own most-prescribed
+ * medicines from `doctor_medicine_usage` (0029_doctor_medicine_usage.sql) --
+ * the picker's default view before anything is typed. That used to be a
+ * client-side localStorage cache (per-device, "recent" not "most used");
+ * this is real prescribing history, so it follows the doctor across any
+ * workstation. Everything below q's own handling is still the same live
+ * MedEx proxy, untouched.
+ *
+ * POST records one use of a medicine -- called the moment a doctor adds it
+ * to an Rx (Prescription.tsx's saveMedicine), not on final submit. Waiting
+ * for "Print & Submit" meant "used it" never counted until the whole visit
+ * was finished, and the picker's own most-used list wouldn't be caught up
+ * for the next patient. A doctor editing an already-added Rx line doesn't
+ * call this again -- only picking/adding counts as "used."
  *
  * A live proxy onto MedEx's own search-autocomplete endpoint
  * (medex.com.bd/ajax/search), not a local table. HealthFlow was verbally
@@ -37,6 +53,12 @@ const fail = (message: string, status: number) => json({ error: { message } }, s
 const decodeEntities = (s: string) =>
   s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#0?39;/g, "'").replace(/&quot;/g, '"');
 
+// MedEx's own title attribute qualifies the form with a manufacturing detail
+// no one prescribes by -- "Capsule (Enteric Coated)", "Tablet (Delayed
+// Release)". A doctor writes "Capsule", full stop; the parenthetical is
+// dropped rather than carried onto the Rx.
+const stripParenthetical = (s: string) => s.replace(/\s*\([^)]*\)\s*$/, "").trim();
+
 type MedexHit = { brand_name: string; strength: string | null; dosage_form: string | null; icon_url: string | null };
 
 /**
@@ -64,7 +86,7 @@ const parseMedexSearch = (html: string): MedexHit[] => {
 
     hits.push({
       brand_name: decodeEntities(brandMatch[1].trim()),
-      dosage_form: decodeEntities(titleMatch[1].trim()),
+      dosage_form: stripParenthetical(decodeEntities(titleMatch[1].trim())),
       strength: strengthMatch ? decodeEntities(strengthMatch[1].trim()) || null : null,
       icon_url: imgMatch ? decodeEntities(imgMatch[1]) : null,
     });
@@ -79,6 +101,44 @@ export const GET = async (request: Request) => {
   if (auth.role !== "doctor") return fail("Only a doctor can search the medicine list", 403);
 
   const url = new URL(request.url);
+
+  if (url.searchParams.get("recent") === "1") {
+    const supabase = await createServerSupabase();
+    const { data: doctor, error: doctorError } = await supabase
+      .from("doctors")
+      .select("id")
+      .eq("profile_id", auth.userId)
+      .maybeSingle();
+    if (doctorError) return fail(doctorError.message, 500);
+    if (!doctor) return fail("No doctor profile is linked to this login.", 404);
+
+    const { data, error } = await supabase
+      .from("doctor_medicine_usage")
+      .select("name, dosage_form, dose, use_count")
+      .eq("doctor_id", doctor.id)
+      .order("use_count", { ascending: false })
+      .order("last_used_at", { ascending: false })
+      .limit(15);
+    if (error) return fail(error.message, 500);
+
+    // Same MedexHit shape the client already renders -- icon_url isn't
+    // tracked here (no per-brand image without fetching MedEx's own detail
+    // page, see parseMedexSearch's comment). dose rides in the `strength`
+    // slot on purpose: pickMedicine already does
+    // `dose: f.dose || m.strength || ""`, so a saved pick prefills Dose the
+    // exact same way a live search result does, with zero extra client code.
+    // Napa 20mg and Napa 40mg are two separate rows here on purpose (see the
+    // migration) -- each shows up, and picks, with its own real dose.
+    return json({
+      data: (data ?? []).map((m) => ({
+        brand_name: m.name,
+        dosage_form: m.dosage_form || null,
+        strength: m.dose || null,
+        icon_url: null,
+      })),
+    });
+  }
+
   const q = url.searchParams.get("q")?.trim() ?? "";
   if (q.length < 2) return json({ data: [] });
 
@@ -100,4 +160,40 @@ export const GET = async (request: Request) => {
   const data = parseMedexSearch(html).slice(0, 20);
 
   return json({ data });
+};
+
+const recordUsageSchema = z.object({
+  name: z.string().trim().min(1, "Which medicine?"),
+  dosage_form: z.string().trim().optional().default(""),
+  // Part of the identity now (0029_doctor_medicine_usage.sql) -- Napa 20mg
+  // and Napa 40mg are tracked, and counted, as different medicines.
+  dose: z.string().trim().optional().default(""),
+});
+
+export const POST = async (request: Request) => {
+  const auth = await getAuthContext();
+  if (!auth) return fail("Not signed in", 401);
+  if (auth.role !== "doctor") return fail("Only a doctor can do this", 403);
+
+  const body = await request.json().catch(() => null);
+  const parsed = recordUsageSchema.safeParse(body);
+  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Invalid request", 400);
+
+  const supabase = await createServerSupabase();
+  const { data: doctor, error: doctorError } = await supabase
+    .from("doctors")
+    .select("id, tenant_id")
+    .eq("profile_id", auth.userId)
+    .maybeSingle();
+  if (doctorError) return fail(doctorError.message, 500);
+  if (!doctor) return fail("No doctor profile is linked to this login.", 404);
+
+  const { error } = await supabase.rpc("record_medicine_usage", {
+    p_tenant_id: doctor.tenant_id,
+    p_doctor_id: doctor.id,
+    p_medicines: [{ name: parsed.data.name, dosage_form: parsed.data.dosage_form, dose: parsed.data.dose }],
+  });
+  if (error) return fail(error.message, 500);
+
+  return json({ data: { ok: true } });
 };

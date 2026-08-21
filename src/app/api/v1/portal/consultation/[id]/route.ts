@@ -59,9 +59,13 @@ type RouteContext = { params: Promise<{ id: string }> };
 type Age = { value: number; unit: "years" | "months" | "days" };
 
 /** Mirrors the `Medicine` shape the Rx builder in Prescription.tsx uses client-side. */
-type PrescribedMedicine = { name: string; dose: string; frequency: string; days: string; meal: "Before Meal" | "After Meal" };
+type PrescribedMedicine = { name: string; dosage_form: string; dose: string; frequency: string; days: string; meal: "Before Meal" | "After Meal" };
 const medicineSchema = z.object({
   name: z.string(),
+  // "Tablet"/"Capsule"/"Syrup"/etc -- which form of the brand was actually
+  // prescribed (the same brand often comes in more than one). "" when a
+  // doctor typed a name MedEx had no match for.
+  dosage_form: z.string(),
   dose: z.string(),
   frequency: z.string(),
   days: z.string(),
@@ -85,6 +89,16 @@ const dobFromAge = (value: number, unit: Age["unit"]): string => {
   const dob = new Date(Date.now() - days * 86_400_000);
   return dob.toISOString().slice(0, 10);
 };
+
+/** Fills in dosage_form for medicines saved before that field existed, so the client's controlled Input never sees `undefined`. */
+const normalizeMedicine = (m: Partial<PrescribedMedicine>): PrescribedMedicine => ({
+  name: m.name ?? "",
+  dosage_form: m.dosage_form ?? "",
+  dose: m.dose ?? "",
+  frequency: m.frequency ?? "",
+  days: m.days ?? "",
+  meal: m.meal ?? "After Meal",
+});
 
 const myDoctor = async (supabase: Awaited<ReturnType<typeof createServerSupabase>>, userId: string) => {
   const { data, error } = await supabase
@@ -167,7 +181,7 @@ export const GET = async (_request: Request, context: RouteContext) => {
         examination: appointment.examination as string[],
         investigation: appointment.investigation as string[],
         diagnosis: appointment.diagnosis as string[],
-        medicines: appointment.medicines as PrescribedMedicine[],
+        medicines: (appointment.medicines as Partial<PrescribedMedicine>[]).map(normalizeMedicine),
         advice: appointment.advice as string[],
       },
       history: (historyRows ?? []).map((h) => ({
@@ -273,6 +287,12 @@ export const PATCH = async (request: Request, context: RouteContext) => {
 
     if (error) return fail(error.message, 500);
     if (!data) return fail("Consultation not found, or it's already finished.", 404);
+
+    // Usage counts (0029_doctor_medicine_usage.sql, for the picker's "most
+    // used" list) are NOT recorded here -- that happens the moment a
+    // medicine is added to the Rx (POST /api/v1/portal/medicines, called
+    // from saveMedicine), not on final submit. Doing it again here would
+    // double-count every medicine already on this chart.
 
     return json({ data });
   }

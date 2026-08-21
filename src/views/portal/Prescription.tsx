@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Plus, ClipboardList, ClipboardCheck, FlaskConical, Stethoscope, Lightbulb, Sparkles, History, AlertTriangle, Users, Printer, X, ArrowRight, Search, Check } from "lucide-react";
+import { Plus, ClipboardList, ClipboardCheck, FlaskConical, Stethoscope, Lightbulb, History, AlertTriangle, Users, Printer, X, ArrowRight, Search, Check } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -47,13 +47,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
  * The "Today's Queue" mini list in the right sidebar is real too -- same
  * /api/v1/portal/queue Queue.tsx itself reads, so Start Consult here does
  * exactly what it does there (PATCH to mark consultation_started_at, then
- * navigate). "AI Suggestions" is left exactly as it was -- explicitly out
- * of scope, no real data behind it to wire up.
+ * navigate). The sidebar card once labeled "AI Suggestions" now shows real
+ * data too -- this doctor's own most-prescribed medicines
+ * (0029_doctor_medicine_usage.sql, same /api/v1/portal/medicines?recent=1
+ * the Add Medicine picker's default view uses), not an AI-generated
+ * suggestion. Tapping one opens Add Medicine pre-filled with its name and
+ * form, same as picking it from search.
  */
 
 type Gender = "male" | "female" | "other";
 type Age = { value: number; unit: "years" | "months" | "days" };
-type Medicine = { name: string; dose: string; frequency: string; days: string; meal: "Before Meal" | "After Meal" };
+// dosage_form ("Tablet", "Capsule", "Syrup", "Drops", ...) matters beyond
+// cosmetics -- the same brand often comes in more than one form (a syrup or
+// drops for a child, a tablet or capsule for an adult), so it's part of
+// *which* medicine was actually prescribed, not just how it's printed.
+// "" means not set (a doctor typed a name MedEx had no match for, so there
+// was nothing to carry the form over from).
+type Medicine = { name: string; dosage_form: string; dose: string; frequency: string; days: string; meal: "Before Meal" | "After Meal" };
 
 type ConsultationCtx = {
   hospital: { name: string; address: string | null; contact_phone: string | null };
@@ -329,7 +339,8 @@ const Prescription = () => {
   const [medOpen, setMedOpen] = useState(false);
   // null = adding a new medicine; an index = editing that entry in `medicines` in place.
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const emptyMed: Medicine = { name: "", dose: "", frequency: "0+0+0", days: "", meal: "After Meal" };
+  const emptyMed: Medicine = { name: "", dosage_form: "", dose: "", frequency: "0+0+0", days: "", meal: "After Meal" };
+  const FORM_PRESETS = ["Tablet", "Capsule", "Syrup", "Drops", "Injection", "Cream", "Inhaler"];
   const [newMed, setNewMed] = useState<Medicine>(emptyMed);
 
   // Frequency (M+A+N): one dose count per time of day, not a handful of
@@ -365,48 +376,47 @@ const Prescription = () => {
   const [medQuery, setMedQuery] = useState("");
   const [medResults, setMedResults] = useState<MedicineHit[]>([]);
   const [medSearching, setMedSearching] = useState(false);
-  const [selectedMed, setSelectedMed] = useState<MedicineHit | null>(null);
   const medSearchSeq = useRef(0);
 
-  // A doctor prescribes the same handful of medicines constantly -- every
-  // one added to a real Rx is remembered here (localStorage, this device),
-  // so the next search for it never has to leave the browser. The MedEx
-  // proxy is a live scrape of someone else's site (see its route file); the
-  // fewer times we round-trip to it, the better a citizen this stays.
-  const RECENT_MEDS_KEY = "hf.medicines.recent";
-  const [recentMeds, setRecentMeds] = useState<MedicineHit[]>([]);
+  // This doctor's own most-prescribed medicines -- real prescribing history
+  // from `doctor_medicine_usage` (0029_doctor_medicine_usage.sql), fetched
+  // once up front on page load, well before the Add Medicine dialog is even
+  // opened. That's the point: the picker's default view (before a doctor
+  // types anything) has to be there *the instant* the dialog opens, same as
+  // the old localStorage cache was -- fetching it lazily when the dialog
+  // opens re-introduces exactly the loading flash that cache never had.
+  // Same data also feeds the sidebar's "Quick Add" card.
+  const [quickMeds, setQuickMeds] = useState<MedicineHit[]>([]);
+  const [quickMedsLoading, setQuickMedsLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(RECENT_MEDS_KEY);
-      if (raw) setRecentMeds(JSON.parse(raw));
-    } catch {
-      // corrupt or inaccessible storage -- just start empty, not worth surfacing
-    }
-  }, []);
-
-  const rememberMedicine = (m: MedicineHit) => {
-    setRecentMeds((prev) => {
-      const deduped = prev.filter((p) => !(p.brand_name === m.brand_name && p.strength === m.strength));
-      const next = [m, ...deduped].slice(0, 50); // most-recently-used first, capped
+    (async () => {
       try {
-        localStorage.setItem(RECENT_MEDS_KEY, JSON.stringify(next));
+        const res = await fetch("/api/v1/portal/medicines?recent=1");
+        const body = await res.json().catch(() => null);
+        if (res.ok) setQuickMeds(body?.data ?? []);
       } catch {
-        // storage full/unavailable -- the doctor still has it for this session, just not saved
+        // preload convenience -- fail quietly, a search still works either way
+      } finally {
+        setQuickMedsLoading(false);
       }
-      return next;
-    });
-  };
+    })();
+  }, []);
 
   useEffect(() => {
     if (!medPickerOpen) return;
     const q = medQuery.trim();
     if (!q) {
-      // Nothing typed yet -- show what's already been used, right away, no
-      // search needed at all. This is the only place recentMeds replaces a
-      // live call; once a doctor actually types something, that's a real
-      // search and always goes live below.
-      setMedResults(recentMeds.slice(0, 10));
+      // Nothing typed -- show the preloaded list immediately, no fetch, no
+      // "Searching…" flash. This is the one case that's never a live call.
+      setMedResults(quickMeds);
+      setMedSearching(false);
+      return;
+    }
+    if (q.length === 1) {
+      // Not enough to search yet -- the CommandList below shows its own
+      // "type at least 2 letters" message for this case, nothing to fetch.
+      setMedResults([]);
       setMedSearching(false);
       return;
     }
@@ -426,11 +436,14 @@ const Prescription = () => {
       }
     }, 350); // a little slower than a local-only filter -- this hits MedEx's live site
     return () => clearTimeout(t);
-  }, [medQuery, medPickerOpen, recentMeds]);
+  }, [medQuery, medPickerOpen, quickMeds]);
 
   const pickMedicine = (m: MedicineHit) => {
-    setSelectedMed(m);
-    setNewMed((f) => ({ ...f, name: m.brand_name, dose: f.dose || m.strength || "" }));
+    // dosage_form comes from *this specific* search result, not merged with
+    // whatever was there before -- Napa the tablet and Napa the syrup are
+    // different listings with their own dosage_form, so picking one should
+    // always overwrite, not just fill a blank.
+    setNewMed((f) => ({ ...f, name: m.brand_name, dosage_form: m.dosage_form || "", dose: f.dose || m.strength || "" }));
     setMedPickerOpen(false);
     setMedQuery("");
   };
@@ -445,12 +458,27 @@ const Prescription = () => {
         )}
       </div>
       <p className="min-w-0 flex-1 truncate">
+        {m.dosage_form && <span className="text-sm font-normal text-muted-foreground">{m.dosage_form} </span>}
         <span className="text-base font-semibold text-foreground">{m.brand_name}</span>
         {m.strength && <span className="text-sm font-normal text-muted-foreground"> {m.strength}</span>}
       </p>
       {m.brand_name === newMed.name && <Check className="h-4 w-4 text-primary shrink-0" />}
     </CommandItem>
   );
+
+  /** Opens Add Medicine pre-filled with a Quick Add pick -- dose/days/frequency still need the doctor's input, so this doesn't just append an incomplete Rx line. */
+  const quickAddMedicine = (m: MedicineHit) => {
+    setEditingIndex(null);
+    // m.strength carries this doctor's last-used dose for this medicine
+    // here (see /api/v1/portal/medicines's ?recent=1 handler) -- same field
+    // pickMedicine reads for a live search result, so it prefills Dose the
+    // same way, just still fully editable.
+    setNewMed({ ...emptyMed, name: m.brand_name, dosage_form: m.dosage_form ?? "", dose: m.strength ?? "" });
+    setFreqM("0");
+    setFreqA("0");
+    setFreqN("0");
+    setMedOpen(true);
+  };
 
   const [advice, setAdvice] = useState<string[]>([]);
   const [adviceOpen, setAdviceOpen] = useState(false);
@@ -532,7 +560,9 @@ const Prescription = () => {
     setExamination(draft?.examination ?? []);
     setInvestigation(draft?.investigation ?? []);
     setDiagnosis(draft?.diagnosis ?? []);
-    setMedicines(draft?.medicines ?? []);
+    // A draft saved before dosage_form existed won't have it -- default so
+    // the dialog's controlled Input never sees undefined.
+    setMedicines((draft?.medicines ?? []).map((m) => ({ ...m, dosage_form: m.dosage_form ?? "" })));
     setAdvice(draft?.advice ?? []);
     setDraftReady(true);
   }, [appointmentId, ctx, loadingCtx]);
@@ -564,7 +594,6 @@ const Prescription = () => {
     setNewMed(emptyMed);
     setMedQuery("");
     setMedPickerOpen(false);
-    setSelectedMed(null);
     setEditingIndex(null);
     setFreqM("0");
     setFreqA("0");
@@ -576,7 +605,6 @@ const Prescription = () => {
     const m = medicines[i];
     setEditingIndex(i);
     setNewMed(m);
-    setSelectedMed(null); // the picked medicine's own details (icon, dosage form) weren't kept on the Rx line -- only re-set if they search again
     const [fm, fa, fn] = m.frequency.split("+");
     setFreqM(fm ?? "0");
     setFreqA(fa ?? "0");
@@ -593,8 +621,21 @@ const Prescription = () => {
       setMedicines((arr) => arr.map((m, idx) => (idx === editingIndex ? newMed : m)));
     } else {
       setMedicines((m) => [...m, newMed]);
+      // Counts the moment it's added, not on final submit -- a doctor
+      // shouldn't have to finish and print the whole visit before "used it"
+      // registers. Only a fresh add counts; re-saving edits to an
+      // already-added line doesn't fire this again. Fire-and-forget: this
+      // is a convenience list, not the record of the visit itself.
+      fetch("/api/v1/portal/medicines", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newMed.name, dosage_form: newMed.dosage_form, dose: newMed.dose }),
+      })
+        .then(() => fetch("/api/v1/portal/medicines?recent=1"))
+        .then((r) => r.json())
+        .then((b) => setQuickMeds(b?.data ?? []))
+        .catch(() => {});
     }
-    if (selectedMed) rememberMedicine(selectedMed);
     const wasEditing = editingIndex !== null;
     closeMedDialog();
     toast.success(wasEditing ? "Medicine updated" : "Medicine added");
@@ -1008,17 +1049,31 @@ const Prescription = () => {
                         </span>
                       </button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[min(520px,90vw)] p-0" align="start">
-                      <Command shouldFilter={false}>
+                    {/* Radix caps a popover's *position* to avoid the
+                        viewport, not its height -- with no bound of our own,
+                        a tall result list could render partly past the
+                        viewport edge with nothing able to scroll it into
+                        view (the list's own overflow-y-auto only helps for
+                        overflow *within* whatever box it's given). Capping
+                        to --radix-popover-content-available-height (the
+                        space Radix already calculated is actually free)
+                        keeps the whole popover on-screen, so the list's own
+                        scroll can do its job. */}
+                    <PopoverContent
+                      className="w-[min(520px,90vw)] p-0 flex flex-col overflow-hidden"
+                      style={{ maxHeight: "var(--radix-popover-content-available-height, 420px)" }}
+                      align="start"
+                    >
+                      <Command shouldFilter={false} className="flex-1 min-h-0">
                         <CommandInput value={medQuery} onValueChange={setMedQuery} placeholder="e.g. Napa, Seclo…" />
-                        <CommandList className="max-h-[420px]">
+                        <CommandList className="max-h-[calc(420px-2.75rem)] overflow-y-auto">
                           {medSearching ? (
                             <div className="py-8 text-center text-sm text-muted-foreground">Searching…</div>
                           ) : medQuery.trim() === "" ? (
                             medResults.length === 0 ? (
                               <div className="py-8 text-center text-sm text-muted-foreground">Type a medicine name to search.</div>
                             ) : (
-                              <CommandGroup heading="Recently used — no search needed">
+                              <CommandGroup heading="Your most-prescribed — no search needed">
                                 {medResults.map(renderMedRow)}
                               </CommandGroup>
                             )
@@ -1034,6 +1089,25 @@ const Prescription = () => {
                       </Command>
                     </PopoverContent>
                   </Popover>
+                </div>
+                <div>
+                  {/* Auto-filled from the picked search result, but editable --
+                      the same brand often comes as a tablet for an adult and a
+                      syrup or drops for a child, so the form isn't always the
+                      one MedEx's listing happened to match. */}
+                  <Label>Form</Label>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5 mb-2">
+                    {FORM_PRESETS.map((f) => (
+                      <button key={f} type="button" onClick={() => setNewMed({ ...newMed, dosage_form: f })} className={`rounded-full px-3 py-1 text-xs font-semibold border transition-colors ${newMed.dosage_form === f ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-chip"}`}>{f}</button>
+                    ))}
+                  </div>
+                  {/* ?? "" guards a medicine that reached this state from
+                      somewhere still missing dosage_form -- an Rx line added
+                      before this field existed, still sitting in memory
+                      (Fast Refresh keeps component state across the edit
+                      that added it) or a pre-existing localStorage draft --
+                      so this Input is never uncontrolled-then-controlled. */}
+                  <Input value={newMed.dosage_form ?? ""} onChange={(e) => setNewMed({ ...newMed, dosage_form: e.target.value })} placeholder="or type a form…" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Dose</Label>
@@ -1088,7 +1162,10 @@ const Prescription = () => {
                 <div className="h-3 w-3 rounded-full bg-accent mt-2 shrink-0" />
                 <div className="flex-1">
                   <div className="flex items-center gap-3">
-                    <p className="font-semibold text-primary">{m.name}</p>
+                    <p className="font-semibold text-primary">
+                      {m.dosage_form && <span className="font-normal text-muted-foreground">{m.dosage_form} </span>}
+                      {m.name}
+                    </p>
                     <span className="rounded-md bg-muted/60 px-2 py-0.5 text-xs font-semibold text-foreground/70">{m.dose}</span>
                   </div>
                   <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
@@ -1171,24 +1248,39 @@ const Prescription = () => {
 
           <div className="rounded-2xl bg-gradient-dark text-surface-dark-foreground p-5">
             <div className="flex items-center justify-between">
-              <p className="flex items-center gap-2 text-sm font-semibold"><Sparkles className="h-4 w-4 text-accent" /> AI Suggestions</p>
-              <span className="text-[9px] font-bold tracking-widest opacity-70">BASED ON DIAGNOSIS</span>
+              <p className="flex items-center gap-2 text-sm font-semibold"><FlaskConical className="h-4 w-4 text-accent" /> Quick Add</p>
+              <span className="text-[9px] font-bold tracking-widest opacity-70">YOUR MOST-PRESCRIBED</span>
             </div>
             <div className="mt-4 space-y-2">
-              {[
-                { t: "RevitaCell-G", d: "Cellular regeneration support" },
-                { t: "NeoHydra Forte", d: "Advanced rehydration salts" },
-              ].map(a => (
-                <button key={a.t} onClick={() => toast.success(`Added ${a.t}`)} className="w-full flex items-center justify-between rounded-xl bg-surface-dark-foreground/10 p-3 hover:bg-surface-dark-foreground/15 transition-colors text-left">
-                  <div>
-                    <p className="font-semibold text-sm">{a.t}</p>
-                    <p className="text-[10px] opacity-70">{a.d}</p>
-                  </div>
-                  <Plus className="h-4 w-4" />
-                </button>
-              ))}
+              {quickMedsLoading ? (
+                <div className="flex justify-center py-4">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-surface-dark-foreground/40 border-t-transparent" />
+                </div>
+              ) : quickMeds.length === 0 ? (
+                <p className="text-xs opacity-70 py-2">Nothing prescribed yet — add a medicine and it&apos;ll show up here next time.</p>
+              ) : (
+                quickMeds.map((m) => (
+                  // Napa 20mg and Napa 40mg are separate entries on purpose
+                  // (0029_doctor_medicine_usage.sql) -- both the key and the
+                  // visible dose need to tell them apart, or they'd look
+                  // like the same duplicated row.
+                  <button
+                    key={`${m.brand_name}-${m.dosage_form}-${m.strength}`}
+                    onClick={() => quickAddMedicine(m)}
+                    className="w-full flex items-center justify-between rounded-xl bg-surface-dark-foreground/10 p-3 hover:bg-surface-dark-foreground/15 transition-colors text-left"
+                  >
+                    <div>
+                      <p className="font-semibold text-sm">{m.brand_name}</p>
+                      {(m.dosage_form || m.strength) && (
+                        <p className="text-[10px] opacity-70">{[m.dosage_form, m.strength].filter(Boolean).join(" · ")}</p>
+                      )}
+                    </div>
+                    <Plus className="h-4 w-4" />
+                  </button>
+                ))
+              )}
             </div>
-            <p className="text-[10px] opacity-60 mt-4 border-t border-surface-dark-foreground/15 pt-3">AI analysis based on Genomic session data and latest clinical guidelines.</p>
+            <p className="text-[10px] opacity-60 mt-4 border-t border-surface-dark-foreground/15 pt-3">From your own prescribing history — tap one to add it to this Rx.</p>
           </div>
 
           <div className="rounded-2xl bg-muted/40 p-5">
@@ -1354,7 +1446,10 @@ const Prescription = () => {
                             <span className="font-bold text-slate-900 text-sm pt-0.5">{i + 1}.</span>
                             <div>
                               <div className="flex items-baseline gap-2 flex-wrap">
-                                <span className="font-bold text-slate-900 text-[15px]">{m.name}</span>
+                                <span className="font-bold text-slate-900 text-[15px]">
+                                  {m.dosage_form && <span className="font-semibold text-slate-600">{m.dosage_form} </span>}
+                                  {m.name}
+                                </span>
                                 <span className="text-[11px] text-slate-600 italic">({m.dose})</span>
                               </div>
                               <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-[12px] text-slate-700 pl-1">
