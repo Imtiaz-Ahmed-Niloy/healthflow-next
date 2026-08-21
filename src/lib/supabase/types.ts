@@ -97,11 +97,19 @@ export type Database = {
       }
       appointments: {
         Row: {
+          advice: Json
+          bp_diastolic: number | null
+          bp_systolic: number | null
+          complaints: Json
           consultation_started_at: string | null
           created_at: string
           department: string | null
+          diagnosis: Json
           doctor_id: string | null
+          examination: Json
           id: string
+          investigation: Json
+          medicines: Json
           notes: string | null
           patient_id: string
           priority: Database["public"]["Enums"]["appointment_priority"]
@@ -112,11 +120,19 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          advice?: Json
+          bp_diastolic?: number | null
+          bp_systolic?: number | null
+          complaints?: Json
           consultation_started_at?: string | null
           created_at?: string
           department?: string | null
+          diagnosis?: Json
           doctor_id?: string | null
+          examination?: Json
           id?: string
+          investigation?: Json
+          medicines?: Json
           notes?: string | null
           patient_id: string
           priority?: Database["public"]["Enums"]["appointment_priority"]
@@ -127,11 +143,19 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          advice?: Json
+          bp_diastolic?: number | null
+          bp_systolic?: number | null
+          complaints?: Json
           consultation_started_at?: string | null
           created_at?: string
           department?: string | null
+          diagnosis?: Json
           doctor_id?: string | null
+          examination?: Json
           id?: string
+          investigation?: Json
+          medicines?: Json
           notes?: string | null
           patient_id?: string
           priority?: Database["public"]["Enums"]["appointment_priority"]
@@ -1112,12 +1136,15 @@ export type Database = {
           emergency_contact_phone: string | null
           full_name: string
           gender: Database["public"]["Enums"]["patient_gender"] | null
+          height_feet: number | null
+          height_inches: number | null
           id: string
           mrn: string
           phone: string | null
           profile_id: string | null
           tenant_id: string
           updated_at: string
+          weight_kg: number | null
         }
         Insert: {
           address?: string | null
@@ -1129,12 +1156,15 @@ export type Database = {
           emergency_contact_phone?: string | null
           full_name: string
           gender?: Database["public"]["Enums"]["patient_gender"] | null
+          height_feet?: number | null
+          height_inches?: number | null
           id?: string
           mrn: string
           phone?: string | null
           profile_id?: string | null
           tenant_id: string
           updated_at?: string
+          weight_kg?: number | null
         }
         Update: {
           address?: string | null
@@ -1146,12 +1176,15 @@ export type Database = {
           emergency_contact_phone?: string | null
           full_name?: string
           gender?: Database["public"]["Enums"]["patient_gender"] | null
+          height_feet?: number | null
+          height_inches?: number | null
           id?: string
           mrn?: string
           phone?: string | null
           profile_id?: string | null
           tenant_id?: string
           updated_at?: string
+          weight_kg?: number | null
         }
         Relationships: [
           {
