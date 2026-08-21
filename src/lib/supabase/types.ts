@@ -97,13 +97,19 @@ export type Database = {
       }
       appointments: {
         Row: {
+          advice: Json
           bp_diastolic: number | null
           bp_systolic: number | null
+          complaints: Json
           consultation_started_at: string | null
           created_at: string
           department: string | null
+          diagnosis: Json
           doctor_id: string | null
+          examination: Json
           id: string
+          investigation: Json
+          medicines: Json
           notes: string | null
           patient_id: string
           priority: Database["public"]["Enums"]["appointment_priority"]
@@ -114,13 +120,19 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          advice?: Json
           bp_diastolic?: number | null
           bp_systolic?: number | null
+          complaints?: Json
           consultation_started_at?: string | null
           created_at?: string
           department?: string | null
+          diagnosis?: Json
           doctor_id?: string | null
+          examination?: Json
           id?: string
+          investigation?: Json
+          medicines?: Json
           notes?: string | null
           patient_id: string
           priority?: Database["public"]["Enums"]["appointment_priority"]
@@ -131,13 +143,19 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          advice?: Json
           bp_diastolic?: number | null
           bp_systolic?: number | null
+          complaints?: Json
           consultation_started_at?: string | null
           created_at?: string
           department?: string | null
+          diagnosis?: Json
           doctor_id?: string | null
+          examination?: Json
           id?: string
+          investigation?: Json
+          medicines?: Json
           notes?: string | null
           patient_id?: string
           priority?: Database["public"]["Enums"]["appointment_priority"]

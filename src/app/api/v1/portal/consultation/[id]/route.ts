@@ -41,10 +41,14 @@ import { createServerSupabase, getAuthContext } from "@/lib/supabase/server";
  * route has no way to tell an approximate DOB from an exact one once it's
  * stored either way.
  *
- * Actually writing prescription content — complaints, diagnosis, medicines
- * — stays client-side/unsaved for now; that's real future work (a
- * prescriptions table, most likely), not a small addition to this route.
- * Recorded as a follow-up in HF-57 rather than half-built here.
+ * Prescription content — complaints, examination, investigation, diagnosis,
+ * medicines, advice — lives as JSONB columns directly on `appointments`
+ * (0028_appointments_prescription_content.sql), same per-visit reasoning as
+ * BP. "complete" now carries that content in its body and saves it in the
+ * same write that flips status, so reopening an already-submitted visit
+ * (e.g. Queue's "Seen Today" list) shows the real chart instead of a blank
+ * one. Before submission, the client's own localStorage draft is the only
+ * copy (crash recovery) — this route only ever sees it at submit time.
  */
 
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status });
@@ -53,6 +57,16 @@ const fail = (message: string, status: number) => json({ error: { message } }, s
 type RouteContext = { params: Promise<{ id: string }> };
 
 type Age = { value: number; unit: "years" | "months" | "days" };
+
+/** Mirrors the `Medicine` shape the Rx builder in Prescription.tsx uses client-side. */
+type PrescribedMedicine = { name: string; dose: string; frequency: string; days: string; meal: "Before Meal" | "After Meal" };
+const medicineSchema = z.object({
+  name: z.string(),
+  dose: z.string(),
+  frequency: z.string(),
+  days: z.string(),
+  meal: z.enum(["Before Meal", "After Meal"]),
+});
 
 /** Display form. Days under 2 months, months under 2 years, years after that. */
 const ageFromDOB = (iso: string | null): Age | null => {
@@ -100,7 +114,9 @@ export const GET = async (_request: Request, context: RouteContext) => {
 
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
-    .select("id, patient_id, scheduled_date, department, notes, status, tenant_id, bp_systolic, bp_diastolic")
+    .select(
+      "id, patient_id, scheduled_date, department, notes, status, tenant_id, bp_systolic, bp_diastolic, complaints, examination, investigation, diagnosis, medicines, advice"
+    )
     .eq("id", id)
     .eq("doctor_id", doctor.id) // never lets a doctor open another doctor's patient
     .maybeSingle();
@@ -147,6 +163,12 @@ export const GET = async (_request: Request, context: RouteContext) => {
         status: appointment.status,
         bp_systolic: appointment.bp_systolic,
         bp_diastolic: appointment.bp_diastolic,
+        complaints: appointment.complaints as string[],
+        examination: appointment.examination as string[],
+        investigation: appointment.investigation as string[],
+        diagnosis: appointment.diagnosis as string[],
+        medicines: appointment.medicines as PrescribedMedicine[],
+        advice: appointment.advice as string[],
       },
       history: (historyRows ?? []).map((h) => ({
         id: h.id,
@@ -159,7 +181,19 @@ export const GET = async (_request: Request, context: RouteContext) => {
 };
 
 const patchSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("complete") }),
+  z.object({
+    action: z.literal("complete"),
+    // The whole chart, sent once at submit time -- undefined leaves a
+    // section untouched (shouldn't happen from the real client, which
+    // always sends all six, but a bare {action:"complete"} is still valid
+    // for callers that just want to close out the visit).
+    complaints: z.array(z.string()).optional(),
+    examination: z.array(z.string()).optional(),
+    investigation: z.array(z.string()).optional(),
+    diagnosis: z.array(z.string()).optional(),
+    medicines: z.array(medicineSchema).optional(),
+    advice: z.array(z.string()).optional(),
+  }),
   z.object({
     action: z.literal("update_vitals"),
     weight_kg: z.number().positive().nullable().optional(),
@@ -223,7 +257,15 @@ export const PATCH = async (request: Request, context: RouteContext) => {
   if (parsed.data.action === "complete") {
     const { data, error } = await supabase
       .from("appointments")
-      .update({ status: "completed" })
+      .update({
+        status: "completed",
+        ...(parsed.data.complaints !== undefined ? { complaints: parsed.data.complaints } : {}),
+        ...(parsed.data.examination !== undefined ? { examination: parsed.data.examination } : {}),
+        ...(parsed.data.investigation !== undefined ? { investigation: parsed.data.investigation } : {}),
+        ...(parsed.data.diagnosis !== undefined ? { diagnosis: parsed.data.diagnosis } : {}),
+        ...(parsed.data.medicines !== undefined ? { medicines: parsed.data.medicines } : {}),
+        ...(parsed.data.advice !== undefined ? { advice: parsed.data.advice } : {}),
+      })
       .eq("id", id)
       .eq("status", "scheduled")
       .select("id, status")

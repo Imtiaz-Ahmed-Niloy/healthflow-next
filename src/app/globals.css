@@ -71,3 +71,30 @@
   .shadow-card { box-shadow: var(--shadow-card); }
   .shadow-glow { box-shadow: var(--shadow-glow); }
 }
+
+/* Prescription print (Prescription.tsx's #rx-print-area). Used to print via
+   a popup window that re-fetched the Tailwind CDN script and raced
+   window.print() against it loading -- half the utility classes hadn't
+   applied yet by the time the print dialog opened, so the PDF came out
+   unstyled and cramped. Printing the current page directly, with the rest
+   of it hidden, uses the exact same compiled Tailwind CSS already on
+   screen -- what's in the preview is exactly what prints, every time. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #rx-print-area,
+  #rx-print-area * {
+    visibility: visible;
+  }
+  #rx-print-area {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    background: #fff !important;
+  }
+  @page {
+    margin: 14mm;
+  }
+}

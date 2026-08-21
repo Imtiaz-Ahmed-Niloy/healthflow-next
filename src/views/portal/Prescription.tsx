@@ -53,6 +53,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 type Gender = "male" | "female" | "other";
 type Age = { value: number; unit: "years" | "months" | "days" };
+type Medicine = { name: string; dose: string; frequency: string; days: string; meal: "Before Meal" | "After Meal" };
 
 type ConsultationCtx = {
   hospital: { name: string; address: string | null; contact_phone: string | null };
@@ -75,6 +76,12 @@ type ConsultationCtx = {
     status: string;
     bp_systolic: number | null;
     bp_diastolic: number | null;
+    complaints: string[];
+    examination: string[];
+    investigation: string[];
+    diagnosis: string[];
+    medicines: Medicine[];
+    advice: string[];
   };
   history: { id: string; scheduled_date: string; department: string | null; notes: string | null }[];
 };
@@ -283,7 +290,6 @@ const Prescription = () => {
   const [investigation, setInvestigation] = useState<string[]>([]);
   const [diagnosis, setDiagnosis] = useState<string[]>([]);
 
-  type Medicine = { name: string; dose: string; frequency: string; days: string; meal: "Before Meal" | "After Meal" };
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [medOpen, setMedOpen] = useState(false);
   // null = adding a new medicine; an index = editing that entry in `medicines` in place.
@@ -429,13 +435,47 @@ const Prescription = () => {
   const [draftReady, setDraftReady] = useState(false);
 
   // Load (or reset, when jumping to a different patient from the sidebar)
-  // whenever the appointment changes -- runs once per appointment id.
+  // once we know which appointment we're on AND ctx has finished loading --
+  // waiting on ctx matters because a *submitted* visit's real chart lives on
+  // the server now (0028_appointments_prescription_content.sql), and that
+  // has to win over a stale local draft, not the other way around. Only an
+  // appointment ctx says has nothing saved yet falls back to the draft.
   useEffect(() => {
     setDraftReady(false);
     if (!appointmentId) {
       setDraftReady(true);
       return;
     }
+    if (loadingCtx) return; // wait -- don't decide before we know what the server has
+
+    const saved = ctx?.appointment;
+    const hasServerContent =
+      !!saved &&
+      (saved.complaints.length > 0 ||
+        saved.examination.length > 0 ||
+        saved.investigation.length > 0 ||
+        saved.diagnosis.length > 0 ||
+        saved.medicines.length > 0 ||
+        saved.advice.length > 0);
+
+    if (hasServerContent && saved) {
+      setComplaints(saved.complaints);
+      setExamination(saved.examination);
+      setInvestigation(saved.investigation);
+      setDiagnosis(saved.diagnosis);
+      setMedicines(saved.medicines);
+      setAdvice(saved.advice);
+      // The server is the source of truth now -- a leftover local draft
+      // (e.g. from before this visit was submitted) would just be stale.
+      try {
+        localStorage.removeItem(draftKey(appointmentId));
+      } catch {
+        // nothing to clean up if storage isn't available
+      }
+      setDraftReady(true);
+      return;
+    }
+
     let draft: Partial<{
       complaints: string[];
       examination: string[];
@@ -457,7 +497,7 @@ const Prescription = () => {
     setMedicines(draft?.medicines ?? []);
     setAdvice(draft?.advice ?? []);
     setDraftReady(true);
-  }, [appointmentId]);
+  }, [appointmentId, ctx, loadingCtx]);
 
   // Persist on every change -- but only once the load above has actually
   // run for this appointment, so an empty first render doesn't stomp a draft
@@ -474,17 +514,12 @@ const Prescription = () => {
     }
   }, [appointmentId, draftReady, complaints, examination, investigation, diagnosis, medicines, advice]);
 
-  const handlePrint = () => {
-    const node = document.getElementById("rx-print-area");
-    if (!node) return;
-    const win = window.open("", "_blank", "width=900,height=1000");
-    if (!win) return;
-    win.document.write(`<!doctype html><html><head><title>Prescription</title>
-      <script src="https://cdn.tailwindcss.com"></script>
-      <style>body{font-family:ui-sans-serif,system-ui;padding:32px;color:#0f172a}@media print{@page{margin:16mm}}</style>
-      </head><body>${node.innerHTML}<script>window.onload=()=>{setTimeout(()=>{window.print();},400)}</script></body></html>`);
-    win.document.close();
-  };
+  // Prints #rx-print-area straight out of this page (see globals.css's
+  // @media print block) instead of the old popup-window-plus-Tailwind-CDN
+  // approach -- that raced window.print() against the CDN script still
+  // loading, so classes routinely hadn't applied yet and the PDF came out
+  // unstyled. This way the PDF is exactly what's already on screen.
+  const handlePrint = () => window.print();
 
   const closeMedDialog = () => {
     setMedOpen(false);
@@ -550,14 +585,16 @@ const Prescription = () => {
       const res = await fetch(`/api/v1/portal/consultation/${appointmentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "complete" }),
+        body: JSON.stringify({ action: "complete", complaints, examination, investigation, diagnosis, medicines, advice }),
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
         toast.error(body?.error?.message || "Couldn't mark this visit completed, but here's the preview.");
       } else {
         toast.success("Visit marked completed");
-        setCtx((c) => (c ? { ...c, appointment: { ...c.appointment, status: "completed" } } : c));
+        setCtx((c) =>
+          c ? { ...c, appointment: { ...c.appointment, status: "completed", complaints, examination, investigation, diagnosis, medicines, advice } } : c
+        );
         // The visit is actually saved now -- the crash-recovery draft would
         // just be stale leftovers if a doctor reopened this appointment later.
         try {
@@ -1137,14 +1174,20 @@ const Prescription = () => {
       </div>
 
       {previewOpen && (
-        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto p-4 md:p-8" onClick={() => setPreviewOpen(false)}>
+        <div
+          className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto p-4 md:p-8 print:static print:block print:overflow-visible print:bg-transparent print:backdrop-blur-none print:p-0"
+          onClick={() => setPreviewOpen(false)}
+        >
           <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-4xl bg-white text-slate-900 rounded-2xl shadow-2xl my-4"
+            className="relative w-full max-w-4xl bg-white text-slate-900 rounded-2xl shadow-2xl my-4 print:static print:w-full print:max-w-none print:my-0 print:shadow-none print:rounded-none"
           >
-            <div className="sticky top-0 z-10 flex items-center justify-between bg-white/95 backdrop-blur border-b border-slate-200 px-6 py-3 rounded-t-2xl">
+            {/* Not part of the printed page -- hidden outright (not just via
+                the global print visibility rule) so it doesn't leave a blank
+                gap at the top of the PDF where it used to sit. */}
+            <div className="sticky top-0 z-10 flex items-center justify-between bg-white/95 backdrop-blur border-b border-slate-200 px-6 py-3 rounded-t-2xl print:hidden">
               <p className="text-sm font-semibold text-slate-700">Prescription Preview</p>
               <div className="flex items-center gap-2">
                 <button onClick={handlePrint} className="flex items-center gap-2 rounded-full bg-slate-900 text-white px-4 py-2 text-xs font-semibold hover:opacity-90">
@@ -1175,7 +1218,7 @@ const Prescription = () => {
               </div>
 
               {/* Patient bar */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-2 py-3 border-b border-dashed border-slate-300 text-[12px]">
+              <div className="grid grid-cols-2 md:grid-cols-4 print:grid-cols-4 gap-x-6 gap-y-2 py-3 border-b border-dashed border-slate-300 text-[12px]">
                 {[
                   ["Name", patient.full_name],
                   ["Age / Sex", `${ageLong(patient.age)} / ${genderLabel(patient.gender)}`],
@@ -1193,9 +1236,15 @@ const Prescription = () => {
               </div>
 
               {/* Body: left clinical / right Rx */}
-              <div className="grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-0 min-h-[460px]">
+              {/* md: only kicks in above 768px -- fine on screen (the modal
+                  is always that wide), but a printed page's content width
+                  (page size minus @page margins) is usually narrower than
+                  that, so md: never matched and this silently collapsed to
+                  one column in the PDF. print: isn't a width query, so it
+                  forces two columns for print regardless of paper size. */}
+              <div className="grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] print:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-0 min-h-[460px]">
                 {/* LEFT */}
-                <div className="md:pr-6 md:border-r border-slate-300 py-5 space-y-5">
+                <div className="md:pr-6 md:border-r print:pr-6 print:border-r border-slate-300 py-5 space-y-5">
                   {[
                     ["C/O", "Chief Complaints", complaints],
                     ["O/E", "On Examination", examination],
@@ -1221,7 +1270,7 @@ const Prescription = () => {
                 </div>
 
                 {/* RIGHT */}
-                <div className="md:pl-6 py-5 flex flex-col">
+                <div className="md:pl-6 print:pl-6 py-5 flex flex-col">
                   <div className="flex items-end gap-2 -mb-1">
                     <span className="text-6xl italic font-bold text-emerald-800 leading-none">℞</span>
                     <span className="text-[10px] tracking-widest font-semibold text-slate-500 uppercase pb-2">Prescription</span>
