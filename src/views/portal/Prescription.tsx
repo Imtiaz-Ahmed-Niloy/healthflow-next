@@ -112,22 +112,49 @@ type EditableSectionProps = {
   action: string;
   items: string[];
   onAdd: (v: string) => void;
+  onUpdate: (i: number, v: string) => void;
   onRemove: (i: number) => void;
   placeholder?: string;
   multiline?: boolean;
 };
 
-const EditableSection = ({ icon: Icon, title, action, items, onAdd, onRemove, placeholder, multiline }: EditableSectionProps) => {
+const EditableSection = ({ icon: Icon, title, action, items, onAdd, onUpdate, onRemove, placeholder, multiline }: EditableSectionProps) => {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
+  // null = the open input is adding a new entry; an index = editing that
+  // entry in `items` in place (clicking an existing line, same pattern as
+  // the Rx list's click-to-edit).
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+
+  const toggleAdd = () => {
+    if (open && editingIndex === null) {
+      setOpen(false);
+      return;
+    }
+    setEditingIndex(null);
+    setValue("");
+    setOpen(true);
+  };
+
+  const startEdit = (i: number) => {
+    setEditingIndex(i);
+    setValue(items[i]);
+    setOpen(true);
+  };
 
   const submit = () => {
     const v = value.trim();
     if (!v) return;
-    onAdd(v);
+    if (editingIndex !== null) {
+      onUpdate(editingIndex, v);
+      toast.success(`${title} updated`);
+    } else {
+      onAdd(v);
+      toast.success(`${title} added`);
+    }
     setValue("");
+    setEditingIndex(null);
     setOpen(false);
-    toast.success(`${title} added`);
   };
 
   return (
@@ -135,10 +162,10 @@ const EditableSection = ({ icon: Icon, title, action, items, onAdd, onRemove, pl
       <div className="flex items-center justify-between">
         <h3 className="flex items-center gap-2 font-semibold text-primary text-sm"><Icon className="h-4 w-4" /> {title}</h3>
         <button
-          onClick={() => setOpen((o) => !o)}
+          onClick={toggleAdd}
           className="flex items-center gap-1 text-xs font-semibold text-primary border border-border rounded-full px-3 py-1 hover:bg-chip transition-colors"
         >
-          <Plus className={`h-3 w-3 transition-transform ${open ? "rotate-45" : ""}`} /> {action}
+          <Plus className={`h-3 w-3 transition-transform ${open && editingIndex === null ? "rotate-45" : ""}`} /> {action}
         </button>
       </div>
 
@@ -163,7 +190,9 @@ const EditableSection = ({ icon: Icon, title, action, items, onAdd, onRemove, pl
               className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           )}
-          <button onClick={submit} className="rounded-lg bg-primary text-primary-foreground px-3 text-xs font-semibold hover:opacity-90">Save</button>
+          <button onClick={submit} className="rounded-lg bg-primary text-primary-foreground px-3 text-xs font-semibold hover:opacity-90">
+            {editingIndex !== null ? "Update" : "Save"}
+          </button>
         </motion.div>
       )}
 
@@ -173,9 +202,15 @@ const EditableSection = ({ icon: Icon, title, action, items, onAdd, onRemove, pl
         ) : (
           items.map((it, i) => (
             <div key={i} className="group flex items-start justify-between gap-2">
-              <p className="flex-1 whitespace-pre-line">– {it}</p>
               <button
-                onClick={() => { onRemove(i); toast.message("Removed"); }}
+                type="button"
+                onClick={() => startEdit(i)}
+                className="flex-1 text-left whitespace-pre-line hover:text-primary transition-colors"
+              >
+                – {it}
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onRemove(i); toast.message("Removed"); }}
                 className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
                 aria-label="Remove"
               >
@@ -420,6 +455,9 @@ const Prescription = () => {
   const [advice, setAdvice] = useState<string[]>([]);
   const [adviceOpen, setAdviceOpen] = useState(false);
   const [newAdvice, setNewAdvice] = useState("");
+  // null = adding a new advice line; an index = editing that entry in place --
+  // same click-to-edit pattern as the Rx list and the four EditableSections.
+  const [editingAdviceIndex, setEditingAdviceIndex] = useState<number | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -561,17 +599,41 @@ const Prescription = () => {
     closeMedDialog();
     toast.success(wasEditing ? "Medicine updated" : "Medicine added");
   };
+  const toggleAddAdvice = () => {
+    if (adviceOpen && editingAdviceIndex === null) {
+      setAdviceOpen(false);
+      return;
+    }
+    setEditingAdviceIndex(null);
+    setNewAdvice("");
+    setAdviceOpen(true);
+  };
+
+  const startEditAdvice = (i: number) => {
+    setEditingAdviceIndex(i);
+    setNewAdvice(advice[i]);
+    setAdviceOpen(true);
+  };
+
   const saveAdvice = () => {
     const v = newAdvice.trim();
     if (!v) return;
-    setAdvice((a) => [...a, v]);
+    if (editingAdviceIndex !== null) {
+      setAdvice((a) => a.map((x, idx) => (idx === editingAdviceIndex ? v : x)));
+      toast.success("Advice updated");
+    } else {
+      setAdvice((a) => [...a, v]);
+      toast.success("Advice added");
+    }
     setNewAdvice("");
+    setEditingAdviceIndex(null);
     setAdviceOpen(false);
-    toast.success("Advice added");
   };
 
   const addTo = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (v: string) =>
     setter((arr) => [...arr, v]);
+  const updateIn = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (i: number, v: string) =>
+    setter((arr) => arr.map((x, idx) => (idx === i ? v : x)));
   const removeFrom = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (i: number) =>
     setter((arr) => arr.filter((_, idx) => idx !== i));
 
@@ -880,6 +942,7 @@ const Prescription = () => {
             placeholder="e.g. Headache"
             items={complaints}
             onAdd={addTo(setComplaints)}
+            onUpdate={updateIn(setComplaints)}
             onRemove={removeFrom(setComplaints)}
           />
           <EditableSection
@@ -889,6 +952,7 @@ const Prescription = () => {
             placeholder="e.g. BP 120/80"
             items={examination}
             onAdd={addTo(setExamination)}
+            onUpdate={updateIn(setExamination)}
             onRemove={removeFrom(setExamination)}
           />
           <EditableSection
@@ -898,6 +962,7 @@ const Prescription = () => {
             placeholder="e.g. Lipid Profile"
             items={investigation}
             onAdd={addTo(setInvestigation)}
+            onUpdate={updateIn(setInvestigation)}
             onRemove={removeFrom(setInvestigation)}
           />
           <EditableSection
@@ -908,6 +973,7 @@ const Prescription = () => {
             multiline
             items={diagnosis}
             onAdd={addTo(setDiagnosis)}
+            onUpdate={updateIn(setDiagnosis)}
             onRemove={removeFrom(setDiagnosis)}
           />
         </div>
@@ -1043,14 +1109,16 @@ const Prescription = () => {
           <div className="mt-12">
             <div className="flex items-center justify-between">
               <p className="flex items-center gap-2 text-sm font-semibold text-primary"><Lightbulb className="h-4 w-4" /> General Advice</p>
-              <button onClick={() => setAdviceOpen((o) => !o)} className="flex items-center gap-1 text-xs font-semibold text-primary border border-border rounded-full px-3 py-1 hover:bg-chip transition-colors">
-                <Plus className={`h-3 w-3 transition-transform ${adviceOpen ? "rotate-45" : ""}`} /> Add Advice
+              <button onClick={toggleAddAdvice} className="flex items-center gap-1 text-xs font-semibold text-primary border border-border rounded-full px-3 py-1 hover:bg-chip transition-colors">
+                <Plus className={`h-3 w-3 transition-transform ${adviceOpen && editingAdviceIndex === null ? "rotate-45" : ""}`} /> Add Advice
               </button>
             </div>
             {adviceOpen && (
               <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2 mt-3">
                 <input autoFocus value={newAdvice} onChange={(e) => setNewAdvice(e.target.value)} onKeyDown={(e) => e.key === "Enter" && saveAdvice()} placeholder="Type advice…" className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                <button onClick={saveAdvice} className="rounded-lg bg-primary text-primary-foreground px-3 text-xs font-semibold hover:opacity-90">Save</button>
+                <button onClick={saveAdvice} className="rounded-lg bg-primary text-primary-foreground px-3 text-xs font-semibold hover:opacity-90">
+                  {editingAdviceIndex !== null ? "Update" : "Save"}
+                </button>
               </motion.div>
             )}
             <div className="rounded-xl bg-muted/40 border border-border/40 p-5 mt-3 space-y-2 text-sm text-foreground/80">
@@ -1058,8 +1126,8 @@ const Prescription = () => {
                 <p className="text-xs italic text-muted-foreground">No advice yet.</p>
               ) : advice.map((a, i) => (
                 <div key={i} className="group flex items-start justify-between gap-2">
-                  <p className="flex-1">{a}</p>
-                  <button onClick={() => { setAdvice((arr) => arr.filter((_, idx) => idx !== i)); toast.message("Removed"); }} className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive" aria-label="Remove">
+                  <button type="button" onClick={() => startEditAdvice(i)} className="flex-1 text-left hover:text-primary transition-colors">{a}</button>
+                  <button onClick={(e) => { e.stopPropagation(); setAdvice((arr) => arr.filter((_, idx) => idx !== i)); toast.message("Removed"); }} className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive" aria-label="Remove">
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
