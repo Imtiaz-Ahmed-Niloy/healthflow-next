@@ -31,9 +31,19 @@ import { createServerSupabase, getAuthContext } from "@/lib/supabase/server";
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status });
 const fail = (message: string, status: number) => json({ error: { message } }, status);
 
-const today = () => new Date().toISOString().slice(0, 10);
+// Local calendar date, not UTC. toISOString() is always UTC -- for roughly
+// 6 hours every night (midnight-6am Bangladesh time), that's still
+// "yesterday" in UTC, so a doctor's queue would silently show nothing (or a
+// walk-in booked "now" would file itself under the wrong day) even though
+// every screen's own clock, and every human in the building, already call
+// it today. getFullYear/getMonth/getDate read the server's local time,
+// which is what "today" actually means here.
+const today = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
-const nowTime = () => new Date().toTimeString().slice(0, 8); // "HH:MM:SS"
+const nowTime = () => new Date().toTimeString().slice(0, 8); // "HH:MM:SS" -- already local, unaffected
 
 /** The caller's own doctors.id, or a 403/404 Response if there isn't one. */
 const myDoctor = async (supabase: Awaited<ReturnType<typeof createServerSupabase>>, userId: string) => {
@@ -115,9 +125,31 @@ export const GET = async () => {
         : null,
     }));
 
+  // Separate list, not folded into `queue` -- a patient already seen isn't
+  // "waiting" in any sense, and the page renders them in their own section
+  // at the bottom rather than mixed into the live queue.
+  const { data: completedRows, error: completedError } = await supabase
+    .from("appointments")
+    .select("id, scheduled_time, consultation_started_at, notes, patients(id, full_name, date_of_birth, phone)")
+    .eq("doctor_id", doctor.id)
+    .eq("scheduled_date", date)
+    .eq("status", "completed")
+    .order("consultation_started_at", { ascending: false, nullsFirst: false });
+  if (completedError) return fail(completedError.message, 500);
+
+  const completed = (completedRows ?? []).map((r) => ({
+    id: r.id,
+    scheduled_time: r.scheduled_time,
+    reason: r.notes,
+    patient: r.patients
+      ? { id: r.patients.id, full_name: r.patients.full_name, date_of_birth: r.patients.date_of_birth, phone: r.patients.phone }
+      : null,
+  }));
+
   return json({
     data: {
       queue,
+      completed,
       stats: { seen, remaining, total: rows.length, avg_wait_minutes: avgWait },
     },
   });

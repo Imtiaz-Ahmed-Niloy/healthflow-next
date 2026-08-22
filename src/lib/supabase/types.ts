@@ -97,11 +97,19 @@ export type Database = {
       }
       appointments: {
         Row: {
+          advice: Json
+          bp_diastolic: number | null
+          bp_systolic: number | null
+          complaints: Json
           consultation_started_at: string | null
           created_at: string
           department: string | null
+          diagnosis: Json
           doctor_id: string | null
+          examination: Json
           id: string
+          investigation: Json
+          medicines: Json
           notes: string | null
           patient_id: string
           priority: Database["public"]["Enums"]["appointment_priority"]
@@ -112,11 +120,19 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          advice?: Json
+          bp_diastolic?: number | null
+          bp_systolic?: number | null
+          complaints?: Json
           consultation_started_at?: string | null
           created_at?: string
           department?: string | null
+          diagnosis?: Json
           doctor_id?: string | null
+          examination?: Json
           id?: string
+          investigation?: Json
+          medicines?: Json
           notes?: string | null
           patient_id: string
           priority?: Database["public"]["Enums"]["appointment_priority"]
@@ -127,11 +143,19 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          advice?: Json
+          bp_diastolic?: number | null
+          bp_systolic?: number | null
+          complaints?: Json
           consultation_started_at?: string | null
           created_at?: string
           department?: string | null
+          diagnosis?: Json
           doctor_id?: string | null
+          examination?: Json
           id?: string
+          investigation?: Json
+          medicines?: Json
           notes?: string | null
           patient_id?: string
           priority?: Database["public"]["Enums"]["appointment_priority"]
@@ -522,6 +546,71 @@ export type Database = {
           },
           {
             foreignKeyName: "doctor_login_secrets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      doctor_medicine_usage: {
+        Row: {
+          created_at: string
+          doctor_id: string
+          dosage_form: string
+          dose: string
+          id: string
+          last_used_at: string
+          name: string
+          tenant_id: string
+          use_count: number
+        }
+        Insert: {
+          created_at?: string
+          doctor_id: string
+          dosage_form?: string
+          dose?: string
+          id?: string
+          last_used_at?: string
+          name: string
+          tenant_id: string
+          use_count?: number
+        }
+        Update: {
+          created_at?: string
+          doctor_id?: string
+          dosage_form?: string
+          dose?: string
+          id?: string
+          last_used_at?: string
+          name?: string
+          tenant_id?: string
+          use_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_medicine_usage_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_medicine_usage_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_medicine_usage_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_medicine_usage_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -1112,12 +1201,15 @@ export type Database = {
           emergency_contact_phone: string | null
           full_name: string
           gender: Database["public"]["Enums"]["patient_gender"] | null
+          height_feet: number | null
+          height_inches: number | null
           id: string
           mrn: string
           phone: string | null
           profile_id: string | null
           tenant_id: string
           updated_at: string
+          weight_kg: number | null
         }
         Insert: {
           address?: string | null
@@ -1129,12 +1221,15 @@ export type Database = {
           emergency_contact_phone?: string | null
           full_name: string
           gender?: Database["public"]["Enums"]["patient_gender"] | null
+          height_feet?: number | null
+          height_inches?: number | null
           id?: string
           mrn: string
           phone?: string | null
           profile_id?: string | null
           tenant_id: string
           updated_at?: string
+          weight_kg?: number | null
         }
         Update: {
           address?: string | null
@@ -1146,12 +1241,15 @@ export type Database = {
           emergency_contact_phone?: string | null
           full_name?: string
           gender?: Database["public"]["Enums"]["patient_gender"] | null
+          height_feet?: number | null
+          height_inches?: number | null
           id?: string
           mrn?: string
           phone?: string | null
           profile_id?: string | null
           tenant_id?: string
           updated_at?: string
+          weight_kg?: number | null
         }
         Relationships: [
           {
@@ -1680,6 +1778,10 @@ export type Database = {
       auth_tenant_id: { Args: never; Returns: string }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
       is_super_admin: { Args: never; Returns: boolean }
+      record_medicine_usage: {
+        Args: { p_doctor_id: string; p_medicines: Json; p_tenant_id: string }
+        Returns: undefined
+      }
       transfer_admission: {
         Args: { p_admission_id: string; p_bed_id?: string; p_cabin_id?: string }
         Returns: {
