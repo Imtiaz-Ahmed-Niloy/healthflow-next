@@ -8,36 +8,82 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Trash2, Save, RotateCcw, ChevronDown, ChevronUp, Star } from "lucide-react";
-import { useBlogContent, type BlogContent, type Post } from "@/data/cmsBlog";
+import type { BlogContent } from "@/data/blogContent";
+import { useBlogContent } from "@/data/useBlogContent";
+import { useBlogPosts, type Post } from "@/data/blogPosts";
+
+const describeError = (cause: unknown, fallback: string) =>
+  (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? fallback;
 
 const BlogPageEditor = () => {
-  const { content, save, reset } = useBlogContent();
-  const [draft, setDraft] = useState<BlogContent>(content);
-  const [dirty, setDirty] = useState(false);
+  // Page chrome — masthead, section copy, newsletter. DB-backed (cms_pages, slug="blog").
+  const { content: chromeContent, save: saveChrome, reset: resetChrome } = useBlogContent();
+  const [chrome, setChrome] = useState<BlogContent>(chromeContent);
+  const [chromeDirty, setChromeDirty] = useState(false);
+
+  useEffect(() => {
+    if (chromeDirty) return;
+    setChrome(chromeContent);
+  }, [chromeContent, chromeDirty]);
+
+  const updChrome = (n: BlogContent) => { setChrome(n); setChromeDirty(true); };
+  const onSaveChrome = async () => {
+    try {
+      await saveChrome(chrome);
+      setChromeDirty(false);
+      toast.success("Blog page updated");
+    } catch (cause) {
+      toast.error(describeError(cause, "Could not save blog page"));
+    }
+  };
+  const onResetChrome = async () => {
+    try {
+      await resetChrome();
+      setChromeDirty(false);
+      toast.success("Blog page reset");
+    } catch (cause) {
+      toast.error(describeError(cause, "Could not reset blog page"));
+    }
+  };
+  const chromeBar = (
+    <div className="flex items-center gap-2">
+      <Btn variant="ghost" onClick={onResetChrome}><span className="inline-flex items-center gap-1"><RotateCcw className="h-4 w-4" /> Reset</span></Btn>
+      <Btn onClick={onSaveChrome} className={chromeDirty ? "" : "opacity-60"}><span className="inline-flex items-center gap-1"><Save className="h-4 w-4" /> Save</span></Btn>
+    </div>
+  );
+  const setMast = (p: Partial<BlogContent["masthead"]>) => updChrome({ ...chrome, masthead: { ...chrome.masthead, ...p } });
+  const setNews = (p: Partial<BlogContent["newsletter"]>) => updChrome({ ...chrome, newsletter: { ...chrome.newsletter, ...p } });
+
+  // Categories + individual posts — out of scope for this migration (tracked
+  // separately as cms_blog_posts). Unchanged: still localStorage-backed.
+  const { content: postsContent, save: savePosts, reset: resetPosts } = useBlogPosts();
+  const [postsDraft, setPostsDraft] = useState(postsContent);
+  const [postsDirty, setPostsDirty] = useState(false);
   const [openIdx, setOpenIdx] = useState<number | null>(0);
 
-  useEffect(() => { setDraft(content); setDirty(false); }, [content]);
-  const upd = (n: BlogContent) => { setDraft(n); setDirty(true); };
-  const onSave = () => { save(draft); setDirty(false); toast.success("Blog page updated"); };
-  const onReset = () => { reset(); toast.success("Blog page reset"); };
+  useEffect(() => {
+    if (postsDirty) return;
+    setPostsDraft(postsContent);
+  }, [postsContent, postsDirty]);
 
-  const bar = (
+  const updPosts = (n: typeof postsDraft) => { setPostsDraft(n); setPostsDirty(true); };
+  const onSavePosts = () => { savePosts(postsDraft); setPostsDirty(false); toast.success("Blog articles updated"); };
+  const onResetPosts = () => { resetPosts(); setPostsDirty(false); toast.success("Blog articles reset"); };
+  const postsBar = (
     <div className="flex items-center gap-2">
-      <Btn variant="ghost" onClick={onReset}><span className="inline-flex items-center gap-1"><RotateCcw className="h-4 w-4" /> Reset</span></Btn>
-      <Btn onClick={onSave} className={dirty ? "" : "opacity-60"}><span className="inline-flex items-center gap-1"><Save className="h-4 w-4" /> Save</span></Btn>
+      <Btn variant="ghost" onClick={onResetPosts}><span className="inline-flex items-center gap-1"><RotateCcw className="h-4 w-4" /> Reset</span></Btn>
+      <Btn onClick={onSavePosts} className={postsDirty ? "" : "opacity-60"}><span className="inline-flex items-center gap-1"><Save className="h-4 w-4" /> Save</span></Btn>
     </div>
   );
 
-  const setMast = (p: Partial<BlogContent["masthead"]>) => upd({ ...draft, masthead: { ...draft.masthead, ...p } });
-  const setNews = (p: Partial<BlogContent["newsletter"]>) => upd({ ...draft, newsletter: { ...draft.newsletter, ...p } });
-  const setPost = (i: number, p: Partial<Post>) => upd({ ...draft, posts: draft.posts.map((x, ix) => ix === i ? { ...x, ...p } : x) });
-  const delPost = (i: number) => upd({ ...draft, posts: draft.posts.filter((_, ix) => ix !== i) });
+  const setPost = (i: number, p: Partial<Post>) => updPosts({ ...postsDraft, posts: postsDraft.posts.map((x, ix) => ix === i ? { ...x, ...p } : x) });
+  const delPost = (i: number) => updPosts({ ...postsDraft, posts: postsDraft.posts.filter((_, ix) => ix !== i) });
   const addPost = () => {
     const np: Post = {
       slug: `new-story-${Date.now()}`,
       title: "New story",
       dek: "Short description of the story.",
-      category: draft.categories[1] ?? "Research",
+      category: postsDraft.categories[1] ?? "Research",
       cover: "",
       author: "Dr. Author Name",
       authorPhoto: "",
@@ -47,17 +93,17 @@ const BlogPageEditor = () => {
       views: 0,
       body: ["Write the article body here. Each paragraph is a separate item."],
     };
-    upd({ ...draft, posts: [np, ...draft.posts] });
+    updPosts({ ...postsDraft, posts: [np, ...postsDraft.posts] });
     setOpenIdx(0);
   };
   const move = (i: number, dir: -1 | 1) => {
     const j = i + dir;
-    if (j < 0 || j >= draft.posts.length) return;
-    const arr = [...draft.posts];
+    if (j < 0 || j >= postsDraft.posts.length) return;
+    const arr = [...postsDraft.posts];
     [arr[i], arr[j]] = [arr[j], arr[i]];
-    upd({ ...draft, posts: arr });
+    updPosts({ ...postsDraft, posts: arr });
   };
-  const setFeatured = (i: number) => upd({ ...draft, posts: draft.posts.map((x, ix) => ({ ...x, featured: ix === i })) });
+  const setFeatured = (i: number) => updPosts({ ...postsDraft, posts: postsDraft.posts.map((x, ix) => ({ ...x, featured: ix === i })) });
 
   return (
     <Tabs defaultValue="masthead" className="space-y-4">
@@ -65,51 +111,51 @@ const BlogPageEditor = () => {
         <TabsTrigger value="masthead">Masthead</TabsTrigger>
         <TabsTrigger value="sections">Sections</TabsTrigger>
         <TabsTrigger value="categories">Categories</TabsTrigger>
-        <TabsTrigger value="posts">Articles ({draft.posts.length})</TabsTrigger>
+        <TabsTrigger value="posts">Articles ({postsDraft.posts.length})</TabsTrigger>
         <TabsTrigger value="newsletter">Newsletter</TabsTrigger>
       </TabsList>
 
       <TabsContent value="masthead">
         <Card className="p-5 space-y-3">
-          <SectionTitle title="Masthead" action={bar} />
+          <SectionTitle title="Masthead" action={chromeBar} />
           <div className="grid md:grid-cols-2 gap-3">
-            <div className="space-y-1.5"><Label>Volume / Issue</Label><Input value={draft.masthead.volume} onChange={e => setMast({ volume: e.target.value })} /></div>
-            <div className="space-y-1.5"><Label>Editor line</Label><Input value={draft.masthead.editor} onChange={e => setMast({ editor: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label>Volume / Issue</Label><Input value={chrome.masthead.volume} onChange={e => setMast({ volume: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label>Editor line</Label><Input value={chrome.masthead.editor} onChange={e => setMast({ editor: e.target.value })} /></div>
           </div>
-          <div className="space-y-1.5"><Label>Title</Label><Input value={draft.masthead.title} onChange={e => setMast({ title: e.target.value })} /></div>
-          <div className="space-y-1.5"><Label>Tagline</Label><Textarea rows={2} value={draft.masthead.tagline} onChange={e => setMast({ tagline: e.target.value })} /></div>
-          <div className="space-y-1.5"><Label>Edition label</Label><Input value={draft.masthead.editionLabel} onChange={e => setMast({ editionLabel: e.target.value })} /></div>
+          <div className="space-y-1.5"><Label>Title</Label><Input value={chrome.masthead.title} onChange={e => setMast({ title: e.target.value })} /></div>
+          <div className="space-y-1.5"><Label>Tagline</Label><Textarea rows={2} value={chrome.masthead.tagline} onChange={e => setMast({ tagline: e.target.value })} /></div>
+          <div className="space-y-1.5"><Label>Edition label</Label><Input value={chrome.masthead.editionLabel} onChange={e => setMast({ editionLabel: e.target.value })} /></div>
         </Card>
       </TabsContent>
 
       <TabsContent value="sections">
         <Card className="p-5 space-y-3">
-          <SectionTitle title="Section copy" action={bar} />
+          <SectionTitle title="Section copy" action={chromeBar} />
           <div className="grid md:grid-cols-2 gap-3">
-            <div className="space-y-1.5"><Label>Lead story eyebrow</Label><Input value={draft.leadEyebrow} onChange={e => upd({ ...draft, leadEyebrow: e.target.value })} /></div>
-            <div className="space-y-1.5"><Label>&quot;Most read&quot; title</Label><Input value={draft.trendingTitle} onChange={e => upd({ ...draft, trendingTitle: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label>Lead story eyebrow</Label><Input value={chrome.leadEyebrow} onChange={e => updChrome({ ...chrome, leadEyebrow: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label>&quot;Most read&quot; title</Label><Input value={chrome.trendingTitle} onChange={e => updChrome({ ...chrome, trendingTitle: e.target.value })} /></div>
           </div>
-          <div className="space-y-1.5"><Label>Lead story closing line (appended after dek)</Label><Textarea rows={2} value={draft.leadKicker} onChange={e => upd({ ...draft, leadKicker: e.target.value })} /></div>
+          <div className="space-y-1.5"><Label>Lead story closing line (appended after dek)</Label><Textarea rows={2} value={chrome.leadKicker} onChange={e => updChrome({ ...chrome, leadKicker: e.target.value })} /></div>
           <div className="grid md:grid-cols-2 gap-3">
-            <div className="space-y-1.5"><Label>Grid title (&quot;All Stories&quot;)</Label><Input value={draft.gridTitle} onChange={e => upd({ ...draft, gridTitle: e.target.value })} /></div>
-            <div className="space-y-1.5"><Label>Empty results text</Label><Input value={draft.emptyText} onChange={e => upd({ ...draft, emptyText: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label>Grid title (&quot;All Stories&quot;)</Label><Input value={chrome.gridTitle} onChange={e => updChrome({ ...chrome, gridTitle: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label>Empty results text</Label><Input value={chrome.emptyText} onChange={e => updChrome({ ...chrome, emptyText: e.target.value })} /></div>
           </div>
         </Card>
       </TabsContent>
 
       <TabsContent value="categories">
         <Card className="p-5">
-          <SectionTitle title="Categories" action={bar} />
+          <SectionTitle title="Categories" action={postsBar} />
           <p className="text-xs text-muted-foreground mb-3">First entry should be &quot;All&quot; — used as the default filter.</p>
           <div className="space-y-2">
-            {draft.categories.map((c, i) => (
+            {postsDraft.categories.map((c, i) => (
               <div key={i} className="flex gap-2">
-                <Input value={c} onChange={e => upd({ ...draft, categories: draft.categories.map((x, ix) => ix === i ? e.target.value : x) })} />
-                <Btn variant="danger" onClick={() => upd({ ...draft, categories: draft.categories.filter((_, ix) => ix !== i) })}><Trash2 className="h-4 w-4" /></Btn>
+                <Input value={c} onChange={e => updPosts({ ...postsDraft, categories: postsDraft.categories.map((x, ix) => ix === i ? e.target.value : x) })} />
+                <Btn variant="danger" onClick={() => updPosts({ ...postsDraft, categories: postsDraft.categories.filter((_, ix) => ix !== i) })}><Trash2 className="h-4 w-4" /></Btn>
               </div>
             ))}
           </div>
-          <Btn variant="outline" className="mt-3" onClick={() => upd({ ...draft, categories: [...draft.categories, "New category"] })}><span className="inline-flex items-center gap-1"><Plus className="h-4 w-4" />Add category</span></Btn>
+          <Btn variant="outline" className="mt-3" onClick={() => updPosts({ ...postsDraft, categories: [...postsDraft.categories, "New category"] })}><span className="inline-flex items-center gap-1"><Plus className="h-4 w-4" />Add category</span></Btn>
         </Card>
       </TabsContent>
 
@@ -118,11 +164,11 @@ const BlogPageEditor = () => {
           <SectionTitle title="Articles" action={
             <div className="flex items-center gap-2">
               <Btn variant="outline" onClick={addPost}><span className="inline-flex items-center gap-1"><Plus className="h-4 w-4" />New article</span></Btn>
-              {bar}
+              {postsBar}
             </div>
           } />
           <div className="space-y-3">
-            {draft.posts.map((p, i) => {
+            {postsDraft.posts.map((p, i) => {
               const open = openIdx === i;
               return (
                 <div key={p.slug + i} className="rounded-xl border border-border/60">
@@ -179,16 +225,16 @@ const BlogPageEditor = () => {
 
       <TabsContent value="newsletter">
         <Card className="p-5 space-y-3">
-          <SectionTitle title="Newsletter" action={bar} />
-          <div className="space-y-1.5"><Label>Title</Label><Input value={draft.newsletter.title} onChange={e => setNews({ title: e.target.value })} /></div>
-          <div className="space-y-1.5"><Label>Subtitle</Label><Textarea rows={2} value={draft.newsletter.subtitle} onChange={e => setNews({ subtitle: e.target.value })} /></div>
+          <SectionTitle title="Newsletter" action={chromeBar} />
+          <div className="space-y-1.5"><Label>Title</Label><Input value={chrome.newsletter.title} onChange={e => setNews({ title: e.target.value })} /></div>
+          <div className="space-y-1.5"><Label>Subtitle</Label><Textarea rows={2} value={chrome.newsletter.subtitle} onChange={e => setNews({ subtitle: e.target.value })} /></div>
           <div className="grid md:grid-cols-2 gap-3">
-            <div className="space-y-1.5"><Label>Input placeholder</Label><Input value={draft.newsletter.placeholder} onChange={e => setNews({ placeholder: e.target.value })} /></div>
-            <div className="space-y-1.5"><Label>Button label</Label><Input value={draft.newsletter.buttonLabel} onChange={e => setNews({ buttonLabel: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label>Input placeholder</Label><Input value={chrome.newsletter.placeholder} onChange={e => setNews({ placeholder: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label>Button label</Label><Input value={chrome.newsletter.buttonLabel} onChange={e => setNews({ buttonLabel: e.target.value })} /></div>
           </div>
           <div className="grid md:grid-cols-2 gap-3">
-            <div className="space-y-1.5"><Label>Success toast title</Label><Input value={draft.newsletter.successTitle} onChange={e => setNews({ successTitle: e.target.value })} /></div>
-            <div className="space-y-1.5"><Label>Success toast body</Label><Input value={draft.newsletter.successBody} onChange={e => setNews({ successBody: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label>Success toast title</Label><Input value={chrome.newsletter.successTitle} onChange={e => setNews({ successTitle: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label>Success toast body</Label><Input value={chrome.newsletter.successBody} onChange={e => setNews({ successBody: e.target.value })} /></div>
           </div>
         </Card>
       </TabsContent>
@@ -197,4 +243,3 @@ const BlogPageEditor = () => {
 };
 
 export default BlogPageEditor;
-

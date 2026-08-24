@@ -8,11 +8,13 @@ import { Search, Calendar, Clock, ArrowRight, BookOpen, Tag, TrendingUp } from "
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import { Input } from "@/components/ui/input";
-import { useBlogContent } from "@/data/cmsBlog";
+import { useBlogPosts } from "@/data/blogPosts";
+import type { BlogContent } from "@/data/blogContent";
 
-const Blog = () => {
-  const { content } = useBlogContent();
-  const { posts, categories, trendingTitle, leadEyebrow, leadKicker, gridTitle, emptyText } = content;
+const Blog = ({ chrome }: { chrome: BlogContent }) => {
+  const { trendingTitle, leadEyebrow, leadKicker, gridTitle, emptyText } = chrome;
+  const { content } = useBlogPosts();
+  const { posts, categories } = content;
   const [query, setQuery] = useState("");
   const [cat, setCat] = useState("All");
   const [sort, setSort] = useState<"latest" | "popular">("latest");
