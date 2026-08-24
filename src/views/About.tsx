@@ -6,8 +6,8 @@ import { Quote } from "lucide-react";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 const heroImg = "/assets/about-hero.jpg";
-import { useCmsHero } from "@/data/useCmsHero";
-import { useAboutContent } from "@/data/cmsAbout";
+import type { CmsHeroFields } from "@/data/cmsPageHero";
+import type { AboutContent } from "@/data/aboutContent";
 
 const Ico = ({ name, className }: { name: string; className?: string }) => {
   const C = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[name] ?? Icons.Sparkles;
@@ -22,10 +22,7 @@ const SectionHeader = ({ eyebrow, title, subtitle, centered = true, light = fals
   </div>
 );
 
-const About = () => {
-  const { content: heroContent } = useCmsHero();
-  const hero = heroContent.about;
-  const { content } = useAboutContent();
+const About = ({ hero, content }: { hero: CmsHeroFields; content: AboutContent }) => {
   const { pillars, journey, ceoMessage, vision, mission, objectives } = content;
 
   return (

@@ -1,5 +1,3 @@
-import { useEffect, useState } from "react";
-
 export type Pillar = { icon: string; title: string; desc: string };
 export type TeamMember = { name: string; role: string; img?: string };
 export type Stat = { value: string; label: string };
@@ -16,9 +14,6 @@ export type AboutContent = {
   mission: { eyebrow: string; title: string; statement: string };
   objectives: { eyebrow: string; title: string; subtitle: string; items: CoreObjective[] };
 };
-
-const STORAGE_KEY = "hf:cms-about:v2";
-const EVENT = "hf:cms-about:changed";
 
 export const defaultAboutContent: AboutContent = {
   pillars: {
@@ -87,33 +82,29 @@ export const defaultAboutContent: AboutContent = {
   },
 };
 
-const read = (): AboutContent => {
-  if (typeof window === "undefined") return defaultAboutContent;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultAboutContent;
-    const p = JSON.parse(raw) as Partial<AboutContent>;
-    return {
-      pillars: { ...defaultAboutContent.pillars, ...(p.pillars ?? {}) },
-      team: { ...defaultAboutContent.team, ...(p.team ?? {}) },
-      stats: p.stats ?? defaultAboutContent.stats,
-      journey: { ...defaultAboutContent.journey, ...(p.journey ?? {}) },
-      ceoMessage: { ...defaultAboutContent.ceoMessage, ...(p.ceoMessage ?? {}) },
-      vision: { ...defaultAboutContent.vision, ...(p.vision ?? {}) },
-      mission: { ...defaultAboutContent.mission, ...(p.mission ?? {}) },
-      objectives: { ...defaultAboutContent.objectives, ...(p.objectives ?? {}) },
-    };
-  } catch { return defaultAboutContent; }
-};
-const write = (c: AboutContent) => { localStorage.setItem(STORAGE_KEY, JSON.stringify(c)); window.dispatchEvent(new Event(EVENT)); };
+type AboutBlocks = Partial<AboutContent>;
 
-export const useAboutContent = () => {
-  const [content, setContent] = useState<AboutContent>(() => read());
-  useEffect(() => {
-    const sync = () => setContent(read());
-    window.addEventListener(EVENT, sync);
-    window.addEventListener("storage", sync);
-    return () => { window.removeEventListener(EVENT, sync); window.removeEventListener("storage", sync); };
-  }, []);
-  return { content, save: write, reset: () => write(defaultAboutContent) };
+export const blocksToAboutContent = (blocks: unknown): AboutContent => {
+  const b = (blocks ?? {}) as AboutBlocks;
+  return {
+    pillars: { ...defaultAboutContent.pillars, ...(b.pillars ?? {}) },
+    team: { ...defaultAboutContent.team, ...(b.team ?? {}) },
+    stats: b.stats ?? defaultAboutContent.stats,
+    journey: { ...defaultAboutContent.journey, ...(b.journey ?? {}) },
+    ceoMessage: { ...defaultAboutContent.ceoMessage, ...(b.ceoMessage ?? {}) },
+    vision: { ...defaultAboutContent.vision, ...(b.vision ?? {}) },
+    mission: { ...defaultAboutContent.mission, ...(b.mission ?? {}) },
+    objectives: { ...defaultAboutContent.objectives, ...(b.objectives ?? {}) },
+  };
 };
+
+export const aboutContentToBlocks = (content: AboutContent) => ({
+  pillars: content.pillars,
+  team: content.team,
+  stats: content.stats,
+  journey: content.journey,
+  ceoMessage: content.ceoMessage,
+  vision: content.vision,
+  mission: content.mission,
+  objectives: content.objectives,
+});

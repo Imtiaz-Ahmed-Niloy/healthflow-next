@@ -10,9 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, Save, RotateCcw } from "lucide-react";
 import PageHeroEditor from "@/components/super/PageHeroEditor";
-import type { CmsHeroFields } from "@/data/cmsPageHero";
-import { useCmsHero } from "@/data/useCmsHero";
-import { useAboutContent, type AboutContent, type Pillar, type TeamMember, type Stat, type JourneyStep, type CoreObjective } from "@/data/cmsAbout";
+import { usePageHero } from "@/data/usePageHero";
+import type { AboutContent, Pillar, TeamMember, Stat, JourneyStep, CoreObjective } from "@/data/aboutContent";
+import { useAboutContent } from "@/data/useAboutContent";
 
 const ICONS = ["Leaf","HeartPulse","ShieldCheck","Sparkles","Globe","Stethoscope","Activity","Brain","Users","Heart","Award","Compass","Cpu","TrendingUp","Handshake","Eye","Target","Quote"];
 
@@ -23,20 +23,39 @@ const IconSelect = ({ value, onChange }: { value: string; onChange: (v: string) 
   </Select>
 );
 
+const describeError = (cause: unknown, fallback: string) =>
+  (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? fallback;
+
 const AboutPageEditor = () => {
-  const { content: heroBlob, save: saveHeroBlob, reset: resetHeroBlob } = useCmsHero();
-  const heroContent = heroBlob.about;
-  const saveHero = async (next: CmsHeroFields) => { saveHeroBlob({ ...heroBlob, about: next }); };
-  const resetHero = async () => { resetHeroBlob(); };
+  const heroApi = usePageHero("about");
 
   const { content, save, reset } = useAboutContent();
   const [draft, setDraft] = useState<AboutContent>(content);
   const [dirty, setDirty] = useState(false);
 
-  useEffect(() => { setDraft(content); setDirty(false); }, [content]);
+  useEffect(() => {
+    if (dirty) return;
+    setDraft(content);
+  }, [content, dirty]);
+
   const upd = (n: AboutContent) => { setDraft(n); setDirty(true); };
-  const onSave = () => { save(draft); setDirty(false); toast.success("About page updated"); };
-  const onReset = () => { reset(); toast.success("About page reset"); };
+  const onSave = async () => {
+    try {
+      await save(draft);
+      setDirty(false);
+      toast.success("About page updated");
+    } catch (cause) {
+      toast.error(describeError(cause, "Could not save about page"));
+    }
+  };
+  const onReset = async () => {
+    try {
+      await reset();
+      toast.success("About page reset");
+    } catch (cause) {
+      toast.error(describeError(cause, "Could not reset about page"));
+    }
+  };
 
   const bar = (
     <div className="flex items-center gap-2">
@@ -77,7 +96,7 @@ const AboutPageEditor = () => {
       </TabsList>
 
       <TabsContent value="hero">
-        <PageHeroEditor route="/about" showCtas={false} content={heroContent} save={saveHero} reset={resetHero} />
+        <PageHeroEditor route="/about" showCtas={false} content={heroApi.content} save={heroApi.save} reset={heroApi.reset} />
       </TabsContent>
 
       <TabsContent value="vision">
