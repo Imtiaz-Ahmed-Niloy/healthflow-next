@@ -29,6 +29,11 @@ const monthsList = [
   "July", "August", "September", "October", "November", "December"
 ];
 
+type ScheduleStats = {
+  avgWaitMinutes: number | null;
+  satisfaction: number | null;
+};
+
 type ViewMode = "split" | "list";
 
 const formatDateKey = (d: Date) => {
@@ -50,6 +55,7 @@ const initials = (name: string) =>
 const Schedule = () => {
   const [view, setView] = useState<ViewMode>("split");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [stats, setStats] = useState<ScheduleStats>({ avgWaitMinutes: null, satisfaction: null });
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
@@ -61,7 +67,8 @@ const Schedule = () => {
         const body = await res.json();
         if (res.ok && body.data) {
           setAppointments(body.data);
-          
+          if (body.stats) setStats(body.stats);
+
           const appts = body.data;
           if (appts.length > 0) {
             const todayStr = formatDateKey(new Date());
@@ -132,7 +139,6 @@ const Schedule = () => {
   const todayAppointmentsCount = (appointmentsByDate[todayKey] || []).length;
 
   const totalSeen = useMemo(() => appointments.filter(a => a.status === "completed").length, [appointments]);
-  const statsAvgWait = 14; // Default fallback representation
 
   return (
     <PortalLayout>
@@ -323,7 +329,7 @@ const Schedule = () => {
 
       <div className="grid md:grid-cols-3 gap-5 mt-8">
         <div className="rounded-2xl bg-chip/60 p-6 flex items-center justify-between">
-          <div><p className="text-[10px] tracking-widest font-bold text-primary-glow">AVG WAITING TIME</p><p className="font-display text-4xl text-primary mt-2">{statsAvgWait} min</p></div>
+          <div><p className="text-[10px] tracking-widest font-bold text-primary-glow">AVG WAITING TIME</p><p className="font-display text-4xl text-primary mt-2">{stats.avgWaitMinutes !== null ? `${stats.avgWaitMinutes} min` : "—"}</p></div>
           <div className="h-12 w-12 rounded-xl bg-card flex items-center justify-center text-primary"><Calendar className="h-5 w-5" /></div>
         </div>
         <div className="rounded-2xl bg-chip/60 p-6 flex items-center justify-between">
@@ -331,7 +337,7 @@ const Schedule = () => {
           <div className="h-12 w-12 rounded-xl bg-card flex items-center justify-center text-primary"><ClipboardList className="h-5 w-5" /></div>
         </div>
         <div className="rounded-2xl bg-gradient-dark text-surface-dark-foreground p-6 flex items-center justify-between shadow-glow">
-          <div><p className="text-[10px] tracking-widest font-bold opacity-80">SATISFACTION</p><p className="font-display text-4xl mt-2">98%</p></div>
+          <div><p className="text-[10px] tracking-widest font-bold opacity-80">SATISFACTION</p><p className="font-display text-4xl mt-2">{stats.satisfaction !== null ? `${stats.satisfaction.toFixed(1)}/5` : "—"}</p></div>
           <div className="h-12 w-12 rounded-xl bg-surface-dark-foreground/10 flex items-center justify-center"><Heart className="h-5 w-5" /></div>
         </div>
       </div>
