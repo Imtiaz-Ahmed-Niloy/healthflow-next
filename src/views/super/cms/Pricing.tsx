@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SuperLayout } from "@/components/super/SuperLayout";
 import { Card, SectionTitle, Btn } from "@/components/admin/ui";
 import { Input } from "@/components/ui/input";
@@ -9,22 +9,30 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, Save, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
-import {
-  defaultPricing,
-  loadPricing,
-  savePricing,
-  type PricingData,
-  type PricingPlan,
-  type CompareRow,
-  type Faq,
-} from "@/data/pricing";
+import type { PricingContent, PricingPlan, CompareRow, Faq } from "@/data/pricingContent";
+import { usePricingContent } from "@/data/usePricingContent";
+
+const describeError = (cause: unknown, fallback: string) =>
+  (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? fallback;
 
 const CmsPricing = () => {
-  const [data, setData] = useState<PricingData>(() => loadPricing());
+  const { content, save, reset } = usePricingContent();
+  const [data, setData] = useState<PricingContent>(content);
+  const [dirty, setDirty] = useState(false);
 
-  const update = (patch: Partial<PricingData>) => setData(prev => ({ ...prev, ...patch }));
-  const updateHero = (patch: Partial<PricingData["hero"]>) =>
+  useEffect(() => {
+    if (dirty) return;
+    setData(content);
+  }, [content, dirty]);
+
+  const update = (patch: Partial<PricingContent>) => {
+    setData(prev => ({ ...prev, ...patch }));
+    setDirty(true);
+  };
+  const updateHero = (patch: Partial<PricingContent["hero"]>) => {
     setData(prev => ({ ...prev, hero: { ...prev.hero, ...patch } }));
+    setDirty(true);
+  };
 
   const updatePlan = (i: number, patch: Partial<PricingPlan>) =>
     update({ plans: data.plans.map((p, idx) => (idx === i ? { ...p, ...patch } : p)) });
@@ -55,14 +63,23 @@ const CmsPricing = () => {
   const addFaq = () => update({ faqs: [...data.faqs, { q: "New question?", a: "Answer." }] });
   const removeFaq = (i: number) => update({ faqs: data.faqs.filter((_, idx) => idx !== i) });
 
-  const handleSave = () => {
-    savePricing(data);
-    toast.success("Pricing page updated — changes are live");
+  const handleSave = async () => {
+    try {
+      await save(data);
+      setDirty(false);
+      toast.success("Pricing page updated — changes are live");
+    } catch (cause) {
+      toast.error(describeError(cause, "Could not save pricing page"));
+    }
   };
-  const handleReset = () => {
-    setData(defaultPricing);
-    savePricing(defaultPricing);
-    toast.info("Pricing reset to defaults");
+  const handleReset = async () => {
+    try {
+      await reset();
+      setDirty(false);
+      toast.info("Pricing reset to defaults");
+    } catch (cause) {
+      toast.error(describeError(cause, "Could not reset pricing page"));
+    }
   };
 
   return (

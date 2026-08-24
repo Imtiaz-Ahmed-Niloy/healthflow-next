@@ -4,11 +4,10 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { Check, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { usePricing } from "@/hooks/usePricing";
+import type { PricingPlan } from "@/data/pricingContent";
 
-const Pricing = () => {
+const Pricing = ({ plans }: { plans: PricingPlan[] }) => {
   const { t } = useTranslation();
-  const { plans } = usePricing();
   return (
     <section id="pricing" className="bg-gradient-dark text-surface-dark-foreground py-24 mt-12">
       <div className="container mx-auto">

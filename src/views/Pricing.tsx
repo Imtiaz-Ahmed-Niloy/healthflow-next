@@ -4,10 +4,9 @@ import { motion } from "framer-motion";
 import { Check, X } from "lucide-react";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
-import { usePricing } from "@/hooks/usePricing";
+import type { PricingContent } from "@/data/pricingContent";
 
-const Pricing = () => {
-  const { hero, plans, compareRows, faqs } = usePricing();
+const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
   return (
     <div className="min-h-screen bg-gradient-hero">
       <Navbar />

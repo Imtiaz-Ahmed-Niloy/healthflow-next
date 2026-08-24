@@ -13,8 +13,9 @@ import Footer from "@/components/site/Footer";
 import Chatbot from "@/components/site/Chatbot";
 import AnnouncementPopup from "@/components/site/AnnouncementPopup";
 import type { HomeContent } from "@/data/homeContent";
+import type { PricingPlan } from "@/data/pricingContent";
 
-const Index = ({ homeContent }: { homeContent: HomeContent }) => {
+const Index = ({ homeContent, pricingPlans }: { homeContent: HomeContent; pricingPlans: PricingPlan[] }) => {
   const [division, setDivision] = useState("");
   const [zilla, setZilla] = useState("");
   const [upazila, setUpazila] = useState("");
@@ -50,7 +51,7 @@ const Index = ({ homeContent }: { homeContent: HomeContent }) => {
           specialty={specialty}
         />
         <Hubs />
-        <Pricing />
+        <Pricing plans={pricingPlans} />
         <Testimonials />
       </main>
       <Footer />
