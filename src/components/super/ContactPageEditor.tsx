@@ -10,9 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, Save, RotateCcw } from "lucide-react";
 import PageHeroEditor from "@/components/super/PageHeroEditor";
-import type { CmsHeroFields } from "@/data/cmsPageHero";
-import { useCmsHero } from "@/data/useCmsHero";
-import { useContactContent, type ContactContent, type ContactChannel } from "@/data/cmsContact";
+import { usePageHero } from "@/data/usePageHero";
+import type { ContactContent, ContactChannel } from "@/data/contactContent";
+import { useContactContent } from "@/data/useContactContent";
 
 const ICONS = ["Mail","Phone","MessageCircle","MapPin","Globe","Leaf","Headphones","LifeBuoy","Clock","Building2"];
 
@@ -23,20 +23,39 @@ const IconSelect = ({ value, onChange }: { value: string; onChange: (v: string) 
   </Select>
 );
 
+const describeError = (cause: unknown, fallback: string) =>
+  (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? fallback;
+
 const ContactPageEditor = () => {
-  const { content: heroBlob, save: saveHeroBlob, reset: resetHeroBlob } = useCmsHero();
-  const heroContent = heroBlob.contact;
-  const saveHero = async (next: CmsHeroFields) => { saveHeroBlob({ ...heroBlob, contact: next }); };
-  const resetHero = async () => { resetHeroBlob(); };
+  const heroApi = usePageHero("contact");
 
   const { content, save, reset } = useContactContent();
   const [draft, setDraft] = useState<ContactContent>(content);
   const [dirty, setDirty] = useState(false);
 
-  useEffect(() => { setDraft(content); setDirty(false); }, [content]);
+  useEffect(() => {
+    if (dirty) return;
+    setDraft(content);
+  }, [content, dirty]);
+
   const upd = (n: ContactContent) => { setDraft(n); setDirty(true); };
-  const onSave = () => { save(draft); setDirty(false); toast.success("Contact page updated"); };
-  const onReset = () => { reset(); toast.success("Contact page reset"); };
+  const onSave = async () => {
+    try {
+      await save(draft);
+      setDirty(false);
+      toast.success("Contact page updated");
+    } catch (cause) {
+      toast.error(describeError(cause, "Could not save contact page"));
+    }
+  };
+  const onReset = async () => {
+    try {
+      await reset();
+      toast.success("Contact page reset");
+    } catch (cause) {
+      toast.error(describeError(cause, "Could not reset contact page"));
+    }
+  };
 
   const bar = (
     <div className="flex items-center gap-2">
@@ -61,7 +80,7 @@ const ContactPageEditor = () => {
       </TabsList>
 
       <TabsContent value="hero">
-        <PageHeroEditor route="/contact" showCtas={false} content={heroContent} save={saveHero} reset={resetHero} />
+        <PageHeroEditor route="/contact" showCtas={false} content={heroApi.content} save={heroApi.save} reset={heroApi.reset} />
       </TabsContent>
 
       <TabsContent value="form">
