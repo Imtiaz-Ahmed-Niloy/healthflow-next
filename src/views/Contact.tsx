@@ -7,7 +7,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
-import { useCmsHero } from "@/data/cmsPageHero";
+import { useCmsHero } from "@/data/useCmsHero";
 import { useContactContent } from "@/data/cmsContact";
 import { BRAND_INFO } from "@/constants/brand";
 

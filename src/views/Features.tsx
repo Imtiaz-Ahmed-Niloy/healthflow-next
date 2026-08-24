@@ -10,18 +10,15 @@ const n1 = "/assets/medical-1.jpg";
 const n2 = "/assets/medical-2.jpg";
 const n3 = "/assets/medical-3.jpg";
 const n4 = "/assets/medical-4.jpg";
-import { useCmsHero } from "@/data/cmsPageHero";
-import { useFeaturesContent } from "@/data/cmsFeatures";
+import type { CmsHeroFields } from "@/data/cmsPageHero";
+import type { FeaturesContent } from "@/data/featuresContent";
 
 const Ico = ({ name, className }: { name: string; className?: string }) => {
   const C = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[name] ?? Icons.Sparkles;
   return <C className={className} />;
 };
 
-const Features = () => {
-  const { content: heroContent } = useCmsHero();
-  const hero = heroContent.features;
-  const { content } = useFeaturesContent();
+const Features = ({ hero, content }: { hero: CmsHeroFields; content: FeaturesContent }) => {
   const { architecture, logic, core } = content;
   const [active, setActive] = useState(architecture.tabs[0] ?? "");
 

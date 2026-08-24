@@ -6,7 +6,7 @@ import { Quote } from "lucide-react";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 const heroImg = "/assets/about-hero.jpg";
-import { useCmsHero } from "@/data/cmsPageHero";
+import { useCmsHero } from "@/data/useCmsHero";
 import { useAboutContent } from "@/data/cmsAbout";
 
 const Ico = ({ name, className }: { name: string; className?: string }) => {

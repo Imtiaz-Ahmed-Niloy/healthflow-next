@@ -10,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, Save, RotateCcw } from "lucide-react";
 import PageHeroEditor from "@/components/super/PageHeroEditor";
+import type { CmsHeroFields } from "@/data/cmsPageHero";
+import { useCmsHero } from "@/data/useCmsHero";
 import { useContactContent, type ContactContent, type ContactChannel } from "@/data/cmsContact";
 
 const ICONS = ["Mail","Phone","MessageCircle","MapPin","Globe","Leaf","Headphones","LifeBuoy","Clock","Building2"];
@@ -22,6 +24,11 @@ const IconSelect = ({ value, onChange }: { value: string; onChange: (v: string) 
 );
 
 const ContactPageEditor = () => {
+  const { content: heroBlob, save: saveHeroBlob, reset: resetHeroBlob } = useCmsHero();
+  const heroContent = heroBlob.contact;
+  const saveHero = async (next: CmsHeroFields) => { saveHeroBlob({ ...heroBlob, contact: next }); };
+  const resetHero = async () => { resetHeroBlob(); };
+
   const { content, save, reset } = useContactContent();
   const [draft, setDraft] = useState<ContactContent>(content);
   const [dirty, setDirty] = useState(false);
@@ -54,7 +61,7 @@ const ContactPageEditor = () => {
       </TabsList>
 
       <TabsContent value="hero">
-        <PageHeroEditor pageKey="contact" route="/contact" showCtas={false} />
+        <PageHeroEditor route="/contact" showCtas={false} content={heroContent} save={saveHero} reset={resetHero} />
       </TabsContent>
 
       <TabsContent value="form">

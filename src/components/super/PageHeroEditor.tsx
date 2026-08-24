@@ -7,38 +7,50 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RotateCcw, Save, ExternalLink } from "lucide-react";
-import { useCmsHero, type CmsHeroKey, type CmsHeroFields } from "@/data/cmsPageHero";
+import type { CmsHeroFields } from "@/data/cmsPageHero";
 
 type Props = {
-  pageKey: CmsHeroKey;
   route: string;
   showCtas?: boolean;
+  content: CmsHeroFields;
+  save: (next: CmsHeroFields) => Promise<void> | void;
+  reset: () => Promise<void> | void;
 };
 
-const PageHeroEditor = ({ pageKey, route, showCtas = true }: Props) => {
-  const { content, save, reset } = useCmsHero();
-  const [draft, setDraft] = useState<CmsHeroFields>(content[pageKey]);
+const describeError = (cause: unknown, fallback: string) =>
+  (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? fallback;
+
+const PageHeroEditor = ({ route, showCtas = true, content, save, reset }: Props) => {
+  const [draft, setDraft] = useState<CmsHeroFields>(content);
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
-    setDraft(content[pageKey]);
-    setDirty(false);
-  }, [content, pageKey]);
+    if (dirty) return;
+    setDraft(content);
+  }, [content, dirty]);
 
   const set = <K extends keyof CmsHeroFields>(k: K, v: CmsHeroFields[K]) => {
     setDraft(d => ({ ...d, [k]: v }));
     setDirty(true);
   };
 
-  const onSave = () => {
-    save({ ...content, [pageKey]: draft });
-    setDirty(false);
-    toast.success("Page updated");
+  const onSave = async () => {
+    try {
+      await save(draft);
+      setDirty(false);
+      toast.success("Page updated");
+    } catch (cause) {
+      toast.error(describeError(cause, "Could not save page"));
+    }
   };
 
-  const onReset = () => {
-    reset();
-    toast.success("Restored defaults");
+  const onReset = async () => {
+    try {
+      await reset();
+      toast.success("Restored defaults");
+    } catch (cause) {
+      toast.error(describeError(cause, "Could not restore defaults"));
+    }
   };
 
   return (
@@ -96,4 +108,3 @@ const PageHeroEditor = ({ pageKey, route, showCtas = true }: Props) => {
 };
 
 export default PageHeroEditor;
-
