@@ -68,19 +68,10 @@ const Schedule = () => {
         if (res.ok && body.data) {
           setAppointments(body.data);
           if (body.stats) setStats(body.stats);
-
-          const appts = body.data;
-          if (appts.length > 0) {
-            const todayStr = formatDateKey(new Date());
-            const futureOrToday = appts.find((a: Appointment) => a.scheduled_date >= todayStr);
-            const targetAppt = futureOrToday || appts[appts.length - 1];
-            
-            if (targetAppt) {
-              const targetDate = new Date(targetAppt.scheduled_date + "T00:00:00");
-              setCurrentDate(targetDate);
-              setSelectedDate(targetDate);
-            }
-          }
+          // currentDate/selectedDate already default to today — a fresh load
+          // should open on today, not jump to whichever appointment happens
+          // to be nearest (which could land in the past if nothing's booked
+          // today or later).
         }
       } catch (err) {
         console.error("Failed to load appointments", err);
@@ -242,20 +233,20 @@ const Schedule = () => {
                   return (
                     <motion.div key={i} whileHover={{ scale: 1.02 }} onClick={() => setSelectedDate(date)}
                       className={`min-h-[80px] rounded-xl p-2 transition-colors cursor-pointer ${
-                        isSelected 
-                          ? "bg-primary text-primary-foreground" 
-                          : isToday 
-                            ? "bg-gradient-dark text-surface-dark-foreground" 
-                            : isOther 
-                              ? "text-muted-foreground/30 hover:bg-card/40" 
+                        isSelected
+                          ? "bg-primary text-primary-foreground"
+                          : isToday
+                            ? "bg-chip/70 ring-2 ring-inset ring-primary-glow text-primary"
+                            : isOther
+                              ? "text-muted-foreground/30 hover:bg-card/40"
                               : "hover:bg-card text-primary"
                       }`}>
-                      <p className={`text-sm font-semibold ${isSelected ? "text-primary-foreground" : isToday ? "text-surface-dark-foreground" : "text-primary"}`}>
+                      <p className={`text-sm font-semibold ${isSelected ? "text-primary-foreground" : "text-primary"}`}>
                         {date.getDate()}
                       </p>
-                      
+
                       {isToday && !isSelected && (
-                        <div className="mt-1 text-[9px] bg-surface-dark-foreground/10 rounded px-1.5 py-0.5">Today</div>
+                        <div className="mt-1 text-[9px] bg-primary-glow/15 text-primary-glow font-semibold rounded px-1.5 py-0.5">Today</div>
                       )}
 
                       {activeAppts.length > 0 && (
