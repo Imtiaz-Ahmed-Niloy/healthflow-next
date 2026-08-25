@@ -11,15 +11,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, Save, RotateCcw } from "lucide-react";
 import PageHeroEditor from "@/components/super/PageHeroEditor";
+import { usePageHero } from "@/data/usePageHero";
 import {
-  useFeaturesContent,
-  defaultFeaturesContent,
   ICON_OPTIONS,
   type FeaturesContent,
   type ArchFeature,
   type LogicPoint,
   type CoreFeature,
-} from "@/data/cmsFeatures";
+} from "@/data/featuresContent";
+import { useFeaturesContent } from "@/data/useFeaturesContent";
 
 const IconSelect = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
   <Select value={value} onValueChange={onChange}>
@@ -41,16 +41,38 @@ const SaveBar = ({ dirty, onSave, onReset }: { dirty: boolean; onSave: () => voi
   </div>
 );
 
+const describeError = (cause: unknown, fallback: string) =>
+  (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? fallback;
+
 const FeaturesPageEditor = () => {
+  const heroApi = usePageHero("features");
   const { content, save, reset } = useFeaturesContent();
   const [draft, setDraft] = useState<FeaturesContent>(content);
   const [dirty, setDirty] = useState(false);
 
-  useEffect(() => { setDraft(content); setDirty(false); }, [content]);
+  useEffect(() => {
+    if (dirty) return;
+    setDraft(content);
+  }, [content, dirty]);
 
   const update = (next: FeaturesContent) => { setDraft(next); setDirty(true); };
-  const onSave = () => { save(draft); setDirty(false); toast.success("Features page updated"); };
-  const onReset = () => { reset(); toast.success("Features page reset"); };
+  const onSave = async () => {
+    try {
+      await save(draft);
+      setDirty(false);
+      toast.success("Features page updated");
+    } catch (cause) {
+      toast.error(describeError(cause, "Could not save features page"));
+    }
+  };
+  const onReset = async () => {
+    try {
+      await reset();
+      toast.success("Features page reset");
+    } catch (cause) {
+      toast.error(describeError(cause, "Could not reset features page"));
+    }
+  };
 
   // Architecture
   const arch = draft.architecture;
@@ -86,7 +108,7 @@ const FeaturesPageEditor = () => {
       </TabsList>
 
       <TabsContent value="hero">
-        <PageHeroEditor pageKey="features" route="/features" />
+        <PageHeroEditor route="/features" content={heroApi.content} save={heroApi.save} reset={heroApi.reset} />
       </TabsContent>
 
       <TabsContent value="architecture">

@@ -1,5 +1,3 @@
-import { useEffect, useState } from "react";
-
 export type ArchFeature = {
   icon: string;
   title: string;
@@ -39,9 +37,6 @@ export type FeaturesContent = {
     items: CoreFeature[];
   };
 };
-
-const STORAGE_KEY = "hf:cms-features:v1";
-const EVENT = "hf:cms-features:changed";
 
 export const defaultFeaturesContent: FeaturesContent = {
   architecture: {
@@ -113,37 +108,23 @@ export const ICON_OPTIONS = [
   "Stethoscope","Shield","Activity","Sparkles","Pill","Microscope","Hospital",
 ];
 
-const read = (): FeaturesContent => {
-  if (typeof window === "undefined") return defaultFeaturesContent;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultFeaturesContent;
-    const parsed = JSON.parse(raw) as Partial<FeaturesContent>;
-    return {
-      architecture: { ...defaultFeaturesContent.architecture, ...(parsed.architecture ?? {}) },
-      logic: { ...defaultFeaturesContent.logic, ...(parsed.logic ?? {}) },
-      core: { ...defaultFeaturesContent.core, ...(parsed.core ?? {}) },
-    };
-  } catch {
-    return defaultFeaturesContent;
-  }
+type FeaturesBlocks = {
+  architecture?: Partial<FeaturesContent["architecture"]>;
+  logic?: Partial<FeaturesContent["logic"]>;
+  core?: Partial<FeaturesContent["core"]>;
 };
 
-const write = (c: FeaturesContent) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(c));
-  window.dispatchEvent(new Event(EVENT));
+export const blocksToFeaturesContent = (blocks: unknown): FeaturesContent => {
+  const b = (blocks ?? {}) as FeaturesBlocks;
+  return {
+    architecture: { ...defaultFeaturesContent.architecture, ...(b.architecture ?? {}) },
+    logic: { ...defaultFeaturesContent.logic, ...(b.logic ?? {}) },
+    core: { ...defaultFeaturesContent.core, ...(b.core ?? {}) },
+  };
 };
 
-export const useFeaturesContent = () => {
-  const [content, setContent] = useState<FeaturesContent>(() => read());
-  useEffect(() => {
-    const sync = () => setContent(read());
-    window.addEventListener(EVENT, sync);
-    window.addEventListener("storage", sync);
-    return () => {
-      window.removeEventListener(EVENT, sync);
-      window.removeEventListener("storage", sync);
-    };
-  }, []);
-  return { content, save: write, reset: () => write(defaultFeaturesContent) };
-};
+export const featuresContentToBlocks = (content: FeaturesContent) => ({
+  architecture: content.architecture,
+  logic: content.logic,
+  core: content.core,
+});

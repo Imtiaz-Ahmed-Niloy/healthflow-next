@@ -10,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, Save, RotateCcw } from "lucide-react";
 import PageHeroEditor from "@/components/super/PageHeroEditor";
+import type { CmsHeroFields } from "@/data/cmsPageHero";
+import { useCmsHero } from "@/data/useCmsHero";
 import { useAboutContent, type AboutContent, type Pillar, type TeamMember, type Stat, type JourneyStep, type CoreObjective } from "@/data/cmsAbout";
 
 const ICONS = ["Leaf","HeartPulse","ShieldCheck","Sparkles","Globe","Stethoscope","Activity","Brain","Users","Heart","Award","Compass","Cpu","TrendingUp","Handshake","Eye","Target","Quote"];
@@ -22,6 +24,11 @@ const IconSelect = ({ value, onChange }: { value: string; onChange: (v: string) 
 );
 
 const AboutPageEditor = () => {
+  const { content: heroBlob, save: saveHeroBlob, reset: resetHeroBlob } = useCmsHero();
+  const heroContent = heroBlob.about;
+  const saveHero = async (next: CmsHeroFields) => { saveHeroBlob({ ...heroBlob, about: next }); };
+  const resetHero = async () => { resetHeroBlob(); };
+
   const { content, save, reset } = useAboutContent();
   const [draft, setDraft] = useState<AboutContent>(content);
   const [dirty, setDirty] = useState(false);
@@ -70,7 +77,7 @@ const AboutPageEditor = () => {
       </TabsList>
 
       <TabsContent value="hero">
-        <PageHeroEditor pageKey="about" route="/about" showCtas={false} />
+        <PageHeroEditor route="/about" showCtas={false} content={heroContent} save={saveHero} reset={resetHero} />
       </TabsContent>
 
       <TabsContent value="vision">

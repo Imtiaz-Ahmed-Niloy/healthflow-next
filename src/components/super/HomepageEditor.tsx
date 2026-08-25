@@ -6,7 +6,8 @@ import { Card, SectionTitle, Btn } from "@/components/admin/ui";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { useHomeContent, type HomeContent } from "@/data/homeContent";
+import type { HomeContent } from "@/data/homeContent";
+import { useHomeContent } from "@/data/useHomeContent";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RotateCcw, Save } from "lucide-react";
 import TestimonialsManager from "@/components/super/TestimonialsManager";
@@ -17,9 +18,9 @@ const HomepageEditor = () => {
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
+    if (dirty) return;
     setDraft(content);
-    setDirty(false);
-  }, [content]);
+  }, [content, dirty]);
 
   const set = <K extends keyof HomeContent>(k: K, v: HomeContent[K]) => {
     setDraft(d => ({ ...d, [k]: v }));
