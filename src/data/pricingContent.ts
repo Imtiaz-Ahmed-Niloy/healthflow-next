@@ -1,5 +1,3 @@
-import { load, save } from "@/lib/storage";
-
 export type PricingFeature = { text: string; on: boolean };
 export type PricingPlan = {
   name: string;
@@ -12,14 +10,14 @@ export type PricingPlan = {
 export type CompareRow = { label: string; basic: string; pro: string; enterprise: string; bold?: number[] };
 export type Faq = { q: string; a: string };
 
-export type PricingData = {
+export type PricingContent = {
   hero: { eyebrow: string; title: string; subtitle: string };
   plans: PricingPlan[];
   compareRows: CompareRow[];
   faqs: Faq[];
 };
 
-export const defaultPricing: PricingData = {
+export const defaultPricingContent: PricingContent = {
   hero: {
     eyebrow: "FLEXIBLE PLANS",
     title: "Invest in Restorative Care",
@@ -95,14 +93,21 @@ export const defaultPricing: PricingData = {
   ],
 };
 
-export const PRICING_KEY = "pricing-data";
+type PricingBlocks = Partial<PricingContent>;
 
-export const loadPricing = (): PricingData => load<PricingData>(PRICING_KEY, defaultPricing);
-export const savePricing = (data: PricingData) => {
-  save(PRICING_KEY, data);
-  // notify same-tab subscribers
-  window.dispatchEvent(new CustomEvent("pricing:updated"));
+export const blocksToPricingContent = (blocks: unknown): PricingContent => {
+  const b = (blocks ?? {}) as PricingBlocks;
+  return {
+    hero: { ...defaultPricingContent.hero, ...(b.hero ?? {}) },
+    plans: b.plans ?? defaultPricingContent.plans,
+    compareRows: b.compareRows ?? defaultPricingContent.compareRows,
+    faqs: b.faqs ?? defaultPricingContent.faqs,
+  };
 };
 
-// Back-compat export
-export const plans = defaultPricing.plans;
+export const pricingContentToBlocks = (content: PricingContent) => ({
+  hero: content.hero,
+  plans: content.plans,
+  compareRows: content.compareRows,
+  faqs: content.faqs,
+});

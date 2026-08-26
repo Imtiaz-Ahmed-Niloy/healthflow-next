@@ -1,6 +1,7 @@
 import Index from "@/views/Index";
 import { createPublicSupabase } from "@/lib/supabase/server";
 import { blocksToHomeContent } from "@/data/homeContent";
+import { blocksToPricingContent } from "@/data/pricingContent";
 
 // Revalidate the homepage every 60s. Edits in the CMS show up within a minute
 // without needing a redeploy or a cache purge.
@@ -9,18 +10,20 @@ export const revalidate = 60;
 export default async function HomePage() {
   const supabase = createPublicSupabase();
 
-  const { data, error } = await supabase
-    .from("cms_pages")
-    .select("blocks")
-    .eq("slug", "home")
-    .eq("published", true)
-    .maybeSingle();
+  const [homeResult, pricingResult] = await Promise.all([
+    supabase.from("cms_pages").select("blocks").eq("slug", "home").eq("published", true).maybeSingle(),
+    supabase.from("cms_pages").select("blocks").eq("slug", "pricing").eq("published", true).maybeSingle(),
+  ]);
 
-  if (error) {
-    console.error("Failed to load homepage CMS content:", error);
+  if (homeResult.error) {
+    console.error("Failed to load homepage CMS content:", homeResult.error);
+  }
+  if (pricingResult.error) {
+    console.error("Failed to load pricing CMS content for the homepage teaser:", pricingResult.error);
   }
 
-  const homeContent = blocksToHomeContent(data?.blocks);
+  const homeContent = blocksToHomeContent(homeResult.data?.blocks);
+  const pricingPlans = blocksToPricingContent(pricingResult.data?.blocks).plans;
 
-  return <Index homeContent={homeContent} />;
+  return <Index homeContent={homeContent} pricingPlans={pricingPlans} />;
 }
