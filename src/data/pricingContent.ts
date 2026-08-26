@@ -95,13 +95,30 @@ export const defaultPricingContent: PricingContent = {
 
 type PricingBlocks = Partial<PricingContent>;
 
+const normalizeFeature = (f: unknown): PricingFeature => {
+  const feature = (f ?? {}) as Partial<PricingFeature>;
+  return { text: feature.text ?? "", on: feature.on ?? false };
+};
+
+const normalizePlan = (p: unknown): PricingPlan => {
+  const plan = (p ?? {}) as Partial<PricingPlan>;
+  return {
+    name: plan.name ?? "",
+    price: plan.price ?? "",
+    tag: plan.tag ?? "",
+    cta: plan.cta ?? "",
+    featured: plan.featured ?? false,
+    features: Array.isArray(plan.features) ? plan.features.map(normalizeFeature) : [],
+  };
+};
+
 export const blocksToPricingContent = (blocks: unknown): PricingContent => {
   const b = (blocks ?? {}) as PricingBlocks;
   return {
     hero: { ...defaultPricingContent.hero, ...(b.hero ?? {}) },
-    plans: b.plans ?? defaultPricingContent.plans,
-    compareRows: b.compareRows ?? defaultPricingContent.compareRows,
-    faqs: b.faqs ?? defaultPricingContent.faqs,
+    plans: Array.isArray(b.plans) ? b.plans.map(normalizePlan) : defaultPricingContent.plans,
+    compareRows: Array.isArray(b.compareRows) ? b.compareRows : defaultPricingContent.compareRows,
+    faqs: Array.isArray(b.faqs) ? b.faqs : defaultPricingContent.faqs,
   };
 };
 
