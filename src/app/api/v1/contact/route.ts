@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { createPublicSupabase } from "@/lib/supabase/server";
 import { contactMessageCreateSchema } from "@/server/resources/contactMessages";
 
@@ -46,14 +45,7 @@ export const POST = async (request: Request) => {
   const parsed = submissionSchema.safeParse(body);
   if (!parsed.success) return fail("Validation failed", 422, parsed.error.flatten());
 
-  /**
-   * contact_messages is not in the generated Database types until the
-   * migration is applied and types.ts is regenerated on merge, and the typed
-   * client would reject the table name. Same reasoning — and same cast — as
-   * createResourceRoute: correctness here comes from the Zod schema above and
-   * from the check constraints in the migration, not from the generic.
-   */
-  const supabase = createPublicSupabase() as unknown as SupabaseClient;
+  const supabase = createPublicSupabase();
 
   const { error } = await supabase.from("contact_messages").insert(parsed.data);
 

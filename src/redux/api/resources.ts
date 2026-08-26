@@ -51,22 +51,8 @@ export type NursePerformanceRow = Tables["nurse_performance"]["Row"] & {
 /** Support staff carry no relations, so the row is the table row. */
 export type SupportStaffRow = Tables["support_staff"]["Row"];
 
-/**
- * Written out by hand, unlike every other row here, because
- * 0031_contact_messages.sql has not been applied yet and the table is
- * therefore absent from the generated Database types. Swap this for
- * Tables["contact_messages"]["Row"] once types.ts is regenerated on merge.
- */
-export type ContactMessageRow = {
-  id: string;
-  name: string;
-  email: string;
-  subject: string;
-  message: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-};
+/** Contact form submissions carry no relations — the sender is not a user. */
+export type ContactMessageRow = Tables["contact_messages"]["Row"];
 
 /** Patients carry no relations on the registry screen — profile_id is a raw uuid, not embedded. */
 export type PatientRow = Tables["patients"]["Row"];
