@@ -66,9 +66,19 @@ type ContactBlocks = Partial<ContactContent>;
 
 export const blocksToContactContent = (blocks: unknown): ContactContent => {
   const b = (blocks ?? {}) as ContactBlocks;
+  const form: Partial<ContactContent["form"]> = b.form ?? {};
+  const support: Partial<ContactContent["support"]> = b.support ?? {};
   return {
-    form: { ...defaultContactContent.form, ...(b.form ?? {}) },
-    support: { ...defaultContactContent.support, ...(b.support ?? {}) },
+    form: {
+      ...defaultContactContent.form,
+      ...form,
+      subjects: Array.isArray(form.subjects) ? form.subjects : defaultContactContent.form.subjects,
+    },
+    support: {
+      ...defaultContactContent.support,
+      ...support,
+      channels: Array.isArray(support.channels) ? support.channels : defaultContactContent.support.channels,
+    },
     sanctuary: { ...defaultContactContent.sanctuary, ...(b.sanctuary ?? {}) },
   };
 };

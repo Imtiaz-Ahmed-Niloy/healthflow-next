@@ -23,7 +23,7 @@ export const usePricingContent = () => {
   const [update] = cmsPagesApi.useUpdate();
 
   const persist = async (next: PricingContent) => {
-    const blocks = pricingContentToBlocks(next);
+    const blocks = { ...(row?.blocks as Record<string, unknown> ?? {}), ...pricingContentToBlocks(next) };
     if (row) {
       await update(row.id, { blocks }).unwrap();
     } else {
