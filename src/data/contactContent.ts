@@ -1,5 +1,3 @@
-import { useEffect, useState } from "react";
-
 export type ContactChannel = {
   icon: string;
   title: string;
@@ -36,9 +34,6 @@ export type ContactContent = {
   };
 };
 
-const STORAGE_KEY = "hf:cms-contact:v1";
-const EVENT = "hf:cms-contact:changed";
-
 export const defaultContactContent: ContactContent = {
   form: {
     nameLabel: "FULL NAME", namePlaceholder: "E.g. Julian Reed",
@@ -67,28 +62,19 @@ export const defaultContactContent: ContactContent = {
   },
 };
 
-const read = (): ContactContent => {
-  if (typeof window === "undefined") return defaultContactContent;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultContactContent;
-    const p = JSON.parse(raw) as Partial<ContactContent>;
-    return {
-      form: { ...defaultContactContent.form, ...(p.form ?? {}) },
-      support: { ...defaultContactContent.support, ...(p.support ?? {}) },
-      sanctuary: { ...defaultContactContent.sanctuary, ...(p.sanctuary ?? {}) },
-    };
-  } catch { return defaultContactContent; }
-};
-const write = (c: ContactContent) => { localStorage.setItem(STORAGE_KEY, JSON.stringify(c)); window.dispatchEvent(new Event(EVENT)); };
+type ContactBlocks = Partial<ContactContent>;
 
-export const useContactContent = () => {
-  const [content, setContent] = useState<ContactContent>(() => read());
-  useEffect(() => {
-    const sync = () => setContent(read());
-    window.addEventListener(EVENT, sync);
-    window.addEventListener("storage", sync);
-    return () => { window.removeEventListener(EVENT, sync); window.removeEventListener("storage", sync); };
-  }, []);
-  return { content, save: write, reset: () => write(defaultContactContent) };
+export const blocksToContactContent = (blocks: unknown): ContactContent => {
+  const b = (blocks ?? {}) as ContactBlocks;
+  return {
+    form: { ...defaultContactContent.form, ...(b.form ?? {}) },
+    support: { ...defaultContactContent.support, ...(b.support ?? {}) },
+    sanctuary: { ...defaultContactContent.sanctuary, ...(b.sanctuary ?? {}) },
+  };
 };
+
+export const contactContentToBlocks = (content: ContactContent) => ({
+  form: content.form,
+  support: content.support,
+  sanctuary: content.sanctuary,
+});

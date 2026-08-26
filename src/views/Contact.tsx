@@ -7,8 +7,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
-import { useCmsHero } from "@/data/useCmsHero";
-import { useContactContent } from "@/data/cmsContact";
+import type { CmsHeroFields } from "@/data/cmsPageHero";
+import type { ContactContent } from "@/data/contactContent";
 import { BRAND_INFO } from "@/constants/brand";
 
 const Ico = ({ name, className }: { name: string; className?: string }) => {
@@ -16,10 +16,7 @@ const Ico = ({ name, className }: { name: string; className?: string }) => {
   return <C className={className} />;
 };
 
-const Contact = () => {
-  const { content: heroContent } = useCmsHero();
-  const hero = heroContent.contact;
-  const { content } = useContactContent();
+const Contact = ({ hero, content }: { hero: CmsHeroFields; content: ContactContent }) => {
   const { form: f, support, sanctuary } = content;
 
   const [form, setForm] = useState({ name: "", email: "", subject: f.subjects[0] ?? "", message: "" });
