@@ -21,6 +21,7 @@ export const PANELS: Panel[] = [
       { path: "/super/onboarding", label: "Onboarding" },
       
       { path: "/super/announcements", label: "Announcements" },
+      { path: "/super/contact-messages", label: "Contact Messages" },
       { path: "/super/tickets", label: "Support Tickets" },
     ],
   },

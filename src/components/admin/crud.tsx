@@ -267,7 +267,7 @@ export const Can = ({ action, resource, children, fallback = null }: { action: A
 // ============ Status pill helper ============
 export const statusTone = (s: string): "ok" | "warn" | "bad" | "info" | "default" => {
   const x = s.toLowerCase();
-  if (["active", "approved", "paid", "delivered", "completed", "published", "reported", "resolved"].includes(x)) return "ok";
+  if (["active", "approved", "paid", "delivered", "completed", "published", "reported", "resolved", "replied"].includes(x)) return "ok";
   if (["pending", "draft", "processing", "trial", "scheduled", "ordered"].includes(x)) return "warn";
   if (["overdue", "rejected", "suspended", "cancelled", "failed"].includes(x)) return "bad";
   if (["info", "review", "new"].includes(x)) return "info";
