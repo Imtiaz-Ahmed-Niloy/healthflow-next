@@ -961,6 +961,66 @@ export type Database = {
           },
         ]
       }
+      lab_tests: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          prep: string | null
+          price: number
+          sample: string | null
+          status: string
+          tenant_id: string
+          turnaround: string | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          prep?: string | null
+          price: number
+          sample?: string | null
+          status?: string
+          tenant_id: string
+          turnaround?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          prep?: string | null
+          price?: number
+          sample?: string | null
+          status?: string
+          tenant_id?: string
+          turnaround?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_tests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_tests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nurse_performance: {
         Row: {
           attendance_pct: number

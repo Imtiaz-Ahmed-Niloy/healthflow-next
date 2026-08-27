@@ -6,14 +6,26 @@ import { Card, Btn, Pill, SectionTitle } from "@/components/admin/ui";
 import { useCrud, DataTable, Toolbar, Modal, Field, Input, Select, Chips, statusTone, RowActions, ConfirmDialog, exportCSV, type Column } from "@/components/admin/crud";
 import { useNotifications } from "@/components/admin/NotificationProvider";
 import { ResourcePage } from "@/components/admin/ResourcePage";
+import type { LabTestRow } from "@/redux/api/resources";
 
-type LabItem = { id: string; name: string; category: string; price: string; turnaround: string; sample: string; prep: string; description: string; hospital: string; status: string };
-const catalogSeed: LabItem[] = [
-  { id: "lt1", name: "Complete Blood Count", category: "Hematology", price: "25", turnaround: "4 hours", sample: "Blood", prep: "No fasting required", description: "Comprehensive blood cell analysis.", hospital: "All Hospitals", status: "Active" },
-  { id: "lt2", name: "Lipid Panel", category: "Biochemistry", price: "40", turnaround: "6 hours", sample: "Blood", prep: "12-hour fasting required", description: "Cholesterol and triglyceride profile.", hospital: "All Hospitals", status: "Active" },
-  { id: "lt3", name: "Thyroid Profile (TSH, T3, T4)", category: "Endocrinology", price: "55", turnaround: "8 hours", sample: "Blood", prep: "Morning collection preferred", description: "Thyroid hormone evaluation.", hospital: "All Hospitals", status: "Active" },
-  { id: "lt4", name: "MRI Brain", category: "Imaging", price: "320", turnaround: "24 hours", sample: "N/A", prep: "Remove all metal items", description: "High-resolution brain imaging.", hospital: "All Hospitals", status: "Active" },
+/**
+ * Catalogue categories offered by the form. Free text in the database (see
+ * 0032_lab_tests.sql) — a lab that names a section differently can still store
+ * it; this list is only the common set, so nobody types "Hematology" twice.
+ */
+const LAB_CATEGORIES = [
+  "Hematology", "Biochemistry", "Endocrinology", "Imaging",
+  "Microbiology", "Pathology", "Cardiology", "Nutrition", "Immunology", "Other",
 ];
+
+/** Stored lowercase to match doctors, nurses and support staff. */
+const CATALOG_STATUSES = [
+  { value: "active", label: "Active" },
+  { value: "inactive", label: "Inactive" },
+];
+
+const catalogStatusLabel = (value: string) =>
+  CATALOG_STATUSES.find(s => s.value === value)?.label ?? value;
 
 type Test = { id: string; patient: string; test: string; doctor: string; requestedAt: string; status: string; result: string };
 const seed: Test[] = [
@@ -116,28 +128,30 @@ const Lab = () => {
 
       <div className="mt-8">
         <SectionTitle title="Lab Tests & Pricing Catalog" />
-        <ResourcePage<LabItem> config={{
-          storeKey: "lab-catalog", seed: catalogSeed, searchFields: ["name", "category", "sample", "hospital"],
-          statuses: ["Active", "Inactive"],
+        <ResourcePage<LabTestRow> config={{
+          storeKey: "lab-catalog",
+          resource: "lab-tests",
+          searchFields: ["name", "category", "sample"],
+          statuses: CATALOG_STATUSES,
           exportName: "lab-catalog",
           columns: [
             { key: "name", label: "Test", sortable: true, accessor: r => r.name, render: r => <span className="font-semibold text-primary">{r.name}</span> },
-            { key: "category", label: "Category", sortable: true, accessor: r => r.category },
+            { key: "category", label: "Category", sortable: true, accessor: r => r.category ?? "", render: r => <span>{r.category || "—"}</span> },
+            // numeric(10,2) arrives as a string from PostgREST, so sorting has
+            // to coerce or "9" sorts after "320".
             { key: "price", label: "Price ($)", sortable: true, accessor: r => Number(r.price) },
-            { key: "turnaround", label: "Turnaround" },
-            { key: "sample", label: "Sample" },
-            { key: "hospital", label: "Hospital", accessor: r => r.hospital || "All Hospitals" },
-            { key: "status", label: "Status", render: r => <Pill tone={statusTone(r.status)}>{r.status}</Pill> },
+            { key: "turnaround", label: "Turnaround", render: r => <span>{r.turnaround || "—"}</span> },
+            { key: "sample", label: "Sample", render: r => <span>{r.sample || "—"}</span> },
+            { key: "status", label: "Status", render: r => <Pill tone={statusTone(r.status)}>{catalogStatusLabel(r.status)}</Pill> },
           ],
           fields: [
             { name: "name", label: "Test name", type: "text", required: true },
-            { name: "category", label: "Category", type: "select", options: ["Hematology", "Biochemistry", "Endocrinology", "Imaging", "Microbiology", "Pathology", "Cardiology", "Nutrition", "Immunology", "Other"] },
+            { name: "category", label: "Category", type: "select", options: LAB_CATEGORIES },
             { name: "price", label: "Price (USD)", type: "number", required: true, min: 0, numberStep: 0.01 },
             { name: "turnaround", label: "Turnaround time", type: "text" },
             { name: "sample", label: "Sample type", type: "text" },
             { name: "prep", label: "Patient preparation", type: "text" },
-            { name: "hospital", label: "Hospital (use \"All Hospitals\" to show on every hospital page)", type: "text" },
-            { name: "status", label: "Status", type: "select", options: ["Active", "Inactive"] },
+            { name: "status", label: "Status", type: "select", options: CATALOG_STATUSES },
             { name: "description", label: "Description", type: "textarea" },
           ],
         }} />
