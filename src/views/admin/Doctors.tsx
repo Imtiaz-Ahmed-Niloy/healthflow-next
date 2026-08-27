@@ -101,6 +101,9 @@ const DirectoryTab = () => {
   // on the first click. Viewing an existing login is read-only, so it skips
   // this and fires straight away.
   const [pendingCreate, setPendingCreate] = useState<Doctor | null>(null);
+  // Resetting replaces a password the doctor may already be using, so it gets
+  // its own confirmation rather than happening on the click that discovered it.
+  const [pendingReset, setPendingReset] = useState<Doctor | null>(null);
 
   const copy = (value: string, label: string) => {
     navigator.clipboard.writeText(value);
@@ -136,12 +139,37 @@ const DirectoryTab = () => {
       const res = await fetch(`/api/v1/doctors/${doctor.id}/login`);
       const body = await res.json();
       if (!res.ok) {
+        // The one recoverable failure: the doctor has a login but no password
+        // we can show. Offer to replace it rather than leaving the button dead,
+        // which is how three demo doctors ended up unusable.
+        if (body?.error?.code === "no_saved_password") {
+          setPendingReset(doctor);
+          return;
+        }
         toast.error("Could not load login", { description: body?.error?.message ?? "Please try again." });
         return;
       }
       setCreds({ doctor: doctor.name, ...body.data });
     } catch {
       toast.error("Could not load login", { description: "The request failed. Please try again." });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const resetLogin = async (doctor: Doctor) => {
+    setBusyId(doctor.id);
+    try {
+      const res = await fetch(`/api/v1/doctors/${doctor.id}/login`, { method: "PUT" });
+      const body = await res.json();
+      if (!res.ok) {
+        toast.error("Could not reset password", { description: body?.error?.message ?? "Please try again." });
+        return;
+      }
+      setCreds({ doctor: doctor.name, ...body.data });
+      toast.success("Password reset");
+    } catch {
+      toast.error("Could not reset password", { description: "The request failed. Please try again." });
     } finally {
       setBusyId(null);
     }
@@ -211,6 +239,18 @@ const DirectoryTab = () => {
         description={
           pendingCreate
             ? `This creates a real login for ${pendingCreate.name} at ${pendingCreate.email || "their email on file"} — they'll be able to sign in and use their own dashboard.`
+            : undefined
+        }
+      />
+
+      <ConfirmDialog
+        open={!!pendingReset}
+        onClose={() => setPendingReset(null)}
+        onConfirm={() => pendingReset && void resetLogin(pendingReset)}
+        title="Reset this doctor's password?"
+        description={
+          pendingReset
+            ? `${pendingReset.name} has a login, but no password was saved for it — it predates this feature, or saving it failed. The old password can't be recovered, only replaced. Resetting sets a new one you can view here from now on, and stops the old one working if they are still using it.`
             : undefined
         }
       />
