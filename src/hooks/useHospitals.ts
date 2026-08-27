@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { hospitals as staticHospitals, baseDoctors, baseLabTests, baseRooms, baseManagement, type Hospital, type Doctor } from "@/data/hospitals";
+import { hospitals as staticHospitals, baseLabTests, baseRooms, baseManagement, type Hospital, type Doctor } from "@/data/hospitals";
 import { slugify } from "@/lib/slug";
 import { supabase } from "@/lib/supabase/client";
 const atriumFallback = "/assets/hub-atrium.jpg";
@@ -150,14 +150,59 @@ const socialLinks = (value: unknown): { platform: string; url: string }[] => {
   });
 };
 
+/** One row of `public.doctors_public` (0022) — active doctors at approved hospitals. */
+type PublicDoctor = {
+  name: string | null;
+  specialty: string | null;
+  education: string | null;
+  languages: string | null;
+  experience_years: number | null;
+  rating: number | null;
+  consultation_fee: number | null;
+  patients_treated: number | null;
+  availability: string | null;
+  photo_url: string | null;
+  hospital_slug: string | null;
+};
+
+/**
+ * Maps a doctor row onto the card shape.
+ *
+ * Every numeric falls back to 0 rather than being invented: the card divides
+ * `patients` by 1000 and prints `fee` directly, so a null has to become a real
+ * number somewhere, and 0 is the one value that reads as "not recorded"
+ * instead of quietly asserting something untrue about a named doctor.
+ *
+ * `languages` is comma-separated text in the table (see 0005 — the admin form
+ * submits every field as a string), so it is split back into the array the
+ * card joins with bullets.
+ */
+const mapPublicToDoctor = (r: PublicDoctor): Doctor => ({
+  name: r.name || "Unnamed doctor",
+  specialty: r.specialty || "General",
+  experience: Number(r.experience_years) || 0,
+  rating: Number(r.rating) || 0,
+  fee: Number(r.consultation_fee) || 0,
+  available: r.availability || "By appointment",
+  photo: r.photo_url || doctorFallback,
+  education: r.education || "",
+  languages: splitList(r.languages),
+  patients: Number(r.patients_treated) || 0,
+});
+
 /**
  * Maps a public view row onto the shape the marketing pages already render.
  *
  * Contact details come from the view as of 0035 — before that the view carried
  * none and these resolved to "" no matter what a super admin had typed. Owner
  * and licence columns are still not exposed and must not be read here.
+ *
+ * `doctors_list` is whatever `doctors_public` holds for this hospital, and an
+ * empty list stays empty. It used to be `baseDoctors` — the same six invented
+ * doctors on every hospital in the country, complete with fees and ratings, on
+ * a page the public reads as the hospital's own roster.
  */
-const mapPublicToHospital = (r: PublicHospital): Hospital => {
+const mapPublicToHospital = (r: PublicHospital, doctors: Doctor[] = []): Hospital => {
   const phones = contactList(r.contact_phone, r.additional_phones);
   const emails = contactList(r.contact_email, r.additional_emails);
   const websites = contactList(null, r.websites);
@@ -194,7 +239,7 @@ const mapPublicToHospital = (r: PublicHospital): Hospital => {
           { day: "Sat – Sun", time: "10:00 AM – 4:00 PM" },
           { day: "Emergency", time: "24 Hours" },
         ],
-    doctors_list: baseDoctors,
+    doctors_list: doctors,
     lab_tests: baseLabTests,
     rooms: baseRooms,
     management: baseManagement,
@@ -213,13 +258,30 @@ const mapPublicToHospital = (r: PublicHospital): Hospital => {
  * the public site only ever showed hospitals typed in the same browser.
  */
 const fetchApproved = async (): Promise<Hospital[]> => {
-  const { data, error } = await supabase
-    .from("hospitals_public")
-    .select("*")
-    .order("created_at", { ascending: false });
+  // Both views in parallel. `doctors_public` (0022) is already filtered to
+  // active doctors at approved hospitals, so no extra guard is needed here —
+  // and it carries hospital_slug, so the two are joined in memory rather than
+  // with a request per hospital.
+  const [hospitalRes, doctorRes] = await Promise.all([
+    supabase.from("hospitals_public").select("*").order("created_at", { ascending: false }),
+    supabase.from("doctors_public").select("*").order("rating", { ascending: false, nullsFirst: false }),
+  ]);
 
-  if (error || !data) return [];
-  return data.filter((r) => r.name).map(mapPublicToHospital);
+  if (hospitalRes.error || !hospitalRes.data) return [];
+
+  // A failed doctor read must not blank the hospital list — the page is still
+  // worth rendering without its roster.
+  const bySlug = new Map<string, Doctor[]>();
+  for (const row of (doctorRes.data ?? []) as PublicDoctor[]) {
+    if (!row.hospital_slug || !row.name) continue;
+    const list = bySlug.get(row.hospital_slug);
+    if (list) list.push(mapPublicToDoctor(row));
+    else bySlug.set(row.hospital_slug, [mapPublicToDoctor(row)]);
+  }
+
+  return hospitalRes.data
+    .filter((r) => r.name)
+    .map((r) => mapPublicToHospital(r, r.slug ? bySlug.get(r.slug) ?? [] : []));
 };
 
 /** Injects admin-managed doctors and lab tests into whichever hospitals match. */

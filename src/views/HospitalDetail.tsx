@@ -405,7 +405,11 @@ const HospitalDetail = () => {
               </motion.article>
             ))}
             {filteredDoctors.length === 0 && (
-              <p className="text-sm text-muted-foreground col-span-full text-center py-10">No doctors match your filters.</p>
+              <p className="text-sm text-muted-foreground col-span-full text-center py-10">
+                {hospital.doctors_list.length === 0
+                  ? "This hospital has not listed any doctors yet."
+                  : "No doctors match your filters."}
+              </p>
             )}
           </div>
         </section>
