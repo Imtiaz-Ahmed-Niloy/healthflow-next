@@ -47,7 +47,7 @@ export const labTestsResource: ResourceDefinition<LabTestCreate, LabTestUpdate> 
   updateSchema: labTestUpdateSchema,
   searchFields: ["name", "category", "sample"],
   filterFields: ["status", "category"],
-  defaultSort: { column: "name", ascending: true },
+  defaultSort: { column: "created_at", ascending: false },
   roles: {
     // lab_admin owns the catalogue; hospital_admin oversees it. Doctors read
     // it to know what they can order and what it costs. There is no `nurse`

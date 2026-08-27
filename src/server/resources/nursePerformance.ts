@@ -47,7 +47,7 @@ export const nursePerformanceResource: ResourceDefinition<
   select: "*, nurses ( id, name, ward, shift )",
 
   filterFields: ["nurse_id"],
-  defaultSort: { column: "created_at", ascending: true },
+  defaultSort: { column: "created_at", ascending: false },
   roles: {
     read: ["hospital_admin", "hr_admin", "doctor"],
     write: ["hospital_admin", "hr_admin"],

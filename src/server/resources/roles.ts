@@ -53,7 +53,7 @@ export const rolesResource: ResourceDefinition<RoleCreate, RoleUpdate> = {
   updateSchema: roleUpdateSchema,
   searchFields: ["label", "description"],
   filterFields: ["scope", "is_system"],
-  defaultSort: { column: "label", ascending: true },
+  defaultSort: { column: "created_at", ascending: false },
   roles: {
     // No read gate. RLS (0002) is `using (true)` for authenticated — every
     // panel renders a permission matrix, so every signed-in role needs this
