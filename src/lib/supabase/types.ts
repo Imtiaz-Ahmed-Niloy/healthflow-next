@@ -944,6 +944,45 @@ export type Database = {
           },
         ]
       }
+      hospital_admin_secrets: {
+        Row: {
+          created_at: string
+          email: string
+          password_enc: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          password_enc: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          password_enc?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hospital_admin_secrets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospital_admin_secrets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hospital_packages: {
         Row: {
           base_price: number
@@ -1912,7 +1951,12 @@ export type Database = {
       hospitals_public: {
         Row: {
           about: string | null
+          additional_emails: string[] | null
+          additional_phones: string[] | null
+          address: string | null
           beds: number | null
+          contact_email: string | null
+          contact_phone: string | null
           cover_image_url: string | null
           created_at: string | null
           district: string | null
@@ -1928,14 +1972,21 @@ export type Database = {
           rating: number | null
           reviews_count: number | null
           slug: string | null
+          social: Json | null
           specialties: string | null
           subdistrict: string | null
           summary: string | null
           tagline: string | null
+          websites: string[] | null
         }
         Insert: {
           about?: string | null
+          additional_emails?: string[] | null
+          additional_phones?: string[] | null
+          address?: string | null
           beds?: number | null
+          contact_email?: string | null
+          contact_phone?: string | null
           cover_image_url?: string | null
           created_at?: string | null
           district?: string | null
@@ -1951,14 +2002,21 @@ export type Database = {
           rating?: number | null
           reviews_count?: number | null
           slug?: string | null
+          social?: Json | null
           specialties?: string | null
           subdistrict?: string | null
           summary?: string | null
           tagline?: string | null
+          websites?: string[] | null
         }
         Update: {
           about?: string | null
+          additional_emails?: string[] | null
+          additional_phones?: string[] | null
+          address?: string | null
           beds?: number | null
+          contact_email?: string | null
+          contact_phone?: string | null
           cover_image_url?: string | null
           created_at?: string | null
           district?: string | null
@@ -1974,10 +2032,12 @@ export type Database = {
           rating?: number | null
           reviews_count?: number | null
           slug?: string | null
+          social?: Json | null
           specialties?: string | null
           subdistrict?: string | null
           summary?: string | null
           tagline?: string | null
+          websites?: string[] | null
         }
         Relationships: []
       }
