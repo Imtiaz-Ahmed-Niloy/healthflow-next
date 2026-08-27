@@ -247,10 +247,17 @@ const useApprovedHospitals = () => {
     };
   }, []);
 
+  // Approved rows only. `staticHospitals` used to be merged in behind them,
+  // which meant the public site advertised 70 hospitals that existed nowhere
+  // but this repo — a "Verified Health Hub" of hardcoded strings. Those rows
+  // now live in `tenants` with status 'approved', so the same hospitals still
+  // render; the difference is that a super admin can now suspend one and have
+  // it actually disappear, which the fallback silently prevented.
+  //
   // localTick is a deliberate dependency: it is how an edit in another tab to
   // the not-yet-migrated doctor and lab catalogues forces a re-merge.
   const hospitals = useMemo(
-    () => withLocalExtras(dedupeBySlug([...approved, ...staticHospitals])),
+    () => withLocalExtras(dedupeBySlug(approved)),
     [approved, localTick],
   );
 
