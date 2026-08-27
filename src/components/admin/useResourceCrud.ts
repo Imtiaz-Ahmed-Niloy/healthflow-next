@@ -87,13 +87,20 @@ export const useResourceCrud = <T extends { id: string }>(resource?: string) => 
     }
   };
 
+  /**
+   * Resolves true only if the row actually changed. ResourcePage uses that to
+   * decide whether to close the edit modal — a rejected save has to leave the
+   * form open with the user's typing intact.
+   */
   const update = async (id: string, patch: Partial<T>) => {
-    if (!resource) return;
+    if (!resource) return false;
     try {
       await updateTrigger({ resource, id, body: patch }).unwrap();
       toast.success("Updated");
+      return true;
     } catch (cause) {
       showError(cause, "Could not update");
+      return false;
     }
   };
 

@@ -592,14 +592,23 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
             if (raw === "") return;
             try { obj[f.name] = JSON.parse(raw); } catch { /* omit */ }
           });
+          // A rejected save leaves the modal open with everything the user
+          // typed still in it. Closing regardless — which is what this did —
+          // threw the work away and left only a toast to explain it, and the
+          // errors that land here are the recoverable kind: a duplicate name,
+          // a field the server rejected. Both want a correction, not a retype.
+          //
+          // Both sources report the same way: create resolves undefined on
+          // failure, update resolves false. Either way the hook has already
+          // shown the reason, so there is nothing to say here.
           if (editing) {
-            await crud.update(editing.id, obj as never);
+            const updated = await crud.update(editing.id, obj as never);
+            if (!updated) return;
             config.onUpdate?.({ ...editing, ...(obj as object) } as T);
           } else {
-            // Remote creates return undefined when the request failed; the
-            // hook has already surfaced the error, so just skip the callback.
             const created = await crud.create(obj as never);
-            if (created) config.onCreate?.(created as T);
+            if (!created) return;
+            config.onCreate?.(created as T);
           }
           setCreating(false); setEditing(null);
         }}>
