@@ -4,38 +4,55 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ResourcePage } from "@/components/admin/ResourcePage";
 import { Pill } from "@/components/admin/ui";
 import { statusTone } from "@/components/admin/crud";
+import type { AssetRow } from "@/redux/api/resources";
 
-type A = { id: string; tag: string; name: string; category: string; location: string; assignee: string; purchasedAt: string; status: string };
-const seed: A[] = [
-  { id: "as1", tag: "AST-0001", name: "GE MRI Scanner", category: "Imaging", location: "Radiology", assignee: "—", purchasedAt: "2023-04-12", status: "Active" },
-  { id: "as2", tag: "AST-0002", name: "Defibrillator", category: "Critical Care", location: "ICU", assignee: "ICU Team", purchasedAt: "2024-09-01", status: "Active" },
-  { id: "as3", tag: "AST-0003", name: "Patient Monitor", category: "Monitoring", location: "Ward 3B", assignee: "—", purchasedAt: "2025-01-22", status: "Maintenance" },
+/**
+ * Categories offered by the form. Free text in the database (see
+ * 0033_assets.sql) — a hospital that classes equipment differently can still
+ * store it; this list is only the common set, so nobody types "Imaging" twice.
+ */
+const ASSET_CATEGORIES = [
+  "Imaging", "Critical Care", "Monitoring", "Surgical", "Laboratory",
+  "Furniture", "IT", "Other",
 ];
+
+/** Stored lowercase to match doctors, nurses, support staff and lab tests. */
+const ASSET_STATUSES = [
+  { value: "active", label: "Active" },
+  { value: "maintenance", label: "Maintenance" },
+  { value: "retired", label: "Retired" },
+];
+
+const assetStatusLabel = (value: string) =>
+  ASSET_STATUSES.find(s => s.value === value)?.label ?? value;
+
 const Page = () => (
   <AdminLayout title="Asset Management" subtitle="Equipment, devices and maintenance">
-    <ResourcePage<A> config={{
-      storeKey: "assets", seed, searchFields: ["tag", "name", "location"],
-      statuses: ["Active", "Maintenance", "Retired"],
+    <ResourcePage<AssetRow> config={{
+      storeKey: "assets",
+      resource: "assets",
+      searchFields: ["tag", "name", "location"],
+      statuses: ASSET_STATUSES,
       columns: [
-        { key: "tag", label: "Tag", accessor: r => r.tag, render: r => <span className="font-mono text-xs">{r.tag}</span> },
+        { key: "tag", label: "Tag", sortable: true, accessor: r => r.tag, render: r => <span className="font-mono text-xs">{r.tag}</span> },
         { key: "name", label: "Asset", sortable: true, accessor: r => r.name, render: r => <span className="font-semibold text-primary">{r.name}</span> },
-        { key: "category", label: "Category" },
-        { key: "location", label: "Location" },
-        { key: "assignee", label: "Assignee" },
-        { key: "purchasedAt", label: "Purchased", sortable: true, accessor: r => r.purchasedAt },
-        { key: "status", label: "Status", render: r => <Pill tone={statusTone(r.status)}>{r.status}</Pill> },
+        { key: "category", label: "Category", sortable: true, accessor: r => r.category ?? "", render: r => <span>{r.category || "—"}</span> },
+        { key: "location", label: "Location", render: r => <span>{r.location || "—"}</span> },
+        { key: "assignee", label: "Assignee", render: r => <span>{r.assignee || "—"}</span> },
+        { key: "purchased_at", label: "Purchased", sortable: true, accessor: r => r.purchased_at ?? "", render: r => <span>{r.purchased_at || "—"}</span> },
+        { key: "status", label: "Status", render: r => <Pill tone={statusTone(r.status)}>{assetStatusLabel(r.status)}</Pill> },
       ],
       fields: [
         { name: "tag", label: "Asset tag", type: "text", required: true },
         { name: "name", label: "Asset name", type: "text", required: true },
-        { name: "category", label: "Category", type: "select", options: ["Imaging", "Critical Care", "Monitoring", "Surgical", "IT"] },
+        { name: "category", label: "Category", type: "select", options: ASSET_CATEGORIES },
         { name: "location", label: "Location", type: "text" },
         { name: "assignee", label: "Assignee", type: "text" },
-        { name: "purchasedAt", label: "Purchase date", type: "date" },
-        { name: "status", label: "Status", type: "select", options: ["Active", "Maintenance", "Retired"] },
+        { name: "purchased_at", label: "Purchase date", type: "date" },
+        { name: "status", label: "Status", type: "select", options: ASSET_STATUSES },
+        { name: "notes", label: "Notes", type: "textarea" },
       ],
     }} />
   </AdminLayout>
 );
 export default Page;
-

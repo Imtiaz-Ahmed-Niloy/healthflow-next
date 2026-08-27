@@ -54,6 +54,9 @@ export type SupportStaffRow = Tables["support_staff"]["Row"];
 /** Contact form submissions carry no relations — the sender is not a user. */
 export type ContactMessageRow = Tables["contact_messages"]["Row"];
 
+/** The equipment register is flat — assignee is free text, not a profile reference. */
+export type AssetRow = Tables["assets"]["Row"];
+
 /** The lab catalogue is a flat price list — no patient or doctor references. */
 export type LabTestRow = Tables["lab_tests"]["Row"];
 

@@ -203,6 +203,66 @@ export type Database = {
           },
         ]
       }
+      assets: {
+        Row: {
+          assignee: string | null
+          category: string | null
+          created_at: string
+          id: string
+          location: string | null
+          name: string
+          notes: string | null
+          purchased_at: string | null
+          status: string
+          tag: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          assignee?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          location?: string | null
+          name: string
+          notes?: string | null
+          purchased_at?: string | null
+          status?: string
+          tag: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          assignee?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          location?: string | null
+          name?: string
+          notes?: string | null
+          purchased_at?: string | null
+          status?: string
+          tag?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bed_stays: {
         Row: {
           admission_id: string
