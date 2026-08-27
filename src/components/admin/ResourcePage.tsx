@@ -456,6 +456,28 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
   const [confirm, setConfirm] = useState<string | null>(null);
   const [bulk, setBulk] = useState(false);
   const [step, setStep] = useState(0);
+  /** Guards onInvalid, which fires once per offending field in one batch. */
+  const invalidHandled = useRef(false);
+
+  /**
+   * When the wizard last changed step, so a submit can tell whether it is a
+   * real Save or the tail of the click that pressed Next.
+   *
+   * Next and Save are the same primary button in the same corner of the
+   * footer. Pressing Next advances the step, React re-renders, and Save
+   * appears under a cursor that has not moved — so the rest of that one click
+   * lands on Save and submits the form. The record saved and the dialog shut
+   * halfway through filling it in.
+   *
+   * This was always true; it only became visible when the forms started
+   * passing validation. Before that the stray submit was blocked by an empty
+   * required field and looked like nothing happening at all.
+   */
+  const stepChangedAt = useRef(0);
+  const goToStep = (next: number | ((s: number) => number)) => {
+    stepChangedAt.current = Date.now();
+    setStep(next);
+  };
 
   const steps = config.steps && config.steps.length > 0 ? config.steps : null;
   const stepIds = steps ? steps.map(s => s.id) : [1];
@@ -534,13 +556,13 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
         footer={<>
           <button onClick={() => { setCreating(false); setEditing(null); }} className="px-4 py-2 rounded-full text-sm font-semibold border border-border">Cancel</button>
           {steps && !isFirstStep && (
-            <button type="button" onClick={() => setStep(s => Math.max(0, s - 1))}
+            <button type="button" onClick={() => goToStep(s => Math.max(0, s - 1))}
               className="px-4 py-2 rounded-full text-sm font-semibold border border-border inline-flex items-center gap-1.5">
               <ChevronLeft className="h-4 w-4" /> Back
             </button>
           )}
           {steps && !isLastStep ? (
-            <button type="button" onClick={() => setStep(s => Math.min(steps.length - 1, s + 1))}
+            <button type="button" onClick={() => goToStep(s => Math.min(steps.length - 1, s + 1))}
               className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground inline-flex items-center gap-1.5">
               Next <ChevronRight className="h-4 w-4" />
             </button>
@@ -551,7 +573,7 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
         {steps && (
           <div className="flex items-center gap-2 mb-5 flex-wrap">
             {steps.map((s, i) => (
-              <button key={s.id} type="button" onClick={() => setStep(i)}
+              <button key={s.id} type="button" onClick={() => goToStep(i)}
                 className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition ${i === step ? "bg-primary text-primary-foreground" : "bg-muted/60 text-muted-foreground hover:text-primary"}`}>
                 <span className={`h-5 w-5 rounded-full inline-flex items-center justify-center text-[10px] ${i === step ? "bg-primary-foreground/20" : "bg-background"}`}>{i + 1}</span>
                 {s.label}
@@ -570,17 +592,51 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
            * first one is scrolled into view and focused.
            */
           onInvalid={e => {
-            const field = e.target as HTMLElement;
-            if (field.dataset.scrolled) return;
-            field.dataset.scrolled = "1";
-            field.scrollIntoView({ block: "center", behavior: "smooth" });
-            requestAnimationFrame(() => {
+            // Only the first offending field matters — the browser fires this
+            // for every one of them in the same batch, and racing them means
+            // the last one wins rather than the first.
+            if (invalidHandled.current) return;
+            invalidHandled.current = true;
+            setTimeout(() => { invalidHandled.current = false; }, 0);
+
+            const field = e.target as HTMLInputElement;
+
+            // On a wizard, the field may live on a step that is not rendered.
+            // A required field inside a `hidden` container cannot be focused,
+            // so the browser refuses to submit and reports NOTHING — no
+            // bubble, no console warning, no request. Save simply stops
+            // working, which is indistinguishable from a broken button.
+            // Switching to its step is what makes the problem visible.
+            const wantedStep = steps
+              ? steps.findIndex(s => s.id === (config.fields.find(f => f.name === field.name)?.step ?? stepIds[0]))
+              : -1;
+            // goToStep, not setStep: this switch also swaps which button sits
+            // under the cursor — Save becomes Next — and the tail of the click
+            // that triggered validation would otherwise land on it.
+            const mustSwitch = wantedStep >= 0 && wantedStep !== step;
+            if (mustSwitch) goToStep(wantedStep);
+
+            // Two frames: one for React to commit the step change, one for the
+            // browser to lay the field out before scrolling to it.
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+              field.scrollIntoView({ block: "center", behavior: "smooth" });
               field.focus({ preventScroll: true });
-              delete field.dataset.scrolled;
-            });
+              // The native bubble is suppressed once submission is blocked, so
+              // on a step switch the user would otherwise see a jump and no
+              // reason for it.
+              if (mustSwitch) field.reportValidity();
+            }));
           }}
           onSubmit={async e => {
           e.preventDefault();
+
+          // Ignore a submit that arrives on the heels of a step change. See
+          // stepChangedAt: pressing Next swaps Save into the same pixels, and
+          // the rest of that single click lands on it. A human cannot press
+          // Next and genuinely mean Save a quarter-second later without
+          // moving, so anything this fast is the tail of the Next click.
+          if (steps && Date.now() - stepChangedAt.current < 400) return;
+
           // Read the form before any await: currentTarget is null afterwards.
           const fd = new FormData(e.currentTarget);
           const obj: Record<string, unknown> = { ...((config.defaults as Record<string, unknown>) || {}) };

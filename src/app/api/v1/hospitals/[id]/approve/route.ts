@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerSupabase, getAuthContext, isSuperAdmin } from "@/lib/supabase/server";
 import { createAdminSupabase } from "@/lib/supabase/server";
 import { provisionUser } from "@/server/provisioning";
+import { encryptSecret } from "@/lib/credentials";
 
 /**
  * POST /api/v1/hospitals/:id/approve
@@ -88,13 +89,30 @@ export const POST = async (_request: Request, context: RouteContext) => {
     email,
     role: "hospital_admin",
     tenantId: id,
-    fullName: hospital.owner_name,
+    // The hospital's name, not the owner's. This account IS the hospital: it
+    // is shared by whoever runs the place, and the portal header that renders
+    // it sits above that hospital's own screens. owner_name is a person, it
+    // is usually null on a directory row, and when null the header fell back
+    // to showing the raw email address.
+    fullName: hospital.name,
     phone: hospital.contact_phone,
   });
 
   if (!provisioned.ok) {
     return fail(provisioned.message, provisioned.code === "email_taken" ? 409 : 400);
   }
+
+  // Stored before the status flip so the password is recoverable even if the
+  // flip fails and the retry takes the "already provisioned" path above, which
+  // never sees a password again. Encrypting here also throws before anything
+  // else if the encryption key is missing, rather than after.
+  //
+  // A failure to store is NOT fatal: the login works, and HF-73's reset can
+  // replace an unstored password. Losing the approval over it would be worse.
+  const { error: secretError } = await admin.from("hospital_admin_secrets").upsert(
+    { tenant_id: id, email: provisioned.email, password_enc: encryptSecret(provisioned.password) },
+    { onConflict: "tenant_id" },
+  );
 
   // Last, so a failure here leaves a working admin against a still-pending
   // hospital. The idempotency gate above turns the retry into a status flip.
@@ -116,8 +134,11 @@ export const POST = async (_request: Request, context: RouteContext) => {
       status: "approved",
       alreadyProvisioned: false,
       email: provisioned.email,
-      // Shown once and never stored. There is no endpoint that returns it again.
       password: provisioned.password,
+      // Whether it can be read back later. False means the upsert above failed
+      // and this really is the only time it will be shown, so the UI can say so
+      // instead of promising a button that will not have it.
+      saved: !secretError,
     },
   });
 };
