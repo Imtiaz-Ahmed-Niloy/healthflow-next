@@ -16,7 +16,10 @@ export function useCrud<T extends { id: string }>(key: string, seed: T[]) {
   return {
     items, setItems,
     create: (it: Omit<T, "id">) => { const r = { ...it, id: uid() } as T; setItems(p => [r, ...p]); toast.success("Created"); return r; },
-    update: (id: string, patch: Partial<T>) => { setItems(p => p.map(i => i.id === id ? { ...i, ...patch } : i)); toast.success("Updated"); },
+    // Returns true to match useResourceCrud.update, whose caller closes the
+    // modal only on success. A localStorage write cannot fail, so it is always
+    // true here — the signature is what matters.
+    update: (id: string, patch: Partial<T>) => { setItems(p => p.map(i => i.id === id ? { ...i, ...patch } : i)); toast.success("Updated"); return true; },
     remove: (id: string) => { setItems(p => p.filter(i => i.id !== id)); toast.success("Deleted"); },
     bulkRemove: (ids: string[]) => { setItems(p => p.filter(i => !ids.includes(i.id))); toast.success(`${ids.length} removed`); },
     reset: () => { setItems(seed); save(key, seed); toast.info("Reset to defaults"); },
