@@ -105,6 +105,14 @@ type PublicHospital = {
   location: string | null;
   division: string | null;
   district: string | null;
+  address: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
+  additional_phones: string[] | null;
+  additional_emails: string[] | null;
+  websites: string[] | null;
+  // jsonb, so the generated type is Json — narrowed by `socialLinks` below.
+  social: unknown;
   logo_url: string | null;
   cover_image_url: string | null;
   specialties: string | null;
@@ -119,50 +127,79 @@ type PublicHospital = {
   reviews_count: number | null;
 };
 
+/** Drops blanks and duplicates, keeping the canonical value first. */
+const contactList = (primary: string | null, extra: string[] | null): string[] => {
+  const seen = new Set<string>();
+  return [primary ?? "", ...(extra ?? [])]
+    .map((v) => (v ?? "").trim())
+    .filter((v) => {
+      if (!v || seen.has(v.toLowerCase())) return false;
+      seen.add(v.toLowerCase());
+      return true;
+    });
+};
+
+/** Narrows the `social` jsonb to the [{ platform, url }] the card renders. */
+const socialLinks = (value: unknown): { platform: string; url: string }[] => {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+    const { platform, url } = entry as { platform?: unknown; url?: unknown };
+    if (typeof url !== "string" || !url.trim()) return [];
+    return [{ platform: typeof platform === "string" && platform ? platform : "website", url: url.trim() }];
+  });
+};
+
 /**
  * Maps a public view row onto the shape the marketing pages already render.
  *
- * The view carries no contact details, licences or owner information — those
- * columns are deliberately not exposed — so phone/email/website resolve empty
- * rather than being faked.
+ * Contact details come from the view as of 0035 — before that the view carried
+ * none and these resolved to "" no matter what a super admin had typed. Owner
+ * and licence columns are still not exposed and must not be read here.
  */
-const mapPublicToHospital = (r: PublicHospital): Hospital => ({
-  slug: r.slug || slugify(r.name || r.id || ""),
-  name: r.name || "Untitled hospital",
-  tag: r.tagline || "Partner hospital",
-  location: [r.location, r.district, r.division].filter(Boolean).join(", ") || "",
-  address: r.location || "",
-  rating: Number(r.rating) || 0,
-  reviews: Number(r.reviews_count) || 0,
-  beds: Number(r.beds) || 0,
-  doctors: Number(r.doctor_count) || 0,
-  founded: Number(r.founded_year) || new Date().getFullYear(),
-  specialties: splitList(r.specialties),
-  cert: "Verified partner",
-  phone: "",
-  email: "",
-  website: "",
-  phones: [],
-  emails: [],
-  websites: [],
-  social: [],
-  image: r.cover_image_url || r.logo_url || atriumFallback,
-  summary: r.summary || r.tagline || "",
-  about: r.about || r.summary || "",
-  facilities: splitList(r.facilities),
-  awards: [],
-  hours: r.opening_hours
-    ? [{ day: "All week", time: r.opening_hours }]
-    : [
-        { day: "Mon – Fri", time: "9:00 AM – 6:00 PM" },
-        { day: "Sat – Sun", time: "10:00 AM – 4:00 PM" },
-        { day: "Emergency", time: "24 Hours" },
-      ],
-  doctors_list: baseDoctors,
-  lab_tests: baseLabTests,
-  rooms: baseRooms,
-  management: baseManagement,
-});
+const mapPublicToHospital = (r: PublicHospital): Hospital => {
+  const phones = contactList(r.contact_phone, r.additional_phones);
+  const emails = contactList(r.contact_email, r.additional_emails);
+  const websites = contactList(null, r.websites);
+
+  return {
+    slug: r.slug || slugify(r.name || r.id || ""),
+    name: r.name || "Untitled hospital",
+    tag: r.tagline || "Partner hospital",
+    location: [r.location, r.district, r.division].filter(Boolean).join(", ") || "",
+    address: r.address || r.location || "",
+    rating: Number(r.rating) || 0,
+    reviews: Number(r.reviews_count) || 0,
+    beds: Number(r.beds) || 0,
+    doctors: Number(r.doctor_count) || 0,
+    founded: Number(r.founded_year) || new Date().getFullYear(),
+    specialties: splitList(r.specialties),
+    cert: "Verified partner",
+    phone: phones[0] ?? "",
+    email: emails[0] ?? "",
+    website: websites[0] ?? "",
+    phones,
+    emails,
+    websites,
+    social: socialLinks(r.social),
+    image: r.cover_image_url || r.logo_url || atriumFallback,
+    summary: r.summary || r.tagline || "",
+    about: r.about || r.summary || "",
+    facilities: splitList(r.facilities),
+    awards: [],
+    hours: r.opening_hours
+      ? [{ day: "All week", time: r.opening_hours }]
+      : [
+          { day: "Mon – Fri", time: "9:00 AM – 6:00 PM" },
+          { day: "Sat – Sun", time: "10:00 AM – 4:00 PM" },
+          { day: "Emergency", time: "24 Hours" },
+        ],
+    doctors_list: baseDoctors,
+    lab_tests: baseLabTests,
+    rooms: baseRooms,
+    management: baseManagement,
+  };
+};
 
 /**
  * Approved hospitals, from the database.
