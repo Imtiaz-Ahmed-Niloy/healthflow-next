@@ -56,7 +56,7 @@ export const assetsResource: ResourceDefinition<AssetCreate, AssetUpdate> = {
   updateSchema: assetUpdateSchema,
   searchFields: ["tag", "name", "location"],
   filterFields: ["status", "category"],
-  defaultSort: { column: "tag", ascending: true },
+  defaultSort: { column: "created_at", ascending: false },
   roles: {
     // hospital_admin owns the register. finance_admin reads and writes it for
     // the same reason it owns vendors: equipment is capital spend, and the row

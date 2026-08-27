@@ -39,7 +39,7 @@ export const nurseShiftsResource: ResourceDefinition<NurseShiftCreate, NurseShif
   select: "*, nurses ( id, name, ward )",
 
   filterFields: ["nurse_id", "day_of_week", "shift_type"],
-  defaultSort: { column: "created_at", ascending: true },
+  defaultSort: { column: "created_at", ascending: false },
   roles: {
     read: ["hospital_admin", "hr_admin", "doctor"],
     write: ["hospital_admin", "hr_admin"],
