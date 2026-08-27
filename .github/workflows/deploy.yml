@@ -73,8 +73,30 @@ jobs:
             # with a broken one and still reporting success.
             set -e
 
-            # Make sure node/yarn/pm2 are on PATH in this non-login shell
-            export PATH="/usr/local/bin:/usr/bin:$PATH"
+            # Put node/yarn/pm2 on PATH in this non-login, non-interactive
+            # shell. This is the step that used to fail with
+            # "yarn: command not found" (exit 127): nvm installs the toolchain
+            # under ~/.nvm and puts it on PATH from ~/.bashrc, but bash returns
+            # out of ~/.bashrc early when there is no tty — so an SSH command
+            # sees none of it, even though logging in by hand works fine.
+            # Sourcing nvm directly gives this shell the same toolchain.
+            export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+
+            # Cover the non-nvm installs too: NodeSource apt lands in /usr/bin,
+            # a global npm prefix in /usr/local/bin or ~/.local/bin.
+            export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:$PATH"
+
+            # Fail here, with something readable, rather than 20 lines later
+            # with a bare "command not found". If this ever trips, the printed
+            # PATH is what you need to see to fix it.
+            for cmd in node yarn pm2; do
+              command -v "$cmd" >/dev/null 2>&1 || {
+                echo "::error::'$cmd' is not on the droplet PATH: $PATH"
+                exit 1
+              }
+            done
+            echo "Toolchain: node $(node -v), yarn $(yarn -v), pm2 $(pm2 -v)"
 
             # Navigate to the app directory
             cd /var/www/healthflow-next
@@ -85,13 +107,21 @@ jobs:
             # Install dependencies (immutable lockfile)
             yarn install --frozen-lockfile
 
-            # Build the production bundle. Reads the droplet's own .env.local
-            # for the runtime secrets — the service-role key and the doctor
-            # login encryption key live there, never in GitHub.
+            # Build the production bundle. Reads the droplet's own .env for
+            # the runtime secrets — the service-role key and the doctor login
+            # encryption key live there, never in GitHub.
             yarn build
 
             # Restart the running app (or start it the first time)
-            pm2 restart healthflow-next || pm2 start "yarn start" --name healthflow-next
+            # Start or restart from ecosystem.config.js, which is the single
+            # source of truth for the process name and the port. Neither is
+            # repeated here on purpose — a hardcoded fallback is exactly how
+            # the app comes back on the wrong port after a crash, while nginx
+            # carries on proxying to the old one.
+            #
+            # --update-env so a changed PORT in that file actually takes
+            # effect on deploy rather than being inherited from the old process.
+            pm2 startOrRestart ecosystem.config.js --update-env
 
             # Persist the process list
             pm2 save
