@@ -51,9 +51,6 @@ const BlogPageEditor = () => {
       <Btn onClick={onSaveChrome} className={chromeDirty ? "" : "opacity-60"}><span className="inline-flex items-center gap-1"><Save className="h-4 w-4" /> Save</span></Btn>
     </div>
   );
-  const setMast = (p: Partial<BlogContent["masthead"]>) => updChrome({ ...chrome, masthead: { ...chrome.masthead, ...p } });
-  const setNews = (p: Partial<BlogContent["newsletter"]>) => updChrome({ ...chrome, newsletter: { ...chrome.newsletter, ...p } });
-
   // Categories + individual posts — out of scope for this migration (tracked
   // separately as cms_blog_posts). Unchanged: still localStorage-backed.
   const { content: postsContent, save: savePosts, reset: resetPosts } = useBlogPosts();
@@ -106,27 +103,12 @@ const BlogPageEditor = () => {
   const setFeatured = (i: number) => updPosts({ ...postsDraft, posts: postsDraft.posts.map((x, ix) => ({ ...x, featured: ix === i })) });
 
   return (
-    <Tabs defaultValue="masthead" className="space-y-4">
+    <Tabs defaultValue="sections" className="space-y-4">
       <TabsList className="flex flex-wrap h-auto">
-        <TabsTrigger value="masthead">Masthead</TabsTrigger>
         <TabsTrigger value="sections">Sections</TabsTrigger>
         <TabsTrigger value="categories">Categories</TabsTrigger>
         <TabsTrigger value="posts">Articles ({postsDraft.posts.length})</TabsTrigger>
-        <TabsTrigger value="newsletter">Newsletter</TabsTrigger>
       </TabsList>
-
-      <TabsContent value="masthead">
-        <Card className="p-5 space-y-3">
-          <SectionTitle title="Masthead" action={chromeBar} />
-          <div className="grid md:grid-cols-2 gap-3">
-            <div className="space-y-1.5"><Label>Volume / Issue</Label><Input value={chrome.masthead.volume} onChange={e => setMast({ volume: e.target.value })} /></div>
-            <div className="space-y-1.5"><Label>Editor line</Label><Input value={chrome.masthead.editor} onChange={e => setMast({ editor: e.target.value })} /></div>
-          </div>
-          <div className="space-y-1.5"><Label>Title</Label><Input value={chrome.masthead.title} onChange={e => setMast({ title: e.target.value })} /></div>
-          <div className="space-y-1.5"><Label>Tagline</Label><Textarea rows={2} value={chrome.masthead.tagline} onChange={e => setMast({ tagline: e.target.value })} /></div>
-          <div className="space-y-1.5"><Label>Edition label</Label><Input value={chrome.masthead.editionLabel} onChange={e => setMast({ editionLabel: e.target.value })} /></div>
-        </Card>
-      </TabsContent>
 
       <TabsContent value="sections">
         <Card className="p-5 space-y-3">
@@ -219,22 +201,6 @@ const BlogPageEditor = () => {
                 </div>
               );
             })}
-          </div>
-        </Card>
-      </TabsContent>
-
-      <TabsContent value="newsletter">
-        <Card className="p-5 space-y-3">
-          <SectionTitle title="Newsletter" action={chromeBar} />
-          <div className="space-y-1.5"><Label>Title</Label><Input value={chrome.newsletter.title} onChange={e => setNews({ title: e.target.value })} /></div>
-          <div className="space-y-1.5"><Label>Subtitle</Label><Textarea rows={2} value={chrome.newsletter.subtitle} onChange={e => setNews({ subtitle: e.target.value })} /></div>
-          <div className="grid md:grid-cols-2 gap-3">
-            <div className="space-y-1.5"><Label>Input placeholder</Label><Input value={chrome.newsletter.placeholder} onChange={e => setNews({ placeholder: e.target.value })} /></div>
-            <div className="space-y-1.5"><Label>Button label</Label><Input value={chrome.newsletter.buttonLabel} onChange={e => setNews({ buttonLabel: e.target.value })} /></div>
-          </div>
-          <div className="grid md:grid-cols-2 gap-3">
-            <div className="space-y-1.5"><Label>Success toast title</Label><Input value={chrome.newsletter.successTitle} onChange={e => setNews({ successTitle: e.target.value })} /></div>
-            <div className="space-y-1.5"><Label>Success toast body</Label><Input value={chrome.newsletter.successBody} onChange={e => setNews({ successBody: e.target.value })} /></div>
           </div>
         </Card>
       </TabsContent>

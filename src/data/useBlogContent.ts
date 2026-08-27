@@ -23,7 +23,7 @@ export const useBlogContent = () => {
   const [update] = cmsPagesApi.useUpdate();
 
   const persist = async (next: BlogContent) => {
-    const blocks = blogContentToBlocks(next);
+    const blocks = { ...(row?.blocks as Record<string, unknown> ?? {}), ...blogContentToBlocks(next) };
     if (row) {
       await update(row.id, { blocks }).unwrap();
     } else {

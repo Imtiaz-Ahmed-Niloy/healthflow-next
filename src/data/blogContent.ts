@@ -52,16 +52,45 @@ export const defaultBlogContent: BlogContent = {
 
 type BlogBlocks = Partial<BlogContent>;
 
+// blocks is untyped jsonb — a field can come back as the wrong type (or an
+// object/array where a string is expected), and React throws rendering a
+// non-primitive as a child. /blog is a Server Component now, so that throw
+// is a 500 for every visitor, not a broken section. Guard each field.
+const str = (v: unknown, fallback: string): string => (typeof v === "string" ? v : fallback);
+
+const normalizeMasthead = (m: unknown): BlogContent["masthead"] => {
+  const masthead = (m ?? {}) as Partial<BlogContent["masthead"]>;
+  return {
+    volume: str(masthead.volume, defaultBlogContent.masthead.volume),
+    editor: str(masthead.editor, defaultBlogContent.masthead.editor),
+    title: str(masthead.title, defaultBlogContent.masthead.title),
+    tagline: str(masthead.tagline, defaultBlogContent.masthead.tagline),
+    editionLabel: str(masthead.editionLabel, defaultBlogContent.masthead.editionLabel),
+  };
+};
+
+const normalizeNewsletter = (n: unknown): BlogContent["newsletter"] => {
+  const newsletter = (n ?? {}) as Partial<BlogContent["newsletter"]>;
+  return {
+    title: str(newsletter.title, defaultBlogContent.newsletter.title),
+    subtitle: str(newsletter.subtitle, defaultBlogContent.newsletter.subtitle),
+    placeholder: str(newsletter.placeholder, defaultBlogContent.newsletter.placeholder),
+    buttonLabel: str(newsletter.buttonLabel, defaultBlogContent.newsletter.buttonLabel),
+    successTitle: str(newsletter.successTitle, defaultBlogContent.newsletter.successTitle),
+    successBody: str(newsletter.successBody, defaultBlogContent.newsletter.successBody),
+  };
+};
+
 export const blocksToBlogContent = (blocks: unknown): BlogContent => {
   const b = (blocks ?? {}) as BlogBlocks;
   return {
-    masthead: { ...defaultBlogContent.masthead, ...(b.masthead ?? {}) },
-    trendingTitle: b.trendingTitle ?? defaultBlogContent.trendingTitle,
-    leadEyebrow: b.leadEyebrow ?? defaultBlogContent.leadEyebrow,
-    leadKicker: b.leadKicker ?? defaultBlogContent.leadKicker,
-    gridTitle: b.gridTitle ?? defaultBlogContent.gridTitle,
-    emptyText: b.emptyText ?? defaultBlogContent.emptyText,
-    newsletter: { ...defaultBlogContent.newsletter, ...(b.newsletter ?? {}) },
+    masthead: normalizeMasthead(b.masthead),
+    trendingTitle: str(b.trendingTitle, defaultBlogContent.trendingTitle),
+    leadEyebrow: str(b.leadEyebrow, defaultBlogContent.leadEyebrow),
+    leadKicker: str(b.leadKicker, defaultBlogContent.leadKicker),
+    gridTitle: str(b.gridTitle, defaultBlogContent.gridTitle),
+    emptyText: str(b.emptyText, defaultBlogContent.emptyText),
+    newsletter: normalizeNewsletter(b.newsletter),
   };
 };
 
