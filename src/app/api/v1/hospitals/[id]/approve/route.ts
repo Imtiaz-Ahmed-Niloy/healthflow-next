@@ -89,7 +89,12 @@ export const POST = async (_request: Request, context: RouteContext) => {
     email,
     role: "hospital_admin",
     tenantId: id,
-    fullName: hospital.owner_name,
+    // The hospital's name, not the owner's. This account IS the hospital: it
+    // is shared by whoever runs the place, and the portal header that renders
+    // it sits above that hospital's own screens. owner_name is a person, it
+    // is usually null on a directory row, and when null the header fell back
+    // to showing the raw email address.
+    fullName: hospital.name,
     phone: hospital.contact_phone,
   });
 
