@@ -1,0 +1,99 @@
+name: CI/CD Pipeline for HealthFlow
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: "22"
+
+# One deploy at a time. Two SSH deploys overlapping on the same droplet means
+# `git pull` and `yarn build` interleaving in the same directory, which fails in
+# ways that are hard to read afterwards. Runs on main are never cancelled
+# mid-flight — only queued — so a merged commit always finishes deploying.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Test & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "yarn"
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run linting
+        run: yarn lint
+
+      # `next build` type-checks as part of the build (next.config.ts sets no
+      # ignoreBuildErrors), so there is no separate tsc step.
+      #
+      # Both keys are required at build time, not just at runtime:
+      # src/lib/supabase/client.ts calls createBrowserClient at module scope,
+      # and that throws on an undefined url or key while the pages are being
+      # collected. SUPABASE_SERVICE_ROLE_KEY and DOCTOR_LOGIN_ENCRYPTION_KEY
+      # are deliberately NOT here — they are only read inside request handlers,
+      # so the build never touches them and CI has no business holding them.
+      - name: Build project
+        run: yarn build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+
+  deploy:
+    name: Deploy to DigitalOcean Droplet
+    runs-on: ubuntu-latest
+    needs: test
+    # Only deploy on push to main, never on pull requests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Deploy to Droplet over SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USERNAME }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          port: ${{ secrets.DROPLET_PORT || 22 }}
+          script: |
+            # Stop on the first failure. Without this the script runs on past a
+            # failed build and restarts pm2 anyway, replacing a working app
+            # with a broken one and still reporting success.
+            set -e
+
+            # Make sure node/yarn/pm2 are on PATH in this non-login shell
+            export PATH="/usr/local/bin:/usr/bin:$PATH"
+
+            # Navigate to the app directory
+            cd /var/www/healthflow-next
+
+            # Pull the latest code
+            git pull origin main
+
+            # Install dependencies (immutable lockfile)
+            yarn install --frozen-lockfile
+
+            # Build the production bundle. Reads the droplet's own .env.local
+            # for the runtime secrets — the service-role key and the doctor
+            # login encryption key live there, never in GitHub.
+            yarn build
+
+            # Restart the running app (or start it the first time)
+            pm2 restart healthflow-next || pm2 start "yarn start" --name healthflow-next
+
+            # Persist the process list
+            pm2 save
+
+            echo "✅ Deployment completed successfully!"
