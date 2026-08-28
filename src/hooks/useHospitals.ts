@@ -150,8 +150,35 @@ const socialLinks = (value: unknown): { platform: string; url: string }[] => {
   });
 };
 
-/** One row of `public.doctors_public` (0022) — active doctors at approved hospitals. */
+const maleAvatars = ["/assets/doctors/male-1.jpg", "/assets/doctors/male-2.jpg", "/assets/doctors/male-3.jpg"];
+const femaleAvatars = ["/assets/doctors/female-1.jpg", "/assets/doctors/female-2.jpg", "/assets/doctors/female-3.jpg"];
+
+/**
+ * Placeholder headshot for a doctor with no photo_url of their own.
+ *
+ * Only ever a placeholder — a real uploaded photo always wins, and this is
+ * never shown as though it were the actual person.
+ *
+ * The face is picked from a hash of the name, not at random: a random pick
+ * would hand the same doctor a different face on every render and disagree
+ * between the server and client passes, which React reports as a hydration
+ * mismatch. Hashing keeps it stable and spreads the six images out so a
+ * roster does not read as one person repeated.
+ *
+ * `other` and an unset gender fall through to the neutral image rather than
+ * being assigned one of the two gendered sets.
+ */
+const avatarFor = (name: string, gender: string | null): string => {
+  const pool = gender === "male" ? maleAvatars : gender === "female" ? femaleAvatars : null;
+  if (!pool) return doctorFallback;
+  let hash = 0;
+  for (let i = 0; i < name.length; i += 1) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return pool[hash % pool.length];
+};
+
+/** One row of `public.doctors_public` (0022, gender added in 0023). */
 type PublicDoctor = {
+  gender: string | null;
   name: string | null;
   specialty: string | null;
   education: string | null;
@@ -184,7 +211,7 @@ const mapPublicToDoctor = (r: PublicDoctor): Doctor => ({
   rating: Number(r.rating) || 0,
   fee: Number(r.consultation_fee) || 0,
   available: r.availability || "By appointment",
-  photo: r.photo_url || doctorFallback,
+  photo: r.photo_url || avatarFor(r.name || "", r.gender),
   education: r.education || "",
   languages: splitList(r.languages),
   patients: Number(r.patients_treated) || 0,
