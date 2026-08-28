@@ -56,7 +56,6 @@ const Roles = () => {
     return roles.filter(
       (role) =>
         role.label.toLowerCase().includes(needle) ||
-        (role.description ?? "").toLowerCase().includes(needle) ||
         (role.role ?? "").toLowerCase().includes(needle),
     );
   }, [roles, query]);
@@ -154,9 +153,6 @@ const Roles = () => {
                         <Lock className="h-3 w-3 text-muted-foreground shrink-0" aria-label="System role" />
                       )}
                     </p>
-                    {role.description && (
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate">{role.description}</p>
-                    )}
                     <p className="text-xs text-muted-foreground mt-1">
                       {userLabel} · {role.pages.length} pages
                     </p>
@@ -260,11 +256,11 @@ const RoleEditor = ({
 
     // The server rejects these too; catching them here keeps the dialog open
     // with the text still in it.
+    // `description` is deliberately absent: the editor no longer collects one,
+    // and PATCH drops undefined keys, so whatever a role already has is left
+    // alone rather than being wiped by a form that cannot show it.
     const body: RoleWrite = {
       label,
-      // null, not undefined — PATCH drops undefined keys, so an emptied
-      // description would otherwise never clear.
-      description: draft.description?.trim() || null,
       scope: draft.scope as RoleWrite["scope"],
       pages: draft.pages,
     };
@@ -334,16 +330,6 @@ const RoleEditor = ({
               )}
             </p>
           </div>
-        </div>
-
-        <div className="mt-4">
-          <Label htmlFor="role-description">Description</Label>
-          <Input
-            id="role-description"
-            value={draft.description ?? ""}
-            onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-            placeholder="What this role is for"
-          />
         </div>
 
         {draft.is_system && (

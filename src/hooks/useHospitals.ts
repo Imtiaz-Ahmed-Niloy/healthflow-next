@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { hospitals as staticHospitals, baseDoctors, baseLabTests, baseRooms, baseManagement, type Hospital, type Doctor } from "@/data/hospitals";
+import { hospitals as staticHospitals, baseLabTests, baseRooms, baseManagement, type Hospital, type Doctor } from "@/data/hospitals";
 import { slugify } from "@/lib/slug";
 import { supabase } from "@/lib/supabase/client";
 const atriumFallback = "/assets/hub-atrium.jpg";
@@ -105,6 +105,14 @@ type PublicHospital = {
   location: string | null;
   division: string | null;
   district: string | null;
+  address: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
+  additional_phones: string[] | null;
+  additional_emails: string[] | null;
+  websites: string[] | null;
+  // jsonb, so the generated type is Json — narrowed by `socialLinks` below.
+  social: unknown;
   logo_url: string | null;
   cover_image_url: string | null;
   specialties: string | null;
@@ -119,50 +127,124 @@ type PublicHospital = {
   reviews_count: number | null;
 };
 
+/** Drops blanks and duplicates, keeping the canonical value first. */
+const contactList = (primary: string | null, extra: string[] | null): string[] => {
+  const seen = new Set<string>();
+  return [primary ?? "", ...(extra ?? [])]
+    .map((v) => (v ?? "").trim())
+    .filter((v) => {
+      if (!v || seen.has(v.toLowerCase())) return false;
+      seen.add(v.toLowerCase());
+      return true;
+    });
+};
+
+/** Narrows the `social` jsonb to the [{ platform, url }] the card renders. */
+const socialLinks = (value: unknown): { platform: string; url: string }[] => {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+    const { platform, url } = entry as { platform?: unknown; url?: unknown };
+    if (typeof url !== "string" || !url.trim()) return [];
+    return [{ platform: typeof platform === "string" && platform ? platform : "website", url: url.trim() }];
+  });
+};
+
+/** One row of `public.doctors_public` (0022) — active doctors at approved hospitals. */
+type PublicDoctor = {
+  name: string | null;
+  specialty: string | null;
+  education: string | null;
+  languages: string | null;
+  experience_years: number | null;
+  rating: number | null;
+  consultation_fee: number | null;
+  patients_treated: number | null;
+  availability: string | null;
+  photo_url: string | null;
+  hospital_slug: string | null;
+};
+
+/**
+ * Maps a doctor row onto the card shape.
+ *
+ * Every numeric falls back to 0 rather than being invented: the card divides
+ * `patients` by 1000 and prints `fee` directly, so a null has to become a real
+ * number somewhere, and 0 is the one value that reads as "not recorded"
+ * instead of quietly asserting something untrue about a named doctor.
+ *
+ * `languages` is comma-separated text in the table (see 0005 — the admin form
+ * submits every field as a string), so it is split back into the array the
+ * card joins with bullets.
+ */
+const mapPublicToDoctor = (r: PublicDoctor): Doctor => ({
+  name: r.name || "Unnamed doctor",
+  specialty: r.specialty || "General",
+  experience: Number(r.experience_years) || 0,
+  rating: Number(r.rating) || 0,
+  fee: Number(r.consultation_fee) || 0,
+  available: r.availability || "By appointment",
+  photo: r.photo_url || doctorFallback,
+  education: r.education || "",
+  languages: splitList(r.languages),
+  patients: Number(r.patients_treated) || 0,
+});
+
 /**
  * Maps a public view row onto the shape the marketing pages already render.
  *
- * The view carries no contact details, licences or owner information — those
- * columns are deliberately not exposed — so phone/email/website resolve empty
- * rather than being faked.
+ * Contact details come from the view as of 0035 — before that the view carried
+ * none and these resolved to "" no matter what a super admin had typed. Owner
+ * and licence columns are still not exposed and must not be read here.
+ *
+ * `doctors_list` is whatever `doctors_public` holds for this hospital, and an
+ * empty list stays empty. It used to be `baseDoctors` — the same six invented
+ * doctors on every hospital in the country, complete with fees and ratings, on
+ * a page the public reads as the hospital's own roster.
  */
-const mapPublicToHospital = (r: PublicHospital): Hospital => ({
-  slug: r.slug || slugify(r.name || r.id || ""),
-  name: r.name || "Untitled hospital",
-  tag: r.tagline || "Partner hospital",
-  location: [r.location, r.district, r.division].filter(Boolean).join(", ") || "",
-  address: r.location || "",
-  rating: Number(r.rating) || 0,
-  reviews: Number(r.reviews_count) || 0,
-  beds: Number(r.beds) || 0,
-  doctors: Number(r.doctor_count) || 0,
-  founded: Number(r.founded_year) || new Date().getFullYear(),
-  specialties: splitList(r.specialties),
-  cert: "Verified partner",
-  phone: "",
-  email: "",
-  website: "",
-  phones: [],
-  emails: [],
-  websites: [],
-  social: [],
-  image: r.cover_image_url || r.logo_url || atriumFallback,
-  summary: r.summary || r.tagline || "",
-  about: r.about || r.summary || "",
-  facilities: splitList(r.facilities),
-  awards: [],
-  hours: r.opening_hours
-    ? [{ day: "All week", time: r.opening_hours }]
-    : [
-        { day: "Mon – Fri", time: "9:00 AM – 6:00 PM" },
-        { day: "Sat – Sun", time: "10:00 AM – 4:00 PM" },
-        { day: "Emergency", time: "24 Hours" },
-      ],
-  doctors_list: baseDoctors,
-  lab_tests: baseLabTests,
-  rooms: baseRooms,
-  management: baseManagement,
-});
+const mapPublicToHospital = (r: PublicHospital, doctors: Doctor[] = []): Hospital => {
+  const phones = contactList(r.contact_phone, r.additional_phones);
+  const emails = contactList(r.contact_email, r.additional_emails);
+  const websites = contactList(null, r.websites);
+
+  return {
+    slug: r.slug || slugify(r.name || r.id || ""),
+    name: r.name || "Untitled hospital",
+    tag: r.tagline || "Partner hospital",
+    location: [r.location, r.district, r.division].filter(Boolean).join(", ") || "",
+    address: r.address || r.location || "",
+    rating: Number(r.rating) || 0,
+    reviews: Number(r.reviews_count) || 0,
+    beds: Number(r.beds) || 0,
+    doctors: Number(r.doctor_count) || 0,
+    founded: Number(r.founded_year) || new Date().getFullYear(),
+    specialties: splitList(r.specialties),
+    cert: "Verified partner",
+    phone: phones[0] ?? "",
+    email: emails[0] ?? "",
+    website: websites[0] ?? "",
+    phones,
+    emails,
+    websites,
+    social: socialLinks(r.social),
+    image: r.cover_image_url || r.logo_url || atriumFallback,
+    summary: r.summary || r.tagline || "",
+    about: r.about || r.summary || "",
+    facilities: splitList(r.facilities),
+    awards: [],
+    hours: r.opening_hours
+      ? [{ day: "All week", time: r.opening_hours }]
+      : [
+          { day: "Mon – Fri", time: "9:00 AM – 6:00 PM" },
+          { day: "Sat – Sun", time: "10:00 AM – 4:00 PM" },
+          { day: "Emergency", time: "24 Hours" },
+        ],
+    doctors_list: doctors,
+    lab_tests: baseLabTests,
+    rooms: baseRooms,
+    management: baseManagement,
+  };
+};
 
 /**
  * Approved hospitals, from the database.
@@ -176,13 +258,30 @@ const mapPublicToHospital = (r: PublicHospital): Hospital => ({
  * the public site only ever showed hospitals typed in the same browser.
  */
 const fetchApproved = async (): Promise<Hospital[]> => {
-  const { data, error } = await supabase
-    .from("hospitals_public")
-    .select("*")
-    .order("created_at", { ascending: false });
+  // Both views in parallel. `doctors_public` (0022) is already filtered to
+  // active doctors at approved hospitals, so no extra guard is needed here —
+  // and it carries hospital_slug, so the two are joined in memory rather than
+  // with a request per hospital.
+  const [hospitalRes, doctorRes] = await Promise.all([
+    supabase.from("hospitals_public").select("*").order("created_at", { ascending: false }),
+    supabase.from("doctors_public").select("*").order("rating", { ascending: false, nullsFirst: false }),
+  ]);
 
-  if (error || !data) return [];
-  return data.filter((r) => r.name).map(mapPublicToHospital);
+  if (hospitalRes.error || !hospitalRes.data) return [];
+
+  // A failed doctor read must not blank the hospital list — the page is still
+  // worth rendering without its roster.
+  const bySlug = new Map<string, Doctor[]>();
+  for (const row of (doctorRes.data ?? []) as PublicDoctor[]) {
+    if (!row.hospital_slug || !row.name) continue;
+    const list = bySlug.get(row.hospital_slug);
+    if (list) list.push(mapPublicToDoctor(row));
+    else bySlug.set(row.hospital_slug, [mapPublicToDoctor(row)]);
+  }
+
+  return hospitalRes.data
+    .filter((r) => r.name)
+    .map((r) => mapPublicToHospital(r, r.slug ? bySlug.get(r.slug) ?? [] : []));
 };
 
 /** Injects admin-managed doctors and lab tests into whichever hospitals match. */
@@ -247,10 +346,17 @@ const useApprovedHospitals = () => {
     };
   }, []);
 
+  // Approved rows only. `staticHospitals` used to be merged in behind them,
+  // which meant the public site advertised 70 hospitals that existed nowhere
+  // but this repo — a "Verified Health Hub" of hardcoded strings. Those rows
+  // now live in `tenants` with status 'approved', so the same hospitals still
+  // render; the difference is that a super admin can now suspend one and have
+  // it actually disappear, which the fallback silently prevented.
+  //
   // localTick is a deliberate dependency: it is how an edit in another tab to
   // the not-yet-migrated doctor and lab catalogues forces a re-merge.
   const hospitals = useMemo(
-    () => withLocalExtras(dedupeBySlug([...approved, ...staticHospitals])),
+    () => withLocalExtras(dedupeBySlug(approved)),
     [approved, localTick],
   );
 

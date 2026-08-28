@@ -48,7 +48,7 @@ export const cabinsResource: ResourceDefinition<CabinCreate, CabinUpdate> = {
   updateSchema: cabinUpdateSchema,
   searchFields: ["number"],
   filterFields: ["status", "category", "floor"],
-  defaultSort: { column: "number", ascending: true },
+  defaultSort: { column: "created_at", ascending: false },
   roles: {
     read: ["hospital_admin", "hr_admin", "doctor"],
     write: ["hospital_admin", "hr_admin"],

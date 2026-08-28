@@ -41,7 +41,7 @@ export const bedsResource: ResourceDefinition<BedCreate, BedUpdate> = {
   updateSchema: bedUpdateSchema,
   searchFields: ["number"],
   filterFields: ["status", "type", "ward_id"],
-  defaultSort: { column: "number", ascending: true },
+  defaultSort: { column: "created_at", ascending: false },
   roles: {
     read: ["hospital_admin", "hr_admin", "doctor"],
     write: ["hospital_admin", "hr_admin"],

@@ -53,7 +53,7 @@ export const packagesResource: ResourceDefinition<PackageCreate, PackageUpdate> 
   updateSchema: packageUpdateSchema,
   searchFields: ["name", "slug", "description"],
   filterFields: ["is_active", "slug"],
-  defaultSort: { column: "price_monthly", ascending: true },
+  defaultSort: { column: "created_at", ascending: false },
   roles: {
     // RLS on packages is `using (true)` for authenticated — a hospital admin
     // has to see the plan they are on. Write is super_admin only.

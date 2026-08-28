@@ -60,7 +60,7 @@ export const nursesResource: ResourceDefinition<NurseCreate, NurseUpdate> = {
   updateSchema: nurseUpdateSchema,
   searchFields: ["name", "ward", "license", "qualification", "email"],
   filterFields: ["status", "ward", "shift"],
-  defaultSort: { column: "name", ascending: true },
+  defaultSort: { column: "created_at", ascending: false },
   roles: {
     read: ["hospital_admin", "hr_admin", "doctor"],
     write: ["hospital_admin", "hr_admin"],

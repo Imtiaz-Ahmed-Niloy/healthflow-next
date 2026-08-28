@@ -7,11 +7,11 @@ import { ArrowLeft, Calendar, Clock, Eye, Share2, Bookmark, ArrowRight } from "l
 import { toast } from "sonner";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
-import { useBlogContent, getBlogPost } from "@/data/cmsBlog";
+import { useBlogPosts, getBlogPost } from "@/data/blogPosts";
 
 const BlogDetail = () => {
   const slug = useParams<{ slug: string }>()?.slug;
-  const { content } = useBlogContent();
+  const { content } = useBlogPosts();
   const posts = content.posts;
   const post = posts.find(p => p.slug === (slug ?? "")) ?? getBlogPost(slug ?? "");
 

@@ -96,6 +96,20 @@ const SortHead = ({
   );
 };
 
+/**
+ * Hides the "Discounts & Offers" table and its editor.
+ *
+ * Only that card is hidden — offers themselves are untouched and still power
+ * the ACTIVE OFFERS stat, the assignments table's Offer column, and the
+ * "Applied Offer" picker in the assignment editor, so an offer already attached
+ * to a hospital keeps working and stays visible where it is applied. The table
+ * is the only place offers can be created, edited or deleted, so while this is
+ * false the catalogue is read-only from this screen.
+ *
+ * Flip to true to bring the section back.
+ */
+const SHOW_OFFERS_SECTION = false;
+
 const PackageManagement = () => {
   const [q, setQ] = useState("");
   const [planFilter, setPlanFilter] = useState("all");
@@ -382,6 +396,7 @@ const PackageManagement = () => {
       </div>
 
       {/* Offers */}
+      {SHOW_OFFERS_SECTION && (
       <div className="bg-card rounded-2xl border border-border/60 overflow-hidden">
         <div className="p-5 border-b border-border/50 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -461,6 +476,7 @@ const PackageManagement = () => {
           </table>
         </div>
       </div>
+      )}
 
       {editing && (
         <AssignmentEditor
@@ -472,7 +488,7 @@ const PackageManagement = () => {
         />
       )}
 
-      {editingOffer && (
+      {SHOW_OFFERS_SECTION && editingOffer && (
         <OfferEditor offer={editingOffer} plans={plans} onClose={() => setEditingOffer(null)} />
       )}
     </SuperLayout>

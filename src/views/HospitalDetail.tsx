@@ -260,6 +260,11 @@ const HospitalDetail = () => {
                         </div>
                       </div>
                     )}
+                    {phones.length === 0 && emails.length === 0 && websites.length === 0 && (
+                      <p className="text-muted-foreground">
+                        No phone or email on file for this hospital yet.
+                      </p>
+                    )}
                     {socials.length > 0 && (
                       <div className="pt-2">
                         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Follow</p>
@@ -296,9 +301,11 @@ const HospitalDetail = () => {
               <Link href="/patient/find-doctors" className="mt-6 block w-full text-center rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors">
                 Book Appointment
               </Link>
-              <a href={`tel:${hospital.phone}`} className="mt-3 block w-full text-center rounded-full border border-primary/30 py-3 text-sm font-semibold text-primary hover:bg-primary/5 transition-colors">
-                Call Now
-              </a>
+              {hospital.phone && (
+                <a href={`tel:${hospital.phone}`} className="mt-3 block w-full text-center rounded-full border border-primary/30 py-3 text-sm font-semibold text-primary hover:bg-primary/5 transition-colors">
+                  Call Now
+                </a>
+              )}
             </motion.div>
           </aside>
         </section>
@@ -398,7 +405,11 @@ const HospitalDetail = () => {
               </motion.article>
             ))}
             {filteredDoctors.length === 0 && (
-              <p className="text-sm text-muted-foreground col-span-full text-center py-10">No doctors match your filters.</p>
+              <p className="text-sm text-muted-foreground col-span-full text-center py-10">
+                {hospital.doctors_list.length === 0
+                  ? "This hospital has not listed any doctors yet."
+                  : "No doctors match your filters."}
+              </p>
             )}
           </div>
         </section>
