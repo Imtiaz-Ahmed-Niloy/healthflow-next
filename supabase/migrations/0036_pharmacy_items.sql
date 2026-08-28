@@ -1,4 +1,4 @@
--- 0034_pharmacy_items.sql
+-- 0036_pharmacy_items.sql
 -- The pharmacy items inventory table behind /admin/pharmacy, which until now
 -- kept its demo items in localStorage under storeKey "pharmacy".
 --
@@ -14,9 +14,11 @@ create table public.pharmacy_items (
   name       text not null
                constraint pharmacy_items_name_check check (length(btrim(name)) > 0),
 
-  -- Option values from UI: "Analgesic", "Antibiotic", "Endocrine", "Cardio", "Vitamins"
+  -- Stored lowercase to match doctors, nurses, support staff, lab tests and
+  -- assets. The page maps these to display labels; nothing user-facing reads
+  -- the stored value directly.
   category   text
-               constraint pharmacy_items_category_check check (category in ('Analgesic', 'Antibiotic', 'Endocrine', 'Cardio', 'Vitamins')),
+               constraint pharmacy_items_category_check check (category in ('analgesic', 'antibiotic', 'endocrine', 'cardio', 'vitamins')),
 
   stock      integer not null default 0
                constraint pharmacy_items_stock_check check (stock >= 0),
@@ -24,9 +26,9 @@ create table public.pharmacy_items (
   reorder    integer not null default 0
                constraint pharmacy_items_reorder_check check (reorder >= 0),
 
-  -- Option values from UI: "Active", "Low Stock", "Out of Stock"
-  status     text not null default 'Active'
-               constraint pharmacy_items_status_check check (status in ('Active', 'Low Stock', 'Out of Stock')),
+  -- Stored lowercase, same as every other module's status column.
+  status     text not null default 'active'
+               constraint pharmacy_items_status_check check (status in ('active', 'low_stock', 'out_of_stock')),
 
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

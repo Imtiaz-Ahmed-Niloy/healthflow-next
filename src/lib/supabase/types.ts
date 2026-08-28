@@ -1467,6 +1467,60 @@ export type Database = {
           },
         ]
       }
+      pharmacy_items: {
+        Row: {
+          category: string | null
+          created_at: string
+          id: string
+          name: string
+          reorder: number
+          sku: string
+          status: string
+          stock: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          reorder?: number
+          sku: string
+          status?: string
+          stock?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          reorder?: number
+          sku?: string
+          status?: string
+          stock?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pharmacy_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pharmacy_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
