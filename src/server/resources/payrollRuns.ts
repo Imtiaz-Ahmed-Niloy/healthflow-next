@@ -18,10 +18,21 @@ const optionalText = z.string().trim().max(2000).optional().or(z.literal("")).tr
   (value) => (value === "" ? undefined : value),
 );
 
-/** Number fields arrive from forms as strings. */
-const optionalNumber = z.coerce.number().optional().or(z.literal("")).transform(
-  (value) => (value === "" ? undefined : value),
-);
+/**
+ * Number fields arrive from forms as strings, and a blank input posts "".
+ *
+ * The blank has to be caught *before* coercion. z.coerce.number() reads "" as
+ * 0, so the `.or(z.literal(""))` spelling optionalText uses never fires here —
+ * it would quietly write a zero into a field the user left empty. Narrowing to
+ * string | number first also stops null, true and [] coercing to a number over
+ * the JSON API; anything else becomes NaN, which z.number() rejects.
+ */
+const blankToUndefined = (value: unknown) => {
+  if (value === "" || value === null || value === undefined) return undefined;
+  return typeof value === "string" || typeof value === "number" ? value : NaN;
+};
+
+const optionalNumber = z.preprocess(blankToUndefined, z.coerce.number().optional());
 
 export const payrollRunCreateSchema = z.object({
   // 'YYYY-MM'. The DB has the same check; mirroring it here turns a bad value

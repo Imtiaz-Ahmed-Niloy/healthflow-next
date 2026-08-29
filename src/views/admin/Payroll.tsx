@@ -13,7 +13,7 @@ import { load, save } from "@/lib/storage";
 type DeductionOverride = { tax?: number; other?: number };
 const OVERRIDES_KEY = "payroll-deduction-overrides-v1";
 
-// Mirrors public.payroll_runs (supabase/migrations/0031_payroll_runs.sql).
+// Mirrors public.payroll_runs (supabase/migrations/0037_payroll_runs.sql).
 // Column names are the database's, so form values post straight through with no
 // mapping. Postgres `numeric` arrives over the wire as a string, hence the
 // union on the totals.

@@ -1,4 +1,4 @@
--- 0031_payroll_runs.sql
+-- 0037_payroll_runs.sql
 -- The table behind /admin/payroll, which until now kept two demo salary runs in
 -- localStorage under storeKey "payroll" — so every hospital saw the same fake
 -- "PR-2026-04 / PR-2026-05" rows and nothing an admin created survived a
@@ -51,6 +51,14 @@ create table public.payroll_runs (
 
 create index payroll_runs_tenant_id_idx on public.payroll_runs (tenant_id);
 create index payroll_runs_status_idx     on public.payroll_runs (tenant_id, status);
+
+-- The run code is derived from the period and department, so submitting the
+-- "New payroll run" form twice produces two rows that claim to be the same
+-- disbursement. On payroll that is a double payment, not a duplicate listing.
+-- Partial because `reference` is nullable: a row without one is still valid.
+create unique index payroll_runs_tenant_reference_key
+  on public.payroll_runs (tenant_id, lower(btrim(reference)))
+  where reference is not null;
 
 create trigger payroll_runs_set_updated_at
   before update on public.payroll_runs
