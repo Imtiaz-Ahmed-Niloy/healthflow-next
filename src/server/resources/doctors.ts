@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createAdminSupabase, createServerSupabase } from "@/lib/supabase/server";
 import type { ResourceDefinition } from "./types";
 
 /**
@@ -64,5 +65,43 @@ export const doctorsResource: ResourceDefinition<DoctorCreate, DoctorUpdate> = {
   roles: {
     read: ["hospital_admin", "hr_admin", "doctor", "patient"],
     write: ["hospital_admin", "hr_admin"],
+  },
+
+  /**
+   * Removing a doctor has to take their login with it (HF-75).
+   *
+   * The `doctors` row and `doctor_login_secrets` already went on delete, but
+   * the auth user and its profile did not — and RLS reads the tenant off the
+   * JWT, so the account kept reading the hospital's patients, appointments and
+   * wards long after the doctor was gone.
+   *
+   * The account itself is left alive on purpose: a doctor may work at more
+   * than one hospital, so this severs the employment, not the person. See
+   * 0038_revoke_staff_access.sql.
+   */
+  beforeDelete: async ({ id }) => {
+    // The caller's own client, so a hospital_admin from another tenant sees
+    // nothing here and the delete goes on to 404 exactly as it did before.
+    const supabase = await createServerSupabase();
+    const { data: doctor, error } = await supabase
+      .from("doctors")
+      .select("profile_id")
+      .eq("id", id)
+      .maybeSingle();
+
+    // Let the delete run and produce the ordinary "Not found". Refusing here
+    // would turn every delete of an already-gone row into a confusing 409.
+    if (error || !doctor?.profile_id) return;
+
+    const { error: revokeError } = await createAdminSupabase().rpc("revoke_staff_access", {
+      p_profile_id: doctor.profile_id,
+    });
+
+    // Refuse the delete rather than complete it. A doctor still on the list is
+    // a visible problem someone can retry; a deleted doctor holding a working
+    // login is the exact silent hole this ticket is about.
+    if (revokeError) {
+      return `The doctor was not deleted: their login could not be revoked (${revokeError.message}). Try again.`;
+    }
   },
 };

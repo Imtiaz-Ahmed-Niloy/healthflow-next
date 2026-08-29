@@ -2166,6 +2166,15 @@ export type Database = {
         Args: { p_doctor_id: string; p_medicines: Json; p_tenant_id: string }
         Returns: undefined
       }
+      restore_staff_access: {
+        Args: {
+          p_profile_id: string
+          p_role: Database["public"]["Enums"]["app_role"]
+          p_tenant_id: string
+        }
+        Returns: boolean
+      }
+      revoke_staff_access: { Args: { p_profile_id: string }; Returns: boolean }
       transfer_admission: {
         Args: { p_admission_id: string; p_bed_id?: string; p_cabin_id?: string }
         Returns: {
