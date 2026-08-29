@@ -151,7 +151,14 @@ const HospitalDetail = () => {
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}>
               <h2 className="font-display text-3xl text-primary">About {hospital.name}</h2>
               <p className="text-muted-foreground leading-relaxed mt-4">{hospital.about}</p>
-              <p className="text-muted-foreground leading-relaxed mt-3">{hospital.summary}</p>
+              {hospital.summary && (
+                <>
+                  {/* Guarded, unlike `about` above: a heading with nothing under
+                      it reads as a broken page, and summary is optional. */}
+                  <h3 className="font-display text-lg text-primary mt-6 mb-2">Summary</h3>
+                  <p className="text-muted-foreground leading-relaxed">{hospital.summary}</p>
+                </>
+              )}
             </motion.div>
 
             <div>
