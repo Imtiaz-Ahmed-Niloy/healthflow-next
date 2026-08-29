@@ -1467,6 +1467,63 @@ export type Database = {
           },
         ]
       }
+      payroll_runs: {
+        Row: {
+          created_at: string
+          department: string | null
+          gross_total: number
+          headcount: number
+          id: string
+          net_total: number
+          period: string
+          reference: string | null
+          status: Database["public"]["Enums"]["payroll_run_status"]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          department?: string | null
+          gross_total?: number
+          headcount?: number
+          id?: string
+          net_total?: number
+          period: string
+          reference?: string | null
+          status?: Database["public"]["Enums"]["payroll_run_status"]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          department?: string | null
+          gross_total?: number
+          headcount?: number
+          id?: string
+          net_total?: number
+          period?: string
+          reference?: string | null
+          status?: Database["public"]["Enums"]["payroll_run_status"]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_runs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_runs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pharmacy_items: {
         Row: {
           category: string | null
@@ -2168,6 +2225,7 @@ export type Database = {
         | "reserved"
       doctor_status: "active" | "on_leave" | "suspended"
       patient_gender: "male" | "female" | "other"
+      payroll_run_status: "draft" | "approved" | "paid"
       tenant_status: "pending" | "approved" | "suspended"
       ward_category:
         | "general"
@@ -2343,6 +2401,7 @@ export const Constants = {
       ],
       doctor_status: ["active", "on_leave", "suspended"],
       patient_gender: ["male", "female", "other"],
+      payroll_run_status: ["draft", "approved", "paid"],
       tenant_status: ["pending", "approved", "suspended"],
       ward_category: [
         "general",
