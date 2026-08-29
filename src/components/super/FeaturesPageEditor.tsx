@@ -139,10 +139,10 @@ const FeaturesPageEditor = () => {
                   <Textarea rows={2} value={it.desc} onChange={e => setArchItem(i, { desc: e.target.value })} /></div>
                 <div className="space-y-1.5"><Label>Bullets (one per line)</Label>
                   <Textarea rows={3} value={it.bullets.join("\n")} onChange={e => setArchItem(i, { bullets: e.target.value.split("\n").map(s => s.trim()).filter(Boolean) })} /></div>
-                <label className="flex items-center gap-2 text-sm">
+                <Label className="flex items-center gap-2 text-sm">
                   <Switch checked={!!it.dark} onCheckedChange={v => setArchItem(i, { dark: v })} />
                   Dark / highlighted card
-                </label>
+                </Label>
               </div>
             ))}
           </div>
@@ -209,10 +209,10 @@ const FeaturesPageEditor = () => {
                   <Textarea rows={2} value={it.desc} onChange={e => setCoreItem(i, { desc: e.target.value })} /></div>
                 <div className="space-y-1.5"><Label>Chips (comma separated)</Label>
                   <Input value={(it.chips ?? []).join(", ")} onChange={e => setCoreItem(i, { chips: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })} /></div>
-                <label className="flex items-center gap-2 text-sm">
+                <Label className="flex items-center gap-2 text-sm">
                   <Switch checked={!!it.featured} onCheckedChange={v => setCoreItem(i, { featured: v })} />
                   Featured / highlighted card
-                </label>
+                </Label>
               </div>
             ))}
           </div>

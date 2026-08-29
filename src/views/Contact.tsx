@@ -10,6 +10,7 @@ import Footer from "@/components/site/Footer";
 import type { CmsHeroFields } from "@/data/cmsPageHero";
 import type { ContactContent } from "@/data/contactContent";
 import { BRAND_INFO } from "@/constants/brand";
+import { Label } from "@/components/ui/label";
 
 const Ico = ({ name, className }: { name: string; className?: string }) => {
   const C = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[name] ?? Icons.Sparkles;
@@ -67,18 +68,18 @@ const Contact = ({ hero, content }: { hero: CmsHeroFields; content: ContactConte
             className="rounded-3xl bg-card border border-border/60 shadow-soft p-8 space-y-5">
             <div className="grid sm:grid-cols-2 gap-5">
               <div>
-                <label className="text-xs font-bold tracking-wider text-foreground/70">{f.nameLabel}</label>
+                <Label className="text-xs font-bold tracking-wider text-foreground/70" required>{f.nameLabel}</Label>
                 <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
                   placeholder={f.namePlaceholder} className="mt-2 w-full rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
               </div>
               <div>
-                <label className="text-xs font-bold tracking-wider text-foreground/70">{f.emailLabel}</label>
+                <Label className="text-xs font-bold tracking-wider text-foreground/70" required>{f.emailLabel}</Label>
                 <input required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
                   placeholder={f.emailPlaceholder} className="mt-2 w-full rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
               </div>
             </div>
             <div>
-              <label className="text-xs font-bold tracking-wider text-foreground/70">{f.subjectLabel}</label>
+              <Label className="text-xs font-bold tracking-wider text-foreground/70">{f.subjectLabel}</Label>
               <div className="relative mt-2">
                 <select value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })}
                   className="w-full appearance-none rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30">
@@ -88,7 +89,7 @@ const Contact = ({ hero, content }: { hero: CmsHeroFields; content: ContactConte
               </div>
             </div>
             <div>
-              <label className="text-xs font-bold tracking-wider text-foreground/70">{f.messageLabel}</label>
+              <Label className="text-xs font-bold tracking-wider text-foreground/70" required>{f.messageLabel}</Label>
               <textarea required rows={5} value={form.message} onChange={e => setForm({ ...form, message: e.target.value })}
                 placeholder={f.messagePlaceholder} className="mt-2 w-full rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
             </div>

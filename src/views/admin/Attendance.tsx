@@ -572,22 +572,22 @@ const Attendance = () => {
           });
           setLeaveModal(false);
         }}>
-          <Field label="Employee">
+          <Field label="Employee" required>
             <Select name="empId" required>
               <option value="">Select employee…</option>
               {employees.map(e => <option key={e.id} value={e.empId}>{e.name} ({e.empId})</option>)}
             </Select>
           </Field>
-          <Field label="Leave type">
+          <Field label="Leave type" required>
             <Select name="type" required>
               {Object.keys(LEAVE_QUOTA).map(t => <option key={t} value={t}>{t}</option>)}
             </Select>
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="From"><Input name="from" type="date" required defaultValue={today} /></Field>
-            <Field label="To"><Input name="to" type="date" required defaultValue={today} /></Field>
+            <Field label="From" required><Input name="from" type="date" required defaultValue={today} /></Field>
+            <Field label="To" required><Input name="to" type="date" required defaultValue={today} /></Field>
           </div>
-          <Field label="Reason"><TextArea name="reason" required /></Field>
+          <Field label="Reason" required><TextArea name="reason" required /></Field>
         </form>
       </Modal>
 
@@ -600,8 +600,8 @@ const Attendance = () => {
           addHoliday(String(fd.get("date")), String(fd.get("name")));
           setHolidayModal(false);
         }}>
-          <Field label="Date"><Input name="date" type="date" required /></Field>
-          <Field label="Holiday name"><Input name="name" required placeholder="e.g. Eid-ul-Fitr" /></Field>
+          <Field label="Date" required><Input name="date" type="date" required /></Field>
+          <Field label="Holiday name" required><Input name="name" required placeholder="e.g. Eid-ul-Fitr" /></Field>
         </form>
       </Modal>
 

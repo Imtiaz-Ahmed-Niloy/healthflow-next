@@ -225,9 +225,9 @@ export default function Administration() {
         </>}>
         <form id="cert-form" onSubmit={onIssueSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
-            <Field label="Recipient name"><Input name="recipient" required defaultValue={editing?.recipient} placeholder="Full name" /></Field>
-            <Field label="Reference ID (Patient / Employee)"><Input name="refId" required defaultValue={editing?.refId} placeholder="P-XXXXX or EMP-XXXX" /></Field>
-            <Field label="Issued by"><Input name="issuedBy" required defaultValue={editing?.issuedBy} placeholder="Doctor / HR Officer" /></Field>
+            <Field label="Recipient name" required><Input name="recipient" required defaultValue={editing?.recipient} placeholder="Full name" /></Field>
+            <Field label="Reference ID (Patient / Employee)" required><Input name="refId" required defaultValue={editing?.refId} placeholder="P-XXXXX or EMP-XXXX" /></Field>
+            <Field label="Issued by" required><Input name="issuedBy" required defaultValue={editing?.issuedBy} placeholder="Doctor / HR Officer" /></Field>
             <Field label="Issue date"><Input name="issuedOn" type="date" defaultValue={editing?.issuedOn !== "—" ? editing?.issuedOn : ""} /></Field>
             <Field label="Status">
               <Select name="status" defaultValue={editing?.status || "Issued"}>

@@ -70,10 +70,10 @@ const Finance = () => {
           crud.create({ id: `INV-A-${1100 + crud.items.length}`, party: String(fd.get("party")), type: String(fd.get("type")), amount: String(fd.get("amount")), due: String(fd.get("due")), status: "Pending" } as never);
           setAdd(false);
         }}>
-          <Field label="Party"><Input name="party" required /></Field>
+          <Field label="Party" required><Input name="party" required /></Field>
           <Field label="Type"><Select name="type"><option>Receivable</option><option>Payable</option></Select></Field>
-          <Field label="Amount"><Input name="amount" type="number" required /></Field>
-          <Field label="Due date"><Input name="due" type="date" required /></Field>
+          <Field label="Amount" required><Input name="amount" type="number" required /></Field>
+          <Field label="Due date" required><Input name="due" type="date" required /></Field>
         </form>
       </Modal>
     </AdminLayout>

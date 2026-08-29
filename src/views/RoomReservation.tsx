@@ -10,6 +10,7 @@ import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import { Input } from "@/components/ui/input";
 import { hospitals } from "@/data/hospitals";
+import { Label } from "@/components/ui/label";
 
 const allRooms = hospitals.flatMap((h) => h.rooms.map((r) => ({ ...r, hospital: h })));
 
@@ -81,11 +82,11 @@ const RoomReservation = () => {
             <form onSubmit={(e) => { e.preventDefault(); if (selected.available === 0) return toast.error("Room is full"); toast.success("Reservation confirmed", { description: `${selected.type} · ${nights} nights · $${total}` }); }}
               className="mt-5 space-y-4">
               <div>
-                <label className="text-[11px] uppercase tracking-widest font-bold text-muted-foreground">Check-in date</label>
+                <Label className="text-[11px] uppercase tracking-widest font-bold text-muted-foreground" required>Check-in date</Label>
                 <Input required type="date" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} className="mt-2 rounded-xl" />
               </div>
               <div>
-                <label className="text-[11px] uppercase tracking-widest font-bold text-muted-foreground">Nights</label>
+                <Label className="text-[11px] uppercase tracking-widest font-bold text-muted-foreground" required>Nights</Label>
                 <Input required type="number" min={1} max={60} value={nights} onChange={(e) => setNights(Math.max(1, Number(e.target.value)))} className="mt-2 rounded-xl" />
               </div>
 

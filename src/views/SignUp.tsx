@@ -13,6 +13,7 @@ import { clearSignupResult, setSignupResult } from "@/redux/features/auth/authSl
 import { useAppDispatch } from "@/redux/hooks";
 import { supabase } from "@/lib/supabase/client";
 import { homePathForRole } from "@/lib/auth/permissions";
+import { Label } from "@/components/ui/label";
 
 type PatientSignupFormValues = PatientSignupRequest;
 
@@ -214,9 +215,9 @@ const Signup = () => {
 
           <form data-testid="signup-form" onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-4" noValidate>
             <div>
-              <label htmlFor="fullName" className="text-[11px] tracking-widest font-bold text-primary">
+              <Label htmlFor="fullName" className="text-[11px] tracking-widest font-bold text-primary" required>
                 FULL NAME
-              </label>
+              </Label>
               <div className="relative mt-2">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
@@ -257,9 +258,9 @@ const Signup = () => {
             </div>
 
             <div>
-              <label htmlFor="email" className="text-[11px] tracking-widest font-bold text-primary">
+              <Label htmlFor="email" className="text-[11px] tracking-widest font-bold text-primary" required>
                 EMAIL ADDRESS
-              </label>
+              </Label>
               <div className="relative mt-2">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
@@ -297,9 +298,9 @@ const Signup = () => {
             </div>
 
             <div>
-              <label htmlFor="phone" className="text-[11px] tracking-widest font-bold text-primary">
+              <Label htmlFor="phone" className="text-[11px] tracking-widest font-bold text-primary" required>
                 PHONE NUMBER
-              </label>
+              </Label>
               <div className="relative mt-2">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
@@ -346,9 +347,9 @@ const Signup = () => {
             </div>
 
             <div>
-              <label htmlFor="password" className="text-[11px] tracking-widest font-bold text-primary">
+              <Label htmlFor="password" className="text-[11px] tracking-widest font-bold text-primary" required>
                 PASSWORD
-              </label>
+              </Label>
               <div className="relative mt-2">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
@@ -402,9 +403,9 @@ const Signup = () => {
             </div>
 
             <div>
-              <label htmlFor="gender" className="text-[11px] tracking-widest font-bold text-primary">
+              <Label htmlFor="gender" className="text-[11px] tracking-widest font-bold text-primary" required>
                 GENDER
-              </label>
+              </Label>
               <div className="relative mt-2">
                 <BadgeInfo className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <select
@@ -440,9 +441,9 @@ const Signup = () => {
             </div>
 
             <div>
-              <label htmlFor="dateOfBirth" className="text-[11px] tracking-widest font-bold text-primary">
+              <Label htmlFor="dateOfBirth" className="text-[11px] tracking-widest font-bold text-primary" required>
                 DATE OF BIRTH
-              </label>
+              </Label>
               <div className="relative mt-2">
                 <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input

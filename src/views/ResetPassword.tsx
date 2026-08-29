@@ -8,6 +8,7 @@ import { ShieldCheck, Lock, Shield, ArrowRight, CheckCircle2, Circle } from "luc
 import { toast } from "sonner";
 import { AuthLayout } from "@/components/site/AuthLayout";
 import { supabase } from "@/lib/supabase/client";
+import { Label } from "@/components/ui/label";
 const orbImg = "/assets/secure-orb.jpg";
 
 const checks = (pw: string) => ({
@@ -82,7 +83,7 @@ const ResetPassword = () => {
 
             <form onSubmit={onSubmit} className="mt-7 space-y-5">
               <div>
-                <label className="text-[11px] tracking-widest font-bold text-primary">NEW PASSWORD</label>
+                <Label className="text-[11px] tracking-widest font-bold text-primary" required>NEW PASSWORD</Label>
                 <div className="relative mt-2">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
                   <input value={pw} onChange={e => setPw(e.target.value)} required type="password" placeholder="••••••••••••"
@@ -90,7 +91,7 @@ const ResetPassword = () => {
                 </div>
               </div>
               <div>
-                <label className="text-[11px] tracking-widest font-bold text-primary">CONFIRM NEW PASSWORD</label>
+                <Label className="text-[11px] tracking-widest font-bold text-primary" required>CONFIRM NEW PASSWORD</Label>
                 <div className="relative mt-2">
                   <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
                   <input value={pw2} onChange={e => setPw2(e.target.value)} required type="password" placeholder="••••••••••••"

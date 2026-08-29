@@ -8,6 +8,7 @@ import { SuperLayout } from "@/components/super/SuperLayout";
 import { Card, Kpi, SectionTitle, Btn, Pill } from "@/components/admin/ui";
 import { Modal } from "@/components/admin/crud";
 import { load, save, uid } from "@/lib/storage";
+import { Label } from "@/components/ui/label";
 
 // ---- Types ----
 type Hospital = { id: string; name: string; plan?: string; email?: string; status?: string };
@@ -496,10 +497,10 @@ const GenerateBillModal = ({
 const inputCls = "h-9 w-full rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30";
 
 const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <label className="block">
+  <Label className="block">
     <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1">{label.toUpperCase()}</p>
     {children}
-  </label>
+  </Label>
 );
 
 const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
