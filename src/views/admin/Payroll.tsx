@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Printer, Play, FileText, Download, Search, Settings2 } from "lucide-react";
+import { Printer, Play, Download, Search, Settings2, ChevronRight } from "lucide-react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, Btn, Pill } from "@/components/admin/ui";
-import { useCrud, DataTable, Toolbar, Modal, Field, Input, statusTone, RowActions, exportCSV, type Column } from "@/components/admin/crud";
+import { DataTable, Toolbar, Modal, ConfirmDialog, Field, Input, statusTone, RowActions, exportCSV, type Column } from "@/components/admin/crud";
+import { useResourceCrud } from "@/components/admin/useResourceCrud";
 import { useNotifications } from "@/components/admin/NotificationProvider";
 import { processPayroll, getPayslips, updatePayslipStatus, printPayslip, exportPayslipsCSV, getEligibleEmployees, getDepartments, computePayslip, getSettings, saveSettings, defaultSettings, type Payslip, type PayrollSettings } from "@/lib/payroll";
 import { load, save } from "@/lib/storage";
@@ -12,25 +13,44 @@ import { load, save } from "@/lib/storage";
 type DeductionOverride = { tax?: number; other?: number };
 const OVERRIDES_KEY = "payroll-deduction-overrides-v1";
 
-type Run = { id: string; period: string; employees: string; gross: string; net: string; status: string };
-const seed: Run[] = [
-  { id: "PR-2026-04", period: "Apr 2026", employees: "184", gross: "412000", net: "356000", status: "Paid" },
-  { id: "PR-2026-05", period: "May 2026", employees: "186", gross: "418500", net: "361200", status: "Draft" },
-];
-const flow = ["Draft", "Approved", "Paid"];
+// Mirrors public.payroll_runs (supabase/migrations/0037_payroll_runs.sql).
+// Column names are the database's, so form values post straight through with no
+// mapping. Postgres `numeric` arrives over the wire as a string, hence the
+// union on the totals.
+type PayrollRun = {
+  id: string;
+  tenant_id?: string;
+  period: string;                 // "2026-04"
+  department: string | null;
+  reference: string | null;
+  headcount: number;
+  gross_total: number | string;
+  net_total: number | string;
+  status: "draft" | "approved" | "paid";
+  created_at?: string;
+  updated_at?: string;
+};
+const flow = ["draft", "approved", "paid"] as const;
 
 const fmt = (n: number) => `৳${n.toLocaleString()}`;
+/** "2026-04" -> "Apr 2026". Falls back to the raw value when it is not YYYY-MM. */
+const fmtPeriod = (p: string) => {
+  const [y, m] = p.split("-").map(Number);
+  if (!y || !m) return p;
+  return new Date(y, m - 1, 1).toLocaleString("en-US", { month: "short", year: "numeric" });
+};
 
 const Payroll = () => {
-  const crud = useCrud<Run>("payroll", seed);
+  const crud = useResourceCrud<PayrollRun>("payroll-runs");
   const { push } = useNotifications();
   const [add, setAdd] = useState(false);
   const [q, setQ] = useState("");
   const [empQ, setEmpQ] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<PayrollSettings>(getSettings());
-  const [slipsRun, setSlipsRun] = useState<Run | null>(null);
+  const [slipsRun, setSlipsRun] = useState<PayrollRun | null>(null);
   const [slips, setSlips] = useState<Payslip[]>([]);
+  const [confirmDel, setConfirmDel] = useState<PayrollRun | null>(null);
   const [overrides, setOverrides] = useState<Record<string, DeductionOverride>>(() => load(OVERRIDES_KEY, {}));
   const setOverride = (empId: string, patch: DeductionOverride) => {
     setOverrides(prev => {
@@ -39,47 +59,55 @@ const Payroll = () => {
       return next;
     });
   };
-  const rows = crud.items.filter(r => !q || r.period.toLowerCase().includes(q.toLowerCase()));
 
-  const advance = (r: Run) => {
+  const rows = crud.items.filter(r => {
+    if (!q) return true;
+    const t = q.toLowerCase();
+    return [r.reference, r.period, fmtPeriod(r.period), r.department]
+      .some(v => (v ?? "").toLowerCase().includes(t));
+  });
+
+  const runLabel = (r: PayrollRun) => r.reference ?? fmtPeriod(r.period);
+
+  const advance = async (r: PayrollRun) => {
     const i = flow.indexOf(r.status);
-    if (i < flow.length - 1) {
-      const next = flow[i + 1];
-      crud.update(r.id, { status: next });
-      if (next === "Paid") updatePayslipStatus(r.id, "Paid");
-      push({ title: `${r.id} → ${next}`, tone: next === "Paid" ? "ok" : "info" });
-    }
+    if (i < 0 || i >= flow.length - 1) return;
+    const next = flow[i + 1];
+    await crud.update(r.id, { status: next });
+    if (next === "paid") updatePayslipStatus(r.id, "Paid");
+    push({ title: `${runLabel(r)} → ${next}`, tone: next === "paid" ? "ok" : "info" });
   };
 
-  const process = (r: Run) => {
-    const result = processPayroll(r.period, r.id);
-    crud.update(r.id, {
-      employees: String(result.employees),
-      gross: String(result.gross),
-      net: String(result.net),
+  const process = async (r: PayrollRun) => {
+    const result = processPayroll(r.period, r.id, r.department ?? undefined);
+    await crud.update(r.id, {
+      headcount: result.employees,
+      gross_total: result.gross,
+      net_total: result.net,
     });
     push({
       title: `Processed ${result.employees} payslips`,
-      body: `${r.id} · Gross ${fmt(result.gross)} · Net ${fmt(result.net)}`,
+      body: `${runLabel(r)} · Gross ${fmt(result.gross)} · Net ${fmt(result.net)}`,
       tone: "ok",
     });
   };
 
-  const openSlips = (r: Run) => {
+  const openSlips = (r: PayrollRun) => {
     setSlipsRun(r);
     setSlips(getPayslips(r.id));
   };
 
-  const cols: Column<Run>[] = [
-    { key: "id", label: "Run", accessor: r => r.id, render: r => <span className="font-mono text-xs text-primary font-semibold">{r.id}</span> },
-    { key: "period", label: "Period", sortable: true, accessor: r => r.period },
-    { key: "employees", label: "Employees", accessor: r => Number(r.employees), sortable: true },
-    { key: "gross", label: "Gross", render: r => fmt(Number(r.gross)) },
-    { key: "net", label: "Net", render: r => fmt(Number(r.net)) },
+  const cols: Column<PayrollRun>[] = [
+    { key: "reference", label: "Run", accessor: r => r.reference ?? r.period,
+      render: r => <span className="font-mono text-xs text-primary font-semibold">{r.reference ?? r.period}</span> },
+    { key: "period", label: "Period", sortable: true, accessor: r => r.period, render: r => fmtPeriod(r.period) },
+    { key: "department", label: "Department", accessor: r => r.department ?? "",
+      render: r => r.department ?? <span className="text-muted-foreground">All departments</span> },
+    { key: "headcount", label: "Employees", sortable: true, accessor: r => r.headcount },
+    { key: "gross_total", label: "Gross", accessor: r => Number(r.gross_total), render: r => fmt(Number(r.gross_total)) },
+    { key: "net_total", label: "Net", accessor: r => Number(r.net_total), render: r => fmt(Number(r.net_total)) },
     { key: "status", label: "Status", render: r => <Pill tone={statusTone(r.status)}>{r.status}</Pill> },
   ];
-
-  const eligibleCount = useMemo(() => getEligibleEmployees().length, [crud.items]);
 
   // Current month payroll summary — computed live from onboarded employees
   const now = new Date();
@@ -90,7 +118,7 @@ const Payroll = () => {
     const [y, m] = periodId.split("-").map(Number);
     return new Date(y, (m || 1) - 1, 1).toLocaleString("en-US", { month: "short", year: "numeric" });
   }, [periodId]);
-  const departments = useMemo(() => getDepartments(), [crud.items]);
+  const departments = useMemo(() => getDepartments(), []);
   const monthSummary = useMemo(() => {
     const eligible = getEligibleEmployees();
     return eligible.map(e => {
@@ -110,7 +138,7 @@ const Payroll = () => {
       };
       return { emp: e, slip };
     });
-  }, [crud.items, periodId, settings, overrides]);
+  }, [periodId, settings, overrides]);
   const filteredSummary = useMemo(() => {
     const t = empQ.trim().toLowerCase();
     return monthSummary.filter(({ emp, slip }) => {
@@ -331,35 +359,97 @@ const Payroll = () => {
         </div>
       </Card>
 
+      {/* Payroll runs */}
+      <Card className="p-5">
+        <div className="mb-4">
+          <h3 className="text-sm font-semibold tracking-tight">Payroll Runs</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            One salary run per month — create it, process payslips, then advance draft → approved → paid.
+          </p>
+        </div>
+        <Toolbar
+          search={q}
+          onSearch={setQ}
+          onAdd={() => setAdd(true)}
+          addLabel="New payroll run"
+          onExport={() => exportCSV(rows as never, "payroll-runs.csv")}
+        />
+        {crud.error ? (
+          <div className="py-12 text-center">
+            <p className="text-sm font-semibold text-destructive">Could not load payroll runs.</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              You may not have access to this module, or the request failed.
+            </p>
+            <button
+              type="button"
+              onClick={() => crud.refetch()}
+              className="mt-3 px-4 py-2 rounded-full text-xs font-semibold border border-border hover:bg-muted"
+            >
+              Try again
+            </button>
+          </div>
+        ) : crud.isLoading ? (
+          <div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>
+        ) : (
+          <DataTable<PayrollRun>
+            rows={rows}
+            columns={cols}
+            empty="No payroll runs yet. Create one to get started."
+            onRow={openSlips}
+            actions={r => (
+              <div className="flex items-center gap-1">
+                {flow.indexOf(r.status) < flow.length - 1 && (
+                  <button
+                    onClick={() => void advance(r)}
+                    title={`Advance to ${flow[flow.indexOf(r.status) + 1]}`}
+                    className="p-1.5 rounded-lg hover:bg-muted text-foreground/70"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                )}
+                <RowActions onView={() => openSlips(r)} onDelete={() => setConfirmDel(r)} />
+              </div>
+            )}
+          />
+        )}
+      </Card>
+
       {/* New run */}
       <Modal open={add} onClose={() => setAdd(false)} title="New payroll run"
         footer={<><Btn variant="outline" onClick={() => setAdd(false)}>Cancel</Btn>
           <button form="pr-form" type="submit" className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground">Create &amp; Process</button></>}>
-        <form id="pr-form" onSubmit={e => {
+        <form id="pr-form" onSubmit={async e => {
           e.preventDefault();
           const fd = new FormData(e.currentTarget);
-          const period = String(fd.get("period"));
-          const department = String(fd.get("department") || "All");
-          const suffix = department === "All" ? "" : `-${department.replace(/\s+/g, "")}`;
-          const id = `PR-${period}${suffix}`;
-          const run: Run = { id, period: department === "All" ? period : `${period} · ${department}`, employees: "0", gross: "0", net: "0", status: "Draft" };
-          crud.create(run as never);
-          const result = processPayroll(period, id, department);
-          crud.update(id, {
-            employees: String(result.employees),
-            gross: String(result.gross),
-            net: String(result.net),
+          const period = String(fd.get("period") || "").trim();
+          const picked = String(fd.get("department") || "").trim();
+          const department = picked && picked !== "All" ? picked : "";
+          const reference = `PR-${period}${department ? `-${department.replace(/\s+/g, "")}` : ""}`;
+
+          const created = await crud.create({
+            period,
+            department: department || undefined,
+            reference,
+            status: "draft",
+          } as never);
+          if (!created) return; // useResourceCrud has already surfaced the error
+
+          const result = processPayroll(period, created.id, department || undefined);
+          await crud.update(created.id, {
+            headcount: result.employees,
+            gross_total: result.gross,
+            net_total: result.net,
           });
           push({
-            title: `Payroll for ${period}${department === "All" ? "" : ` (${department})`} created`,
+            title: `Payroll for ${fmtPeriod(period)}${department ? ` (${department})` : ""} created`,
             body: `${result.employees} payslips · Gross ${fmt(result.gross)} · Net ${fmt(result.net)}`,
             tone: "ok",
           });
           setAdd(false);
-          setSlipsRun({ ...run, employees: String(result.employees), gross: String(result.gross), net: String(result.net) });
+          setSlipsRun({ ...created, headcount: result.employees, gross_total: result.gross, net_total: result.net });
           setSlips(result.payslips);
         }}>
-          <Field label="Period (e.g. 2026-06)"><Input name="period" required /></Field>
+          <Field label="Period"><Input name="period" type="month" required defaultValue={defaultPeriodId} /></Field>
           <Field label="Department">
             <select name="department" defaultValue="All"
               className="w-full bg-muted/40 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary text-sm">
@@ -374,7 +464,7 @@ const Payroll = () => {
       {/* Payslips drawer-modal */}
       <Modal open={!!slipsRun} onClose={() => setSlipsRun(null)}
         size="xl"
-        title={`Payslips · ${slipsRun?.id || ""} (${slipsRun?.period || ""})`}
+        title={`Payslips · ${slipsRun ? `${slipsRun.reference ?? slipsRun.period} · ${fmtPeriod(slipsRun.period)}` : ""}`}
         footer={<>
           <Btn variant="outline" onClick={() => slipsRun && exportPayslipsCSV(slipsRun.id)}>
             <Download className="h-3.5 w-3.5 mr-1.5" /> Export CSV
@@ -385,7 +475,7 @@ const Payroll = () => {
           <div className="text-center py-12">
             <p className="text-sm text-muted-foreground mb-3">No payslips generated yet for this run.</p>
             {slipsRun && (
-              <button onClick={() => { process(slipsRun); setSlips(getPayslips(slipsRun.id)); }}
+              <button onClick={async () => { await process(slipsRun); setSlips(getPayslips(slipsRun.id)); }}
                 className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground inline-flex items-center gap-1.5">
                 <Play className="h-3.5 w-3.5" /> Process payroll now
               </button>
@@ -480,6 +570,14 @@ const Payroll = () => {
           ))}
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={!!confirmDel}
+        onClose={() => setConfirmDel(null)}
+        onConfirm={() => { if (confirmDel) void crud.remove(confirmDel.id); }}
+        title="Delete payroll run"
+        description="This permanently removes the run row. Any generated payslips stay in your browser, but the run is gone."
+      />
     </AdminLayout>
   );
 };
