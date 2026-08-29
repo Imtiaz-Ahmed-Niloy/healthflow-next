@@ -247,6 +247,17 @@ export const createResourceRoute = <TCreate, TUpdate>(
     const id = await readId(context);
     if (!id) return fail("Record id is required", 400);
 
+    // Before the row goes, not after: a hook that needs something off the row
+    // (a doctor's profile_id, to revoke their login) cannot read it once the
+    // delete has run. See ResourceDefinition.beforeDelete.
+    if (definition.beforeDelete) {
+      const refusal = await definition.beforeDelete({
+        id,
+        auth: { role: auth.role, tenantId: auth.tenantId },
+      });
+      if (refusal) return fail(refusal, 409);
+    }
+
     const supabase = await untyped();
     const { data, error } = await supabase
       .from(definition.table)

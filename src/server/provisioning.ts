@@ -75,19 +75,94 @@ export const provisionUser = async ({
   if (error || !created?.user) {
     const message = error?.message ?? "Could not create the login";
 
-    // Never fall back to attaching the existing user. If this address already
-    // belongs to someone — a patient who signed up with it — granting them this
-    // role would hand them an entire hospital.
     const taken = /already|exists|registered|duplicate/i.test(message);
+    if (!taken) return { ok: false, code: "failed", message };
+
+    // The address exists. Still never attach to a live account — if it belongs
+    // to someone else, a patient who signed up with it, granting this role
+    // would hand them an entire hospital. The one exception is an account this
+    // system itself revoked (HF-75): a doctor who was removed from a hospital
+    // and is now being hired again, here or somewhere else.
+    const rehired = await rehireRevokedStaff({ admin, email, role, tenantId, password });
+    if (rehired) return rehired;
 
     return {
       ok: false,
-      code: taken ? "email_taken" : "failed",
-      message: taken
-        ? `${email} already has an account. Use a different address for this login.`
-        : message,
+      code: "email_taken",
+      message: `${email} already has an account. Use a different address for this login.`,
     };
   }
 
   return { ok: true, userId: created.user.id, email, password };
+};
+
+/**
+ * The re-hire path, and the only way an existing account is ever reused.
+ *
+ * Returns a result when it applies, and `null` when it does not — the caller
+ * then reports `email_taken` exactly as before. Every check here is a reason to
+ * hand back null rather than a reason to raise, because "this is somebody
+ * else's account" is the normal case, not an error.
+ *
+ * `restore_staff_access` re-checks the role and the revoked state inside the
+ * transaction that does the write, so a profile reactivated between the lookup
+ * and the update cannot slip through this.
+ */
+const rehireRevokedStaff = async ({
+  admin,
+  email,
+  role,
+  tenantId,
+  password,
+}: {
+  admin: ReturnType<typeof createAdminSupabase>;
+  email: string;
+  role: AppRole;
+  tenantId: string | null;
+  password: string;
+}): Promise<ProvisionResult | null> => {
+  // A hospital's own staff are never patients or super admins, and those two
+  // roles are the ones that could be sitting on a stranger's address.
+  if (role === "patient" || role === "super_admin" || !tenantId) return null;
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id, role, is_active, tenant_id")
+    .eq("email", email)
+    .maybeSingle();
+
+  // Not ours to reuse: no profile, still active, or a different job entirely.
+  if (!profile || profile.is_active || profile.role !== role) return null;
+
+  // A different hospital is not a re-hire this can serve. Changing tenant_id is
+  // a super-admin-only write (0002's guard) and unpicking that needs the
+  // profile <-> tenant membership table HF-75 defers. Falling through leaves the
+  // existing `email_taken` refusal, which is the honest answer today.
+  if (profile.tenant_id !== tenantId) return null;
+
+  const { data: restored, error: restoreError } = await admin.rpc("restore_staff_access", {
+    p_profile_id: profile.id,
+    p_tenant_id: tenantId,
+    p_role: role,
+  });
+
+  if (restoreError || !restored) return null;
+
+  // Their old password is unknowable — only Supabase has it, hashed — and the
+  // caller has to be able to hand the doctor something that works. Setting it
+  // also re-confirms the address, in case the account predates email_confirm.
+  const { error: passwordError } = await admin.auth.admin.updateUserById(profile.id, {
+    password,
+    email_confirm: true,
+  });
+
+  if (passwordError) {
+    return {
+      ok: false,
+      code: "failed",
+      message: `${email} was re-attached to this hospital, but setting a new password failed: ${passwordError.message}. Use the reset button.`,
+    };
+  }
+
+  return { ok: true, userId: profile.id, email, password };
 };

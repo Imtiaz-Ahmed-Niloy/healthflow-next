@@ -77,6 +77,25 @@ export type ResourceDefinition<TCreate = unknown, TUpdate = unknown> = {
     read?: AppRole[];
     write?: AppRole[];
   };
+
+  /**
+   * Runs after the caller is authorised but BEFORE the row is deleted, for the
+   * side effects that have to happen while the row is still readable.
+   *
+   * Deleting a doctor has to revoke their login (HF-75), and the profile id
+   * lives on the row being deleted. Reading it afterwards is not possible and
+   * reading it from the client cannot be trusted.
+   *
+   * Return a message to abort the delete with a 409 and leave the row alone.
+   * Return nothing to proceed. Throwing is not a way to veto — it is a 500.
+   *
+   * Runs with the caller's own client, so RLS still applies and a hook cannot
+   * be used to reach across tenants.
+   */
+  beforeDelete?: (context: {
+    id: string;
+    auth: { role: AppRole | null; tenantId: string | null };
+  }) => Promise<string | void>;
 };
 
 /** Shape every list endpoint returns. */
