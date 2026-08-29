@@ -1,22 +1,17 @@
-// Payroll engine — pulls employees from onboarding store, computes salary
-// breakdown, and produces payslips. Pure functions + localStorage persistence.
+// Payroll engine — computes salary breakdown and produces payslips.
+//
+// Employees are PASSED IN, not loaded here. They used to come from the
+// onboarding localStorage key; since HF-68 they are rows in public.employees,
+// which is an async fetch and cannot happen inside a pure function. Callers
+// hold the list (useResourceCrud("employees")) and hand it over.
+//
+// Payslips themselves are still localStorage — out of scope for HF-68, and
+// they depend on this engine rather than the other way round.
 import { load, save, uid } from "./storage";
+import type { EmployeeRow } from "@/redux/api/resources";
 
-export type Employee = {
-  id: string;
-  empId: string;
-  name: string;
-  department?: string;
-  designation?: string;
-  email?: string;
-  phone?: string;
-  bloodGroup?: string;
-  employmentType?: string;
-  jobStatus?: string;
-  grossSalary?: string | number;
-  startDate?: string;
-  endDate?: string;
-};
+/** The staff register row, exactly as the database returns it. */
+export type Employee = EmployeeRow;
 
 export type Payslip = {
   id: string;
@@ -40,16 +35,14 @@ export type Payslip = {
   status: "Generated" | "Sent" | "Paid";
 };
 
-const ONBOARDING_KEY = "hr-onboarding-v2";
-
-/** Load active employees eligible for payroll. */
-export const getEligibleEmployees = (): Employee[] => {
-  const all = load<Employee[]>(ONBOARDING_KEY, []);
-  return all.filter(e => {
-    const status = (e.jobStatus || "").toLowerCase();
-    return status !== "terminated" && status !== "resigned";
-  });
-};
+/**
+ * Who is on the payroll: everyone except those who have left.
+ *
+ * The database constrains job_status to a known set, so this is a plain
+ * comparison rather than the defensive lowercasing localStorage needed.
+ */
+export const getEligibleEmployees = (all: Employee[]): Employee[] =>
+  all.filter(e => e.job_status !== "terminated" && e.job_status !== "resigned");
 
 export type PayrollSettings = {
   basicPct: number;      // % of gross
@@ -89,7 +82,7 @@ export const computePayslip = (
   runId: string,
   loan = 0,
 ): Payslip => {
-  const gross = Number(emp.grossSalary || 0);
+  const gross = Number(emp.gross_salary || 0);
   const b = breakdown(gross);
   const totalDeductions = b.pf + b.tax + loan;
   const net = gross - totalDeductions;
@@ -97,10 +90,10 @@ export const computePayslip = (
     id: uid(),
     runId,
     period,
-    empId: emp.empId,
+    empId: emp.emp_id,
     name: emp.name,
-    department: emp.department,
-    designation: emp.designation,
+    department: emp.department ?? undefined,
+    designation: emp.designation ?? undefined,
     basic: b.basic,
     houseRent: b.houseRent,
     medical: b.medical,
@@ -125,14 +118,14 @@ export type ProcessResult = {
   payslips: Payslip[];
 };
 
-/** List of unique departments from onboarded employees. */
-export const getDepartments = (): string[] =>
-  Array.from(new Set(getEligibleEmployees().map(e => e.department).filter(Boolean) as string[])).sort();
+/** Unique departments across the active staff. */
+export const getDepartments = (all: Employee[]): string[] =>
+  Array.from(new Set(getEligibleEmployees(all).map(e => e.department).filter(Boolean) as string[])).sort();
 
 /** Full payroll processing for a period — returns + persists payslips.
  *  Pass a department to limit processing to that department only. */
-export const processPayroll = (period: string, runId: string, department?: string): ProcessResult => {
-  let eligible = getEligibleEmployees();
+export const processPayroll = (period: string, runId: string, all: Employee[], department?: string): ProcessResult => {
+  let eligible = getEligibleEmployees(all);
   if (department && department !== "All") eligible = eligible.filter(e => e.department === department);
   const payslips = eligible.map(e => computePayslip(e, period, runId));
   const gross = payslips.reduce((s, p) => s + p.gross, 0);

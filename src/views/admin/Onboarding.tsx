@@ -4,95 +4,124 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ResourcePage } from "@/components/admin/ResourcePage";
 import { Pill } from "@/components/admin/ui";
 import { statusTone } from "@/components/admin/crud";
+import type { EmployeeRow } from "@/redux/api/resources";
 
-type O = {
-  id: string;
-  empId: string;
-  name: string;
-  department: string;
-  designation: string;
-  startDate: string;
-  documents: string;
-  orientation: string;
-  status: string;
-  fatherName?: string;
-  motherName?: string;
-  maritalStatus?: string;
-  religion?: string;
-  bloodGroup?: string;
-  nid?: string;
-  phone?: string;
-  email?: string;
-  employmentType?: string;
-  jobStatus?: string;
-  grossSalary?: string;
-  endDate?: string;
-  presentAddress?: string;
-  permanentAddress?: string;
-};
+/**
+ * The hospital's staff register (HF-68).
+ *
+ * Headed "Employees" rather than "Onboarding" because the row outlives
+ * onboarding — payroll and attendance both read it. See 0039_employees.sql.
+ *
+ * Values are stored lowercase to match doctors, nurses, support staff, lab
+ * tests, assets and pharmacy; the labels here are the only place they are
+ * capitalised.
+ */
 
-const seed: O[] = [
-  { id: "o1", empId: "EMP-1101", name: "Nadia Rahman", department: "Nursing", designation: "Staff Nurse", startDate: "2026-05-20", documents: "Pending", orientation: "Scheduled", status: "In Progress",
-    fatherName: "Abdul Rahman", motherName: "Ayesha Rahman", maritalStatus: "Single", religion: "Islam", bloodGroup: "B+",
-    nid: "1990123456789", phone: "+8801711000111", email: "nadia.rahman@example.com",
-    employmentType: "Full-time", jobStatus: "Probation", grossSalary: "55000", endDate: "", presentAddress: "Dhanmondi, Dhaka", permanentAddress: "Sylhet" },
-  { id: "o2", empId: "EMP-1102", name: "Tanvir Ahmed", department: "IT", designation: "Systems Engineer", startDate: "2026-05-15", documents: "Verified", orientation: "Completed", status: "Completed",
-    fatherName: "Mahbub Ahmed", motherName: "Rina Ahmed", maritalStatus: "Married", religion: "Islam", bloodGroup: "O+",
-    nid: "1988123456789", phone: "+8801711000222", email: "tanvir.ahmed@example.com",
-    employmentType: "Full-time", jobStatus: "Active", grossSalary: "85000", endDate: "", presentAddress: "Gulshan, Dhaka", permanentAddress: "Chittagong" },
-  { id: "o3", empId: "EMP-1103", name: "Mariam Chowdhury", department: "Finance", designation: "Junior Accountant", startDate: "2026-06-01", documents: "Pending", orientation: "Pending", status: "Pending",
-    fatherName: "Kamrul Chowdhury", motherName: "Salma Chowdhury", maritalStatus: "Single", religion: "Islam", bloodGroup: "A+",
-    nid: "1995123456789", phone: "+8801711000333", email: "mariam.c@example.com",
-    employmentType: "Contract", jobStatus: "Active", grossSalary: "45000", endDate: "2027-06-01", presentAddress: "Uttara, Dhaka", permanentAddress: "Comilla" },
+const MARITAL_STATUSES = [
+  { value: "single", label: "Single" },
+  { value: "married", label: "Married" },
+  { value: "divorced", label: "Divorced" },
+  { value: "widowed", label: "Widowed" },
 ];
+
+const RELIGIONS = [
+  { value: "islam", label: "Islam" },
+  { value: "hinduism", label: "Hinduism" },
+  { value: "christianity", label: "Christianity" },
+  { value: "buddhism", label: "Buddhism" },
+  { value: "other", label: "Other" },
+];
+
+/** Not lowercased — a blood group is a printed medical value. */
+const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+
+const EMPLOYMENT_TYPES = [
+  { value: "full_time", label: "Full-time" },
+  { value: "part_time", label: "Part-time" },
+  { value: "contract", label: "Contract" },
+  { value: "intern", label: "Intern" },
+  { value: "consultant", label: "Consultant" },
+];
+
+const JOB_STATUSES = [
+  { value: "active", label: "Active" },
+  { value: "probation", label: "Probation" },
+  { value: "suspended", label: "Suspended" },
+  { value: "terminated", label: "Terminated" },
+  { value: "resigned", label: "Resigned" },
+];
+
+const DOCUMENT_STATUSES = [
+  { value: "pending", label: "Pending" },
+  { value: "verified", label: "Verified" },
+  { value: "rejected", label: "Rejected" },
+];
+
+const ORIENTATION_STATUSES = [
+  { value: "pending", label: "Pending" },
+  { value: "scheduled", label: "Scheduled" },
+  { value: "completed", label: "Completed" },
+];
+
+const ONBOARDING_STATUSES = [
+  { value: "pending", label: "Pending" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "completed", label: "Completed" },
+];
+
+/** Common hospital departments. Free text in the database — see 0039. */
+const DEPARTMENTS = ["Nursing", "Cardiology", "Neurology", "Maintenance", "Finance", "HR", "IT"];
+
+const labelOf = (options: { value: string; label: string }[], value: string | null) =>
+  options.find(o => o.value === value)?.label ?? value ?? "—";
 
 const Page = () => (
   <AdminLayout title="Employees" subtitle="Onboard new employees: documents → orientation → activation">
-    <ResourcePage<O>
+    <ResourcePage<EmployeeRow>
       config={{
         storeKey: "hr-onboarding-v2",
+        resource: "employees",
         addLabel: "Onboard New Employee",
-        seed,
-        searchFields: ["empId", "name", "department", "designation", "phone", "email", "nid"],
-        statuses: ["Pending", "In Progress", "Completed"],
+        searchFields: ["emp_id", "name", "department", "designation", "phone", "email", "nid"],
+        statuses: ONBOARDING_STATUSES,
         columns: [
-          { key: "empId", label: "Emp ID", accessor: r => r.empId, render: r => <span className="font-mono text-xs">{r.empId}</span> },
+          { key: "emp_id", label: "Emp ID", accessor: r => r.emp_id, render: r => <span className="font-mono text-xs">{r.emp_id}</span> },
           { key: "name", label: "Name", sortable: true, accessor: r => r.name, render: r => <span className="font-semibold text-primary">{r.name}</span> },
-          { key: "department", label: "Department", sortable: true, accessor: r => r.department },
-          { key: "designation", label: "Designation" },
+          { key: "department", label: "Department", sortable: true, accessor: r => r.department ?? "" },
+          { key: "designation", label: "Designation", render: r => r.designation ?? "—" },
           { key: "phone", label: "Phone", render: r => <span className="font-mono text-xs">{r.phone || "—"}</span> },
           { key: "email", label: "Email", render: r => <span className="text-xs">{r.email || "—"}</span> },
-          { key: "employmentType", label: "Type", render: r => r.employmentType ? <Pill tone="info">{r.employmentType}</Pill> : <span className="text-muted-foreground">—</span> },
-          { key: "jobStatus", label: "Job", render: r => r.jobStatus ? <Pill tone={statusTone(r.jobStatus)}>{r.jobStatus}</Pill> : <span className="text-muted-foreground">—</span> },
-          { key: "grossSalary", label: "Salary", render: r => <span className="font-mono text-xs">{r.grossSalary ? `৳${Number(r.grossSalary).toLocaleString()}` : "—"}</span> },
-          { key: "startDate", label: "Start", sortable: true, accessor: r => r.startDate },
-          { key: "documents", label: "Docs", render: r => <Pill tone={statusTone(r.documents)}>{r.documents}</Pill> },
-          { key: "orientation", label: "Orientation", render: r => <Pill tone={statusTone(r.orientation)}>{r.orientation}</Pill> },
-          { key: "status", label: "Status", render: r => <Pill tone={statusTone(r.status)}>{r.status}</Pill> },
+          { key: "employment_type", label: "Type", render: r => r.employment_type ? <Pill tone="info">{labelOf(EMPLOYMENT_TYPES, r.employment_type)}</Pill> : <span className="text-muted-foreground">—</span> },
+          { key: "job_status", label: "Job", render: r => <Pill tone={statusTone(r.job_status)}>{labelOf(JOB_STATUSES, r.job_status)}</Pill> },
+          { key: "gross_salary", label: "Salary", accessor: r => Number(r.gross_salary ?? 0), render: r => <span className="font-mono text-xs">{r.gross_salary ? `৳${Number(r.gross_salary).toLocaleString()}` : "—"}</span> },
+          { key: "start_date", label: "Start", sortable: true, accessor: r => r.start_date ?? "" },
+          { key: "documents_status", label: "Docs", render: r => <Pill tone={statusTone(r.documents_status)}>{labelOf(DOCUMENT_STATUSES, r.documents_status)}</Pill> },
+          { key: "orientation_status", label: "Orientation", render: r => <Pill tone={statusTone(r.orientation_status)}>{labelOf(ORIENTATION_STATUSES, r.orientation_status)}</Pill> },
+          { key: "status", label: "Status", render: r => <Pill tone={statusTone(r.status)}>{labelOf(ONBOARDING_STATUSES, r.status)}</Pill> },
         ],
         fields: [
-          { name: "empId", label: "Employee ID", type: "text", required: true },
+          { name: "emp_id", label: "Employee ID", type: "text", required: true },
           { name: "name", label: "Full name", type: "text", required: true },
-          { name: "fatherName", label: "Father's name", type: "text" },
-          { name: "motherName", label: "Mother's name", type: "text" },
-          { name: "maritalStatus", label: "Marital status", type: "select", options: ["Single", "Married", "Divorced", "Widowed"] },
-          { name: "religion", label: "Religion", type: "select", options: ["Islam", "Hinduism", "Christianity", "Buddhism", "Other"] },
-          { name: "bloodGroup", label: "Blood group", type: "select", options: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"] },
+          { name: "father_name", label: "Father's name", type: "text" },
+          { name: "mother_name", label: "Mother's name", type: "text" },
+          { name: "marital_status", label: "Marital status", type: "select", options: MARITAL_STATUSES },
+          { name: "religion", label: "Religion", type: "select", options: RELIGIONS },
+          { name: "blood_group", label: "Blood group", type: "select", options: BLOOD_GROUPS },
           { name: "nid", label: "NID number", type: "text" },
           { name: "phone", label: "Phone number", type: "tel" },
           { name: "email", label: "Email", type: "email" },
-          { name: "department", label: "Department", type: "select", options: ["Nursing", "Cardiology", "Neurology", "Maintenance", "Finance", "HR", "IT"] },
+          { name: "department", label: "Department", type: "select", options: DEPARTMENTS },
           { name: "designation", label: "Designation", type: "text" },
-          { name: "employmentType", label: "Employment type", type: "select", options: ["Full-time", "Part-time", "Contract", "Intern", "Consultant"] },
-          { name: "jobStatus", label: "Job status", type: "select", options: ["Active", "Probation", "Suspended", "Terminated", "Resigned"] },
-          { name: "grossSalary", label: "Gross salary", type: "number", min: 0, numberStep: 0.01 },
-          { name: "startDate", label: "Start date", type: "date" },
-          { name: "endDate", label: "End date", type: "date" },
-          { name: "presentAddress", label: "Present address", type: "textarea", fullWidth: true },
-          { name: "permanentAddress", label: "Permanent address", type: "textarea", fullWidth: true },
-          { name: "documents", label: "Documents", type: "select", options: ["Pending", "Verified", "Rejected"] },
-          { name: "orientation", label: "Orientation", type: "select", options: ["Pending", "Scheduled", "Completed"] },
-          { name: "status", label: "Status", type: "select", options: ["Pending", "In Progress", "Completed"] },
+          { name: "employment_type", label: "Employment type", type: "select", options: EMPLOYMENT_TYPES },
+          { name: "job_status", label: "Job status", type: "select", options: JOB_STATUSES },
+          { name: "gross_salary", label: "Gross salary", type: "number", min: 0, numberStep: 0.01 },
+          { name: "start_date", label: "Start date", type: "date" },
+          { name: "end_date", label: "End date", type: "date" },
+          { name: "present_address", label: "Present address", type: "textarea", fullWidth: true },
+          { name: "permanent_address", label: "Permanent address", type: "textarea", fullWidth: true },
+          { name: "documents_status", label: "Documents", type: "select", options: DOCUMENT_STATUSES },
+          { name: "orientation_status", label: "Orientation", type: "select", options: ORIENTATION_STATUSES },
+          { name: "status", label: "Status", type: "select", options: ONBOARDING_STATUSES },
         ],
       }}
     />
@@ -100,4 +129,3 @@ const Page = () => (
 );
 
 export default Page;
-

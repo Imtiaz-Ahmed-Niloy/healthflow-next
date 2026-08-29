@@ -6,6 +6,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, Btn, Pill } from "@/components/admin/ui";
 import { DataTable, Toolbar, Modal, ConfirmDialog, Field, Input, statusTone, RowActions, exportCSV, type Column } from "@/components/admin/crud";
 import { useResourceCrud } from "@/components/admin/useResourceCrud";
+import type { EmployeeRow } from "@/redux/api/resources";
 import { useNotifications } from "@/components/admin/NotificationProvider";
 import { processPayroll, getPayslips, updatePayslipStatus, printPayslip, exportPayslipsCSV, getEligibleEmployees, getDepartments, computePayslip, getSettings, saveSettings, defaultSettings, type Payslip, type PayrollSettings } from "@/lib/payroll";
 import { load, save } from "@/lib/storage";
@@ -32,6 +33,20 @@ type PayrollRun = {
 };
 const flow = ["draft", "approved", "paid"] as const;
 
+/**
+ * job_status is stored lowercase (0039_employees.sql), same as every other
+ * module. The pill and the printed payslip are the only places it is shown, so
+ * they are the only places it gets capitalised.
+ */
+const JOB_STATUS_LABELS: Record<string, string> = {
+  active: "Active",
+  probation: "Probation",
+  suspended: "Suspended",
+  terminated: "Terminated",
+  resigned: "Resigned",
+};
+const jobStatusLabel = (value: string | null) => JOB_STATUS_LABELS[value ?? ""] ?? value ?? "—";
+
 const fmt = (n: number) => `৳${n.toLocaleString()}`;
 /** "2026-04" -> "Apr 2026". Falls back to the raw value when it is not YYYY-MM. */
 const fmtPeriod = (p: string) => {
@@ -42,6 +57,9 @@ const fmtPeriod = (p: string) => {
 
 const Payroll = () => {
   const crud = useResourceCrud<PayrollRun>("payroll-runs");
+  // The staff register (HF-68). Payroll computes from these rows; it no longer
+  // reads the onboarding localStorage key.
+  const staff = useResourceCrud<EmployeeRow>("employees");
   const { push } = useNotifications();
   const [add, setAdd] = useState(false);
   const [q, setQ] = useState("");
@@ -79,7 +97,7 @@ const Payroll = () => {
   };
 
   const process = async (r: PayrollRun) => {
-    const result = processPayroll(r.period, r.id, r.department ?? undefined);
+    const result = processPayroll(r.period, r.id, staff.items, r.department ?? undefined);
     await crud.update(r.id, {
       headcount: result.employees,
       gross_total: result.gross,
@@ -118,12 +136,12 @@ const Payroll = () => {
     const [y, m] = periodId.split("-").map(Number);
     return new Date(y, (m || 1) - 1, 1).toLocaleString("en-US", { month: "short", year: "numeric" });
   }, [periodId]);
-  const departments = useMemo(() => getDepartments(), []);
+  const departments = useMemo(() => getDepartments(staff.items), [staff.items]);
   const monthSummary = useMemo(() => {
-    const eligible = getEligibleEmployees();
+    const eligible = getEligibleEmployees(staff.items);
     return eligible.map(e => {
       const base = computePayslip(e, periodId, `PR-${periodId}-PREVIEW`);
-      const ov = overrides[e.empId] || {};
+      const ov = overrides[e.emp_id] || {};
       const tax = ov.tax !== undefined ? ov.tax : base.tax;
       const otherBase = base.pf + base.loan;
       const other = ov.other !== undefined ? ov.other : otherBase;
@@ -138,13 +156,13 @@ const Payroll = () => {
       };
       return { emp: e, slip };
     });
-  }, [periodId, settings, overrides]);
+  }, [staff.items, periodId, settings, overrides]);
   const filteredSummary = useMemo(() => {
     const t = empQ.trim().toLowerCase();
     return monthSummary.filter(({ emp, slip }) => {
       if (deptFilter !== "All" && (emp.department || "") !== deptFilter) return false;
       if (!t) return true;
-      return [emp.name, emp.empId, emp.designation, emp.department, emp.jobStatus, emp.startDate,
+      return [emp.name, emp.emp_id, emp.designation, emp.department, emp.job_status, emp.start_date,
         String(slip.basic), String(slip.houseRent), String(slip.medical), String(slip.transport),
         String(slip.gross), String(slip.tax), String(slip.net)]
         .some(v => (v || "").toString().toLowerCase().includes(t));
@@ -172,11 +190,11 @@ const Payroll = () => {
     if (!w) return;
     const rowsHtml = filteredSummary.map(({ emp, slip }) => `
       <tr>
-        <td><b>${emp.name}</b><div class="sub">${emp.empId}</div></td>
+        <td><b>${emp.name}</b><div class="sub">${emp.emp_id}</div></td>
         <td>${emp.designation || "—"}</td>
         <td>${emp.department || "—"}</td>
-        <td>${emp.startDate || "—"}</td>
-        <td>${emp.jobStatus || "Active"}</td>
+        <td>${emp.start_date || "—"}</td>
+        <td>${jobStatusLabel(emp.job_status)}</td>
         <td class="r">${slip.basic.toLocaleString()}</td>
         <td class="r">${slip.houseRent.toLocaleString()}</td>
         <td class="r">${slip.medical.toLocaleString()}</td>
@@ -316,12 +334,12 @@ const Payroll = () => {
                 <tr key={emp.id} className="border-t border-border/40 hover:bg-muted/30">
                   <td className="py-2.5 px-3">
                     <div className="font-semibold text-primary">{emp.name}</div>
-                    <div className="font-mono text-[10px] text-muted-foreground">{emp.empId}</div>
+                    <div className="font-mono text-[10px] text-muted-foreground">{emp.emp_id}</div>
                   </td>
                   <td className="py-2.5 px-3 text-muted-foreground">{emp.designation || "—"}</td>
                   <td className="py-2.5 px-3 text-muted-foreground">{emp.department || "—"}</td>
-                  <td className="py-2.5 px-3 text-muted-foreground text-xs">{emp.startDate || "—"}</td>
-                  <td className="py-2.5 px-3"><Pill tone={statusTone(emp.jobStatus || "Active")}>{emp.jobStatus || "Active"}</Pill></td>
+                  <td className="py-2.5 px-3 text-muted-foreground text-xs">{emp.start_date || "—"}</td>
+                  <td className="py-2.5 px-3"><Pill tone={statusTone(emp.job_status)}>{jobStatusLabel(emp.job_status)}</Pill></td>
                   <td className="py-2.5 px-3 text-right font-mono text-xs">{fmt(slip.basic)}</td>
                   <td className="py-2.5 px-3 text-right font-mono text-xs">{fmt(slip.houseRent)}</td>
                   <td className="py-2.5 px-3 text-right font-mono text-xs">{fmt(slip.medical)}</td>
@@ -332,7 +350,7 @@ const Payroll = () => {
                       type="number"
                       min={0}
                       value={slip.tax}
-                      onChange={e => setOverride(emp.empId, { tax: Math.max(0, Number(e.target.value) || 0) })}
+                      onChange={e => setOverride(emp.emp_id, { tax: Math.max(0, Number(e.target.value) || 0) })}
                       className="w-20 bg-muted/40 rounded px-2 py-1 text-right font-mono text-xs text-destructive outline-none focus:ring-2 focus:ring-primary"
                     />
                   </td>
@@ -341,7 +359,7 @@ const Payroll = () => {
                       type="number"
                       min={0}
                       value={slip.pf + slip.loan}
-                      onChange={e => setOverride(emp.empId, { other: Math.max(0, Number(e.target.value) || 0) })}
+                      onChange={e => setOverride(emp.emp_id, { other: Math.max(0, Number(e.target.value) || 0) })}
                       className="w-20 bg-muted/40 rounded px-2 py-1 text-right font-mono text-xs text-destructive outline-none focus:ring-2 focus:ring-primary"
                     />
                   </td>
@@ -434,7 +452,7 @@ const Payroll = () => {
           } as never);
           if (!created) return; // useResourceCrud has already surfaced the error
 
-          const result = processPayroll(period, created.id, department || undefined);
+          const result = processPayroll(period, created.id, staff.items, department || undefined);
           await crud.update(created.id, {
             headcount: result.employees,
             gross_total: result.gross,
@@ -454,7 +472,7 @@ const Payroll = () => {
             <select name="department" defaultValue="All"
               className="w-full bg-muted/40 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary text-sm">
               <option value="All">All departments</option>
-              {getDepartments().map(d => <option key={d} value={d}>{d}</option>)}
+              {departments.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
           </Field>
           <p className="text-[11px] text-muted-foreground mt-2">Payslips are generated automatically from active employees in Onboarding.</p>
