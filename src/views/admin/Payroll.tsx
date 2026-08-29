@@ -33,6 +33,20 @@ type PayrollRun = {
 };
 const flow = ["draft", "approved", "paid"] as const;
 
+/**
+ * job_status is stored lowercase (0039_employees.sql), same as every other
+ * module. The pill and the printed payslip are the only places it is shown, so
+ * they are the only places it gets capitalised.
+ */
+const JOB_STATUS_LABELS: Record<string, string> = {
+  active: "Active",
+  probation: "Probation",
+  suspended: "Suspended",
+  terminated: "Terminated",
+  resigned: "Resigned",
+};
+const jobStatusLabel = (value: string | null) => JOB_STATUS_LABELS[value ?? ""] ?? value ?? "—";
+
 const fmt = (n: number) => `৳${n.toLocaleString()}`;
 /** "2026-04" -> "Apr 2026". Falls back to the raw value when it is not YYYY-MM. */
 const fmtPeriod = (p: string) => {
@@ -180,7 +194,7 @@ const Payroll = () => {
         <td>${emp.designation || "—"}</td>
         <td>${emp.department || "—"}</td>
         <td>${emp.start_date || "—"}</td>
-        <td>${emp.job_status || "Active"}</td>
+        <td>${jobStatusLabel(emp.job_status)}</td>
         <td class="r">${slip.basic.toLocaleString()}</td>
         <td class="r">${slip.houseRent.toLocaleString()}</td>
         <td class="r">${slip.medical.toLocaleString()}</td>
@@ -325,7 +339,7 @@ const Payroll = () => {
                   <td className="py-2.5 px-3 text-muted-foreground">{emp.designation || "—"}</td>
                   <td className="py-2.5 px-3 text-muted-foreground">{emp.department || "—"}</td>
                   <td className="py-2.5 px-3 text-muted-foreground text-xs">{emp.start_date || "—"}</td>
-                  <td className="py-2.5 px-3"><Pill tone={statusTone(emp.job_status || "Active")}>{emp.job_status || "Active"}</Pill></td>
+                  <td className="py-2.5 px-3"><Pill tone={statusTone(emp.job_status)}>{jobStatusLabel(emp.job_status)}</Pill></td>
                   <td className="py-2.5 px-3 text-right font-mono text-xs">{fmt(slip.basic)}</td>
                   <td className="py-2.5 px-3 text-right font-mono text-xs">{fmt(slip.houseRent)}</td>
                   <td className="py-2.5 px-3 text-right font-mono text-xs">{fmt(slip.medical)}</td>
