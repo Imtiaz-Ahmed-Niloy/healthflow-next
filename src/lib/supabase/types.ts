@@ -944,6 +944,108 @@ export type Database = {
           },
         ]
       }
+      employees: {
+        Row: {
+          blood_group: string | null
+          created_at: string
+          department: string | null
+          designation: string | null
+          documents_status: string
+          email: string | null
+          emp_id: string
+          employment_type: string | null
+          end_date: string | null
+          father_name: string | null
+          gross_salary: number | null
+          id: string
+          job_status: string
+          marital_status: string | null
+          mother_name: string | null
+          name: string
+          nid: string | null
+          orientation_status: string
+          permanent_address: string | null
+          phone: string | null
+          present_address: string | null
+          religion: string | null
+          start_date: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          blood_group?: string | null
+          created_at?: string
+          department?: string | null
+          designation?: string | null
+          documents_status?: string
+          email?: string | null
+          emp_id: string
+          employment_type?: string | null
+          end_date?: string | null
+          father_name?: string | null
+          gross_salary?: number | null
+          id?: string
+          job_status?: string
+          marital_status?: string | null
+          mother_name?: string | null
+          name: string
+          nid?: string | null
+          orientation_status?: string
+          permanent_address?: string | null
+          phone?: string | null
+          present_address?: string | null
+          religion?: string | null
+          start_date?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          blood_group?: string | null
+          created_at?: string
+          department?: string | null
+          designation?: string | null
+          documents_status?: string
+          email?: string | null
+          emp_id?: string
+          employment_type?: string | null
+          end_date?: string | null
+          father_name?: string | null
+          gross_salary?: number | null
+          id?: string
+          job_status?: string
+          marital_status?: string | null
+          mother_name?: string | null
+          name?: string
+          nid?: string | null
+          orientation_status?: string
+          permanent_address?: string | null
+          phone?: string | null
+          present_address?: string | null
+          religion?: string | null
+          start_date?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employees_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hospital_admin_secrets: {
         Row: {
           created_at: string

@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, Btn, Pill, SectionTitle, Kpi } from "@/components/admin/ui";
 import { Modal, Field, Input, Select, TextArea, Chips, exportCSV } from "@/components/admin/crud";
 import { useNotifications } from "@/components/admin/NotificationProvider";
 import { load, save, uid } from "@/lib/storage";
+import { useResourceCrud } from "@/components/admin/useResourceCrud";
+import { getEligibleEmployees } from "@/lib/payroll";
+import type { EmployeeRow } from "@/redux/api/resources";
 import { CalendarCheck2, Users2, Plane, AlertTriangle, LogIn, LogOut, Printer, Plus, Check, X, Trash2 } from "lucide-react";
 
 // ============ Types ============
@@ -23,7 +26,6 @@ type Leave = {
 type Holiday = { id: string; date: string; name: string };
 
 // ============ Constants ============
-const ONBOARDING_KEY = "hr-onboarding-v2";
 const ATT_KEY = "attendance-records-v1";
 const LEAVE_KEY = "leave-requests-v2";
 const HOL_KEY = "holidays-v1";
@@ -113,6 +115,7 @@ const seedLeaves = (employees: Emp[]): Leave[] => {
 // ============ Page ============
 const Attendance = () => {
   const { push } = useNotifications();
+  const staff = useResourceCrud<EmployeeRow>("employees");
   const [employees, setEmployees] = useState<Emp[]>([]);
   const [records, setRecords] = useState<AttRecord[]>([]);
   const [leaves, setLeaves] = useState<Leave[]>([]);
@@ -129,14 +132,36 @@ const Attendance = () => {
   const [holidayModal, setHolidayModal] = useState(false);
   const [markModal, setMarkModal] = useState<{ emp: Emp; date: string } | null>(null);
 
-  // Init
+  // The staff register is an API resource since HF-68, so this waits for the
+  // fetch instead of reading localStorage on mount.
+  //
+  // Guarded by a ref rather than keyed on staff.items: useResourceCrud returns
+  // a fresh [] on every render until the query resolves, so depending on the
+  // array identity would re-seed the demo records forever.
+  const seeded = useRef(false);
   useEffect(() => {
-    const emps = load<Emp[]>(ONBOARDING_KEY, []).filter(e => (e.jobStatus || "").toLowerCase() !== "terminated" && (e.jobStatus || "").toLowerCase() !== "resigned");
+    if (seeded.current || staff.isLoading) return;
+    seeded.current = true;
+
+    // The rest of this screen speaks the old camelCase shape. Mapping here
+    // keeps that one adapter in view instead of spreading column names through
+    // twenty call sites.
+    const emps: Emp[] = getEligibleEmployees(staff.items).map(e => ({
+      id: e.id,
+      empId: e.emp_id,
+      name: e.name,
+      department: e.department ?? undefined,
+      designation: e.designation ?? undefined,
+      jobStatus: e.job_status,
+      phone: e.phone ?? undefined,
+      email: e.email ?? undefined,
+    }));
+
     setEmployees(emps);
     setRecords(seedDemo(emps));
     setLeaves(seedLeaves(emps));
     setHolidays(seedHolidays());
-  }, []);
+  }, [staff.isLoading, staff.items]);
 
   useEffect(() => { save(ATT_KEY, records); }, [records]);
   useEffect(() => { save(LEAVE_KEY, leaves); }, [leaves]);

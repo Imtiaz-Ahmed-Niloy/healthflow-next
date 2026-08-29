@@ -63,6 +63,12 @@ export type LabTestRow = Tables["lab_tests"]["Row"];
 /** Pharmacy stock is a flat inventory — dispensing lives elsewhere and is not embedded. */
 export type PharmacyItemRow = Tables["pharmacy_items"]["Row"];
 
+/**
+ * The hospital staff register. Read by three screens, not one: onboarding owns
+ * it, payroll pays from it, attendance clocks it. See 0039_employees.sql.
+ */
+export type EmployeeRow = Tables["employees"]["Row"];
+
 /** Patients carry no relations on the registry screen — profile_id is a raw uuid, not embedded. */
 export type PatientRow = Tables["patients"]["Row"];
 
