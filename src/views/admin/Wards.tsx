@@ -377,7 +377,7 @@ const Wards = () => {
           setEdit(null); setAdd(false);
         }}>
           <Field label="Ward"><Select name="ward" defaultValue={edit?.ward}>{wards.concat(["ICU", "Ward 3B", "Maternity"]).filter((v, i, a) => a.indexOf(v) === i).map(w => <option key={w}>{w}</option>)}</Select></Field>
-          <Field label="Bed Number"><Input name="number" defaultValue={edit?.number} required /></Field>
+          <Field label="Bed Number" required><Input name="number" defaultValue={edit?.number} required /></Field>
           <Field label="Type"><Select name="type" defaultValue={edit?.type}><option>General</option><option>ICU</option><option>Cabin</option></Select></Field>
           <Field label="Patient (if occupied)"><Input name="patient" defaultValue={edit?.patient} /></Field>
           <Field label="Status"><Select name="status" defaultValue={edit?.status}><option>Available</option><option>Occupied</option><option>Cleaning</option></Select></Field>
@@ -421,8 +421,8 @@ const Wards = () => {
           setEditCab(null); setAddCab(false);
         }}>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Cabin Number"><Input name="number" defaultValue={editCab?.number} required /></Field>
-            <Field label="Floor"><Input name="floor" defaultValue={editCab?.floor || "1st Floor"} required /></Field>
+            <Field label="Cabin Number" required><Input name="number" defaultValue={editCab?.number} required /></Field>
+            <Field label="Floor" required><Input name="floor" defaultValue={editCab?.floor || "1st Floor"} required /></Field>
             <Field label="Category"><Select name="category" defaultValue={editCab?.category || "Standard"}><option>Standard</option><option>Deluxe</option><option>Premium</option><option>Suite</option></Select></Field>
             <Field label="Status"><Select name="status" defaultValue={editCab?.status || "Available"}><option>Available</option><option>Occupied</option><option>Reserved</option><option>Cleaning</option><option>Maintenance</option></Select></Field>
             <Field label="Capacity"><Input name="capacity" type="number" min="1" defaultValue={editCab?.capacity || 1} /></Field>
@@ -481,9 +481,9 @@ const Wards = () => {
           setEditWc(null); setAddWc(false);
         }}>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Ward Name"><Input name="ward" defaultValue={editWc?.ward} required placeholder="e.g. Ward 3B / ICU / Maternity" /></Field>
+            <Field label="Ward Name" required><Input name="ward" defaultValue={editWc?.ward} required placeholder="e.g. Ward 3B / ICU / Maternity" /></Field>
             <Field label="Category"><Select name="category" defaultValue={editWc?.category || "General"}><option>General</option><option>Semi-Private</option><option>ICU</option><option>Maternity</option><option>Pediatric</option></Select></Field>
-            <Field label="Daily Rate (₹)"><Input name="rate" type="number" min="0" defaultValue={editWc?.rate || 0} required /></Field>
+            <Field label="Daily Rate (₹)" required><Input name="rate" type="number" min="0" defaultValue={editWc?.rate || 0} required /></Field>
             <Field label="Nursing Charge (₹/day)"><Input name="nursingCharge" type="number" min="0" defaultValue={editWc?.nursingCharge || 0} /></Field>
           </div>
           <Field label="Facilities">

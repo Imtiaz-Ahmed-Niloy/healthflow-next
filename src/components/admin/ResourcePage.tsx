@@ -341,7 +341,7 @@ export function RecordFormFields({
         const wide = f.fullWidth || f.type === "textarea" || f.type === "image" || f.type === "file" || f.type === "files" || f.type === "list" || f.type === "social" || f.type === "people";
         return (
           <div key={f.name} className={`${wide ? "col-span-2" : ""} ${hidden ? "hidden" : ""}`}>
-            <Field label={f.label}>
+            <Field label={f.label} required={f.required}>
               {f.type === "select" ? (
                 <Select name={f.name} required={f.required} defaultValue={(editing as never)?.[f.name] ?? toOptions(f.options)[0]?.value ?? ""}>
                   {toOptions(f.options).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -675,7 +675,7 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
               const wide = f.fullWidth || f.type === "textarea" || f.type === "image" || f.type === "file" || f.type === "files" || f.type === "list" || f.type === "social" || f.type === "people";
               return (
                 <div key={f.name} className={`${wide ? "col-span-2" : ""} ${hidden ? "hidden" : ""}`}>
-                  <Field label={f.label}>
+                  <Field label={f.label} required={f.required}>
                     {f.type === "select" ? (
                       <Select name={f.name} required={f.required} defaultValue={(editing as never)?.[f.name] ?? toOptions(f.options)[0]?.value ?? ""}>
                         {toOptions(f.options).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}

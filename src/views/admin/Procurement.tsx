@@ -78,10 +78,10 @@ const Procurement = () => {
           push({ title: `New requisition: ${fd.get("title")}`, tone: "info" });
           setAdd(false);
         }}>
-          <Field label="Item / title"><Input name="title" required /></Field>
+          <Field label="Item / title" required><Input name="title" required /></Field>
           <Field label="Department"><Select name="dept"><option>OT</option><option>Radiology</option><option>Admin</option><option>Pharmacy</option><option>Ward 3B</option></Select></Field>
           <Field label="Vendor"><Select name="vendor"><option>Vendor A</option><option>Vendor B</option><option>Vendor C</option><option>Vendor D</option></Select></Field>
-          <Field label="Amount (USD)"><Input name="amount" type="number" required /></Field>
+          <Field label="Amount (USD)" required><Input name="amount" type="number" required /></Field>
         </form>
       </Modal>
 

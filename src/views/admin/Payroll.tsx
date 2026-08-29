@@ -449,7 +449,7 @@ const Payroll = () => {
           setSlipsRun({ ...created, headcount: result.employees, gross_total: result.gross, net_total: result.net });
           setSlips(result.payslips);
         }}>
-          <Field label="Period"><Input name="period" type="month" required defaultValue={defaultPeriodId} /></Field>
+          <Field label="Period" required><Input name="period" type="month" required defaultValue={defaultPeriodId} /></Field>
           <Field label="Department">
             <select name="department" defaultValue="All"
               className="w-full bg-muted/40 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary text-sm">

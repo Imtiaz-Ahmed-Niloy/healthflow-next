@@ -11,6 +11,7 @@ import { AuthLayout } from "@/components/site/AuthLayout";
 import { supabase } from "@/lib/supabase/client";
 import { homePathForRole, type AppRole } from "@/lib/auth/permissions";
 import { BRAND_INFO } from "@/constants/brand";
+import { Label } from "@/components/ui/label";
 
 const vitamin = "/assets/product-vitamin.jpg";
 const brain = "/assets/product-brain.jpg";
@@ -168,7 +169,7 @@ const SignIn = () => {
 
           <form data-testid="signin-form" onSubmit={handleSubmit(onSubmit, onInvalid)} className="mt-8 space-y-5" noValidate>
             <div>
-              <label htmlFor="signin-email" className="text-[11px] tracking-widest font-bold text-primary">EMAIL / USER ID</label>
+              <Label htmlFor="signin-email" className="text-[11px] tracking-widest font-bold text-primary" required>EMAIL / USER ID</Label>
               <input
                 id="signin-email"
                 data-testid="signin-email-input"
@@ -198,7 +199,7 @@ const SignIn = () => {
               ) : null}
             </div>
             <div>
-              <label htmlFor="signin-password" className="text-[11px] tracking-widest font-bold text-primary">PASSWORD</label>
+              <Label htmlFor="signin-password" className="text-[11px] tracking-widest font-bold text-primary" required>PASSWORD</Label>
               <div className="relative mt-2">
                 <input
                   id="signin-password"

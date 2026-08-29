@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const slots = ["Today, 2:30 PM", "Today, 4:00 PM", "Tomorrow, 9:00 AM", "Tomorrow, 11:30 AM", "Fri, 10:00 AM", "Fri, 3:30 PM"];
 const reasons = ["General Consultation", "Follow-up Visit", "Prescription Refill", "Mental Health", "Pediatric", "Dermatology"];
@@ -33,17 +34,17 @@ const Telehealth = () => {
 
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-[11px] uppercase tracking-widest font-bold text-muted-foreground">Full name</label>
+                <Label className="text-[11px] uppercase tracking-widest font-bold text-muted-foreground" required>Full name</Label>
                 <Input required defaultValue="" placeholder="Jane Doe" className="mt-2 rounded-xl" />
               </div>
               <div>
-                <label className="text-[11px] uppercase tracking-widest font-bold text-muted-foreground">Email</label>
+                <Label className="text-[11px] uppercase tracking-widest font-bold text-muted-foreground" required>Email</Label>
                 <Input required type="email" placeholder="you@email.com" className="mt-2 rounded-xl" />
               </div>
             </div>
 
             <div>
-              <label className="text-[11px] uppercase tracking-widest font-bold text-muted-foreground">Reason for visit</label>
+              <Label className="text-[11px] uppercase tracking-widest font-bold text-muted-foreground">Reason for visit</Label>
               <div className="mt-2 flex flex-wrap gap-2">
                 {reasons.map((r) => (
                   <button key={r} type="button" onClick={() => setReason(r)}
@@ -55,7 +56,7 @@ const Telehealth = () => {
             </div>
 
             <div>
-              <label className="text-[11px] uppercase tracking-widest font-bold text-muted-foreground">Choose a time slot</label>
+              <Label className="text-[11px] uppercase tracking-widest font-bold text-muted-foreground">Choose a time slot</Label>
               <div className="mt-2 grid sm:grid-cols-3 gap-2">
                 {slots.map((s) => (
                   <button key={s} type="button" onClick={() => setSlot(s)}
@@ -67,7 +68,7 @@ const Telehealth = () => {
             </div>
 
             <div>
-              <label className="text-[11px] uppercase tracking-widest font-bold text-muted-foreground">Brief description (optional)</label>
+              <Label className="text-[11px] uppercase tracking-widest font-bold text-muted-foreground">Brief description (optional)</Label>
               <textarea rows={4} placeholder="Describe your symptoms..." className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
             </div>
 

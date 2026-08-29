@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import { usePageContent } from "@/data/pageContent";
+import { Label } from "@/components/ui/label";
 
 const cats = [
   { icon: Calendar, t: "Appointments", d: "Manage, reschedule, or book new physical and virtual visits.", n: 12 },
@@ -75,14 +76,14 @@ const HelpCenter = () => {
             <form onSubmit={onSubmit} className="space-y-4">
               <h3 className="font-display text-2xl">Send us a message</h3>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-[10px] tracking-widest font-semibold opacity-70">FULL NAME</label><input required className="w-full mt-1 bg-surface-dark-foreground/10 rounded-md px-3 py-2 text-sm outline-none border border-surface-dark-foreground/15" /></div>
-                <div><label className="text-[10px] tracking-widest font-semibold opacity-70">EMAIL ADDRESS</label><input required type="email" className="w-full mt-1 bg-surface-dark-foreground/10 rounded-md px-3 py-2 text-sm outline-none border border-surface-dark-foreground/15" /></div>
+                <div><Label className="text-[10px] tracking-widest font-semibold opacity-70" required>FULL NAME</Label><input required className="w-full mt-1 bg-surface-dark-foreground/10 rounded-md px-3 py-2 text-sm outline-none border border-surface-dark-foreground/15" /></div>
+                <div><Label className="text-[10px] tracking-widest font-semibold opacity-70" required>EMAIL ADDRESS</Label><input required type="email" className="w-full mt-1 bg-surface-dark-foreground/10 rounded-md px-3 py-2 text-sm outline-none border border-surface-dark-foreground/15" /></div>
               </div>
-              <div><label className="text-[10px] tracking-widest font-semibold opacity-70">SUBJECT</label>
+              <div><Label className="text-[10px] tracking-widest font-semibold opacity-70">SUBJECT</Label>
                 <select className="w-full mt-1 bg-surface-dark-foreground/10 rounded-md px-3 py-2 text-sm outline-none border border-surface-dark-foreground/15">
                   <option>Technical Issue</option><option>Billing Question</option><option>Appointment Help</option>
                 </select></div>
-              <div><label className="text-[10px] tracking-widest font-semibold opacity-70">MESSAGE</label><textarea required rows={4} className="w-full mt-1 bg-surface-dark-foreground/10 rounded-md px-3 py-2 text-sm outline-none border border-surface-dark-foreground/15" /></div>
+              <div><Label className="text-[10px] tracking-widest font-semibold opacity-70" required>MESSAGE</Label><textarea required rows={4} className="w-full mt-1 bg-surface-dark-foreground/10 rounded-md px-3 py-2 text-sm outline-none border border-surface-dark-foreground/15" /></div>
               <button className="w-full rounded-full bg-accent text-primary py-3 text-sm font-semibold hover:bg-accent/80 transition-colors">Send Message</button>
             </form>
           </motion.div>

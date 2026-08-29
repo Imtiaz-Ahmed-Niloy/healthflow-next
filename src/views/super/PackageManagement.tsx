@@ -11,6 +11,7 @@ import {
   type HospitalPackageRow, type HospitalPackageWrite, type OfferRow, type OfferWrite,
 } from "@/redux/api/resources";
 import { useListResourceQuery } from "@/redux/api/createResourceApi";
+import { Label } from "@/components/ui/label";
 
 /**
  * Which plan each hospital is on, at what price, and the offers behind the
@@ -878,7 +879,7 @@ const OfferEditor = ({
 
 const Field = ({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) => (
   <div className={full ? "col-span-2" : ""}>
-    <label className="block text-[11px] tracking-widest font-bold text-muted-foreground mb-1.5">{label}</label>
+    <Label className="block text-[11px] tracking-widest font-bold text-muted-foreground mb-1.5">{label}</Label>
     {children}
   </div>
 );

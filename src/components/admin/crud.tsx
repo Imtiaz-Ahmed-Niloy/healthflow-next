@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { Search, Filter, Download, Plus, Trash2, Pencil, Eye, X, ChevronUp, ChevronDown, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { Card, Btn, Pill } from "./ui";
+import { Label } from "@/components/ui/label";
 import { load, save, uid } from "@/lib/storage";
 import { can, type Action } from "@/lib/auth/permissions";
 import { useSession } from "@/lib/auth/useSession";
@@ -77,9 +78,9 @@ export const ConfirmDialog = ({ open, onClose, onConfirm, title = "Are you sure?
 );
 
 // ============ FormField ============
-export const Field = ({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) => (
+export const Field = ({ label, children, hint, required = false }: { label: string; children: ReactNode; hint?: string; required?: boolean }) => (
   <div className="mb-4">
-    <label className="block text-[10px] tracking-widest font-bold text-muted-foreground mb-1.5">{label.toUpperCase()}</label>
+    <Label required={required} className="block text-[10px] tracking-widest font-bold text-muted-foreground mb-1.5">{label.toUpperCase()}</Label>
     {children}
     {hint && <p className="text-[11px] text-muted-foreground mt-1">{hint}</p>}
   </div>

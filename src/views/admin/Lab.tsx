@@ -103,9 +103,9 @@ const Lab = () => {
           push({ title: `New lab request: ${fd.get("test")}`, tone: "info" });
           setAdd(false);
         }}>
-          <Field label="Patient"><Input name="patient" required /></Field>
+          <Field label="Patient" required><Input name="patient" required /></Field>
           <Field label="Test"><Select name="test"><option>Complete Blood Count</option><option>Lipid Panel</option><option>Thyroid Profile</option><option>MRI Brain</option><option>X-Ray Chest</option></Select></Field>
-          <Field label="Requesting Doctor"><Input name="doctor" required /></Field>
+          <Field label="Requesting Doctor" required><Input name="doctor" required /></Field>
         </form>
       </Modal>
 

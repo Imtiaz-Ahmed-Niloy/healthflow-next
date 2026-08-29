@@ -172,11 +172,11 @@ const FindDoctors = () => {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>Date</Label>
+                  <Label required>Date</Label>
                   <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} min={new Date().toISOString().split("T")[0]} required />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Time</Label>
+                  <Label required>Time</Label>
                   <Input type="time" value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} required />
                 </div>
               </div>

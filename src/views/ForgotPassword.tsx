@@ -7,6 +7,7 @@ import { RotateCcw, Mail, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { AuthLayout } from "@/components/site/AuthLayout";
 import { supabase } from "@/lib/supabase/client";
+import { Label } from "@/components/ui/label";
 
 // Supabase emails a reset link, not a numeric code, so the old OTP step has
 // been removed rather than left to collect a code that never arrives.
@@ -60,7 +61,7 @@ const ForgotPassword = () => {
             {step === "email" && (
               <form onSubmit={sendLink} className="mt-8 space-y-5 text-left">
                 <div>
-                  <label className="text-sm font-medium text-primary">Email Address</label>
+                  <Label className="text-sm font-medium text-primary" required>Email Address</Label>
                   <div className="relative mt-2">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <input value={email} onChange={e => setEmail(e.target.value)} required type="email" placeholder="name@healthcare.com"

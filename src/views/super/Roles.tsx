@@ -381,16 +381,16 @@ const RoleEditor = ({
                       {selectedCount} / {panel.pages.length} pages enabled
                     </p>
                   </div>
-                  <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                  <Label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
                     <Checkbox checked={allOn} onCheckedChange={(v) => togglePanel(panel.key, !!v)} />
                     Select all
-                  </label>
+                  </Label>
                 </div>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 p-3">
                   {panel.pages.map((page) => {
                     const on = draft.pages.includes(page.path);
                     return (
-                      <label
+                      <Label
                         key={page.path}
                         className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm cursor-pointer transition ${
                           on ? "bg-primary/10 text-primary" : "bg-card hover:bg-muted/50"
@@ -403,7 +403,7 @@ const RoleEditor = ({
                             {page.path}
                           </p>
                         </div>
-                      </label>
+                      </Label>
                     );
                   })}
                 </div>

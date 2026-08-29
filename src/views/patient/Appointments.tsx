@@ -340,13 +340,13 @@ const Appointments = () => {
             <form onSubmit={handleReschedule} className="space-y-4 mt-2">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>Date</Label>
+                  <Label required>Date</Label>
                   <Input type="date" value={rescheduleForm.date}
                     onChange={e => setRescheduleForm(f => ({ ...f, date: e.target.value }))}
                     min={new Date().toISOString().split("T")[0]} required />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Time</Label>
+                  <Label required>Time</Label>
                   <Input type="time" value={rescheduleForm.time}
                     onChange={e => setRescheduleForm(f => ({ ...f, time: e.target.value }))} required />
                 </div>
