@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Plus, ClipboardList, ClipboardCheck, FlaskConical, Stethoscope, Lightbulb, History, AlertTriangle, Users, Printer, X, ArrowRight, Search, Check } from "lucide-react";
+import { Plus, ClipboardList, ClipboardCheck, FlaskConical, Stethoscope, Lightbulb, History, AlertTriangle, Users, Printer, X, Search, Check } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -275,7 +275,17 @@ const Prescription = () => {
 
   // "Today's Queue" sidebar -- same endpoint Queue.tsx itself reads, so the
   // doctor can jump to a different patient without leaving the chart.
-  type SidebarQueueEntry = {
+  /** Everything the pad holds between renders and across a reload. */
+type DraftShape = {
+  complaints: string[];
+  examination: string[];
+  investigation: string[];
+  diagnosis: string[];
+  medicines: Medicine[];
+  advice: string[];
+};
+
+type SidebarQueueEntry = {
     id: string;
     in_consultation: boolean;
     waited_minutes: number;
@@ -498,6 +508,17 @@ const Prescription = () => {
   // off. Deleted the moment the visit is actually submitted (handleSubmit
   // below); this is a crash safety net, not a substitute for the real save.
   const draftKey = (id: string) => `hf.rx.draft.${id}`;
+
+  /**
+   * Draft slot for a pad opened with no patient on it.
+   *
+   * The page used to refuse to render at all without ?appointment=. It now
+   * opens a working pad, so a doctor can start writing while the patient is
+   * still walking in and attach it from Today's Queue afterwards. That only
+   * holds together if what they typed survives picking the patient — and
+   * picking one is a route change, so it has to go through storage.
+   */
+  const UNASSIGNED_DRAFT = "unassigned";
   const [draftReady, setDraftReady] = useState(false);
 
   // Load (or reset, when jumping to a different patient from the sidebar)
@@ -508,7 +529,22 @@ const Prescription = () => {
   // appointment ctx says has nothing saved yet falls back to the draft.
   useEffect(() => {
     setDraftReady(false);
+
+    // No patient yet: restore whatever was being written on the loose pad.
     if (!appointmentId) {
+      let loose: Partial<DraftShape> | null = null;
+      try {
+        const raw = localStorage.getItem(draftKey(UNASSIGNED_DRAFT));
+        if (raw) loose = JSON.parse(raw);
+      } catch {
+        // corrupt draft -- start clean rather than fail the page
+      }
+      setComplaints(loose?.complaints ?? []);
+      setExamination(loose?.examination ?? []);
+      setInvestigation(loose?.investigation ?? []);
+      setDiagnosis(loose?.diagnosis ?? []);
+      setMedicines((loose?.medicines ?? []).map((m) => ({ ...m, dosage_form: m.dosage_form ?? "" })));
+      setAdvice(loose?.advice ?? []);
       setDraftReady(true);
       return;
     }
@@ -542,17 +578,22 @@ const Prescription = () => {
       return;
     }
 
-    let draft: Partial<{
-      complaints: string[];
-      examination: string[];
-      investigation: string[];
-      diagnosis: string[];
-      medicines: Medicine[];
-      advice: string[];
-    }> | null = null;
+    let draft: Partial<DraftShape> | null = null;
     try {
       const raw = localStorage.getItem(draftKey(appointmentId));
       if (raw) draft = JSON.parse(raw);
+
+      // Adopt the loose pad: the doctor wrote this before choosing a patient,
+      // then chose one. Only when this appointment has nothing of its own —
+      // an existing draft for THIS patient must never be overwritten by notes
+      // meant for someone else.
+      if (!raw) {
+        const loose = localStorage.getItem(draftKey(UNASSIGNED_DRAFT));
+        if (loose) {
+          draft = JSON.parse(loose);
+          localStorage.removeItem(draftKey(UNASSIGNED_DRAFT));
+        }
+      }
     } catch {
       // corrupt draft -- ignore, start clean rather than fail the page
     }
@@ -569,12 +610,13 @@ const Prescription = () => {
 
   // Persist on every change -- but only once the load above has actually
   // run for this appointment, so an empty first render doesn't stomp a draft
-  // we haven't read yet.
+  // we haven't read yet. A pad with no patient persists too, under
+  // UNASSIGNED_DRAFT, so choosing one from the queue does not throw it away.
   useEffect(() => {
-    if (!appointmentId || !draftReady) return;
+    if (!draftReady) return;
     try {
       localStorage.setItem(
-        draftKey(appointmentId),
+        draftKey(appointmentId ?? UNASSIGNED_DRAFT),
         JSON.stringify({ complaints, examination, investigation, diagnosis, medicines, advice })
       );
     } catch {
@@ -680,6 +722,12 @@ const Prescription = () => {
 
   const handleSubmit = async () => {
     if (!appointmentId) {
+      // Still show the preview — seeing the finished sheet is useful even
+      // before it belongs to anyone — but be explicit that nothing has been
+      // filed, since this used to be unreachable and now is not.
+      toast.error("Pick a patient first", {
+        description: "This is a preview. Choose a patient from Today’s Queue to submit it.",
+      });
       setPreviewOpen(true);
       return;
     }
@@ -728,7 +776,14 @@ const Prescription = () => {
   };
 
   const saveVitals = async () => {
-    if (!appointmentId) return;
+    if (!appointmentId) {
+      // The pad opens without a patient now, so this is reachable. Say what
+      // to do instead of failing silently.
+      toast.error("Pick a patient first", {
+        description: "Choose one from Today’s Queue, then save.",
+      });
+      return;
+    }
     const weight_kg = vitalsForm.weight.trim() === "" ? null : Number(vitalsForm.weight);
     const height_feet = vitalsForm.heightFeet.trim() === "" ? null : Number(vitalsForm.heightFeet);
     const height_inches = vitalsForm.heightInches.trim() === "" ? null : Number(vitalsForm.heightInches);
@@ -779,7 +834,14 @@ const Prescription = () => {
   };
 
   const saveBp = async () => {
-    if (!appointmentId) return;
+    if (!appointmentId) {
+      // The pad opens without a patient now, so this is reachable. Say what
+      // to do instead of failing silently.
+      toast.error("Pick a patient first", {
+        description: "Choose one from Today’s Queue, then save.",
+      });
+      return;
+    }
     const bp_systolic = bpForm.systolic.trim() === "" ? null : Number(bpForm.systolic);
     const bp_diastolic = bpForm.diastolic.trim() === "" ? null : Number(bpForm.diastolic);
     if ((bp_systolic !== null && (Number.isNaN(bp_systolic) || bp_systolic <= 0)) || (bp_diastolic !== null && (Number.isNaN(bp_diastolic) || bp_diastolic <= 0))) {
@@ -830,7 +892,14 @@ const Prescription = () => {
   };
 
   const savePatientDetails = async () => {
-    if (!appointmentId) return;
+    if (!appointmentId) {
+      // The pad opens without a patient now, so this is reachable. Say what
+      // to do instead of failing silently.
+      toast.error("Pick a patient first", {
+        description: "Choose one from Today’s Queue, then save.",
+      });
+      return;
+    }
     const trimmed = patientForm.ageValue.trim();
     const ageValue = trimmed === "" ? null : Number(trimmed);
     if (ageValue !== null && (Number.isNaN(ageValue) || ageValue <= 0)) {
@@ -864,22 +933,11 @@ const Prescription = () => {
   };
 
   // No patient picked yet -- an honest empty state instead of a fantasy chart.
-  if (!appointmentId) {
-    return (
-      <PortalLayout>
-        <div className="rounded-3xl bg-card border border-dashed border-border/60 shadow-soft p-16 text-center">
-          <Stethoscope className="h-10 w-10 text-muted-foreground mx-auto" />
-          <h1 className="font-display text-2xl text-primary mt-4">No patient selected</h1>
-          <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto">
-            Pick a patient from Today&apos;s Queue and hit Start Consult to open their chart here.
-          </p>
-          <Link href="/portal/queue" className="mt-6 inline-flex items-center gap-2 rounded-full bg-gradient-dark text-surface-dark-foreground px-6 py-3 text-sm font-semibold shadow-glow hover:opacity-90">
-            Go to Today&apos;s Queue <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-      </PortalLayout>
-    );
-  }
+  // No early return for a missing appointment any more. The pad opens blank
+  // and fully usable so a doctor can start writing before the patient is in
+  // front of them; what they type is kept under UNASSIGNED_DRAFT and adopted
+  // by whichever patient they pick from Today's Queue. Saving is the one
+  // thing that needs a patient, and each save path says so.
 
   if (loadingCtx) {
     return (
@@ -891,7 +949,11 @@ const Prescription = () => {
     );
   }
 
-  if (ctxError || !ctx) {
+  // `!ctx` is the normal state for a pad with no patient on it, so it only
+  // counts as a failure when an appointment was actually asked for. Without
+  // this guard, removing the "No patient selected" gate turned the blank pad
+  // into an error screen.
+  if (appointmentId && (ctxError || !ctx)) {
     return (
       <PortalLayout>
         <div className="rounded-3xl bg-card border border-destructive/30 shadow-soft p-16 text-center">
@@ -906,7 +968,38 @@ const Prescription = () => {
     );
   }
 
-  const { hospital, doctor, patient, appointment, history } = ctx;
+  /**
+   * What the header renders on a pad that has no patient yet.
+   *
+   * Every field is empty rather than sample text: this sheet can be printed,
+   * and a placeholder name on something that looks like a prescription is the
+   * kind of thing that gets mistaken for a real one. Dashes make it obvious
+   * nothing has been chosen. The doctor's own details are equally unknown
+   * here — they arrive with the consultation, not the session.
+   */
+  const blankCtx: ConsultationCtx = {
+    hospital: { name: "—", address: null, contact_phone: null },
+    doctor: { name: "—", specialty: null, education: null },
+    patient: {
+      id: "", full_name: "—", gender: null, age: null, mrn: "—",
+      weight_kg: null, height_feet: null, height_inches: null,
+    },
+    appointment: {
+      // Local date, not toISOString() — that is UTC, and in Dhaka (UTC+6)
+      // everything after 6pm would print yesterday's date on the sheet.
+      id: "", scheduled_date: (() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      })(),
+      department: null, notes: null, status: "draft",
+      bp_systolic: null, bp_diastolic: null,
+      complaints: [], examination: [], investigation: [], diagnosis: [],
+      medicines: [], advice: [],
+    },
+    history: [],
+  };
+
+  const { hospital, doctor, patient, appointment, history } = ctx ?? blankCtx;
   const ageGender = `${ageShort(patient.age)} / ${patient.gender ? genderLabel(patient.gender)[0] : "—"}`;
 
   return (

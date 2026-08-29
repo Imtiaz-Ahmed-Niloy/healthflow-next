@@ -51,6 +51,18 @@ export type NursePerformanceRow = Tables["nurse_performance"]["Row"] & {
 /** Support staff carry no relations, so the row is the table row. */
 export type SupportStaffRow = Tables["support_staff"]["Row"];
 
+/** Contact form submissions carry no relations — the sender is not a user. */
+export type ContactMessageRow = Tables["contact_messages"]["Row"];
+
+/** The equipment register is flat — assignee is free text, not a profile reference. */
+export type AssetRow = Tables["assets"]["Row"];
+
+/** The lab catalogue is a flat price list — no patient or doctor references. */
+export type LabTestRow = Tables["lab_tests"]["Row"];
+
+/** Pharmacy stock is a flat inventory — dispensing lives elsewhere and is not embedded. */
+export type PharmacyItemRow = Tables["pharmacy_items"]["Row"];
+
 /** Patients carry no relations on the registry screen — profile_id is a raw uuid, not embedded. */
 export type PatientRow = Tables["patients"]["Row"];
 

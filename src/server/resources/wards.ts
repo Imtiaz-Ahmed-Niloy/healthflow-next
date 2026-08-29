@@ -39,7 +39,7 @@ export const wardsResource: ResourceDefinition<WardCreate, WardUpdate> = {
   updateSchema: wardUpdateSchema,
   searchFields: ["name"],
   filterFields: ["category"],
-  defaultSort: { column: "name", ascending: true },
+  defaultSort: { column: "created_at", ascending: false },
   roles: {
     read: ["hospital_admin", "hr_admin", "doctor"],
     write: ["hospital_admin", "hr_admin"],

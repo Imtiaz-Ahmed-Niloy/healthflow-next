@@ -48,7 +48,22 @@ export type ResourceDefinition<TCreate = unknown, TUpdate = unknown> = {
   /** Columns accepted as exact-match filters via query string. */
   filterFields?: string[];
 
-  /** Default ordering for list responses. */
+  /**
+   * Default ordering for list responses.
+   *
+   * The convention is `{ column: "created_at", ascending: false }` — newest
+   * first, so a row someone just added is at the top of the table instead of
+   * wherever the alphabet happens to put it. Several modules used to sort by
+   * name or number and a new entry would land in the middle of page three.
+   *
+   * Only depart from it when the table has a domain date that IS the recency
+   * the reader wants — `appointments.scheduled_date`, `admissions.admitted_at`,
+   * `bed_stays.started_at`, `cms_pages.updated_at`. Those are the only four,
+   * and each still sorts descending.
+   *
+   * This is the list order only; the UI's own sorting is untouched, and
+   * DataTable leaves rows alone until a column header is clicked.
+   */
   defaultSort?: { column: string; ascending?: boolean };
 
   /**

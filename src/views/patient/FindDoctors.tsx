@@ -29,11 +29,11 @@ const FindDoctors = () => {
   const [query, setQuery] = useState(searchParams?.get("q") ?? "");
   const router = useRouter();
   const [booking, setBooking] = useState<UIDoctor | null>(null);
-  const [form, setForm] = useState({ date: "", time: "", department: "", reason: "" });
+  const [form, setForm] = useState({ date: "", time: "", reason: "" });
   const [submitting, setSubmitting] = useState(false);
 
   const openBooking = (d: UIDoctor) => {
-    setForm({ date: "", time: "", department: d.specialty, reason: "" });
+    setForm({ date: "", time: "", reason: "" });
     setBooking(d);
   };
 
@@ -54,7 +54,6 @@ const FindDoctors = () => {
           doctor_id: booking.id,
           scheduled_date: form.date,
           scheduled_time: form.time,
-          department: form.department,
           notes: form.reason,
         }),
       });
@@ -182,11 +181,7 @@ const FindDoctors = () => {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label>Department</Label>
-                <Input value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))} placeholder="e.g. Cardiology" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Reason for visit</Label>
+                <Label>Reason for visit (optional)</Label>
                 <Textarea value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} placeholder="Briefly describe your symptoms or reason..." rows={3} />
               </div>
               <DialogFooter>

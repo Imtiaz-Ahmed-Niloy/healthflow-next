@@ -20,11 +20,35 @@ const Contact = ({ hero, content }: { hero: CmsHeroFields; content: ContactConte
   const { form: f, support, sanctuary } = content;
 
   const [form, setForm] = useState({ name: "", email: "", subject: f.subjects[0] ?? "", message: "" });
+  const [sending, setSending] = useState(false);
 
-  const onSubmit = (e: React.FormEvent) => {
+  /**
+   * The success toast fires only after the write actually succeeded. It used to
+   * fire unconditionally, with nothing behind it — the visitor was told
+   * "Message sent" and the message was discarded.
+   */
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success(f.successMessage);
-    setForm({ name: "", email: "", subject: f.subjects[0] ?? "", message: "" });
+    if (sending) return;
+    setSending(true);
+
+    try {
+      const res = await fetch("/api/v1/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      if (!res.ok) throw new Error(String(res.status));
+
+      toast.success(f.successMessage);
+      setForm({ name: "", email: "", subject: f.subjects[0] ?? "", message: "" });
+    } catch {
+      // The fields are kept on purpose so a retry does not mean retyping.
+      toast.error("We couldn't send your message. Please try again, or email us directly.");
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -68,8 +92,9 @@ const Contact = ({ hero, content }: { hero: CmsHeroFields; content: ContactConte
               <textarea required rows={5} value={form.message} onChange={e => setForm({ ...form, message: e.target.value })}
                 placeholder={f.messagePlaceholder} className="mt-2 w-full rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
             </div>
-            <button type="submit" className="w-full rounded-full bg-primary text-primary-foreground py-4 font-semibold hover:bg-primary-glow transition-colors">
-              {f.submitLabel}
+            <button type="submit" disabled={sending}
+              className="w-full rounded-full bg-primary text-primary-foreground py-4 font-semibold hover:bg-primary-glow transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+              {sending ? "Sending…" : f.submitLabel}
             </button>
           </motion.form>
 

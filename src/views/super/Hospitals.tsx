@@ -2,11 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Copy, KeyRound, X, CalendarDays, MapPin, BadgeCheck } from "lucide-react";
+import { Copy, KeyRound, X, CalendarDays, MapPin, BadgeCheck, Loader2 } from "lucide-react";
 import { SuperLayout } from "@/components/super/SuperLayout";
 import { ResourcePage } from "@/components/admin/ResourcePage";
 import { Pill } from "@/components/admin/ui";
-import { Modal } from "@/components/admin/crud";
+import { Modal, ConfirmDialog } from "@/components/admin/crud";
 import { statusTone } from "@/components/admin/crud";
 import { BD_DIVISIONS, BD_LOCATIONS } from "@/data/bdLocations";
 import { BD_UPAZILAS } from "@/data/bdUpazilas";
@@ -40,14 +40,29 @@ const STATUS_LABELS: Record<string, string> = {
 
 type ApproveResult = {
   hospital: string;
-  alreadyProvisioned: boolean;
+  /** Absent on the view and reset paths — only approve can report this. */
+  alreadyProvisioned?: boolean;
   email: string;
   password?: string;
+  /**
+   * Whether the password was stored so it can be read back later. Absent on
+   * view and reset, where being readable is the whole point.
+   */
+  saved?: boolean;
 };
 
 const Page = () => {
   const [creds, setCreds] = useState<ApproveResult | null>(null);
   const [approving, setApproving] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  // Resetting replaces a password the hospital admin may be using right now,
+  // so it gets its own confirmation rather than firing on the click that
+  // discovered there was nothing saved.
+  const [pendingReset, setPendingReset] = useState<H | null>(null);
+  // An approved hospital whose login was never created — see `no_admin_login`
+  // in the login route. Its row shows the key icon, not Approve, so the offer
+  // to provision has to come from here.
+  const [pendingProvision, setPendingProvision] = useState<H | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Filter state
@@ -120,9 +135,12 @@ const Page = () => {
 
   /**
    * Approving provisions the hospital_admin login. The endpoint is idempotent,
-   * so a second press reports the existing admin instead of creating another —
-   * but the password is only ever returned on the first, so it is shown once and
-   * never stored.
+   * so a second press reports the existing admin instead of creating another.
+   *
+   * The password is still only RETURNED on the first press, but since HF-73 it
+   * is also stored, so the key icon on the row can read it back afterwards.
+   * `saved: false` means that storing failed and this really is the only time
+   * it will be shown — the modal says so in that case.
    */
   const approve = async (h: H) => {
     setApproving(h.id);
@@ -154,6 +172,58 @@ const Page = () => {
     }
   };
 
+  /**
+   * Reads the stored admin password back. The counterpart to approve showing
+   * it once — before HF-73 that modal was the only place it ever appeared.
+   */
+  const viewLogin = async (h: H) => {
+    setBusyId(h.id);
+    try {
+      const res = await fetch(`/api/v1/hospitals/${h.id}/login`);
+      const body = await res.json();
+      if (!res.ok) {
+        // Approved before the secret table existed, so nothing was stored.
+        // Offer to replace it rather than leaving the button dead.
+        if (body?.error?.code === "no_saved_password") {
+          setPendingReset(h);
+          return;
+        }
+        // Approved without ever being provisioned — the bulk of the seeded
+        // directory. Approve is idempotent and creates the missing login, so
+        // offer that instead of a toast pointing at a button this row lacks.
+        if (body?.error?.code === "no_admin_login") {
+          setPendingProvision(h);
+          return;
+        }
+        toast.error("Could not load login", { description: body?.error?.message ?? "Please try again." });
+        return;
+      }
+      setCreds(body.data as ApproveResult);
+    } catch {
+      toast.error("Could not load login", { description: "The request failed. Please try again." });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const resetLogin = async (h: H) => {
+    setBusyId(h.id);
+    try {
+      const res = await fetch(`/api/v1/hospitals/${h.id}/login`, { method: "PUT" });
+      const body = await res.json();
+      if (!res.ok) {
+        toast.error("Could not reset password", { description: body?.error?.message ?? "Please try again." });
+        return;
+      }
+      setCreds(body.data as ApproveResult);
+      toast.success("Password reset");
+    } catch {
+      toast.error("Could not reset password", { description: "The request failed. Please try again." });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const copy = (v: string, label: string) => {
     navigator.clipboard.writeText(v);
     toast.success(`${label} copied`);
@@ -169,6 +239,9 @@ const Page = () => {
         extraFilters,
         filterFn,
         steps: HOSPITAL_STEPS,
+        // Pending hospitals get Approve, which is what creates the login.
+        // Once there is a login, the key icon reads it back — the same
+        // affordance /admin/doctors has for doctors.
         rowActions: h => (h.status === "pending" ? (
           <button
             type="button"
@@ -179,7 +252,16 @@ const Page = () => {
             <BadgeCheck className="h-3.5 w-3.5" />
             {approving === h.id ? "Approving…" : "Approve"}
           </button>
-        ) : null),
+        ) : (
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); void viewLogin(h); }}
+            disabled={busyId === h.id}
+            title="View this hospital's admin login"
+            className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 disabled:opacity-50">
+            {busyId === h.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+          </button>
+        )),
         columns: [
           { key: "name", label: "Hospital", sortable: true, accessor: r => r.name, render: r => <span className="font-semibold text-primary">{r.name}</span> },
           { key: "location", label: "Location", sortable: true, accessor: r => r.location || "" },
@@ -195,10 +277,34 @@ const Page = () => {
         fields: HOSPITAL_FIELDS,
       }} />
 
+      <ConfirmDialog
+        open={!!pendingReset}
+        onClose={() => setPendingReset(null)}
+        onConfirm={() => pendingReset && void resetLogin(pendingReset)}
+        title="Reset this hospital admin's password?"
+        description={
+          pendingReset
+            ? `${pendingReset.name} was approved before its password could be stored, so there is nothing to show. The old password can't be recovered, only replaced. Resetting sets a new one you can view here from now on — and locks out whoever is using the old one.`
+            : undefined
+        }
+      />
+
+      <ConfirmDialog
+        open={!!pendingProvision}
+        onClose={() => setPendingProvision(null)}
+        onConfirm={() => pendingProvision && void approve(pendingProvision)}
+        title="Create this hospital's admin login?"
+        description={
+          pendingProvision
+            ? `${pendingProvision.name} is already approved but never had an admin login created, so there is nothing to show. Creating one now generates the password you can view here from now on. It uses the hospital's main email — or the owner's — as the username, so add one first if neither is set.`
+            : undefined
+        }
+      />
+
       <Modal
         open={!!creds}
         onClose={() => setCreds(null)}
-        title="Management admin credentials generated"
+        title={creds?.saved === undefined ? "Hospital admin login" : "Management admin credentials generated"}
         footer={
           <button onClick={() => setCreds(null)}
             className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground">
@@ -210,9 +316,15 @@ const Page = () => {
             <div className="flex items-start gap-3 rounded-xl bg-muted/40 p-4">
               <KeyRound className="h-5 w-5 text-primary mt-0.5 shrink-0" />
               <p className="text-sm text-muted-foreground">
-                <span className="font-semibold text-primary">{creds.hospital}</span> is approved and its
-                admin can now sign in. Share these securely — the password is shown
-                {" "}<span className="font-semibold text-primary">only once</span> and cannot be retrieved again.
+                <span className="font-semibold text-primary">{creds.hospital}</span>&apos;s admin can sign
+                in with these. Share them securely —{" "}
+                {creds.saved === false ? (
+                  <>saving this password for later failed, so it is shown{" "}
+                    <span className="font-semibold text-primary">only once</span>. Copy it now, or use the
+                    key icon on the row to reset it.</>
+                ) : (
+                  <>you can come back to the key icon on this row and view them again at any time.</>
+                )}
               </p>
             </div>
             {[

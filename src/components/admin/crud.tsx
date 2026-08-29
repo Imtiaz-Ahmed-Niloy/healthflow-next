@@ -16,7 +16,10 @@ export function useCrud<T extends { id: string }>(key: string, seed: T[]) {
   return {
     items, setItems,
     create: (it: Omit<T, "id">) => { const r = { ...it, id: uid() } as T; setItems(p => [r, ...p]); toast.success("Created"); return r; },
-    update: (id: string, patch: Partial<T>) => { setItems(p => p.map(i => i.id === id ? { ...i, ...patch } : i)); toast.success("Updated"); },
+    // Returns true to match useResourceCrud.update, whose caller closes the
+    // modal only on success. A localStorage write cannot fail, so it is always
+    // true here — the signature is what matters.
+    update: (id: string, patch: Partial<T>) => { setItems(p => p.map(i => i.id === id ? { ...i, ...patch } : i)); toast.success("Updated"); return true; },
     remove: (id: string) => { setItems(p => p.filter(i => i.id !== id)); toast.success("Deleted"); },
     bulkRemove: (ids: string[]) => { setItems(p => p.filter(i => !ids.includes(i.id))); toast.success(`${ids.length} removed`); },
     reset: () => { setItems(seed); save(key, seed); toast.info("Reset to defaults"); },
@@ -267,7 +270,7 @@ export const Can = ({ action, resource, children, fallback = null }: { action: A
 // ============ Status pill helper ============
 export const statusTone = (s: string): "ok" | "warn" | "bad" | "info" | "default" => {
   const x = s.toLowerCase();
-  if (["active", "approved", "paid", "delivered", "completed", "published", "reported", "resolved"].includes(x)) return "ok";
+  if (["active", "approved", "paid", "delivered", "completed", "published", "reported", "resolved", "replied"].includes(x)) return "ok";
   if (["pending", "draft", "processing", "trial", "scheduled", "ordered"].includes(x)) return "warn";
   if (["overdue", "rejected", "suspended", "cancelled", "failed"].includes(x)) return "bad";
   if (["info", "review", "new"].includes(x)) return "info";

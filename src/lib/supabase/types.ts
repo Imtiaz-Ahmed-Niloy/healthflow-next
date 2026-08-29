@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -196,6 +196,66 @@ export type Database = {
           },
           {
             foreignKeyName: "appointments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assets: {
+        Row: {
+          assignee: string | null
+          category: string | null
+          created_at: string
+          id: string
+          location: string | null
+          name: string
+          notes: string | null
+          purchased_at: string | null
+          status: string
+          tag: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          assignee?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          location?: string | null
+          name: string
+          notes?: string | null
+          purchased_at?: string | null
+          status?: string
+          tag: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          assignee?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          location?: string | null
+          name?: string
+          notes?: string | null
+          purchased_at?: string | null
+          status?: string
+          tag?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -425,6 +485,39 @@ export type Database = {
           published?: boolean
           slug?: string
           title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      contact_messages: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          message: string
+          name: string
+          status: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          message: string
+          name: string
+          status?: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          message?: string
+          name?: string
+          status?: string
+          subject?: string
           updated_at?: string
         }
         Relationships: []
@@ -851,6 +944,45 @@ export type Database = {
           },
         ]
       }
+      hospital_admin_secrets: {
+        Row: {
+          created_at: string
+          email: string
+          password_enc: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          password_enc: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          password_enc?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hospital_admin_secrets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospital_admin_secrets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hospital_packages: {
         Row: {
           base_price: number
@@ -923,6 +1055,66 @@ export type Database = {
             foreignKeyName: "hospital_packages_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_tests: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          prep: string | null
+          price: number
+          sample: string | null
+          status: string
+          tenant_id: string
+          turnaround: string | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          prep?: string | null
+          price: number
+          sample?: string | null
+          status?: string
+          tenant_id: string
+          turnaround?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          prep?: string | null
+          price?: number
+          sample?: string | null
+          status?: string
+          tenant_id?: string
+          turnaround?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_tests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_tests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
@@ -1268,6 +1460,60 @@ export type Database = {
           },
           {
             foreignKeyName: "patients_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pharmacy_items: {
+        Row: {
+          category: string | null
+          created_at: string
+          id: string
+          name: string
+          reorder: number
+          sku: string
+          status: string
+          stock: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          reorder?: number
+          sku: string
+          status?: string
+          stock?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          reorder?: number
+          sku?: string
+          status?: string
+          stock?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pharmacy_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pharmacy_items_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -1759,7 +2005,12 @@ export type Database = {
       hospitals_public: {
         Row: {
           about: string | null
+          additional_emails: string[] | null
+          additional_phones: string[] | null
+          address: string | null
           beds: number | null
+          contact_email: string | null
+          contact_phone: string | null
           cover_image_url: string | null
           created_at: string | null
           district: string | null
@@ -1775,14 +2026,21 @@ export type Database = {
           rating: number | null
           reviews_count: number | null
           slug: string | null
+          social: Json | null
           specialties: string | null
           subdistrict: string | null
           summary: string | null
           tagline: string | null
+          websites: string[] | null
         }
         Insert: {
           about?: string | null
+          additional_emails?: string[] | null
+          additional_phones?: string[] | null
+          address?: string | null
           beds?: number | null
+          contact_email?: string | null
+          contact_phone?: string | null
           cover_image_url?: string | null
           created_at?: string | null
           district?: string | null
@@ -1798,14 +2056,21 @@ export type Database = {
           rating?: number | null
           reviews_count?: number | null
           slug?: string | null
+          social?: Json | null
           specialties?: string | null
           subdistrict?: string | null
           summary?: string | null
           tagline?: string | null
+          websites?: string[] | null
         }
         Update: {
           about?: string | null
+          additional_emails?: string[] | null
+          additional_phones?: string[] | null
+          address?: string | null
           beds?: number | null
+          contact_email?: string | null
+          contact_phone?: string | null
           cover_image_url?: string | null
           created_at?: string | null
           district?: string | null
@@ -1821,10 +2086,12 @@ export type Database = {
           rating?: number | null
           reviews_count?: number | null
           slug?: string | null
+          social?: Json | null
           specialties?: string | null
           subdistrict?: string | null
           summary?: string | null
           tagline?: string | null
+          websites?: string[] | null
         }
         Relationships: []
       }

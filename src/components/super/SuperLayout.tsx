@@ -6,7 +6,7 @@ import { NavLink } from "@/components/NavLink";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Building2, ShieldCheck, FileBarChart, Package, Globe2, ListChecks,
-  FileCode2, Receipt, Settings, LogOut, Bell, Menu, X, Network, Megaphone, LifeBuoy, ScrollText,
+  FileCode2, Receipt, Settings, LogOut, Bell, Menu, X, Network, Megaphone, LifeBuoy, ScrollText, Mail,
   ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -35,6 +35,7 @@ export const superNav = [
   { to: "/super/billing", icon: Receipt, label: "Billing", group: "Commerce" },
   { to: "/super/cms", icon: FileCode2, label: "CMS Management", group: "Content" },
   { to: "/super/announcements", icon: Megaphone, label: "Announcements", group: "Content" },
+  { to: "/super/contact-messages", icon: Mail, label: "Contact Messages", group: "Content" },
   { to: "/super/tickets", icon: LifeBuoy, label: "Support Tickets", group: "System" },
   { to: "/super/integrations", icon: Network, label: "Integrations", group: "System" },
   { to: "/super/global-settings", icon: Globe2, label: "Global Settings", group: "System" },
