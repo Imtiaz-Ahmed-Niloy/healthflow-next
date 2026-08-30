@@ -1614,6 +1614,67 @@ export type Database = {
         }
         Relationships: []
       }
+      patient_history: {
+        Row: {
+          created_at: string
+          detail: string | null
+          id: string
+          kind: Database["public"]["Enums"]["patient_history_kind"]
+          label: string
+          ongoing: boolean
+          patient_id: string
+          started_on: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["patient_history_kind"]
+          label: string
+          ongoing?: boolean
+          patient_id: string
+          started_on?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["patient_history_kind"]
+          label?: string
+          ongoing?: boolean
+          patient_id?: string
+          started_on?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_history_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_history_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_history_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patients: {
         Row: {
           address: string | null
@@ -1623,12 +1684,15 @@ export type Database = {
           email: string | null
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
+          emergency_contact_relation: string | null
           full_name: string
           gender: Database["public"]["Enums"]["patient_gender"] | null
           height_feet: number | null
           height_inches: number | null
           id: string
+          marital_status: Database["public"]["Enums"]["marital_status"] | null
           mrn: string
+          national_id: string | null
           phone: string | null
           profile_id: string | null
           tenant_id: string
@@ -1643,12 +1707,15 @@ export type Database = {
           email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
+          emergency_contact_relation?: string | null
           full_name: string
           gender?: Database["public"]["Enums"]["patient_gender"] | null
           height_feet?: number | null
           height_inches?: number | null
           id?: string
+          marital_status?: Database["public"]["Enums"]["marital_status"] | null
           mrn: string
+          national_id?: string | null
           phone?: string | null
           profile_id?: string | null
           tenant_id: string
@@ -1663,12 +1730,15 @@ export type Database = {
           email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
+          emergency_contact_relation?: string | null
           full_name?: string
           gender?: Database["public"]["Enums"]["patient_gender"] | null
           height_feet?: number | null
           height_inches?: number | null
           id?: string
+          marital_status?: Database["public"]["Enums"]["marital_status"] | null
           mrn?: string
+          national_id?: string | null
           phone?: string | null
           profile_id?: string | null
           tenant_id?: string
@@ -2680,7 +2750,9 @@ export type Database = {
         | "reserved"
       doctor_status: "active" | "on_leave" | "suspended"
       finance_invoice_kind: "receivable" | "payable"
+      marital_status: "single" | "married" | "divorced" | "widowed"
       patient_gender: "male" | "female" | "other"
+      patient_history_kind: "allergy" | "illness" | "medication" | "procedure"
       payroll_run_status: "draft" | "approved" | "paid"
       tenant_status: "pending" | "approved" | "suspended"
       ward_category:
@@ -2857,7 +2929,9 @@ export const Constants = {
       ],
       doctor_status: ["active", "on_leave", "suspended"],
       finance_invoice_kind: ["receivable", "payable"],
+      marital_status: ["single", "married", "divorced", "widowed"],
       patient_gender: ["male", "female", "other"],
+      patient_history_kind: ["allergy", "illness", "medication", "procedure"],
       payroll_run_status: ["draft", "approved", "paid"],
       tenant_status: ["pending", "approved", "suspended"],
       ward_category: [
