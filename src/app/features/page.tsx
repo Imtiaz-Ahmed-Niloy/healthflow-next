@@ -1,5 +1,7 @@
 import Features from "@/views/Features";
+import { notFound } from "next/navigation";
 import { createPublicSupabase } from "@/lib/supabase/server";
+import { pageIsDrafted } from "@/lib/cms/pages";
 import { blocksToFeaturesContent } from "@/data/featuresContent";
 import { blocksToHero } from "@/data/cmsPageHero";
 
@@ -20,6 +22,10 @@ export default async function FeaturesPage() {
   if (error) {
     console.error("Failed to load features page CMS content:", error);
   }
+
+  // Unpublished in the CMS: RLS returns no row to an anonymous reader, so an
+  // absent row with no error means a super admin drafted this page.
+  if (pageIsDrafted(data, error)) notFound();
 
   const hero = blocksToHero(data?.blocks, "features");
   const content = blocksToFeaturesContent(data?.blocks);

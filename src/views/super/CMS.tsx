@@ -4,8 +4,8 @@ import { useMemo, useState } from "react";
 import { SuperLayout } from "@/components/super/SuperLayout";
 import { Btn, Pill } from "@/components/admin/ui";
 import {
-  FileText, ExternalLink, Pencil, Trash2, Plus, Search,
-  Files, CheckCircle2, FileEdit, Lock,
+  FileText, ExternalLink, Pencil, Search,
+  Files, CheckCircle2, FileEdit, Lock, AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -17,9 +17,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
-const todayLabel = () => "just now";
-
 type StatusFilter = "all" | "published" | "draft";
+
+const describeError = (cause: unknown, fallback: string) =>
+  (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? fallback;
+
+const formatUpdated = (iso: string) => {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+};
 
 const StatTile = ({
   icon: Icon, label, value, accent,
@@ -36,63 +44,63 @@ const StatTile = ({
 );
 
 const CMS = () => {
-  const { pages, save, reset } = useSitePages();
+  const { pages, isLoading, isError, setPublished, rename } = useSitePages();
   const [editing, setEditing] = useState<SitePage | null>(null);
+  const [draftTitle, setDraftTitle] = useState("");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<StatusFilter>("all");
 
-  const upsert = (p: SitePage) => {
-    const exists = pages.some(x => x.id === p.id);
-    save(exists ? pages.map(x => (x.id === p.id ? p : x)) : [...pages, p]);
+  const openEditor = (page: SitePage) => {
+    setEditing(page);
+    setDraftTitle(page.title);
   };
 
-  const toggleStatus = (p: SitePage) => {
-    upsert({ ...p, status: p.status === "published" ? "draft" : "published", updated: todayLabel() });
-    toast.success(`${p.title} ${p.status === "published" ? "unpublished" : "published"}`);
+  const togglePublished = async (page: SitePage) => {
+    const next = !page.published;
+    try {
+      await setPublished(page, next);
+      toast.success(`${page.title} ${next ? "published" : "unpublished"}`);
+    } catch (cause) {
+      toast.error(describeError(cause, `Could not ${next ? "publish" : "unpublish"} ${page.title}`));
+    }
   };
 
-  const remove = (p: SitePage) => {
-    if (p.builtIn) { toast.error("Built-in pages can't be deleted"); return; }
-    save(pages.filter(x => x.id !== p.id));
-    toast.success("Page removed");
+  const saveTitle = async () => {
+    if (!editing) return;
+    const title = draftTitle.trim();
+    if (!title) { toast.error("A page needs a title"); return; }
+    try {
+      await rename(editing, title);
+      toast.success("Page saved");
+      setEditing(null);
+    } catch (cause) {
+      toast.error(describeError(cause, "Could not save the page"));
+    }
   };
-
-  const onAdd = () =>
-    setEditing({ id: `page-${Date.now()}`, title: "Untitled Page", slug: "/new-page", status: "draft", updated: todayLabel() });
 
   const stats = useMemo(() => ({
     total: pages.length,
-    published: pages.filter(p => p.status === "published").length,
-    drafts: pages.filter(p => p.status === "draft").length,
-    builtIn: pages.filter(p => p.builtIn).length,
+    published: pages.filter(p => p.published).length,
+    drafts: pages.filter(p => !p.published).length,
+    protected: pages.filter(p => p.protected).length,
   }), [pages]);
 
   const filtered = pages.filter(p => {
     const q = query.toLowerCase();
-    const matchQ = p.title.toLowerCase().includes(q) || p.slug.toLowerCase().includes(q);
-    const matchF = filter === "all" ? true : p.status === filter;
+    const matchQ = p.title.toLowerCase().includes(q) || p.path.toLowerCase().includes(q);
+    const matchF = filter === "all" ? true : filter === "published" ? p.published : !p.published;
     return matchQ && matchF;
   });
 
   return (
     <SuperLayout title="CMS Management" subtitle="Pages, posts & marketing content">
       <div className="space-y-6">
-        {/* Header actions */}
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <Btn variant="outline" onClick={() => { reset(); toast.success("Pages restored"); }}>
-            Reset
-          </Btn>
-          <Btn onClick={onAdd}>
-            <Plus className="h-4 w-4" /> New Page
-          </Btn>
-        </div>
-
         {/* KPI tiles */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatTile icon={Files} label="Total Pages" value={stats.total} accent="bg-primary/10 text-primary" />
           <StatTile icon={CheckCircle2} label="Published" value={stats.published} accent="bg-accent/40 text-accent-foreground" />
           <StatTile icon={FileEdit} label="Drafts" value={stats.drafts} accent="bg-chip text-chip-foreground" />
-          <StatTile icon={Lock} label="Built-in" value={stats.builtIn} accent="bg-muted text-foreground/70" />
+          <StatTile icon={Lock} label="Always On" value={stats.protected} accent="bg-muted text-foreground/70" />
         </div>
 
         {/* Toolbar */}
@@ -101,7 +109,7 @@ const CMS = () => {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by title or slug…"
+                placeholder="Search by title or path…"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 className="pl-9 bg-muted/40 border-border/60"
@@ -128,7 +136,7 @@ const CMS = () => {
               <thead>
                 <tr className="text-[10px] tracking-widest font-bold text-muted-foreground bg-muted/30">
                   <th className="px-6 py-3.5">PAGE</th>
-                  <th className="px-6 py-3.5 hidden md:table-cell">SLUG</th>
+                  <th className="px-6 py-3.5 hidden md:table-cell">PATH</th>
                   <th className="px-6 py-3.5">STATUS</th>
                   <th className="px-6 py-3.5 hidden lg:table-cell">UPDATED</th>
                   <th className="px-6 py-3.5 text-right">ACTIONS</th>
@@ -144,29 +152,36 @@ const CMS = () => {
                         </div>
                         <div className="min-w-0">
                           <p className="font-semibold text-primary truncate">{p.title}</p>
-                          {p.builtIn && (
-                            <p className="text-[10px] tracking-widest font-bold text-primary-glow mt-0.5">BUILT-IN</p>
+                          {p.protected && (
+                            <p className="text-[10px] tracking-widest font-bold text-primary-glow mt-0.5">ALWAYS ON</p>
                           )}
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 hidden md:table-cell">
                       <code className="text-xs font-mono text-muted-foreground bg-muted/40 px-2 py-1 rounded">
-                        {p.slug}
+                        {p.path}
                       </code>
                     </td>
                     <td className="px-6 py-4">
-                      <button onClick={() => toggleStatus(p)} title="Toggle publish status">
-                        <Pill tone={p.status === "published" ? "ok" : "warn"}>{p.status}</Pill>
+                      <button
+                        onClick={() => togglePublished(p)}
+                        disabled={p.protected}
+                        title={p.protected
+                          ? "Sign-in and sign-up stay published — unpublishing one would lock everyone out"
+                          : "Toggle publish status"}
+                        className="disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <Pill tone={p.published ? "ok" : "warn"}>{p.published ? "published" : "draft"}</Pill>
                       </button>
                     </td>
                     <td className="px-6 py-4 hidden lg:table-cell text-xs text-muted-foreground">
-                      {p.updated}
+                      {formatUpdated(p.updated_at)}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-1">
                         <a
-                          href={p.slug}
+                          href={p.path}
                           target="_blank"
                           rel="noreferrer"
                           className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
@@ -175,25 +190,33 @@ const CMS = () => {
                           <ExternalLink className="h-4 w-4" />
                         </a>
                         <button
-                          onClick={() => setEditing(p)}
+                          onClick={() => openEditor(p)}
                           className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
-                          title="Edit"
+                          title="Rename"
                         >
                           <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => remove(p)}
-                          disabled={p.builtIn}
-                          className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
-                          title={p.builtIn ? "Built-in pages can't be deleted" : "Delete"}
-                        >
-                          <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     </td>
                   </tr>
                 ))}
-                {filtered.length === 0 && (
+                {isLoading && pages.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-16 text-center text-sm text-muted-foreground">
+                      Loading pages…
+                    </td>
+                  </tr>
+                )}
+                {isError && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-16 text-center">
+                      <AlertTriangle className="h-10 w-10 text-destructive/60 mx-auto mb-3" />
+                      <p className="text-sm font-semibold text-primary">Could not load pages</p>
+                      <p className="text-xs text-muted-foreground mt-1">Reload the page to try again.</p>
+                    </td>
+                  </tr>
+                )}
+                {!isLoading && !isError && filtered.length === 0 && (
                   <tr>
                     <td colSpan={5} className="px-6 py-16 text-center">
                       <FileText className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
@@ -210,55 +233,58 @@ const CMS = () => {
 
           <div className="px-6 py-3 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
             <span>Showing <span className="font-bold text-primary">{filtered.length}</span> of {pages.length} pages</span>
-            <span className="hidden sm:inline">Click a status pill to toggle publish state</span>
+            <span className="hidden sm:inline">Click a status pill to publish or unpublish</span>
           </div>
         </div>
+
+        <p className="text-xs text-muted-foreground">
+          Every page here is a route built into the app, so the list is fixed — a page can be renamed
+          or unpublished, never deleted. An unpublished page returns &quot;not found&quot; to visitors
+          and drops out of the site navigation.
+        </p>
       </div>
 
       <Dialog open={!!editing} onOpenChange={o => !o && setEditing(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editing && pages.some(p => p.id === editing.id) ? "Edit Page" : "New Page"}</DialogTitle>
+            <DialogTitle>Rename page</DialogTitle>
           </DialogHeader>
           {editing && (
             <div className="space-y-3">
               <div className="space-y-1.5">
                 <Label>Title</Label>
-                <Input value={editing.title} onChange={e => setEditing({ ...editing, title: e.target.value })} />
+                <Input value={draftTitle} onChange={e => setDraftTitle(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label>Slug / Path</Label>
-                <Input
-                  value={editing.slug}
-                  onChange={e => setEditing({ ...editing, slug: e.target.value })}
-                  disabled={editing.builtIn}
-                />
-                {editing.builtIn && (
-                  <p className="text-xs text-muted-foreground">Route is wired in the app and can&apos;t be changed.</p>
-                )}
+                <Label>Path</Label>
+                <Input value={editing.path} disabled />
+                <p className="text-xs text-muted-foreground">
+                  The route is wired into the app and can&apos;t be changed here.
+                </p>
               </div>
               <div className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2">
                 <Label htmlFor="pub">Published</Label>
                 <Switch
                   id="pub"
-                  checked={editing.status === "published"}
-                  onCheckedChange={c => setEditing({ ...editing, status: c ? "published" : "draft" })}
+                  checked={editing.published}
+                  disabled={editing.protected}
+                  onCheckedChange={async c => {
+                    await togglePublished(editing);
+                    setEditing({ ...editing, published: c });
+                  }}
                 />
               </div>
+              {editing.protected && (
+                <p className="text-xs text-muted-foreground">
+                  This page always stays published — unpublishing sign-in would lock everyone out,
+                  including you.
+                </p>
+              )}
             </div>
           )}
           <DialogFooter>
             <Btn variant="ghost" onClick={() => setEditing(null)}>Cancel</Btn>
-            <Btn
-              onClick={() => {
-                if (!editing) return;
-                upsert({ ...editing, updated: todayLabel() });
-                toast.success("Page saved");
-                setEditing(null);
-              }}
-            >
-              Save
-            </Btn>
+            <Btn onClick={saveTitle}>Save</Btn>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -266,4 +292,3 @@ const CMS = () => {
   );
 };
 export default CMS;
-

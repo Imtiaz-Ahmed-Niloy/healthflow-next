@@ -1,6 +1,7 @@
 import { createResourceApi } from "@/redux/api/createResourceApi";
 import type { Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/types";
 import { useMemo } from "react";
+import { pathForSlug } from "@/constants/sitePages";
 import {
   blocksToPricingContent,
   defaultPricingContent,
@@ -27,7 +28,7 @@ export const usePricingContent = () => {
     if (row) {
       await update(row.id, { blocks }).unwrap();
     } else {
-      await create({ slug: "pricing", title: "Pricing", blocks, published: true }).unwrap();
+      await create({ slug: "pricing", path: pathForSlug("pricing"), title: "Pricing", blocks, published: true }).unwrap();
     }
   };
 

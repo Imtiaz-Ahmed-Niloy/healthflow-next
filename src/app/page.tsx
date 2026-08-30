@@ -1,5 +1,7 @@
 import Index from "@/views/Index";
+import { notFound } from "next/navigation";
 import { createPublicSupabase } from "@/lib/supabase/server";
+import { pageIsDrafted } from "@/lib/cms/pages";
 import { blocksToHomeContent } from "@/data/homeContent";
 import { blocksToPricingContent } from "@/data/pricingContent";
 
@@ -21,6 +23,11 @@ export default async function HomePage() {
   if (pricingResult.error) {
     console.error("Failed to load pricing CMS content for the homepage teaser:", pricingResult.error);
   }
+
+  // Only the home row gates this route. A drafted /pricing should take the
+  // pricing page down, not the homepage that happens to tease it — the teaser
+  // falls back to its defaults instead.
+  if (pageIsDrafted(homeResult.data, homeResult.error)) notFound();
 
   const homeContent = blocksToHomeContent(homeResult.data?.blocks);
   const pricingPlans = blocksToPricingContent(pricingResult.data?.blocks).plans;

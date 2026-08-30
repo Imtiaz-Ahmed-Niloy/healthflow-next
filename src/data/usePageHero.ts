@@ -2,6 +2,7 @@ import { createResourceApi } from "@/redux/api/createResourceApi";
 import type { Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/types";
 import { useMemo } from "react";
 import { blocksToHero, defaultCmsHero, heroToBlocks, type CmsHeroFields, type CmsHeroKey } from "@/data/cmsPageHero";
+import { pathForSlug } from "@/constants/sitePages";
 
 type CmsPageRow = Tables<"cms_pages">;
 type CmsPageInsert = TablesInsert<"cms_pages">;
@@ -34,7 +35,7 @@ export const usePageHero = (pageKey: CmsHeroKey) => {
     if (row) {
       await update(row.id, { blocks }).unwrap();
     } else {
-      await create({ slug: pageKey, title: titleFor[pageKey], blocks, published: true }).unwrap();
+      await create({ slug: pageKey, path: pathForSlug(pageKey), title: titleFor[pageKey], blocks, published: true }).unwrap();
     }
   };
 

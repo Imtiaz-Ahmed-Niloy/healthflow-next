@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/providers";
 import ReduxProvider from "@/redux/provider";
+import { PublishedPathsProvider } from "@/components/site/PublishedPages";
+import { getPublishedPaths } from "@/lib/cms/pages";
 
 import { BRAND_INFO } from "@/constants/brand";
 
@@ -24,11 +26,16 @@ export const metadata: Metadata = {
   description: BRAND_INFO.tagline,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Which public pages are published, so the nav and footer can drop links to
+  // the ones a super admin has unpublished. Cached for 60s, so this does not
+  // make every route in the app dynamic.
+  const publishedPaths = await getPublishedPaths();
+
   return (
     <html
       lang="en"
@@ -36,7 +43,9 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <ReduxProvider>
-          <Providers>{children}</Providers>
+          <PublishedPathsProvider paths={publishedPaths}>
+            <Providers>{children}</Providers>
+          </PublishedPathsProvider>
         </ReduxProvider>
       </body>
     </html>

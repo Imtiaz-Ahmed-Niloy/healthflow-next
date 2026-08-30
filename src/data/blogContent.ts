@@ -1,8 +1,10 @@
 /**
- * Blog page chrome only — masthead, section copy, newsletter. Individual
- * posts and categories are out of scope for this migration (tracked
- * separately as cms_blog_posts) and stay on the localStorage mechanism in
- * blogPosts.ts.
+ * Blog page chrome — masthead, section copy, newsletter, and the category
+ * filter list. All of it lives in cms_pages.blocks under slug "blog".
+ *
+ * The articles themselves are rows in cms_blog_posts; see data/blogPost.ts.
+ * Categories sit here rather than there because they are the page’s filter
+ * bar, not a property of any one article.
  */
 export type BlogContent = {
   masthead: {
@@ -12,6 +14,8 @@ export type BlogContent = {
     tagline: string;
     editionLabel: string;
   };
+  /** Filter bar, in order. The first entry is the default and shows everything. */
+  categories: string[];
   trendingTitle: string;
   leadEyebrow: string;
   leadKicker: string;
@@ -35,6 +39,7 @@ export const defaultBlogContent: BlogContent = {
     tagline: "Long-form journalism from the doctors of HealthFlow — research, opinion, and notes from the ward.",
     editionLabel: "Daily Edition",
   },
+  categories: ["All", "Research", "Cardiology", "Pediatrics", "Orthopedics", "Oncology", "Dermatology", "Mental Health", "Pulmonology", "Surgery"],
   trendingTitle: "Most Read",
   leadEyebrow: "Lead Story",
   leadKicker: "It's the kind of finding that makes the architecture of care matter as much as the medicine itself — a reminder that walls, windows and air can be instruments of healing.",
@@ -81,10 +86,16 @@ const normalizeNewsletter = (n: unknown): BlogContent["newsletter"] => {
   };
 };
 
+// Same defensive reasoning as str(): blocks is untyped jsonb, so a category
+// list could come back as anything at all.
+const strList = (v: unknown, fallback: string[]): string[] =>
+  Array.isArray(v) && v.every((x) => typeof x === "string") ? v : fallback;
+
 export const blocksToBlogContent = (blocks: unknown): BlogContent => {
   const b = (blocks ?? {}) as BlogBlocks;
   return {
     masthead: normalizeMasthead(b.masthead),
+    categories: strList(b.categories, defaultBlogContent.categories),
     trendingTitle: str(b.trendingTitle, defaultBlogContent.trendingTitle),
     leadEyebrow: str(b.leadEyebrow, defaultBlogContent.leadEyebrow),
     leadKicker: str(b.leadKicker, defaultBlogContent.leadKicker),
@@ -96,6 +107,7 @@ export const blocksToBlogContent = (blocks: unknown): BlogContent => {
 
 export const blogContentToBlocks = (content: BlogContent) => ({
   masthead: content.masthead,
+  categories: content.categories,
   trendingTitle: content.trendingTitle,
   leadEyebrow: content.leadEyebrow,
   leadKicker: content.leadKicker,
