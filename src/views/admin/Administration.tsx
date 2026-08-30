@@ -3,129 +3,181 @@
 import { useMemo, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, Btn, Pill } from "@/components/admin/ui";
-import { Modal, Field, Input, Select, useCrud, statusTone } from "@/components/admin/crud";
+import { Modal, Field, Input, Select, statusTone } from "@/components/admin/crud";
+import { useResourceCrud } from "@/components/admin/useResourceCrud";
+import { useNotifications } from "@/components/admin/NotificationProvider";
 import {
-  Baby, HeartCrack, Stethoscope, BadgeCheck, FileSignature, ShieldCheck,
-  Briefcase, FilePlus2, Printer, Eye, Pencil, Trash2, Search, Download, Award,
+  Baby, HeartCrack, Stethoscope, BadgeCheck, ShieldCheck, FileSignature,
+  Award, Briefcase, FilePlus2, Search,
 } from "lucide-react";
+import type { Tables } from "@/lib/supabase/types";
+import { BRAND_INFO } from "@/constants/brand";
 
-type CertType =
-  | "Birth Certificate"
-  | "Death Certificate"
-  | "Medical Fitness Certificate"
-  | "Discharge Certificate"
-  | "Vaccination Certificate"
-  | "Disability Certificate"
-  | "Experience Certificate"
-  | "No Objection Certificate (NOC)"
-  | "Relieving Certificate"
-  | "Salary Certificate";
+type Certificate = Tables<"certificates">;
+type CertType = Certificate["type"];
+type CertStatus = Certificate["status"];
 
-type Cert = {
-  id: string;
-  certNo: string;
+type PatientOption = { id: string; full_name: string; mrn: string };
+type EmployeeOption = { id: string; name: string; emp_id: string };
+
+/**
+ * The catalogue of certificates a hospital issues.
+ *
+ * `category` lives here rather than in the database. It is a fixed property of
+ * the type — a birth certificate is always about a patient — so storing it as
+ * a column would only create something that could disagree with the type
+ * beside it. Same reasoning as the payslip status dropped in HF-67.
+ */
+const TYPES: {
   type: CertType;
+  label: string;
   category: "Patient" | "Employee";
-  recipient: string;
-  refId: string; // patient id / employee id
-  issuedBy: string;
-  issuedOn: string;
-  details: string;
-  status: "Issued" | "Pending" | "Revoked";
+  icon: typeof Baby;
+  tone: string;
+  prefix: string;
+}[] = [
+  { type: "birth", label: "Birth Certificate", category: "Patient", icon: Baby, tone: "bg-pink-100 text-pink-700", prefix: "BC" },
+  { type: "death", label: "Death Certificate", category: "Patient", icon: HeartCrack, tone: "bg-slate-200 text-slate-700", prefix: "DC" },
+  { type: "medical_fitness", label: "Medical Fitness Certificate", category: "Patient", icon: Stethoscope, tone: "bg-emerald-100 text-emerald-700", prefix: "MF" },
+  { type: "discharge", label: "Discharge Certificate", category: "Patient", icon: BadgeCheck, tone: "bg-teal-100 text-teal-700", prefix: "DSC" },
+  { type: "vaccination", label: "Vaccination Certificate", category: "Patient", icon: ShieldCheck, tone: "bg-blue-100 text-blue-700", prefix: "VAC" },
+  { type: "disability", label: "Disability Certificate", category: "Patient", icon: FileSignature, tone: "bg-amber-100 text-amber-700", prefix: "DIS" },
+  { type: "experience", label: "Experience Certificate", category: "Employee", icon: Award, tone: "bg-indigo-100 text-indigo-700", prefix: "EXP" },
+  { type: "noc", label: "No Objection Certificate (NOC)", category: "Employee", icon: FileSignature, tone: "bg-violet-100 text-violet-700", prefix: "NOC" },
+  { type: "relieving", label: "Relieving Certificate", category: "Employee", icon: Briefcase, tone: "bg-rose-100 text-rose-700", prefix: "REL" },
+  { type: "salary", label: "Salary Certificate", category: "Employee", icon: FilePlus2, tone: "bg-cyan-100 text-cyan-700", prefix: "SAL" },
+];
+
+const metaFor = (type: CertType) => TYPES.find(t => t.type === type)!;
+
+/** Statuses are stored lowercase across every module; capitalised only here. */
+const STATUS_LABELS: Record<CertStatus, string> = {
+  pending: "Pending",
+  issued: "Issued",
+  revoked: "Revoked",
 };
 
-const TYPES: { type: CertType; category: "Patient" | "Employee"; icon: typeof Baby; tone: string }[] = [
-  { type: "Birth Certificate", category: "Patient", icon: Baby, tone: "bg-pink-100 text-pink-700" },
-  { type: "Death Certificate", category: "Patient", icon: HeartCrack, tone: "bg-slate-200 text-slate-700" },
-  { type: "Medical Fitness Certificate", category: "Patient", icon: Stethoscope, tone: "bg-emerald-100 text-emerald-700" },
-  { type: "Discharge Certificate", category: "Patient", icon: BadgeCheck, tone: "bg-teal-100 text-teal-700" },
-  { type: "Vaccination Certificate", category: "Patient", icon: ShieldCheck, tone: "bg-blue-100 text-blue-700" },
-  { type: "Disability Certificate", category: "Patient", icon: FileSignature, tone: "bg-amber-100 text-amber-700" },
-  { type: "Experience Certificate", category: "Employee", icon: Award, tone: "bg-indigo-100 text-indigo-700" },
-  { type: "No Objection Certificate (NOC)", category: "Employee", icon: FileSignature, tone: "bg-violet-100 text-violet-700" },
-  { type: "Relieving Certificate", category: "Employee", icon: Briefcase, tone: "bg-rose-100 text-rose-700" },
-  { type: "Salary Certificate", category: "Employee", icon: FilePlus2, tone: "bg-cyan-100 text-cyan-700" },
-];
+const dateLabel = (iso: string | null) => {
+  if (!iso) return "—";
+  const d = new Date(`${iso}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+};
 
-const seed: Cert[] = [
-  { id: "c1", certNo: "BC-2026-0142", type: "Birth Certificate", category: "Patient", recipient: "Baby of Anita Sharma", refId: "P-10293", issuedBy: "Dr. R. Mehta", issuedOn: "2026-06-15", details: "Female · 3.2 kg · Born 06:42 AM · Maternity Ward", status: "Issued" },
-  { id: "c2", certNo: "DC-2026-0031", type: "Death Certificate", category: "Patient", recipient: "Mr. Suresh Kapoor", refId: "P-09812", issuedBy: "Dr. K. Iyer", issuedOn: "2026-06-12", details: "Cause: Cardiac arrest · ICU-3", status: "Issued" },
-  { id: "c3", certNo: "MF-2026-0210", type: "Medical Fitness Certificate", category: "Patient", recipient: "Rohit Verma", refId: "P-10440", issuedBy: "Dr. S. Pillai", issuedOn: "2026-06-18", details: "Pre-employment medical · Fit for duty", status: "Issued" },
-  { id: "c4", certNo: "EXP-2026-0019", type: "Experience Certificate", category: "Employee", recipient: "Nurse Priya Nair", refId: "EMP-2041", issuedBy: "HR Office", issuedOn: "2026-06-10", details: "Service period: Jan 2020 – May 2026 · Staff Nurse, ICU", status: "Issued" },
-  { id: "c5", certNo: "NOC-2026-0007", type: "No Objection Certificate (NOC)", category: "Employee", recipient: "Dr. Vivek Rao", refId: "EMP-1108", issuedBy: "HR Office", issuedOn: "2026-06-09", details: "NOC for higher studies (MD Cardiology)", status: "Issued" },
-  { id: "c6", certNo: "REL-2026-0004", type: "Relieving Certificate", category: "Employee", recipient: "Tech. Aman Khan", refId: "EMP-3320", issuedBy: "HR Office", issuedOn: "—", details: "Last working day: 2026-06-30", status: "Pending" },
-];
-
-const newCertNo = (type: CertType) => {
-  const prefix = type.startsWith("Birth") ? "BC" : type.startsWith("Death") ? "DC" : type.startsWith("Medical") ? "MF" :
-    type.startsWith("Discharge") ? "DSC" : type.startsWith("Vaccination") ? "VAC" : type.startsWith("Disability") ? "DIS" :
-    type.startsWith("Experience") ? "EXP" : type.startsWith("No Objection") ? "NOC" : type.startsWith("Relieving") ? "REL" : "SAL";
-  return `${prefix}-2026-${String(Math.floor(Math.random() * 9000) + 1000)}`;
+/**
+ * "BC-2026-0007", numbered within its type for the year.
+ *
+ * The old version padded a random four-digit number, so issuing two
+ * certificates could produce the same one — on a document whose number is its
+ * identity. The unique index catches a genuine clash now, and this makes one
+ * unlikely in the first place.
+ */
+const suggestNumber = (rows: Certificate[], type: CertType) => {
+  const { prefix } = metaFor(type);
+  const year = new Date().getFullYear();
+  const head = `${prefix}-${year}-`;
+  const used = rows
+    .map(c => c.certificate_no.trim().toUpperCase())
+    .filter(no => no.startsWith(head))
+    .map(no => Number(no.slice(head.length)))
+    .filter(Number.isFinite);
+  return `${head}${String(used.length ? Math.max(...used) + 1 : 1).padStart(4, "0")}`;
 };
 
 export default function Administration() {
-  const crud = useCrud<Cert>("admin-certificates", seed);
+  const crud = useResourceCrud<Certificate>("certificates");
+  const patients = useResourceCrud<PatientOption>("patients");
+  const employees = useResourceCrud<EmployeeOption>("employees");
+  const { push } = useNotifications();
+
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<"All" | "Patient" | "Employee">("All");
   const [typeFilter, setTypeFilter] = useState<string>("All");
   const [issuing, setIssuing] = useState<CertType | null>(null);
-  const [preview, setPreview] = useState<Cert | null>(null);
-  const [editing, setEditing] = useState<Cert | null>(null);
+  const [preview, setPreview] = useState<Certificate | null>(null);
+  const [editing, setEditing] = useState<Certificate | null>(null);
 
-  const filtered = useMemo(() => {
-    return crud.items.filter(c => {
-      if (tab !== "All" && c.category !== tab) return false;
-      if (typeFilter !== "All" && c.type !== typeFilter) return false;
-      const q = search.toLowerCase();
-      if (q && !`${c.certNo} ${c.recipient} ${c.refId} ${c.type}`.toLowerCase().includes(q)) return false;
-      return true;
-    });
-  }, [crud.items, tab, typeFilter, search]);
+  const rows = crud.items;
+
+  const filtered = useMemo(() => rows.filter(c => {
+    if (tab !== "All" && metaFor(c.type).category !== tab) return false;
+    if (typeFilter !== "All" && c.type !== typeFilter) return false;
+    const q = search.toLowerCase();
+    if (q && !`${c.certificate_no} ${c.recipient_name} ${metaFor(c.type).label}`.toLowerCase().includes(q)) return false;
+    return true;
+  }), [rows, tab, typeFilter, search]);
 
   const counts = useMemo(() => {
     const map = new Map<string, number>();
-    crud.items.forEach(c => map.set(c.type, (map.get(c.type) || 0) + 1));
+    rows.forEach(c => map.set(c.type, (map.get(c.type) || 0) + 1));
     return map;
-  }, [crud.items]);
+  }, [rows]);
 
-  const onIssueSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const activeType = (issuing ?? editing?.type) as CertType | undefined;
+  const activeMeta = activeType ? metaFor(activeType) : null;
+
+  const onIssueSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!activeType) return;
     const fd = new FormData(e.currentTarget);
-    const type = (issuing || editing?.type) as CertType;
-    const meta = TYPES.find(t => t.type === type)!;
-    const data: Omit<Cert, "id"> = {
-      certNo: editing?.certNo || newCertNo(type),
-      type,
-      category: meta.category,
-      recipient: String(fd.get("recipient") || ""),
-      refId: String(fd.get("refId") || ""),
-      issuedBy: String(fd.get("issuedBy") || ""),
-      issuedOn: String(fd.get("issuedOn") || ""),
-      details: String(fd.get("details") || ""),
-      status: String(fd.get("status") || "Issued") as Cert["status"],
+    const status = String(fd.get("status") || "pending") as CertStatus;
+    const issuedOn = String(fd.get("issued_on") || "");
+
+    // The table refuses an issued certificate with no date; catch it here so
+    // the person gets a sentence rather than a constraint violation.
+    if (status === "issued" && !issuedOn) {
+      push({ title: "An issued certificate needs an issue date", tone: "warn" });
+      return;
+    }
+
+    const subject = String(fd.get("subject_id") || "");
+    const body = {
+      certificate_no: String(fd.get("certificate_no") || "").trim(),
+      type: activeType,
+      recipient_name: String(fd.get("recipient_name") || "").trim(),
+      // Linked when the person is on file; free-text name only when they are
+      // not — a relative collecting a death certificate, a former employee.
+      patient_id: activeMeta?.category === "Patient" ? (subject || null) : null,
+      employee_id: activeMeta?.category === "Employee" ? (subject || null) : null,
+      issued_by: String(fd.get("issued_by") || "") || null,
+      issued_on: issuedOn || null,
+      details: String(fd.get("details") || "") || null,
+      status,
     };
-    if (editing) crud.update(editing.id, data); else crud.create(data);
-    setIssuing(null); setEditing(null);
+
+    const saved = editing
+      ? await crud.update(editing.id, body as never)
+      : await crud.create(body as never);
+    if (!saved) return; // useResourceCrud has surfaced the error
+
+    push({ title: editing ? "Certificate updated" : `${activeMeta?.label} issued`, tone: "ok" });
+    setIssuing(null);
+    setEditing(null);
   };
 
   const exportCSV = () => {
-    const rows = [["Cert No", "Type", "Category", "Recipient", "Ref ID", "Issued By", "Issued On", "Status"]];
-    filtered.forEach(c => rows.push([c.certNo, c.type, c.category, c.recipient, c.refId, c.issuedBy, c.issuedOn, c.status]));
-    const csv = rows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(",")).join("\n");
+    const head = ["Cert No", "Type", "Category", "Recipient", "Issued By", "Issued On", "Status"];
+    const body = filtered.map(c => [
+      c.certificate_no, metaFor(c.type).label, metaFor(c.type).category,
+      c.recipient_name, c.issued_by ?? "", c.issued_on ?? "", STATUS_LABELS[c.status],
+    ]);
+    const csv = [head, ...body]
+      .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    const a = document.createElement("a"); a.href = url; a.download = "certificates.csv"; a.click(); URL.revokeObjectURL(url);
+    const a = document.createElement("a");
+    a.href = url; a.download = "certificates.csv"; a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
     <AdminLayout title="Certificates" subtitle="Issue and manage medical & HR certificates">
       <div className="space-y-6">
-        {/* Issue templates */}
         <Card className="p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-display text-lg text-primary">Issue a new certificate</h3>
-              <p className="text-xs text-muted-foreground">Pick a template to issue. Patient & Employee certificates supported.</p>
-            </div>
+          <div className="mb-4">
+            <h3 className="font-display text-lg text-primary">Issue a new certificate</h3>
+            <p className="text-xs text-muted-foreground">
+              Pick a template to issue. Patient and employee certificates supported.
+            </p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
             {TYPES.map(t => {
@@ -136,10 +188,10 @@ export default function Administration() {
                   <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${t.tone} mb-3`}>
                     <Icon className="h-5 w-5" />
                   </div>
-                  <div className="text-sm font-semibold text-primary leading-tight">{t.type}</div>
+                  <div className="text-sm font-semibold text-primary leading-tight">{t.label}</div>
                   <div className="mt-2 flex items-center justify-between">
-                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground">{t.category}</span>
-                    <span className="text-[11px] text-muted-foreground">{counts.get(t.type) || 0} issued</span>
+                    <span className="text-[10px] tracking-widest text-muted-foreground">{t.category.toUpperCase()}</span>
+                    <span className="text-[10px] text-muted-foreground">{counts.get(t.type) || 0} issued</span>
                   </div>
                 </button>
               );
@@ -147,132 +199,157 @@ export default function Administration() {
           </div>
         </Card>
 
-        {/* Toolbar */}
-        <Card className="p-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 min-w-[240px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by cert no, recipient, ref ID…"
-                className="w-full pl-9 pr-3 py-2.5 rounded-full border border-border bg-background text-sm" />
+        <Card className="p-5">
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <div className="relative flex-1 min-w-[220px] max-w-sm">
+              <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Search number, name or type…"
+                className="w-full bg-muted/40 rounded-lg pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-primary text-sm" />
             </div>
-            <div className="flex items-center gap-1 p-1 rounded-full bg-muted">
+            <div className="flex items-center gap-1 rounded-full bg-muted/50 p-1">
               {(["All", "Patient", "Employee"] as const).map(t => (
                 <button key={t} onClick={() => setTab(t)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-semibold transition ${tab === t ? "bg-background text-primary shadow" : "text-muted-foreground"}`}>
-                  {t}
-                </button>
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${
+                    tab === t ? "bg-card text-primary shadow-soft" : "text-muted-foreground hover:text-primary"
+                  }`}>{t}</button>
               ))}
             </div>
             <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
-              className="px-3 py-2.5 rounded-full border border-border bg-background text-xs">
+              className="bg-muted/40 rounded-lg px-3 py-2 text-sm outline-none">
               <option value="All">All types</option>
-              {TYPES.map(t => <option key={t.type} value={t.type}>{t.type}</option>)}
+              {TYPES.map(t => <option key={t.type} value={t.type}>{t.label}</option>)}
             </select>
-            <Btn variant="outline" onClick={exportCSV}><Download className="h-4 w-4 mr-1" />Export</Btn>
+            <Btn variant="outline" className="ml-auto" onClick={exportCSV}>Export CSV</Btn>
           </div>
-        </Card>
 
-        {/* Table */}
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/40">
-                <tr className="text-left">
-                  {["Cert No", "Type", "Recipient", "Ref ID", "Issued By", "Issued On", "Status", ""].map(h => (
-                    <th key={h} className="px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-bold">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(c => (
-                  <tr key={c.id} className="border-t border-border/40 hover:bg-muted/20">
-                    <td className="px-4 py-3 font-mono text-xs text-primary">{c.certNo}</td>
-                    <td className="px-4 py-3">
-                      <div className="font-semibold text-primary">{c.type}</div>
-                      <div className="text-[11px] text-muted-foreground">{c.category}</div>
-                    </td>
-                    <td className="px-4 py-3">{c.recipient}</td>
-                    <td className="px-4 py-3 font-mono text-xs">{c.refId}</td>
-                    <td className="px-4 py-3">{c.issuedBy}</td>
-                    <td className="px-4 py-3">{c.issuedOn}</td>
-                    <td className="px-4 py-3"><Pill tone={statusTone(c.status)}>{c.status}</Pill></td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1 justify-end">
-                        <button onClick={() => setPreview(c)} title="Preview & Print" className="p-1.5 rounded-lg hover:bg-muted"><Eye className="h-4 w-4 text-primary" /></button>
-                        <button onClick={() => setPreview(c)} title="Print" className="p-1.5 rounded-lg hover:bg-muted"><Printer className="h-4 w-4 text-primary" /></button>
-                        <button onClick={() => setEditing(c)} title="Edit" className="p-1.5 rounded-lg hover:bg-muted"><Pencil className="h-4 w-4 text-primary" /></button>
-                        <button onClick={() => crud.remove(c.id)} title="Delete" className="p-1.5 rounded-lg hover:bg-muted"><Trash2 className="h-4 w-4 text-destructive" /></button>
-                      </div>
-                    </td>
+          {crud.error ? (
+            <div className="py-12 text-center">
+              <p className="text-sm font-semibold text-destructive">Could not load certificates.</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                You may not have access to this module, or the request failed.
+              </p>
+              <button type="button" onClick={() => crud.refetch()}
+                className="mt-3 px-4 py-2 rounded-full text-xs font-semibold border border-border hover:bg-muted">
+                Try again
+              </button>
+            </div>
+          ) : crud.isLoading ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>
+          ) : filtered.length === 0 ? (
+            <div className="py-12 text-center">
+              <p className="text-sm font-semibold text-primary">No certificates found</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {rows.length === 0 ? "Pick a template above to issue the first one." : "Try a different search or filter."}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-border/60">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40">
+                  <tr>
+                    {["Cert No", "Type", "Recipient", "Issued By", "Issued On", "Status", ""].map(h => (
+                      <th key={h} className="px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-bold text-left">{h}</th>
+                    ))}
                   </tr>
-                ))}
-                {filtered.length === 0 && (
-                  <tr><td colSpan={8} className="px-4 py-12 text-center text-sm text-muted-foreground">No certificates match your filters.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filtered.map(c => (
+                    <tr key={c.id} className="border-t border-border/40 hover:bg-muted/20">
+                      <td className="px-4 py-3 font-mono text-xs font-semibold text-primary">{c.certificate_no}</td>
+                      <td className="px-4 py-3">{metaFor(c.type).label}</td>
+                      <td className="px-4 py-3 font-semibold text-primary">{c.recipient_name}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{c.issued_by || "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{dateLabel(c.issued_on)}</td>
+                      <td className="px-4 py-3"><Pill tone={statusTone(c.status)}>{STATUS_LABELS[c.status]}</Pill></td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <Btn variant="ghost" onClick={() => setPreview(c)}>Preview</Btn>
+                        <Btn variant="ghost" onClick={() => setEditing(c)}>Edit</Btn>
+                        <Btn variant="danger" onClick={() => void crud.remove(c.id)}>Delete</Btn>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Card>
       </div>
 
-      {/* Issue / Edit modal */}
       <Modal open={!!issuing || !!editing} onClose={() => { setIssuing(null); setEditing(null); }}
-        title={editing ? `Edit · ${editing.type}` : `Issue · ${issuing}`}
-        size="lg"
+        title={editing ? `Edit · ${metaFor(editing.type).label}` : activeMeta ? `Issue · ${activeMeta.label}` : ""}
         footer={<>
           <Btn variant="outline" onClick={() => { setIssuing(null); setEditing(null); }}>Cancel</Btn>
-          <button type="submit" form="cert-form" className="px-5 py-2.5 rounded-full text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90">{editing ? "Save changes" : "Issue certificate"}</button>
+          <button type="submit" form="cert-form"
+            className="px-5 py-2.5 rounded-full text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90">
+            {editing ? "Save changes" : "Issue certificate"}
+          </button>
         </>}>
-        <form id="cert-form" onSubmit={onIssueSubmit}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
-            <Field label="Recipient name" required><Input name="recipient" required defaultValue={editing?.recipient} placeholder="Full name" /></Field>
-            <Field label="Reference ID (Patient / Employee)" required><Input name="refId" required defaultValue={editing?.refId} placeholder="P-XXXXX or EMP-XXXX" /></Field>
-            <Field label="Issued by" required><Input name="issuedBy" required defaultValue={editing?.issuedBy} placeholder="Doctor / HR Officer" /></Field>
-            <Field label="Issue date"><Input name="issuedOn" type="date" defaultValue={editing?.issuedOn !== "—" ? editing?.issuedOn : ""} /></Field>
-            <Field label="Status">
-              <Select name="status" defaultValue={editing?.status || "Issued"}>
-                <option>Issued</option><option>Pending</option><option>Revoked</option>
-              </Select>
+        {activeMeta && (
+          <form id="cert-form" onSubmit={onIssueSubmit}>
+            <div className="grid md:grid-cols-2 gap-3">
+              <Field label="Certificate number" required>
+                <Input name="certificate_no" required
+                  defaultValue={editing?.certificate_no ?? suggestNumber(rows, activeMeta.type)} />
+              </Field>
+              <Field label="Recipient name" required>
+                <Input name="recipient_name" required defaultValue={editing?.recipient_name} placeholder="Full name" />
+              </Field>
+              <Field label={activeMeta.category === "Patient" ? "Patient on file" : "Employee on file"}>
+                <Select name="subject_id"
+                  defaultValue={(activeMeta.category === "Patient" ? editing?.patient_id : editing?.employee_id) ?? ""}>
+                  <option value="">Not on file — name only</option>
+                  {activeMeta.category === "Patient"
+                    ? patients.items.map(p => <option key={p.id} value={p.id}>{p.full_name} · {p.mrn}</option>)
+                    : employees.items.map(e => <option key={e.id} value={e.id}>{e.name} · {e.emp_id}</option>)}
+                </Select>
+              </Field>
+              <Field label="Issued by"><Input name="issued_by" defaultValue={editing?.issued_by ?? ""} placeholder="Doctor / HR Officer" /></Field>
+              <Field label="Issue date"><Input name="issued_on" type="date" defaultValue={editing?.issued_on ?? ""} /></Field>
+              <Field label="Status">
+                <Select name="status" defaultValue={editing?.status ?? "issued"}>
+                  {(Object.keys(STATUS_LABELS) as CertStatus[]).map(s => (
+                    <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
+            <Field label="Details / Remarks">
+              <textarea name="details" defaultValue={editing?.details ?? ""} rows={4}
+                className="w-full bg-muted/40 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary text-sm" />
             </Field>
-          </div>
-          <Field label="Details / Remarks">
-            <textarea name="details" defaultValue={editing?.details} rows={4}
-              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
-              placeholder="Cause / period / purpose / clinical notes…" />
-          </Field>
-        </form>
+          </form>
+        )}
       </Modal>
 
-      {/* Preview modal */}
       <Modal open={!!preview} onClose={() => setPreview(null)} title="Certificate preview" size="xl"
-        footer={<>
-          <Btn variant="outline" onClick={() => setPreview(null)}>Close</Btn>
-          <Btn onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" />Print</Btn>
-        </>}>
+        footer={<Btn variant="outline" onClick={() => setPreview(null)}>Close</Btn>}>
         {preview && <CertPrintable c={preview} />}
       </Modal>
     </AdminLayout>
   );
 }
 
-function CertPrintable({ c }: { c: Cert }) {
+function CertPrintable({ c }: { c: Certificate }) {
+  const meta = metaFor(c.type);
   return (
     <div id="cert-printable" className="bg-white text-slate-900 p-10 rounded-lg border-[3px] border-double border-primary/60">
       <div className="flex items-center justify-between border-b border-slate-300 pb-4">
         <div>
-          <div className="text-[10px] tracking-widest text-slate-500">DEMO GENERAL HOSPITAL</div>
-          <div className="font-display text-2xl text-primary">{c.type}</div>
+          {/* Was the hardcoded string "DEMO GENERAL HOSPITAL" on a document
+              meant to be handed to a patient. */}
+          <div className="text-[10px] tracking-widest text-slate-500">{BRAND_INFO.name.toUpperCase()}</div>
+          <div className="font-display text-2xl text-primary">{meta.label}</div>
         </div>
         <div className="text-right">
           <div className="text-[10px] tracking-widest text-slate-500">CERTIFICATE NO.</div>
-          <div className="font-mono text-sm font-bold">{c.certNo}</div>
+          <div className="font-mono text-sm font-bold">{c.certificate_no}</div>
         </div>
       </div>
 
       <div className="text-center my-8">
         <div className="text-xs uppercase tracking-[0.3em] text-slate-500">This is to certify that</div>
-        <div className="font-display text-3xl text-primary mt-3">{c.recipient}</div>
-        <div className="text-xs text-slate-500 mt-1">Reference ID · {c.refId}</div>
+        <div className="font-display text-3xl text-primary mt-3">{c.recipient_name}</div>
       </div>
 
       <div className="text-sm leading-relaxed text-slate-700 whitespace-pre-wrap min-h-[80px]">
@@ -282,15 +359,15 @@ function CertPrintable({ c }: { c: Cert }) {
       <div className="grid grid-cols-3 gap-6 mt-10 pt-6 border-t border-slate-300 text-sm">
         <div>
           <div className="text-[10px] tracking-widest text-slate-500">CATEGORY</div>
-          <div className="font-semibold">{c.category}</div>
+          <div className="font-semibold">{meta.category}</div>
         </div>
         <div>
           <div className="text-[10px] tracking-widest text-slate-500">ISSUED ON</div>
-          <div className="font-semibold">{c.issuedOn}</div>
+          <div className="font-semibold">{dateLabel(c.issued_on)}</div>
         </div>
         <div>
           <div className="text-[10px] tracking-widest text-slate-500">STATUS</div>
-          <div className="font-semibold">{c.status}</div>
+          <div className="font-semibold">{STATUS_LABELS[c.status]}</div>
         </div>
       </div>
 
@@ -301,11 +378,10 @@ function CertPrintable({ c }: { c: Cert }) {
         </div>
         <div className="text-center">
           <div className="h-12 border-b border-slate-400 w-56" />
-          <div className="text-[10px] tracking-widest text-slate-500 mt-1">{c.issuedBy.toUpperCase()}</div>
+          <div className="text-[10px] tracking-widest text-slate-500 mt-1">{(c.issued_by || "").toUpperCase()}</div>
           <div className="text-[10px] text-slate-500">Authorized Signatory</div>
         </div>
       </div>
     </div>
   );
 }
-
