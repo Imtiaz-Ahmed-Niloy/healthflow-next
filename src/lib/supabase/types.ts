@@ -2184,6 +2184,76 @@ export type Database = {
           },
         ]
       }
+      procurement_requisitions: {
+        Row: {
+          amount: number
+          created_at: string
+          department: string | null
+          id: string
+          notes: string | null
+          reference: string
+          requested_at: string
+          stage: Database["public"]["Enums"]["requisition_stage"]
+          tenant_id: string
+          title: string
+          updated_at: string
+          vendor_id: string | null
+          vendor_name: string | null
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          department?: string | null
+          id?: string
+          notes?: string | null
+          reference: string
+          requested_at?: string
+          stage?: Database["public"]["Enums"]["requisition_stage"]
+          tenant_id: string
+          title: string
+          updated_at?: string
+          vendor_id?: string | null
+          vendor_name?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          department?: string | null
+          id?: string
+          notes?: string | null
+          reference?: string
+          requested_at?: string
+          stage?: Database["public"]["Enums"]["requisition_stage"]
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+          vendor_id?: string | null
+          vendor_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_requisitions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_requisitions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_requisitions_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -2850,6 +2920,12 @@ export type Database = {
       patient_gender: "male" | "female" | "other"
       patient_history_kind: "allergy" | "illness" | "medication" | "procedure"
       payroll_run_status: "draft" | "approved" | "paid"
+      requisition_stage:
+        | "pending"
+        | "approved"
+        | "ordered"
+        | "delivered"
+        | "rejected"
       tenant_status: "pending" | "approved" | "suspended"
       ward_category:
         | "general"
@@ -3035,6 +3111,13 @@ export const Constants = {
       patient_gender: ["male", "female", "other"],
       patient_history_kind: ["allergy", "illness", "medication", "procedure"],
       payroll_run_status: ["draft", "approved", "paid"],
+      requisition_stage: [
+        "pending",
+        "approved",
+        "ordered",
+        "delivered",
+        "rejected",
+      ],
       tenant_status: ["pending", "approved", "suspended"],
       ward_category: [
         "general",
