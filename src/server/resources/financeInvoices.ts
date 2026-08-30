@@ -20,6 +20,12 @@ export const financeInvoiceCreateSchema = z.object({
    * there is no status column to flip back, this IS the status.
    */
   paid_at: z.preprocess(blankToUndefined, z.string().datetime().nullable().optional()),
+  /**
+   * The patient this invoice bills, when it bills one (0044). Null for vendor
+   * payables and insurer receivables. Setting it is what makes the invoice
+   * visible on that patient's /patient/billing page.
+   */
+  patient_id: z.preprocess(blankToUndefined, z.string().uuid().nullable().optional()),
   // tenant_id is deliberately absent: the route stamps it from the JWT.
 });
 
@@ -38,7 +44,7 @@ export const financeInvoicesResource: ResourceDefinition<
   createSchema: financeInvoiceCreateSchema,
   updateSchema: financeInvoiceUpdateSchema,
   searchFields: ["reference", "party"],
-  filterFields: ["kind"],
+  filterFields: ["kind", "patient_id"],
   // Soonest due first: the page is a worklist, and what is nearly late matters
   // more than what was entered last.
   defaultSort: { column: "due_date", ascending: true },

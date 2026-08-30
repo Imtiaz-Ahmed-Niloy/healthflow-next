@@ -35,8 +35,14 @@ const STATUS_TONE: Record<InvoiceStatus, "ok" | "warn" | "bad"> = {
   overdue: "bad",
 };
 
+type PatientOption = { id: string; full_name: string };
+
 const Finance = () => {
   const crud = useResourceCrud<Invoice>("finance-invoices");
+  // Attaching a patient is what puts the invoice on their /patient/billing
+  // page (HF-77). Optional: a vendor payable or an insurer receivable has no
+  // patient behind it.
+  const patients = useResourceCrud<PatientOption>("patients");
   const { push } = useNotifications();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | InvoiceStatus>("all");
@@ -163,6 +169,7 @@ const Finance = () => {
             kind: String(fd.get("kind")) as Invoice["kind"],
             amount: Number(fd.get("amount")),
             due_date: String(fd.get("due_date")),
+            patient_id: String(fd.get("patient_id") || "") || null,
           } as never);
           // useResourceCrud has already surfaced the error, including the one
           // that matters here: a reference this hospital has used before.
@@ -181,6 +188,17 @@ const Finance = () => {
           </Field>
           <Field label="Amount (৳)" required><Input name="amount" type="number" min="0" step="0.01" required /></Field>
           <Field label="Due date" required><Input name="due_date" type="date" required /></Field>
+          <Field label="Patient (optional)">
+            <Select name="patient_id" defaultValue="">
+              <option value="">Not a patient bill</option>
+              {patients.items.map(p => (
+                <option key={p.id} value={p.id}>{p.full_name}</option>
+              ))}
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Choosing a patient makes this invoice visible to them in their portal.
+            </p>
+          </Field>
         </form>
       </Modal>
     </AdminLayout>
