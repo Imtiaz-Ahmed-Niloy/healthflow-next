@@ -101,9 +101,15 @@ it back is one line in `PortalLayout.tsx`.
 | ✅ | Find Doctors | HF-49 |
 | ✅ | Billing | HF-77 |
 | ✅ | Medical Records | HF-78 |
-| ❌ | Profile | HF-79 |
+| ✅ | Profile — General and Clinical; three tabs deferred, see below | HF-79 |
 
-**5 of 6 done.**
+**6 of 6 done.**
+
+Profile's General and Clinical tabs are real. Its other three are deliberately
+not: **Insurance** (HF-81) needs a decision on whether cover is one insurer or
+a history of them, **Documents** waits on file storage like HF-64, and
+**Family Management** (HF-82) is a consent question before it is a table. All
+three say so on screen rather than accepting input that goes nowhere.
 
 Ordered the way the patient sidebar lists them. **Tutorial** is not on that
 menu and is not counted: like User Guide, it is a static walkthrough of how to
@@ -173,7 +179,7 @@ and the patient portal's inner pages. Nobody is working on those.
 
 ## The short answer
 
-**35 of 66 pages are on real data.** The public site is nearly finished; the
+**36 of 66 pages are on real data.** The public site is nearly finished; the
 hospital admin panel is the bulk of what is left.
 
 Everything marked ❌ still works when you click it — it shows demo data that
