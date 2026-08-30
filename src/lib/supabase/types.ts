@@ -1292,6 +1292,97 @@ export type Database = {
           },
         ]
       }
+      lab_orders: {
+        Row: {
+          created_at: string
+          doctor_id: string | null
+          id: string
+          lab_test_id: string | null
+          patient_id: string
+          reference: string
+          reported_at: string | null
+          requested_at: string
+          result: string | null
+          status: Database["public"]["Enums"]["lab_order_status"]
+          tenant_id: string
+          test_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          doctor_id?: string | null
+          id?: string
+          lab_test_id?: string | null
+          patient_id: string
+          reference: string
+          reported_at?: string | null
+          requested_at?: string
+          result?: string | null
+          status?: Database["public"]["Enums"]["lab_order_status"]
+          tenant_id: string
+          test_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          doctor_id?: string | null
+          id?: string
+          lab_test_id?: string | null
+          patient_id?: string
+          reference?: string
+          reported_at?: string | null
+          requested_at?: string
+          result?: string | null
+          status?: Database["public"]["Enums"]["lab_order_status"]
+          tenant_id?: string
+          test_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_orders_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_orders_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_orders_lab_test_id_fkey"
+            columns: ["lab_test_id"]
+            isOneToOne: false
+            referencedRelation: "lab_tests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_orders_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lab_tests: {
         Row: {
           category: string | null
@@ -2750,6 +2841,11 @@ export type Database = {
         | "reserved"
       doctor_status: "active" | "on_leave" | "suspended"
       finance_invoice_kind: "receivable" | "payable"
+      lab_order_status:
+        | "pending"
+        | "sample_collected"
+        | "processing"
+        | "reported"
       marital_status: "single" | "married" | "divorced" | "widowed"
       patient_gender: "male" | "female" | "other"
       patient_history_kind: "allergy" | "illness" | "medication" | "procedure"
@@ -2929,6 +3025,12 @@ export const Constants = {
       ],
       doctor_status: ["active", "on_leave", "suspended"],
       finance_invoice_kind: ["receivable", "payable"],
+      lab_order_status: [
+        "pending",
+        "sample_collected",
+        "processing",
+        "reported",
+      ],
       marital_status: ["single", "married", "divorced", "widowed"],
       patient_gender: ["male", "female", "other"],
       patient_history_kind: ["allergy", "illness", "medication", "procedure"],
