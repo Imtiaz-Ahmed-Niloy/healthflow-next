@@ -1,38 +1,94 @@
-// Payroll engine — computes salary breakdown and produces payslips.
+// Payroll engine — computes salary breakdowns and payslip lines.
 //
-// Employees are PASSED IN, not loaded here. They used to come from the
-// onboarding localStorage key; since HF-68 they are rows in public.employees,
-// which is an async fetch and cannot happen inside a pure function. Callers
-// hold the list (useResourceCrud("employees")) and hand it over.
+// Pure functions only, and no browser APIs at module scope, because the API
+// route that processes a run imports this too. That is the point of the file:
+// before HF-67 finished, payslips were computed in the browser from
+// percentages kept in localStorage, so the same employee produced different
+// numbers depending on whose machine pressed "Process". The amounts are money;
+// they get computed in one place, from settings the whole hospital shares.
 //
-// Payslips themselves are still localStorage — out of scope for HF-68, and
-// they depend on this engine rather than the other way round.
-import { load, save, uid } from "./storage";
-import type { EmployeeRow } from "@/redux/api/resources";
+// Employees are PASSED IN, not loaded here — they are rows in public.employees
+// (HF-68), which is an async fetch and cannot happen inside a pure function.
+import type { Tables } from "@/lib/supabase/types";
 
 /** The staff register row, exactly as the database returns it. */
-export type Employee = EmployeeRow;
+export type Employee = Tables<"employees">;
 
-export type Payslip = {
-  id: string;
-  runId: string;
-  period: string;            // e.g. "2026-06"
-  empId: string;
+/** A payslip as stored. */
+export type PayslipRow = Tables<"payroll_payslips">;
+
+/**
+ * The columns a computed payslip fills in. The rest — id, tenant_id, run_id,
+ * timestamps — belong to whoever writes the row.
+ */
+export type ComputedPayslip = {
+  employee_id: string;
+  emp_id: string;
   name: string;
-  department?: string;
-  designation?: string;
+  department: string | null;
+  designation: string | null;
+  period: string;
   basic: number;
-  houseRent: number;
+  house_rent: number;
   medical: number;
   transport: number;
   gross: number;
   pf: number;
   tax: number;
   loan: number;
-  totalDeductions: number;
+  total_deductions: number;
   net: number;
-  generatedAt: string;
-  status: "Generated" | "Sent" | "Paid";
+};
+
+/**
+ * The percentages every amount is derived from, one set per hospital
+ * (public.payroll_settings).
+ */
+export type PayrollSettings = {
+  basic_pct: number;      // % of gross
+  house_rent_pct: number; // % of gross
+  medical_pct: number;    // % of gross
+  conveyance_pct: number; // % of gross
+  pf_pct: number;         // % of basic
+  tax_pct: number;        // % of gross, above the threshold
+  tax_threshold: number;
+};
+
+/**
+ * Used until a hospital saves its own row. Identical to the values the old
+ * localStorage default carried, so nobody's numbers move on upgrade — and to
+ * the column defaults in 0042, so a fresh row agrees with this.
+ */
+export const defaultSettings: PayrollSettings = {
+  basic_pct: 50,
+  house_rent_pct: 30,
+  medical_pct: 10,
+  conveyance_pct: 10,
+  pf_pct: 8,
+  tax_pct: 5,
+  tax_threshold: 25000,
+};
+
+/**
+ * Postgres `numeric` arrives over the wire as a string, so every settings
+ * field is coerced before it is used in arithmetic. Skipping this turns
+ * `gross * (basic_pct / 100)` into NaN and every payslip on the page into
+ * "৳NaN".
+ */
+export const toSettings = (row: Partial<Record<keyof PayrollSettings, unknown>> | null | undefined): PayrollSettings => {
+  const num = (value: unknown, fallback: number) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+  return {
+    basic_pct: num(row?.basic_pct, defaultSettings.basic_pct),
+    house_rent_pct: num(row?.house_rent_pct, defaultSettings.house_rent_pct),
+    medical_pct: num(row?.medical_pct, defaultSettings.medical_pct),
+    conveyance_pct: num(row?.conveyance_pct, defaultSettings.conveyance_pct),
+    pf_pct: num(row?.pf_pct, defaultSettings.pf_pct),
+    tax_pct: num(row?.tax_pct, defaultSettings.tax_pct),
+    tax_threshold: num(row?.tax_threshold, defaultSettings.tax_threshold),
+  };
 };
 
 /**
@@ -44,34 +100,19 @@ export type Payslip = {
 export const getEligibleEmployees = (all: Employee[]): Employee[] =>
   all.filter(e => e.job_status !== "terminated" && e.job_status !== "resigned");
 
-export type PayrollSettings = {
-  basicPct: number;      // % of gross
-  houseRentPct: number;  // % of gross
-  medicalPct: number;    // % of gross
-  conveyancePct: number; // % of gross
-  pfPct: number;         // % of basic
-  taxPct: number;        // % of gross when above taxThreshold
-  taxThreshold: number;
-};
+/** Unique departments across the active staff. */
+export const getDepartments = (all: Employee[]): string[] =>
+  Array.from(new Set(getEligibleEmployees(all).map(e => e.department).filter(Boolean) as string[])).sort();
 
-const SETTINGS_KEY = "payroll-settings-v1";
-export const defaultSettings: PayrollSettings = {
-  basicPct: 50, houseRentPct: 30, medicalPct: 10, conveyancePct: 10,
-  pfPct: 8, taxPct: 5, taxThreshold: 25000,
-};
-export const getSettings = (): PayrollSettings => ({ ...defaultSettings, ...load<Partial<PayrollSettings>>(SETTINGS_KEY, {}) });
-export const saveSettings = (s: PayrollSettings) => save(SETTINGS_KEY, s);
-
-/** Standard breakdown from a gross figure using saved settings. */
-export const breakdown = (gross: number) => {
-  const s = getSettings();
-  const basic = Math.round(gross * (s.basicPct / 100));
-  const houseRent = Math.round(gross * (s.houseRentPct / 100));
-  const medical = Math.round(gross * (s.medicalPct / 100));
-  // Conveyance absorbs rounding remainder so totals match gross
+/** Standard breakdown from a gross figure. */
+export const breakdown = (gross: number, settings: PayrollSettings) => {
+  const basic = Math.round(gross * (settings.basic_pct / 100));
+  const houseRent = Math.round(gross * (settings.house_rent_pct / 100));
+  const medical = Math.round(gross * (settings.medical_pct / 100));
+  // Conveyance absorbs the rounding remainder so the four always sum to gross.
   const transport = gross - basic - houseRent - medical;
-  const pf = Math.round(basic * (s.pfPct / 100));
-  const tax = gross > s.taxThreshold ? Math.round(gross * (s.taxPct / 100)) : 0;
+  const pf = Math.round(basic * (settings.pf_pct / 100));
+  const tax = gross > settings.tax_threshold ? Math.round(gross * (settings.tax_pct / 100)) : 0;
   return { basic, houseRent, medical, transport, pf, tax };
 };
 
@@ -79,76 +120,75 @@ export const breakdown = (gross: number) => {
 export const computePayslip = (
   emp: Employee,
   period: string,
-  runId: string,
+  settings: PayrollSettings,
   loan = 0,
-): Payslip => {
+): ComputedPayslip => {
   const gross = Number(emp.gross_salary || 0);
-  const b = breakdown(gross);
+  const b = breakdown(gross, settings);
   const totalDeductions = b.pf + b.tax + loan;
-  const net = gross - totalDeductions;
   return {
-    id: uid(),
-    runId,
-    period,
-    empId: emp.emp_id,
+    employee_id: emp.id,
+    emp_id: emp.emp_id,
     name: emp.name,
-    department: emp.department ?? undefined,
-    designation: emp.designation ?? undefined,
+    department: emp.department,
+    designation: emp.designation,
+    period,
     basic: b.basic,
-    houseRent: b.houseRent,
+    house_rent: b.houseRent,
     medical: b.medical,
     transport: b.transport,
     gross,
     pf: b.pf,
     tax: b.tax,
     loan,
-    totalDeductions,
-    net,
-    generatedAt: new Date().toISOString(),
-    status: "Generated",
+    total_deductions: totalDeductions,
+    net: gross - totalDeductions,
   };
 };
 
-export type ProcessResult = {
-  runId: string;
-  period: string;
-  employees: number;
-  gross: number;
-  net: number;
-  payslips: Payslip[];
+/**
+ * Every payslip for a run, in one pass.
+ *
+ * `department` limits the run to one team; anything falsy, or "All", means the
+ * whole hospital. Returns the lines and their totals — writing them is the
+ * caller's job, because only the server may do it.
+ */
+export const computeRunPayslips = (
+  period: string,
+  employees: Employee[],
+  settings: PayrollSettings,
+  department?: string | null,
+) => {
+  let eligible = getEligibleEmployees(employees);
+  if (department && department !== "All") {
+    eligible = eligible.filter(e => e.department === department);
+  }
+  const payslips = eligible.map(e => computePayslip(e, period, settings));
+  return {
+    payslips,
+    headcount: payslips.length,
+    gross: payslips.reduce((sum, p) => sum + p.gross, 0),
+    net: payslips.reduce((sum, p) => sum + p.net, 0),
+  };
 };
 
-/** Unique departments across the active staff. */
-export const getDepartments = (all: Employee[]): string[] =>
-  Array.from(new Set(getEligibleEmployees(all).map(e => e.department).filter(Boolean) as string[])).sort();
-
-/** Full payroll processing for a period — returns + persists payslips.
- *  Pass a department to limit processing to that department only. */
-export const processPayroll = (period: string, runId: string, all: Employee[], department?: string): ProcessResult => {
-  let eligible = getEligibleEmployees(all);
-  if (department && department !== "All") eligible = eligible.filter(e => e.department === department);
-  const payslips = eligible.map(e => computePayslip(e, period, runId));
-  const gross = payslips.reduce((s, p) => s + p.gross, 0);
-  const net = payslips.reduce((s, p) => s + p.net, 0);
-  save(`payslips:${runId}`, payslips);
-  return { runId, period, employees: eligible.length, gross, net, payslips };
-};
-
-export const getPayslips = (runId: string): Payslip[] =>
-  load<Payslip[]>(`payslips:${runId}`, []);
-
-export const updatePayslipStatus = (runId: string, status: Payslip["status"]) => {
-  const slips = getPayslips(runId).map(p => ({ ...p, status }));
-  save(`payslips:${runId}`, slips);
-  return slips;
-};
+/** What the payslip UI needs from a row, whether it is stored or computed. */
+type PrintablePayslip = Pick<
+  ComputedPayslip,
+  "emp_id" | "name" | "department" | "designation" | "period" | "basic" | "house_rent"
+  | "medical" | "transport" | "gross" | "pf" | "tax" | "loan" | "total_deductions" | "net"
+>;
 
 /** Render a printable HTML payslip and trigger the browser print dialog. */
-export const printPayslip = (slip: Payslip, company = "Hospital Group") => {
+export const printPayslip = (
+  slip: PrintablePayslip,
+  runLabel: string,
+  company = "Hospital Group",
+) => {
   const w = window.open("", "_blank", "width=820,height=1000");
   if (!w) return;
-  const fmt = (n: number) => `৳${n.toLocaleString()}`;
-  w.document.write(`<!doctype html><html><head><title>Payslip ${slip.empId} ${slip.period}</title>
+  const fmt = (n: number) => `৳${Number(n).toLocaleString()}`;
+  w.document.write(`<!doctype html><html><head><title>Payslip ${slip.emp_id} ${slip.period}</title>
 <style>
   *{box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto}
   body{margin:0;padding:32px;color:#0f172a;background:#fff}
@@ -173,18 +213,18 @@ export const printPayslip = (slip: Payslip, company = "Hospital Group") => {
   <header><h1>${company}</h1><span>Payslip · ${slip.period}</span></header>
   <div class="meta">
     <div><b>Employee</b>${slip.name}</div>
-    <div><b>Employee ID</b>${slip.empId}</div>
+    <div><b>Employee ID</b>${slip.emp_id}</div>
     <div><b>Department</b>${slip.department || "—"}</div>
     <div><b>Designation</b>${slip.designation || "—"}</div>
-    <div><b>Run</b>${slip.runId}</div>
-    <div><b>Generated</b>${new Date(slip.generatedAt).toLocaleString()}</div>
+    <div><b>Run</b>${runLabel}</div>
+    <div><b>Generated</b>${new Date().toLocaleString()}</div>
   </div>
   <div class="grid">
     <div>
       <h3>Earnings</h3>
       <table>
         <tr><td>Basic</td><td class="r">${fmt(slip.basic)}</td></tr>
-        <tr><td>House Rent</td><td class="r">${fmt(slip.houseRent)}</td></tr>
+        <tr><td>House Rent</td><td class="r">${fmt(slip.house_rent)}</td></tr>
         <tr><td>Medical</td><td class="r">${fmt(slip.medical)}</td></tr>
         <tr><td>Transport</td><td class="r">${fmt(slip.transport)}</td></tr>
         <tr><th>Gross</th><th class="r">${fmt(slip.gross)}</th></tr>
@@ -196,7 +236,7 @@ export const printPayslip = (slip: Payslip, company = "Hospital Group") => {
         <tr><td>Provident Fund</td><td class="r">${fmt(slip.pf)}</td></tr>
         <tr><td>Income Tax</td><td class="r">${fmt(slip.tax)}</td></tr>
         <tr><td>Loan / Advance</td><td class="r">${fmt(slip.loan)}</td></tr>
-        <tr><th>Total</th><th class="r">${fmt(slip.totalDeductions)}</th></tr>
+        <tr><th>Total</th><th class="r">${fmt(slip.total_deductions)}</th></tr>
       </table>
     </div>
   </div>
@@ -208,16 +248,26 @@ export const printPayslip = (slip: Payslip, company = "Hospital Group") => {
   w.document.close();
 };
 
-/** Bulk export all payslips for a run as CSV. */
-export const exportPayslipsCSV = (runId: string) => {
-  const slips = getPayslips(runId);
+/** Bulk export a run's payslips as CSV. */
+export const exportPayslipsCSV = (slips: PrintablePayslip[], runLabel: string) => {
   if (!slips.length) return;
-  const headers = ["empId","name","department","designation","basic","houseRent","medical","transport","gross","pf","tax","loan","net","status"];
-  const rows = slips.map(s => headers.map(h => String((s as never)[h] ?? "")).join(","));
+  const headers: (keyof PrintablePayslip)[] = [
+    "emp_id", "name", "department", "designation", "basic", "house_rent", "medical",
+    "transport", "gross", "pf", "tax", "loan", "total_deductions", "net",
+  ];
+  const cell = (value: unknown) => {
+    const text = String(value ?? "");
+    // Names and departments can carry a comma; without quoting, one of them
+    // shifts every later column of that row by one.
+    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+  const rows = slips.map(s => headers.map(h => cell(s[h])).join(","));
   const csv = [headers.join(","), ...rows].join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url; a.download = `payslips-${runId}.csv`; a.click();
+  a.href = url;
+  a.download = `payslips-${runLabel}.csv`;
+  a.click();
   URL.revokeObjectURL(url);
 };

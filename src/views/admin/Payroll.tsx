@@ -8,11 +8,8 @@ import { DataTable, Toolbar, Modal, ConfirmDialog, Field, Input, statusTone, Row
 import { useResourceCrud } from "@/components/admin/useResourceCrud";
 import type { EmployeeRow } from "@/redux/api/resources";
 import { useNotifications } from "@/components/admin/NotificationProvider";
-import { processPayroll, getPayslips, updatePayslipStatus, printPayslip, exportPayslipsCSV, getEligibleEmployees, getDepartments, computePayslip, getSettings, saveSettings, defaultSettings, type Payslip, type PayrollSettings } from "@/lib/payroll";
-import { load, save } from "@/lib/storage";
-
-type DeductionOverride = { tax?: number; other?: number };
-const OVERRIDES_KEY = "payroll-deduction-overrides-v1";
+import { printPayslip, exportPayslipsCSV, getEligibleEmployees, getDepartments, computePayslip, defaultSettings, type PayrollSettings, type ComputedPayslip } from "@/lib/payroll";
+import { usePayrollSettings, usePayrollOverrides, useRunPayslips, processRun } from "@/data/payroll";
 
 // Mirrors public.payroll_runs (supabase/migrations/0037_payroll_runs.sql).
 // Column names are the database's, so form values post straight through with no
@@ -73,17 +70,28 @@ const Payroll = () => {
   const [q, setQ] = useState("");
   const [empQ, setEmpQ] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settings, setSettings] = useState<PayrollSettings>(getSettings());
+  // The hospital's percentages (0042), shared by every admin. `draftSettings`
+  // is what the dialog is editing; `settings` is what is saved and what every
+  // figure on this page is computed from.
+  const { settings, save: saveSettings } = usePayrollSettings();
+  const [draftSettings, setDraftSettings] = useState<PayrollSettings>(defaultSettings);
   const [slipsRun, setSlipsRun] = useState<PayrollRun | null>(null);
-  const [slips, setSlips] = useState<Payslip[]>([]);
+  const { payslips: slips, isLoading: slipsLoading, invalidate: reloadSlips } = useRunPayslips(slipsRun?.id ?? null);
   const [confirmDel, setConfirmDel] = useState<PayrollRun | null>(null);
-  const [overrides, setOverrides] = useState<Record<string, DeductionOverride>>(() => load(OVERRIDES_KEY, {}));
-  const setOverride = (empId: string, patch: DeductionOverride) => {
-    setOverrides(prev => {
-      const next = { ...prev, [empId]: { ...prev[empId], ...patch } };
-      save(OVERRIDES_KEY, next);
-      return next;
-    });
+  const [processing, setProcessing] = useState(false);
+  const { byEmployee: overrides, setOverride } = usePayrollOverrides();
+
+  /**
+   * Persisted on blur, not on every keystroke. These are API calls now, not a
+   * localStorage write — one request per digit typed would be both slow and a
+   * good way to have the last two land out of order.
+   */
+  const commitOverride = async (employeeId: string, patch: { tax?: number; other?: number }) => {
+    try {
+      await setOverride(employeeId, patch);
+    } catch {
+      push({ title: "Could not save the deduction", tone: "warn" });
+    }
   };
 
   const rows = crud.items.filter(r => {
@@ -100,28 +108,42 @@ const Payroll = () => {
     if (i < 0 || i >= flow.length - 1) return;
     const next = flow[i + 1];
     await crud.update(r.id, { status: next });
-    if (next === "paid") updatePayslipStatus(r.id, "Paid");
+    // A payslip no longer carries its own status: it had one, it was only ever
+    // set for the whole run at once, and keeping a copy per line meant the two
+    // could disagree. The drawer shows the run's status instead.
     push({ title: `${runLabel(r)} → ${runStatusLabel(next)}`, tone: next === "paid" ? "ok" : "info" });
   };
 
+  /**
+   * The server recomputes the run from the staff register and the hospital's
+   * settings. Nothing is calculated here — a browser that could post its own
+   * payslip amounts is a browser that could pay itself.
+   */
   const process = async (r: PayrollRun) => {
-    const result = processPayroll(r.period, r.id, staff.items, r.department ?? undefined);
-    await crud.update(r.id, {
-      headcount: result.employees,
-      gross_total: result.gross,
-      net_total: result.net,
-    });
-    push({
-      title: `Processed ${result.employees} payslips`,
-      body: `${runLabel(r)} · Gross ${fmt(result.gross)} · Net ${fmt(result.net)}`,
-      tone: "ok",
-    });
+    setProcessing(true);
+    try {
+      const result = await processRun(r.id);
+      reloadSlips();
+      await crud.refetch();
+      push({
+        title: `Processed ${result.headcount} payslips`,
+        body: `${runLabel(r)} · Gross ${fmt(result.gross)} · Net ${fmt(result.net)}`,
+        tone: "ok",
+      });
+      return result;
+    } catch (cause) {
+      push({
+        title: "Could not process this run",
+        body: cause instanceof Error ? cause.message : undefined,
+        tone: "warn",
+      });
+      return null;
+    } finally {
+      setProcessing(false);
+    }
   };
 
-  const openSlips = (r: PayrollRun) => {
-    setSlipsRun(r);
-    setSlips(getPayslips(r.id));
-  };
+  const openSlips = (r: PayrollRun) => setSlipsRun(r);
 
   const cols: Column<PayrollRun>[] = [
     { key: "reference", label: "Run", accessor: r => r.reference ?? r.period,
@@ -148,18 +170,22 @@ const Payroll = () => {
   const monthSummary = useMemo(() => {
     const eligible = getEligibleEmployees(staff.items);
     return eligible.map(e => {
-      const base = computePayslip(e, periodId, `PR-${periodId}-PREVIEW`);
-      const ov = overrides[e.emp_id] || {};
-      const tax = ov.tax !== undefined ? ov.tax : base.tax;
-      const otherBase = base.pf + base.loan;
-      const other = ov.other !== undefined ? ov.other : otherBase;
-      const totalDeductions = tax + other;
-      const slip: Payslip = {
+      const base = computePayslip(e, periodId, settings);
+      const ov = overrides.get(e.id);
+      // Null means "use the computed figure"; 0 is a real override meaning
+      // "deduct nothing", so the check is against null and undefined, not
+      // falsiness.
+      const tax = ov?.tax ?? null;
+      const other = ov?.other ?? null;
+      const taxValue = tax === null ? base.tax : Number(tax);
+      const otherValue = other === null ? base.pf + base.loan : Number(other);
+      const totalDeductions = taxValue + otherValue;
+      const slip: ComputedPayslip = {
         ...base,
-        tax,
-        pf: other,
+        tax: taxValue,
+        pf: otherValue,
         loan: 0,
-        totalDeductions,
+        total_deductions: totalDeductions,
         net: base.gross - totalDeductions,
       };
       return { emp: e, slip };
@@ -171,7 +197,7 @@ const Payroll = () => {
       if (deptFilter !== "All" && (emp.department || "") !== deptFilter) return false;
       if (!t) return true;
       return [emp.name, emp.emp_id, emp.designation, emp.department, emp.job_status, emp.start_date,
-        String(slip.basic), String(slip.houseRent), String(slip.medical), String(slip.transport),
+        String(slip.basic), String(slip.house_rent), String(slip.medical), String(slip.transport),
         String(slip.gross), String(slip.tax), String(slip.net)]
         .some(v => (v || "").toString().toLowerCase().includes(t));
     });
@@ -185,8 +211,8 @@ const Payroll = () => {
     }),
     { gross: 0, tax: 0, other: 0, net: 0 },
   );
-  const generateOne = (slip: Payslip) => {
-    printPayslip(slip);
+  const generateOne = (slip: ComputedPayslip) => {
+    printPayslip(slip, `PR-${periodId}`);
     push({ title: `Payslip generated`, body: `${slip.name} · ${periodLabel}`, tone: "ok" });
   };
   const generateAll = () => {
@@ -204,7 +230,7 @@ const Payroll = () => {
         <td>${emp.start_date || "—"}</td>
         <td>${jobStatusLabel(emp.job_status)}</td>
         <td class="r">${slip.basic.toLocaleString()}</td>
-        <td class="r">${slip.houseRent.toLocaleString()}</td>
+        <td class="r">${slip.house_rent.toLocaleString()}</td>
         <td class="r">${slip.medical.toLocaleString()}</td>
         <td class="r">${slip.transport.toLocaleString()}</td>
         <td class="r"><b>${slip.gross.toLocaleString()}</b></td>
@@ -305,7 +331,7 @@ const Payroll = () => {
             {departments.map(d => <option key={d} value={d}>{d}</option>)}
           </select>
           <button
-            onClick={() => { setSettings(getSettings()); setSettingsOpen(true); }}
+            onClick={() => { setDraftSettings(settings); setSettingsOpen(true); }}
             className="px-3 py-2 rounded-lg text-xs font-semibold border border-border inline-flex items-center gap-1.5 hover:bg-muted/50"
           >
             <Settings2 className="h-3.5 w-3.5" /> Salary Calculation
@@ -351,7 +377,7 @@ const Payroll = () => {
                   <td className="py-2.5 px-3 text-muted-foreground text-xs">{emp.start_date || "—"}</td>
                   <td className="py-2.5 px-3"><Pill tone={statusTone(emp.job_status)}>{jobStatusLabel(emp.job_status)}</Pill></td>
                   <td className="py-2.5 px-3 text-right font-mono text-xs">{fmt(slip.basic)}</td>
-                  <td className="py-2.5 px-3 text-right font-mono text-xs">{fmt(slip.houseRent)}</td>
+                  <td className="py-2.5 px-3 text-right font-mono text-xs">{fmt(slip.house_rent)}</td>
                   <td className="py-2.5 px-3 text-right font-mono text-xs">{fmt(slip.medical)}</td>
                   <td className="py-2.5 px-3 text-right font-mono text-xs">{fmt(slip.transport)}</td>
                   <td className="py-2.5 px-3 text-right font-mono font-semibold">{fmt(slip.gross)}</td>
@@ -359,8 +385,12 @@ const Payroll = () => {
                     <input
                       type="number"
                       min={0}
-                      value={slip.tax}
-                      onChange={e => setOverride(emp.emp_id, { tax: Math.max(0, Number(e.target.value) || 0) })}
+                      defaultValue={slip.tax}
+                      key={`tax-${emp.id}-${slip.tax}`}
+                      onBlur={e => {
+                        const next = Math.max(0, Number(e.target.value) || 0);
+                        if (next !== slip.tax) void commitOverride(emp.id, { tax: next });
+                      }}
                       className="w-20 bg-muted/40 rounded px-2 py-1 text-right font-mono text-xs text-destructive outline-none focus:ring-2 focus:ring-primary"
                     />
                   </td>
@@ -368,8 +398,12 @@ const Payroll = () => {
                     <input
                       type="number"
                       min={0}
-                      value={slip.pf + slip.loan}
-                      onChange={e => setOverride(emp.emp_id, { other: Math.max(0, Number(e.target.value) || 0) })}
+                      defaultValue={slip.pf + slip.loan}
+                      key={`other-${emp.id}-${slip.pf + slip.loan}`}
+                      onBlur={e => {
+                        const next = Math.max(0, Number(e.target.value) || 0);
+                        if (next !== slip.pf + slip.loan) void commitOverride(emp.id, { other: next });
+                      }}
                       className="w-20 bg-muted/40 rounded px-2 py-1 text-right font-mono text-xs text-destructive outline-none focus:ring-2 focus:ring-primary"
                     />
                   </td>
@@ -462,20 +496,11 @@ const Payroll = () => {
           } as never);
           if (!created) return; // useResourceCrud has already surfaced the error
 
-          const result = processPayroll(period, created.id, staff.items, department || undefined);
-          await crud.update(created.id, {
-            headcount: result.employees,
-            gross_total: result.gross,
-            net_total: result.net,
-          });
-          push({
-            title: `Payroll for ${fmtPeriod(period)}${department ? ` (${department})` : ""} created`,
-            body: `${result.employees} payslips · Gross ${fmt(result.gross)} · Net ${fmt(result.net)}`,
-            tone: "ok",
-          });
           setAdd(false);
-          setSlipsRun({ ...created, headcount: result.employees, gross_total: result.gross, net_total: result.net });
-          setSlips(result.payslips);
+          setSlipsRun(created);
+          // The run exists either way; process() reports its own failure and
+          // the drawer offers "Process payroll now" to retry.
+          await process(created);
         }}>
           <Field label="Period" required><Input name="period" type="month" required defaultValue={defaultPeriodId} /></Field>
           <Field label="Department">
@@ -494,18 +519,20 @@ const Payroll = () => {
         size="xl"
         title={`Payslips · ${slipsRun ? `${slipsRun.reference ?? slipsRun.period} · ${fmtPeriod(slipsRun.period)}` : ""}`}
         footer={<>
-          <Btn variant="outline" onClick={() => slipsRun && exportPayslipsCSV(slipsRun.id)}>
+          <Btn variant="outline" onClick={() => slipsRun && exportPayslipsCSV(slips, runLabel(slipsRun))}>
             <Download className="h-3.5 w-3.5 mr-1.5" /> Export CSV
           </Btn>
           <Btn variant="outline" onClick={() => setSlipsRun(null)}>Close</Btn>
         </>}>
-        {slips.length === 0 ? (
+        {slipsLoading ? (
+          <div className="text-center py-12 text-sm text-muted-foreground">Loading payslips…</div>
+        ) : slips.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-sm text-muted-foreground mb-3">No payslips generated yet for this run.</p>
             {slipsRun && (
-              <button onClick={async () => { await process(slipsRun); setSlips(getPayslips(slipsRun.id)); }}
-                className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground inline-flex items-center gap-1.5">
-                <Play className="h-3.5 w-3.5" /> Process payroll now
+              <button onClick={() => void process(slipsRun)} disabled={processing}
+                className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground inline-flex items-center gap-1.5 disabled:opacity-60">
+                <Play className="h-3.5 w-3.5" /> {processing ? "Processing…" : "Process payroll now"}
               </button>
             )}
           </div>
@@ -526,14 +553,14 @@ const Payroll = () => {
               <tbody>
                 {slips.map(s => (
                   <tr key={s.id} className="border-b border-border/40">
-                    <td className="py-2 px-2 font-mono text-xs">{s.empId}</td>
+                    <td className="py-2 px-2 font-mono text-xs">{s.emp_id}</td>
                     <td className="py-2 px-2 font-semibold text-primary">{s.name}</td>
                     <td className="py-2 px-2 text-muted-foreground">{s.department}</td>
                     <td className="py-2 px-2 text-right font-mono">{fmt(s.gross)}</td>
-                    <td className="py-2 px-2 text-right font-mono text-destructive">{fmt(s.totalDeductions)}</td>
+                    <td className="py-2 px-2 text-right font-mono text-destructive">{fmt(s.total_deductions)}</td>
                     <td className="py-2 px-2 text-right font-mono font-semibold">{fmt(s.net)}</td>
                     <td className="py-2 px-2 text-right">
-                      <button onClick={() => printPayslip(s)}
+                      <button onClick={() => slipsRun && printPayslip(s, runLabel(slipsRun))}
                         className="px-2 py-1 rounded-md text-[11px] font-semibold border border-border inline-flex items-center gap-1">
                         <Printer className="h-3 w-3" /> Print
                       </button>
@@ -545,7 +572,7 @@ const Payroll = () => {
                 <tr className="font-semibold">
                   <td colSpan={3} className="py-3 px-2">Totals · {slips.length} employees</td>
                   <td className="py-3 px-2 text-right font-mono">{fmt(slips.reduce((a, s) => a + s.gross, 0))}</td>
-                  <td className="py-3 px-2 text-right font-mono">{fmt(slips.reduce((a, s) => a + s.totalDeductions, 0))}</td>
+                  <td className="py-3 px-2 text-right font-mono">{fmt(slips.reduce((a, s) => a + s.total_deductions, 0))}</td>
                   <td className="py-3 px-2 text-right font-mono">{fmt(slips.reduce((a, s) => a + s.net, 0))}</td>
                   <td />
                 </tr>
@@ -558,18 +585,31 @@ const Payroll = () => {
       {/* Salary calculation settings */}
       <Modal open={settingsOpen} onClose={() => setSettingsOpen(false)} title="Salary calculation settings"
         footer={<>
-          <Btn variant="outline" onClick={() => setSettings(defaultSettings)}>Reset</Btn>
+          <Btn variant="outline" onClick={() => setDraftSettings(defaultSettings)}>Reset</Btn>
           <Btn variant="outline" onClick={() => setSettingsOpen(false)}>Cancel</Btn>
           <button
-            onClick={() => {
-              const totalEarn = settings.basicPct + settings.houseRentPct + settings.medicalPct + settings.conveyancePct;
+            onClick={async () => {
+              const totalEarn = draftSettings.basic_pct + draftSettings.house_rent_pct
+                + draftSettings.medical_pct + draftSettings.conveyance_pct;
               if (Math.round(totalEarn) !== 100) {
                 push({ title: "Earnings must total 100%", body: `Currently ${totalEarn}%`, tone: "warn" });
                 return;
               }
-              saveSettings(settings);
-              setSettingsOpen(false);
-              push({ title: "Salary calculation updated", body: "All payslips recalculated.", tone: "ok" });
+              try {
+                await saveSettings(draftSettings);
+                setSettingsOpen(false);
+                push({
+                  title: "Salary calculation updated",
+                  body: "The summary recalculates now; existing runs keep the figures they were processed with until you process them again.",
+                  tone: "ok",
+                });
+              } catch (cause) {
+                push({
+                  title: "Could not save the settings",
+                  body: cause instanceof Error ? cause.message : undefined,
+                  tone: "warn",
+                });
+              }
             }}
             className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground">
             Save
@@ -577,22 +617,25 @@ const Payroll = () => {
         </>}>
         <p className="text-xs text-muted-foreground mb-4">
           Earnings are split as percentages of the gross salary. Conveyance auto-absorbs rounding.
-          Earnings must add up to <span className="font-semibold">100%</span>.
+          Earnings must add up to <span className="font-semibold">100%</span>. These apply to the
+          whole hospital, not just your browser.
         </p>
         <div className="grid grid-cols-2 gap-3">
           {([
-            ["basicPct", "Basic (%)"],
-            ["houseRentPct", "House Rent (%)"],
-            ["medicalPct", "Medical (%)"],
-            ["conveyancePct", "Conveyance (%)"],
-            
+            ["basic_pct", "Basic (%)"],
+            ["house_rent_pct", "House Rent (%)"],
+            ["medical_pct", "Medical (%)"],
+            ["conveyance_pct", "Conveyance (%)"],
+            ["pf_pct", "Provident Fund (% of basic)"],
+            ["tax_pct", "Income Tax (% of gross)"],
+            ["tax_threshold", "Tax-free threshold (৳)"],
           ] as [keyof PayrollSettings, string][]).map(([key, label]) => (
             <Field key={key} label={label}>
               <Input
                 type="number"
                 step="0.01"
-                value={settings[key]}
-                onChange={e => setSettings(s => ({ ...s, [key]: Number(e.target.value) }))}
+                value={draftSettings[key]}
+                onChange={e => setDraftSettings(s => ({ ...s, [key]: Number(e.target.value) }))}
               />
             </Field>
           ))}
@@ -604,7 +647,7 @@ const Payroll = () => {
         onClose={() => setConfirmDel(null)}
         onConfirm={() => { if (confirmDel) void crud.remove(confirmDel.id); }}
         title="Delete payroll run"
-        description="This permanently removes the run row. Any generated payslips stay in your browser, but the run is gone."
+        description="This permanently removes the run and every payslip generated for it. This cannot be undone."
       />
     </AdminLayout>
   );
