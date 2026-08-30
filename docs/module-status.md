@@ -47,7 +47,7 @@ Last checked: 30 Aug 2026
 | ✅ | Pharmacy | HF-63 |
 | ✅ | Assets | HF-62 |
 | ✅ | Onboarding / Employees | HF-68 |
-| ❌ | Payroll — runs are real, payslips are not | HF-67 |
+| ✅ | Payroll — runs, payslips and salary settings | HF-67 |
 | ❌ | Laboratory — tests are real, the rest is not | HF-66 |
 | ❌ | Wards & Cabins | HF-47 |
 | ❌ | Vendors — table exists, page not wired to it | HF-61 |
@@ -63,7 +63,7 @@ Last checked: 30 Aug 2026
 | ❌ | Notifications | — |
 | ❌ | Settings | — |
 
-**10 of 25 done.**
+**11 of 25 done.**
 
 ---
 
@@ -148,7 +148,7 @@ and the patient portal's inner pages. Nobody is working on those.
 
 ## The short answer
 
-**27 of 65 pages are on real data.** The public site is nearly finished; the
+**28 of 65 pages are on real data.** The public site is nearly finished; the
 hospital admin panel is the bulk of what is left.
 
 Everything marked ❌ still works when you click it — it shows demo data that

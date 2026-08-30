@@ -1635,6 +1635,162 @@ export type Database = {
           },
         ]
       }
+      payroll_deduction_overrides: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          other: number | null
+          tax: number | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          other?: number | null
+          tax?: number | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          other?: number | null
+          tax?: number | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_deduction_overrides_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_deduction_overrides_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_deduction_overrides_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_payslips: {
+        Row: {
+          basic: number
+          created_at: string
+          department: string | null
+          designation: string | null
+          emp_id: string
+          employee_id: string | null
+          generated_at: string
+          gross: number
+          house_rent: number
+          id: string
+          loan: number
+          medical: number
+          name: string
+          net: number
+          period: string
+          pf: number
+          run_id: string
+          tax: number
+          tenant_id: string
+          total_deductions: number
+          transport: number
+          updated_at: string
+        }
+        Insert: {
+          basic?: number
+          created_at?: string
+          department?: string | null
+          designation?: string | null
+          emp_id: string
+          employee_id?: string | null
+          generated_at?: string
+          gross?: number
+          house_rent?: number
+          id?: string
+          loan?: number
+          medical?: number
+          name: string
+          net?: number
+          period: string
+          pf?: number
+          run_id: string
+          tax?: number
+          tenant_id: string
+          total_deductions?: number
+          transport?: number
+          updated_at?: string
+        }
+        Update: {
+          basic?: number
+          created_at?: string
+          department?: string | null
+          designation?: string | null
+          emp_id?: string
+          employee_id?: string | null
+          generated_at?: string
+          gross?: number
+          house_rent?: number
+          id?: string
+          loan?: number
+          medical?: number
+          name?: string
+          net?: number
+          period?: string
+          pf?: number
+          run_id?: string
+          tax?: number
+          tenant_id?: string
+          total_deductions?: number
+          transport?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_payslips_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_payslips_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_payslips_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_payslips_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_runs: {
         Row: {
           created_at: string
@@ -1687,6 +1843,63 @@ export type Database = {
             foreignKeyName: "payroll_runs_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_settings: {
+        Row: {
+          basic_pct: number
+          conveyance_pct: number
+          created_at: string
+          house_rent_pct: number
+          id: string
+          medical_pct: number
+          pf_pct: number
+          tax_pct: number
+          tax_threshold: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          basic_pct?: number
+          conveyance_pct?: number
+          created_at?: string
+          house_rent_pct?: number
+          id?: string
+          medical_pct?: number
+          pf_pct?: number
+          tax_pct?: number
+          tax_threshold?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          basic_pct?: number
+          conveyance_pct?: number
+          created_at?: string
+          house_rent_pct?: number
+          id?: string
+          medical_pct?: number
+          pf_pct?: number
+          tax_pct?: number
+          tax_threshold?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
