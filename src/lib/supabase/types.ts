@@ -1121,6 +1121,7 @@ export type Database = {
           kind: Database["public"]["Enums"]["finance_invoice_kind"]
           paid_at: string | null
           party: string
+          patient_id: string | null
           reference: string
           tenant_id: string
           updated_at: string
@@ -1133,6 +1134,7 @@ export type Database = {
           kind: Database["public"]["Enums"]["finance_invoice_kind"]
           paid_at?: string | null
           party: string
+          patient_id?: string | null
           reference: string
           tenant_id: string
           updated_at?: string
@@ -1145,11 +1147,19 @@ export type Database = {
           kind?: Database["public"]["Enums"]["finance_invoice_kind"]
           paid_at?: string | null
           party?: string
+          patient_id?: string | null
           reference?: string
           tenant_id?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "finance_invoices_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "finance_invoices_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -2596,6 +2606,7 @@ export type Database = {
       }
       auth_tenant_id: { Args: never; Returns: string }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      is_my_patient_record: { Args: { p_patient_id: string }; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       record_medicine_usage: {
         Args: { p_doctor_id: string; p_medicines: Json; p_tenant_id: string }
