@@ -1,33 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowLeft, Calendar, Clock, Eye, Share2, Bookmark, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
-import { useBlogPosts, getBlogPost } from "@/data/blogPosts";
+import { formatPostDate, type BlogPost } from "@/data/blogPost";
 
-const BlogDetail = () => {
-  const slug = useParams<{ slug: string }>()?.slug;
-  const { content } = useBlogPosts();
-  const posts = content.posts;
-  const post = posts.find(p => p.slug === (slug ?? "")) ?? getBlogPost(slug ?? "");
-
-  if (!post) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <main className="container mx-auto py-32 text-center">
-          <h1 className="font-display text-4xl text-primary">Story not found</h1>
-          <Link href="/blog" className="mt-6 inline-flex items-center gap-2 text-primary"><ArrowLeft className="h-4 w-4" /> Back to The Healing Times</Link>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
+const BlogDetail = ({ post, posts }: { post: BlogPost; posts: BlogPost[] }) => {
   const related = posts.filter((p) => p.slug !== post.slug && p.category === post.category).slice(0, 3);
   const fallback = posts.filter((p) => p.slug !== post.slug).slice(0, 3);
   const suggestions = related.length ? related : fallback;
@@ -48,14 +29,14 @@ const BlogDetail = () => {
           </motion.div>
 
           <div className="mt-8 flex flex-wrap items-center gap-4 pb-6 border-b border-border/60">
-            <img src={post.authorPhoto} alt={post.author} className="h-11 w-11 rounded-full object-cover" loading="lazy" />
+            <img src={post.author_photo} alt={post.author} className="h-11 w-11 rounded-full object-cover" loading="lazy" />
             <div>
               <p className="text-sm font-semibold text-primary">{post.author}</p>
-              <p className="text-xs text-muted-foreground">{post.authorRole}</p>
+              <p className="text-xs text-muted-foreground">{post.author_role}</p>
             </div>
             <div className="ml-auto flex items-center gap-4 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" />{post.date}</span>
-              <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />{post.readTime} min</span>
+              <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" />{formatPostDate(post.published_at)}</span>
+              <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />{post.read_time} min</span>
               <span className="inline-flex items-center gap-1"><Eye className="h-3 w-3" />{post.views.toLocaleString()}</span>
             </div>
           </div>
@@ -77,9 +58,6 @@ const BlogDetail = () => {
             {post.body.slice(1).map((p, i) => (
               <p key={i}>{p}</p>
             ))}
-            <blockquote className="border-l-4 border-primary-glow pl-6 my-8 font-display text-2xl text-primary italic">
-              &quot;Design is medicine. The walls, the windows, and the air are instruments of healing — and the data finally proves it.&quot;
-            </blockquote>
           </div>
 
           <div className="mt-10 flex items-center gap-3">

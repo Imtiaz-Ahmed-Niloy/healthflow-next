@@ -1,6 +1,7 @@
 import { createResourceApi } from "@/redux/api/createResourceApi";
 import type { Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/types";
 import { useMemo } from "react";
+import { pathForSlug } from "@/constants/sitePages";
 import {
   blocksToBlogContent,
   defaultBlogContent,
@@ -27,7 +28,7 @@ export const useBlogContent = () => {
     if (row) {
       await update(row.id, { blocks }).unwrap();
     } else {
-      await create({ slug: "blog", title: "Blog", blocks, published: true }).unwrap();
+      await create({ slug: "blog", path: pathForSlug("blog"), title: "Blog", blocks, published: true }).unwrap();
     }
   };
 

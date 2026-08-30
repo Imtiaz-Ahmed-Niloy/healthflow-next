@@ -459,11 +459,71 @@ export type Database = {
           },
         ]
       }
+      cms_blog_posts: {
+        Row: {
+          author: string
+          author_photo: string
+          author_role: string
+          body: string[]
+          category: string
+          cover: string
+          created_at: string
+          dek: string
+          featured: boolean
+          id: string
+          published_at: string
+          read_time: number
+          slug: string
+          title: string
+          updated_at: string
+          views: number
+        }
+        Insert: {
+          author?: string
+          author_photo?: string
+          author_role?: string
+          body?: string[]
+          category?: string
+          cover?: string
+          created_at?: string
+          dek?: string
+          featured?: boolean
+          id?: string
+          published_at?: string
+          read_time?: number
+          slug: string
+          title: string
+          updated_at?: string
+          views?: number
+        }
+        Update: {
+          author?: string
+          author_photo?: string
+          author_role?: string
+          body?: string[]
+          category?: string
+          cover?: string
+          created_at?: string
+          dek?: string
+          featured?: boolean
+          id?: string
+          published_at?: string
+          read_time?: number
+          slug?: string
+          title?: string
+          updated_at?: string
+          views?: number
+        }
+        Relationships: []
+      }
       cms_pages: {
         Row: {
           blocks: Json
+          built_in: boolean
           created_at: string
           id: string
+          path: string
+          protected: boolean
           published: boolean
           slug: string
           title: string
@@ -471,8 +531,11 @@ export type Database = {
         }
         Insert: {
           blocks?: Json
+          built_in?: boolean
           created_at?: string
           id?: string
+          path: string
+          protected?: boolean
           published?: boolean
           slug: string
           title: string
@@ -480,8 +543,11 @@ export type Database = {
         }
         Update: {
           blocks?: Json
+          built_in?: boolean
           created_at?: string
           id?: string
+          path?: string
+          protected?: boolean
           published?: boolean
           slug?: string
           title?: string

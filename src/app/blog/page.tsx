@@ -1,5 +1,8 @@
 import Blog from "@/views/Blog";
+import { notFound } from "next/navigation";
 import { createPublicSupabase } from "@/lib/supabase/server";
+import { pageIsDrafted } from "@/lib/cms/pages";
+import { getBlogPosts } from "@/lib/cms/blogPosts";
 import { blocksToBlogContent } from "@/data/blogContent";
 
 // Revalidate every 60s. Edits in the CMS show up within a minute without
@@ -20,7 +23,12 @@ export default async function BlogPage() {
     console.error("Failed to load blog page CMS content:", error);
   }
 
-  const chrome = blocksToBlogContent(data?.blocks);
+  // Unpublished in the CMS: RLS returns no row to an anonymous reader, so an
+  // absent row with no error means a super admin drafted this page.
+  if (pageIsDrafted(data, error)) notFound();
 
-  return <Blog chrome={chrome} />;
+  const chrome = blocksToBlogContent(data?.blocks);
+  const posts = await getBlogPosts();
+
+  return <Blog chrome={chrome} posts={posts} />;
 }

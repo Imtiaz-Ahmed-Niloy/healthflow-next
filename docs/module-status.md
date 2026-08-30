@@ -17,7 +17,7 @@ Last checked: 30 Aug 2026
 | ✅ | Hospitals | HF-35 |
 | ✅ | Roles & Permissions | HF-40 |
 | ✅ | Contact Messages | HF-65 |
-| ❌ | CMS — all 6 page editors save for real; the page-list screen and blog posts do not | HF-33 |
+| ✅ | CMS — page editors, the page list and blog articles all save for real | HF-33 |
 | ❌ | Support Tickets | HF-69 |
 | ❌ | Packages — redirects to CMS, not a real page | HF-41 |
 | ❌ | Announcements | HF-76 |
@@ -29,7 +29,7 @@ Last checked: 30 Aug 2026
 | ❌ | Preferences | — |
 | ❌ | Onboarding — redirects, not a real page | — |
 
-**4 of 15 done.**
+**5 of 15 done.**
 
 ---
 
@@ -148,7 +148,7 @@ and the patient portal's inner pages. Nobody is working on those.
 
 ## The short answer
 
-**26 of 65 pages are on real data.** The public site is nearly finished; the
+**27 of 65 pages are on real data.** The public site is nearly finished; the
 hospital admin panel is the bulk of what is left.
 
 Everything marked ❌ still works when you click it — it shows demo data that

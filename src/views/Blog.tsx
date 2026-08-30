@@ -8,13 +8,11 @@ import { Search, Calendar, Clock, ArrowRight, BookOpen, Tag, TrendingUp } from "
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import { Input } from "@/components/ui/input";
-import { useBlogPosts } from "@/data/blogPosts";
 import type { BlogContent } from "@/data/blogContent";
+import { formatPostDate, type BlogPost } from "@/data/blogPost";
 
-const Blog = ({ chrome }: { chrome: BlogContent }) => {
-  const { trendingTitle, leadEyebrow, leadKicker, gridTitle, emptyText } = chrome;
-  const { content } = useBlogPosts();
-  const { posts, categories } = content;
+const Blog = ({ chrome, posts }: { chrome: BlogContent; posts: BlogPost[] }) => {
+  const { trendingTitle, leadEyebrow, leadKicker, gridTitle, emptyText, categories } = chrome;
   const [query, setQuery] = useState("");
   const [cat, setCat] = useState("All");
   const [sort, setSort] = useState<"latest" | "popular">("latest");
@@ -31,7 +29,7 @@ const Blog = ({ chrome }: { chrome: BlogContent }) => {
     return list;
   }, [query, cat, sort, posts]);
 
-  const lead = posts.find((p) => p.featured) ?? posts[0];
+  const lead = posts.find((p) => p.featured) ?? posts[0];  // undefined when the blog is empty
   const trending = [...posts].sort((a, b) => b.views - a.views).slice(0, 4);
 
   
@@ -79,7 +77,7 @@ const Blog = ({ chrome }: { chrome: BlogContent }) => {
         </div>
 
         {/* Lead story */}
-        {cat === "All" && query === "" && (
+        {lead && cat === "All" && query === "" && (
           <section className="container mx-auto py-10 grid lg:grid-cols-12 gap-8 border-b border-border/60">
             <motion.article
               initial={{ opacity: 0, y: 20 }}
@@ -102,12 +100,12 @@ const Blog = ({ chrome }: { chrome: BlogContent }) => {
                 <img src={lead.cover} alt={lead.title} className="w-full h-[340px] object-cover transition-transform duration-700 group-hover:scale-[1.02]" loading="lazy" />
               </div>
               <div className="mt-4 flex items-center gap-3 text-xs text-muted-foreground">
-                <img src={lead.authorPhoto} alt={lead.author} className="h-8 w-8 rounded-full object-cover" loading="lazy" />
+                <img src={lead.author_photo} alt={lead.author} className="h-8 w-8 rounded-full object-cover" loading="lazy" />
                 <span className="font-semibold text-primary">{lead.author}</span>
                 <span>·</span>
-                <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" />{lead.date}</span>
+                <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" />{formatPostDate(lead.published_at)}</span>
                 <span>·</span>
-                <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />{lead.readTime} min read</span>
+                <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />{lead.read_time} min read</span>
               </div>
             </motion.article>
 
@@ -169,10 +167,10 @@ const Blog = ({ chrome }: { chrome: BlogContent }) => {
                   </h3>
                   <p className="text-sm text-foreground/70 mt-2 leading-relaxed line-clamp-3">{p.dek}</p>
                   <div className="mt-4 pt-4 border-t border-border/60 flex items-center gap-3">
-                    <img src={p.authorPhoto} alt={p.author} className="h-9 w-9 rounded-full object-cover" loading="lazy" />
+                    <img src={p.author_photo} alt={p.author} className="h-9 w-9 rounded-full object-cover" loading="lazy" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-primary truncate">{p.author}</p>
-                      <p className="text-[10px] text-muted-foreground">{p.date} · {p.readTime} min read</p>
+                      <p className="text-[10px] text-muted-foreground">{formatPostDate(p.published_at)} · {p.read_time} min read</p>
                     </div>
                     <Link href={`/blog/${p.slug}`} className="text-primary opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Read">
                       <ArrowRight className="h-4 w-4" />
