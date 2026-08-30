@@ -34,10 +34,18 @@ type PayrollRun = {
 const flow = ["draft", "approved", "paid"] as const;
 
 /**
- * job_status is stored lowercase (0039_employees.sql), same as every other
- * module. The pill and the printed payslip are the only places it is shown, so
- * they are the only places it gets capitalised.
+ * Statuses are stored lowercase across every module, so the label maps below
+ * are the only places they get capitalised — the pill, the toast and the
+ * printed payslip.
  */
+const RUN_STATUS_LABELS: Record<string, string> = {
+  draft: "Draft",
+  approved: "Approved",
+  paid: "Paid",
+};
+const runStatusLabel = (value: string) => RUN_STATUS_LABELS[value] ?? value;
+
+/** From 0039_employees.sql. */
 const JOB_STATUS_LABELS: Record<string, string> = {
   active: "Active",
   probation: "Probation",
@@ -93,7 +101,7 @@ const Payroll = () => {
     const next = flow[i + 1];
     await crud.update(r.id, { status: next });
     if (next === "paid") updatePayslipStatus(r.id, "Paid");
-    push({ title: `${runLabel(r)} → ${next}`, tone: next === "paid" ? "ok" : "info" });
+    push({ title: `${runLabel(r)} → ${runStatusLabel(next)}`, tone: next === "paid" ? "ok" : "info" });
   };
 
   const process = async (r: PayrollRun) => {
@@ -124,7 +132,7 @@ const Payroll = () => {
     { key: "headcount", label: "Employees", sortable: true, accessor: r => r.headcount },
     { key: "gross_total", label: "Gross", accessor: r => Number(r.gross_total), render: r => fmt(Number(r.gross_total)) },
     { key: "net_total", label: "Net", accessor: r => Number(r.net_total), render: r => fmt(Number(r.net_total)) },
-    { key: "status", label: "Status", render: r => <Pill tone={statusTone(r.status)}>{r.status}</Pill> },
+    { key: "status", label: "Status", render: r => <Pill tone={statusTone(r.status)}>{runStatusLabel(r.status)}</Pill> },
   ];
 
   // Current month payroll summary — computed live from onboarded employees
@@ -255,7 +263,9 @@ const Payroll = () => {
   return (
     <AdminLayout title="Payroll Management" subtitle="Run, process, approve and disburse salaries">
       {/* Current month payroll summary */}
-      <Card className="p-5">
+      {/* mb-6: AdminLayout's <main> sets no vertical rhythm, so sibling cards
+          sit flush unless the page spaces them itself — same as Attendance. */}
+      <Card className="p-5 mb-6">
         <div className="mb-4 flex items-end justify-between gap-3 flex-wrap">
           <div>
             <h3 className="text-sm font-semibold tracking-tight">Payroll Summary</h3>
@@ -419,7 +429,7 @@ const Payroll = () => {
                 {flow.indexOf(r.status) < flow.length - 1 && (
                   <button
                     onClick={() => void advance(r)}
-                    title={`Advance to ${flow[flow.indexOf(r.status) + 1]}`}
+                    title={`Advance to ${runStatusLabel(flow[flow.indexOf(r.status) + 1])}`}
                     className="p-1.5 rounded-lg hover:bg-muted text-foreground/70"
                   >
                     <ChevronRight className="h-4 w-4" />
