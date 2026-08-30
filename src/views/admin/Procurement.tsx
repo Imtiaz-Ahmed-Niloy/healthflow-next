@@ -3,99 +3,231 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, Btn, Pill } from "@/components/admin/ui";
-import { useCrud, Modal, Field, Input, Select } from "@/components/admin/crud";
+import { Modal, Field, Input, Select } from "@/components/admin/crud";
+import { useResourceCrud } from "@/components/admin/useResourceCrud";
 import { useNotifications } from "@/components/admin/NotificationProvider";
+import type { Tables } from "@/lib/supabase/types";
 
-type Req = { id: string; title: string; dept: string; vendor: string; amount: string; stage: string };
-const stages = ["Pending", "Approved", "Ordered", "Delivered"] as const;
-const seed: Req[] = [
-  { id: "REQ-3041", title: "Surgical Gloves x500", dept: "OT", vendor: "Vendor A", amount: "1200", stage: "Pending" },
-  { id: "REQ-3042", title: "MRI Contrast Agent", dept: "Radiology", vendor: "Vendor C", amount: "4500", stage: "Pending" },
-  { id: "REQ-3038", title: "Office Stationery", dept: "Admin", vendor: "Vendor B", amount: "320", stage: "Approved" },
-  { id: "REQ-3035", title: "Hospital Beds x10", dept: "Ward 3B", vendor: "Vendor D", amount: "18000", stage: "Ordered" },
-  { id: "REQ-3030", title: "Pharmacy Restock", dept: "Pharmacy", vendor: "Vendor A", amount: "9800", stage: "Delivered" },
-];
+/**
+ * A requisition, with the vendor name the resource embeds (0048). Column names
+ * are the database's, so form values post straight through. Postgres `numeric`
+ * arrives over the wire as a string, hence the union on amount.
+ */
+type Requisition = Omit<Tables<"procurement_requisitions">, "amount"> & {
+  amount: number | string;
+  vendors?: { name: string } | null;
+};
+
+type VendorOption = { id: string; name: string; status: string };
+
+/**
+ * The board's four columns. `rejected` is deliberately not one of them — it is
+ * not a stage of the journey, it is where the journey stopped.
+ */
+const FLOW = ["pending", "approved", "ordered", "delivered"] as const;
+type Stage = (typeof FLOW)[number];
+
+/** Statuses are stored lowercase across every module; capitalised only here. */
+const STAGE_LABELS: Record<string, string> = {
+  pending: "Pending",
+  approved: "Approved",
+  ordered: "Ordered",
+  delivered: "Delivered",
+  rejected: "Rejected",
+};
+const stageLabel = (value: string) => STAGE_LABELS[value] ?? value;
+
+const fmt = (n: number | string) => `৳${Number(n).toLocaleString()}`;
+
+const DEPARTMENTS = ["OT", "Radiology", "Admin", "Pharmacy", "Laboratory", "Ward", "Other"];
+
+/** "REQ-3051", numbered within the hospital. The unique index catches a clash. */
+const suggestReference = (rows: Requisition[]) => {
+  const used = rows
+    .map(r => Number(r.reference.trim().toUpperCase().replace(/^REQ-/, "")))
+    .filter(Number.isFinite);
+  return `REQ-${used.length ? Math.max(...used) + 1 : 3001}`;
+};
 
 const Procurement = () => {
-  const crud = useCrud<Req>("procurement", seed);
+  const crud = useResourceCrud<Requisition>("procurement-requisitions");
+  // The vendor register (0030). A requisition is bought from someone.
+  const vendors = useResourceCrud<VendorOption>("vendors");
   const { push } = useNotifications();
-  const [add, setAdd] = useState(false);
-  const [view, setView] = useState<Req | null>(null);
 
-  const advance = (r: Req) => {
-    const i = stages.indexOf(r.stage as never);
-    if (i < stages.length - 1) {
-      const next = stages[i + 1];
-      crud.update(r.id, { stage: next });
-      push({ title: `${r.id} → ${next}`, tone: "info" });
-    }
+  const [add, setAdd] = useState(false);
+  const [view, setView] = useState<Requisition | null>(null);
+  const [showRejected, setShowRejected] = useState(false);
+
+  const rows = crud.items;
+  const rejected = rows.filter(r => r.stage === "rejected");
+  const activeVendors = vendors.items.filter(v => v.status === "active");
+
+  const advance = async (r: Requisition) => {
+    const i = FLOW.indexOf(r.stage as Stage);
+    if (i < 0 || i >= FLOW.length - 1) return;
+    const next = FLOW[i + 1];
+    await crud.update(r.id, { stage: next } as never);
+    push({ title: `${r.reference} → ${stageLabel(next)}`, tone: "info" });
   };
-  const reject = (r: Req) => { crud.remove(r.id); push({ title: `${r.id} rejected`, tone: "bad" }); };
+
+  /**
+   * Rejecting records the decision. It used to delete the row, which threw
+   * away exactly the thing a hospital needs later: who asked, for how much,
+   * and that it was refused.
+   */
+  const reject = async (r: Requisition) => {
+    await crud.update(r.id, { stage: "rejected" } as never);
+    push({ title: `${r.reference} rejected`, tone: "bad" });
+  };
+
+  const reopen = async (r: Requisition) => {
+    await crud.update(r.id, { stage: "pending" } as never);
+    push({ title: `${r.reference} reopened`, tone: "info" });
+  };
+
+  const card = (it: Requisition, actions: React.ReactNode) => (
+    <Card key={it.id} className="p-4">
+      <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{it.reference}</p>
+      <p className="font-semibold text-primary mt-1">{it.title}</p>
+      <p className="text-xs text-muted-foreground mt-1">
+        {[it.department, it.vendors?.name ?? it.vendor_name].filter(Boolean).join(" · ") || "—"}
+      </p>
+      <p className="text-sm font-semibold text-primary-glow mt-2">{fmt(it.amount)}</p>
+      <div className="mt-3 flex gap-2 flex-wrap">{actions}</div>
+    </Card>
+  );
 
   return (
     <AdminLayout title="Procurement (Requisition)" subtitle="Approve, order and track delivery">
-      <div className="flex justify-end mb-4"><Btn onClick={() => setAdd(true)}>+ New Requisition</Btn></div>
-      <div className="grid md:grid-cols-4 gap-4">
-        {stages.map(s => {
-          const items = crud.items.filter(i => i.stage === s);
-          return (
-            <div key={s}>
-              <div className="flex items-center justify-between mb-3">
-                <p className="font-display text-lg text-primary">{s}</p>
-                <Pill tone={s === "Delivered" ? "ok" : s === "Pending" ? "warn" : "info"}>{items.length}</Pill>
-              </div>
-              <div className="space-y-3">
-                {items.map(it => (
-                  <Card key={it.id} className="p-4">
-                    <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{it.id}</p>
-                    <p className="font-semibold text-primary mt-1">{it.title}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{it.dept} · {it.vendor}</p>
-                    <p className="text-sm font-semibold text-primary-glow mt-2">${Number(it.amount).toLocaleString()}</p>
-                    <div className="mt-3 flex gap-2">
-                      <Btn variant="ghost" onClick={() => setView(it)}>View</Btn>
-                      {it.stage !== "Delivered" && <Btn onClick={() => advance(it)}>Advance →</Btn>}
-                      {it.stage === "Pending" && <Btn variant="danger" onClick={() => reject(it)}>Reject</Btn>}
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          );
-        })}
+      <div className="flex justify-end mb-4">
+        <Btn onClick={() => setAdd(true)}>+ New Requisition</Btn>
       </div>
+
+      {crud.error ? (
+        <Card className="p-12 text-center">
+          <p className="text-sm font-semibold text-destructive">Could not load requisitions.</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            You may not have access to this module, or the request failed.
+          </p>
+          <button type="button" onClick={() => crud.refetch()}
+            className="mt-3 px-4 py-2 rounded-full text-xs font-semibold border border-border hover:bg-muted">
+            Try again
+          </button>
+        </Card>
+      ) : crud.isLoading ? (
+        <Card className="p-12 text-center text-sm text-muted-foreground">Loading…</Card>
+      ) : (
+        <>
+          <div className="grid md:grid-cols-4 gap-4">
+            {FLOW.map(stage => {
+              const items = rows.filter(i => i.stage === stage);
+              return (
+                <div key={stage}>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="font-display text-lg text-primary">{stageLabel(stage)}</p>
+                    <Pill tone={stage === "delivered" ? "ok" : stage === "pending" ? "warn" : "info"}>
+                      {items.length}
+                    </Pill>
+                  </div>
+                  <div className="space-y-3">
+                    {items.length === 0 && (
+                      <p className="text-xs text-muted-foreground px-1">Nothing here.</p>
+                    )}
+                    {items.map(it => card(it, <>
+                      <Btn variant="ghost" onClick={() => setView(it)}>View</Btn>
+                      {it.stage !== "delivered" && <Btn onClick={() => void advance(it)}>Advance →</Btn>}
+                      {it.stage === "pending" && <Btn variant="danger" onClick={() => void reject(it)}>Reject</Btn>}
+                    </>))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {rejected.length > 0 && (
+            <div className="mt-8">
+              <button onClick={() => setShowRejected(v => !v)}
+                className="text-sm font-semibold text-primary hover:underline">
+                {showRejected ? "Hide" : "Show"} {rejected.length} rejected {rejected.length === 1 ? "requisition" : "requisitions"}
+              </button>
+              {showRejected && (
+                <div className="grid md:grid-cols-4 gap-4 mt-4">
+                  {rejected.map(it => card(it, <>
+                    <Btn variant="ghost" onClick={() => setView(it)}>View</Btn>
+                    <Btn variant="outline" onClick={() => void reopen(it)}>Reopen</Btn>
+                  </>))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
 
       <Modal open={add} onClose={() => setAdd(false)} title="New requisition"
         footer={<><Btn variant="outline" onClick={() => setAdd(false)}>Cancel</Btn>
           <button form="req-form" type="submit" className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground">Submit</button></>}>
-        <form id="req-form" onSubmit={e => {
+        <form id="req-form" onSubmit={async e => {
           e.preventDefault();
           const fd = new FormData(e.currentTarget);
-          crud.create({
-            id: `REQ-${3050 + crud.items.length}`,
-            title: String(fd.get("title")), dept: String(fd.get("dept")),
-            vendor: String(fd.get("vendor")), amount: String(fd.get("amount")), stage: "Pending"
+          const vendorId = String(fd.get("vendor_id") || "");
+          const vendor = activeVendors.find(v => v.id === vendorId);
+
+          const created = await crud.create({
+            reference: String(fd.get("reference") || "").trim(),
+            title: String(fd.get("title") || "").trim(),
+            department: String(fd.get("department") || "") || null,
+            vendor_id: vendor?.id ?? null,
+            // Snapshot the name as displayed, so a delivered order still reads
+            // correctly if the vendor is later removed.
+            vendor_name: vendor?.name ?? null,
+            amount: Number(fd.get("amount")),
           } as never);
+          if (!created) return; // useResourceCrud has surfaced the error
           push({ title: `New requisition: ${fd.get("title")}`, tone: "info" });
           setAdd(false);
         }}>
+          <Field label="Reference" required>
+            <Input name="reference" required defaultValue={suggestReference(rows)} />
+          </Field>
           <Field label="Item / title" required><Input name="title" required /></Field>
-          <Field label="Department"><Select name="dept"><option>OT</option><option>Radiology</option><option>Admin</option><option>Pharmacy</option><option>Ward 3B</option></Select></Field>
-          <Field label="Vendor"><Select name="vendor"><option>Vendor A</option><option>Vendor B</option><option>Vendor C</option><option>Vendor D</option></Select></Field>
-          <Field label="Amount (USD)" required><Input name="amount" type="number" required /></Field>
+          <Field label="Department">
+            <Select name="department">
+              <option value="">—</option>
+              {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+            </Select>
+          </Field>
+          <Field label="Vendor">
+            <Select name="vendor_id">
+              <option value="">Not chosen yet</option>
+              {activeVendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+            </Select>
+          </Field>
+          <Field label="Amount (৳)" required>
+            <Input name="amount" type="number" min="0" step="0.01" required />
+          </Field>
+          {activeVendors.length === 0 && (
+            <p className="text-xs text-muted-foreground mt-2">
+              No active vendors yet. A requisition can be raised without one and the vendor
+              chosen later.
+            </p>
+          )}
         </form>
       </Modal>
 
-      <Modal open={!!view} onClose={() => setView(null)} title={view?.id || ""}>
-        {view && <div className="space-y-2 text-sm">
-          <p><span className="text-muted-foreground">Item:</span> <b>{view.title}</b></p>
-          <p><span className="text-muted-foreground">Department:</span> {view.dept}</p>
-          <p><span className="text-muted-foreground">Vendor:</span> {view.vendor}</p>
-          <p><span className="text-muted-foreground">Amount:</span> ${view.amount}</p>
-          <p><span className="text-muted-foreground">Stage:</span> <Pill>{view.stage}</Pill></p>
-        </div>}
+      <Modal open={!!view} onClose={() => setView(null)} title={view?.reference ?? ""}>
+        {view && (
+          <div className="space-y-2 text-sm">
+            <p><span className="text-muted-foreground">Item:</span> <b>{view.title}</b></p>
+            <p><span className="text-muted-foreground">Department:</span> {view.department || "—"}</p>
+            <p><span className="text-muted-foreground">Vendor:</span> {view.vendors?.name ?? view.vendor_name ?? "—"}</p>
+            <p><span className="text-muted-foreground">Amount:</span> {fmt(view.amount)}</p>
+            <p><span className="text-muted-foreground">Stage:</span> <Pill>{stageLabel(view.stage)}</Pill></p>
+            {view.notes && <p><span className="text-muted-foreground">Notes:</span> {view.notes}</p>}
+          </div>
+        )}
       </Modal>
     </AdminLayout>
   );
 };
 export default Procurement;
-
