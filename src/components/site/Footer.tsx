@@ -3,9 +3,16 @@
 import { ArrowRight, Twitter, Facebook, Instagram } from "lucide-react";
 import Link from "next/link";
 import { useFooterContent } from "@/data/footerContent";
+import { useIsPageVisible } from "./PublishedPages";
 
 const Footer = () => {
   const { content } = useFooterContent();
+  const isVisible = useIsPageVisible();
+  // Drop links to unpublished pages. A column whose every link is gone goes
+  // with them, rather than leaving a bare heading behind.
+  const columns = content.columns
+    .map(c => ({ ...c, links: c.links.filter(l => isVisible(l.to)) }))
+    .filter(c => c.links.length > 0);
   return (
     <footer id="cta" className="bg-gradient-dark text-surface-dark-foreground">
       <div className="container mx-auto py-16 grid grid-cols-2 md:grid-cols-4 gap-8">
@@ -13,7 +20,7 @@ const Footer = () => {
           <div className="font-display text-2xl">{content.brand}</div>
           <p className="opacity-70 mt-3 max-w-xs text-sm">{content.tagline}</p>
         </div>
-        {content.columns.map(c => (
+        {columns.map(c => (
           <div key={c.title}>
             <h4 className="text-xs font-bold tracking-widest opacity-60">{c.title}</h4>
             <ul className="mt-4 space-y-2 text-sm">

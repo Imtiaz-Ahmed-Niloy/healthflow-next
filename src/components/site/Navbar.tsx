@@ -7,16 +7,20 @@ import { NavLink } from "@/components/NavLink";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { BRAND_INFO } from "@/constants/brand";
+import { useIsPageVisible } from "./PublishedPages";
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);
   const { t } = useTranslation();
+  const isVisible = useIsPageVisible();
+  // A page unpublished in the CMS drops out of the nav rather than sitting
+  // there as a link to a 404.
   const links = [
     { label: t("nav.features"), to: "/features" },
     { label: t("nav.pricing"), to: "/pricing" },
     { label: t("nav.about"), to: "/about" },
     { label: t("nav.contact"), to: "/contact" },
-  ];
+  ].filter(l => isVisible(l.to));
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-background/80 border-b border-border/50">
       <nav className="container mx-auto flex items-center justify-between py-4">

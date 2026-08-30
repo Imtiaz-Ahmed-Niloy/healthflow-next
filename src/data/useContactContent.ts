@@ -1,6 +1,7 @@
 import { createResourceApi } from "@/redux/api/createResourceApi";
 import type { Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/types";
 import { useMemo } from "react";
+import { pathForSlug } from "@/constants/sitePages";
 import {
   blocksToContactContent,
   defaultContactContent,
@@ -32,7 +33,7 @@ export const useContactContent = () => {
     if (row) {
       await update(row.id, { blocks }).unwrap();
     } else {
-      await create({ slug: "contact", title: "Contact", blocks, published: true }).unwrap();
+      await create({ slug: "contact", path: pathForSlug("contact"), title: "Contact", blocks, published: true }).unwrap();
     }
   };
 

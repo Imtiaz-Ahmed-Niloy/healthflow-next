@@ -1,5 +1,7 @@
 import About from "@/views/About";
+import { notFound } from "next/navigation";
 import { createPublicSupabase } from "@/lib/supabase/server";
+import { pageIsDrafted } from "@/lib/cms/pages";
 import { blocksToAboutContent } from "@/data/aboutContent";
 import { blocksToHero } from "@/data/cmsPageHero";
 
@@ -20,6 +22,10 @@ export default async function AboutPage() {
   if (error) {
     console.error("Failed to load about page CMS content:", error);
   }
+
+  // Unpublished in the CMS: RLS returns no row to an anonymous reader, so an
+  // absent row with no error means a super admin drafted this page.
+  if (pageIsDrafted(data, error)) notFound();
 
   const hero = blocksToHero(data?.blocks, "about");
   const content = blocksToAboutContent(data?.blocks);

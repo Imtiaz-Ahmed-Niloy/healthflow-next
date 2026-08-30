@@ -2,6 +2,7 @@ import { createResourceApi } from "@/redux/api/createResourceApi";
 import type { Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/types";
 import { useMemo } from "react";
 import { blocksToHomeContent, defaultHomeContent, homeContentToBlocks, type HomeContent } from "@/data/homeContent";
+import { pathForSlug } from "@/constants/sitePages";
 
 type CmsPageRow = Tables<"cms_pages">;
 type CmsPageInsert = TablesInsert<"cms_pages">;
@@ -22,7 +23,7 @@ export const useHomeContent = () => {
     if (row) {
       await update(row.id, { blocks }).unwrap();
     } else {
-      await create({ slug: "home", title: "Home", blocks, published: true }).unwrap();
+      await create({ slug: "home", path: pathForSlug("home"), title: "Home", blocks, published: true }).unwrap();
     }
   };
 
@@ -31,7 +32,7 @@ export const useHomeContent = () => {
     if (row) {
       await update(row.id, { blocks }).unwrap();
     } else {
-      await create({ slug: "home", title: "Home", blocks, published: true }).unwrap();
+      await create({ slug: "home", path: pathForSlug("home"), title: "Home", blocks, published: true }).unwrap();
     }
   };
 

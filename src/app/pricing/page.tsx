@@ -1,5 +1,7 @@
 import Pricing from "@/views/Pricing";
+import { notFound } from "next/navigation";
 import { createPublicSupabase } from "@/lib/supabase/server";
+import { pageIsDrafted } from "@/lib/cms/pages";
 import { blocksToPricingContent } from "@/data/pricingContent";
 
 // Revalidate every 60s. Edits in the CMS show up within a minute without
@@ -19,6 +21,10 @@ export default async function PricingPage() {
   if (error) {
     console.error("Failed to load pricing page CMS content:", error);
   }
+
+  // Unpublished in the CMS: RLS returns no row to an anonymous reader, so an
+  // absent row with no error means a super admin drafted this page.
+  if (pageIsDrafted(data, error)) notFound();
 
   const content = blocksToPricingContent(data?.blocks);
 
