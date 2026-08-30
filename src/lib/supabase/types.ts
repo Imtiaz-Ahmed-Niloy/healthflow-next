@@ -459,6 +459,83 @@ export type Database = {
           },
         ]
       }
+      certificates: {
+        Row: {
+          certificate_no: string
+          created_at: string
+          details: string | null
+          employee_id: string | null
+          id: string
+          issued_by: string | null
+          issued_on: string | null
+          patient_id: string | null
+          recipient_name: string
+          status: Database["public"]["Enums"]["certificate_status"]
+          tenant_id: string
+          type: Database["public"]["Enums"]["certificate_type"]
+          updated_at: string
+        }
+        Insert: {
+          certificate_no: string
+          created_at?: string
+          details?: string | null
+          employee_id?: string | null
+          id?: string
+          issued_by?: string | null
+          issued_on?: string | null
+          patient_id?: string | null
+          recipient_name: string
+          status?: Database["public"]["Enums"]["certificate_status"]
+          tenant_id: string
+          type: Database["public"]["Enums"]["certificate_type"]
+          updated_at?: string
+        }
+        Update: {
+          certificate_no?: string
+          created_at?: string
+          details?: string | null
+          employee_id?: string | null
+          id?: string
+          issued_by?: string | null
+          issued_on?: string | null
+          patient_id?: string | null
+          recipient_name?: string
+          status?: Database["public"]["Enums"]["certificate_status"]
+          tenant_id?: string
+          type?: Database["public"]["Enums"]["certificate_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificates_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificates_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cms_blog_posts: {
         Row: {
           author: string
@@ -2909,6 +2986,18 @@ export type Database = {
         | "cleaning"
         | "maintenance"
         | "reserved"
+      certificate_status: "pending" | "issued" | "revoked"
+      certificate_type:
+        | "birth"
+        | "death"
+        | "medical_fitness"
+        | "discharge"
+        | "vaccination"
+        | "disability"
+        | "experience"
+        | "noc"
+        | "relieving"
+        | "salary"
       doctor_status: "active" | "on_leave" | "suspended"
       finance_invoice_kind: "receivable" | "payable"
       lab_order_status:
@@ -3098,6 +3187,19 @@ export const Constants = {
         "cleaning",
         "maintenance",
         "reserved",
+      ],
+      certificate_status: ["pending", "issued", "revoked"],
+      certificate_type: [
+        "birth",
+        "death",
+        "medical_fitness",
+        "discharge",
+        "vaccination",
+        "disability",
+        "experience",
+        "noc",
+        "relieving",
+        "salary",
       ],
       doctor_status: ["active", "on_leave", "suspended"],
       finance_invoice_kind: ["receivable", "payable"],
