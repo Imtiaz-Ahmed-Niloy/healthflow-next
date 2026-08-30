@@ -73,10 +73,10 @@ Last checked: 30 Aug 2026
 |---|---|---|
 | ✅ | Schedule | HF-59 |
 | ✅ | Prescription | HF-57, HF-58, HF-74 |
-| ❌ | Patient Queue | HF-56 |
-| ❌ | Directory | HF-60 |
+| ✅ | Patient Queue | HF-56 |
+| ✅ | Directory | HF-60 |
 
-**2 of 4 done.**
+**4 of 4 done.**
 
 ---
 
@@ -86,13 +86,13 @@ Last checked: 30 Aug 2026
 |---|---|---|
 | ✅ | Dashboard | — |
 | ✅ | Find Doctors | HF-49 |
-| ❌ | Appointments | HF-52, HF-55 |
+| ✅ | Appointments | HF-52, HF-55 |
 | ❌ | Medical Records | — |
 | ❌ | Billing | — |
 | ❌ | Profile | — |
 | ❌ | Tutorial | — |
 
-**2 of 7 done.**
+**3 of 7 done.**
 
 ---
 
@@ -135,11 +135,21 @@ Last checked: 30 Aug 2026
 
 ## Worth checking
 
-Four tickets sit in **QA** but the page still reads part of its data locally:
-**HF-56** (Patient Queue), **HF-60** (Directory), **HF-52** (Patient
-Appointments), **HF-66** (Laboratory). Either the ticket covered less than the
-whole page, or it moved to QA early. Worth confirming before anyone reports
-them as finished.
+This list used to name four tickets in **QA** whose pages were suspected of
+still reading part of their data locally. Three of the four were checked and
+were wrong — **HF-56** (Patient Queue), **HF-60** (Directory) and **HF-52**
+(Patient Appointments) each fetch a real API, hold no localStorage at all, and
+scope by the signed-in doctor or patient rather than by tenant alone. They are
+marked done above.
+
+What misled the check for HF-56 was `src/data/queue.ts` — the three hardcoded
+patients the ticket replaced, still sitting in the tree, imported by nothing.
+It has been deleted, along with `src/data/useCmsHero.ts`, which was dead the
+same way.
+
+**HF-66** (Laboratory) is the one that was right: `/admin/lab` still runs on
+`useCrud("lab-tests", seed)` with a second `storeKey: "lab-catalog"`. It is
+marked ❌ above and is genuinely unfinished.
 
 **13 menu items have no ticket at all** — mostly Super Admin settings screens
 and the patient portal's inner pages. Nobody is working on those.
@@ -148,7 +158,7 @@ and the patient portal's inner pages. Nobody is working on those.
 
 ## The short answer
 
-**29 of 65 pages are on real data.** The public site is nearly finished; the
+**32 of 65 pages are on real data.** The public site is nearly finished; the
 hospital admin panel is the bulk of what is left.
 
 Everything marked ❌ still works when you click it — it shows demo data that
