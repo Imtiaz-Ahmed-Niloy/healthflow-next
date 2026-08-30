@@ -1,6 +1,7 @@
 # Where we are
 
-Every menu item, by panel.
+Every menu item, by panel, **in the order the menu itself lists them** — so
+this file can be read side by side with the sidebar without hunting.
 
 **✅** = on real data, saves, survives a refresh, isolated per hospital
 **❌** = still on demo data, or only half wired
@@ -71,12 +72,12 @@ Last checked: 30 Aug 2026
 
 | | | Ticket |
 |---|---|---|
-| ✅ | Schedule | HF-59 |
 | ✅ | Prescription | HF-57, HF-58, HF-74 |
 | ✅ | Patient Queue | HF-56 |
-| ✅ | Directory | HF-60 |
-| ✅ | User Guide — static help text, nothing to save | — |
+| ✅ | Patient Directory | HF-60 |
+| ✅ | Schedule | HF-59 |
 | ❌ | Community — posts live in component state, so they vanish on refresh | — |
+| ✅ | User Guide — static help text, nothing to save | — |
 
 **5 of 6 done.**
 
