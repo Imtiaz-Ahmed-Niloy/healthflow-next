@@ -100,10 +100,10 @@ it back is one line in `PortalLayout.tsx`.
 | ✅ | Appointments | HF-52, HF-55 |
 | ✅ | Find Doctors | HF-49 |
 | ✅ | Billing | HF-77 |
-| ❌ | Medical Records | HF-78 |
+| ✅ | Medical Records | HF-78 |
 | ❌ | Profile | HF-79 |
 
-**4 of 6 done.**
+**5 of 6 done.**
 
 Ordered the way the patient sidebar lists them. **Tutorial** is not on that
 menu and is not counted: like User Guide, it is a static walkthrough of how to
@@ -173,7 +173,7 @@ and the patient portal's inner pages. Nobody is working on those.
 
 ## The short answer
 
-**34 of 66 pages are on real data.** The public site is nearly finished; the
+**35 of 66 pages are on real data.** The public site is nearly finished; the
 hospital admin panel is the bulk of what is left.
 
 Everything marked ❌ still works when you click it — it shows demo data that
