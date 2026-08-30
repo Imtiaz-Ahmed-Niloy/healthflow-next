@@ -51,7 +51,7 @@ Last checked: 30 Aug 2026
 | ❌ | Laboratory — tests are real, the rest is not | HF-66 |
 | ❌ | Wards & Cabins | HF-47 |
 | ❌ | Vendors — table exists, page not wired to it | HF-61 |
-| ❌ | Finance | HF-70 |
+| ✅ | Finance | HF-70 |
 | ❌ | Procurement | HF-71 |
 | ❌ | Administration | HF-72 |
 | ❌ | Personal Files — waiting on file storage | HF-64 |
@@ -63,7 +63,7 @@ Last checked: 30 Aug 2026
 | ❌ | Notifications | — |
 | ❌ | Settings | — |
 
-**11 of 25 done.**
+**12 of 25 done.**
 
 ---
 
@@ -148,7 +148,7 @@ and the patient portal's inner pages. Nobody is working on those.
 
 ## The short answer
 
-**28 of 65 pages are on real data.** The public site is nearly finished; the
+**29 of 65 pages are on real data.** The public site is nearly finished; the
 hospital admin panel is the bulk of what is left.
 
 Everything marked ❌ still works when you click it — it shows demo data that

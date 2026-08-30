@@ -1112,6 +1112,60 @@ export type Database = {
           },
         ]
       }
+      finance_invoices: {
+        Row: {
+          amount: number
+          created_at: string
+          due_date: string
+          id: string
+          kind: Database["public"]["Enums"]["finance_invoice_kind"]
+          paid_at: string | null
+          party: string
+          reference: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          due_date: string
+          id?: string
+          kind: Database["public"]["Enums"]["finance_invoice_kind"]
+          paid_at?: string | null
+          party: string
+          reference: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          due_date?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["finance_invoice_kind"]
+          paid_at?: string | null
+          party?: string
+          reference?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hospital_admin_secrets: {
         Row: {
           created_at: string
@@ -2614,6 +2668,7 @@ export type Database = {
         | "maintenance"
         | "reserved"
       doctor_status: "active" | "on_leave" | "suspended"
+      finance_invoice_kind: "receivable" | "payable"
       patient_gender: "male" | "female" | "other"
       payroll_run_status: "draft" | "approved" | "paid"
       tenant_status: "pending" | "approved" | "suspended"
@@ -2790,6 +2845,7 @@ export const Constants = {
         "reserved",
       ],
       doctor_status: ["active", "on_leave", "suspended"],
+      finance_invoice_kind: ["receivable", "payable"],
       patient_gender: ["male", "female", "other"],
       payroll_run_status: ["draft", "approved", "paid"],
       tenant_status: ["pending", "approved", "suspended"],

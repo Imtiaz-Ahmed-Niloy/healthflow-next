@@ -13,6 +13,11 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    // Any scratch build directory made with NEXT_DIST_DIR (see next.config.ts).
+    // Without this, linting a machine that has one turns thousands of lines of
+    // generated bundle into lint errors and the "lint clean" gate fails on
+    // output nobody wrote.
+    ".next-*/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
