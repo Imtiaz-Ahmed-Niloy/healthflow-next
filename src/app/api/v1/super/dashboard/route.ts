@@ -59,6 +59,11 @@ export const GET = async () => {
       .from("tenants")
       .select("id, name, slug, status, created_at, packages ( name )")
       .order("created_at", { ascending: false })
+      // Same tiebreaker, same direction, as the hospitals list endpoint. Most
+      // tenants share a created_at from the seed, so without this the two
+      // screens sort the same rows differently and "Recent Tenants" disagrees
+      // with Hospital Management (HF-36).
+      .order("id", { ascending: false })
       .limit(RECENT_LIMIT),
   ]);
 

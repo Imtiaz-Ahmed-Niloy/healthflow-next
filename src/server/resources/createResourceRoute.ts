@@ -139,6 +139,14 @@ export const createResourceRoute = <TCreate, TUpdate>(
       const ascending =
         url.searchParams.get("order") === "asc" || definition.defaultSort?.ascending === true;
       query = query.order(sortColumn, { ascending });
+      // Timestamps tie far more often than they look like they would — a seed
+      // run or a bulk import stamps every row with the same value. Postgres is
+      // then free to return tied rows in any order, and it picks a different
+      // one depending on the plan, so `limit 5` and `limit 50` disagree about
+      // which rows come first. That breaks two things: a list read twice can
+      // disagree with itself, and paging through ties can repeat or skip rows.
+      // Ordering by the primary key last makes the sort total.
+      if (sortColumn !== "id") query = query.order("id", { ascending });
     }
 
     const { data, error, count } = await query.range(from, from + limit - 1);
