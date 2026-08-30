@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { NavLink } from "@/components/NavLink";
 import { useRouter } from "next/navigation";
-import { LayoutGrid, Users, BookUser, Calendar, LogOut, Bell, Settings, BookOpen, BookText, MessagesSquare } from "lucide-react";
+import { LayoutGrid, Users, BookUser, Calendar, LogOut, Bell, Settings, BookOpen, MessagesSquare } from "lucide-react";
 import { toast } from "sonner";
 import LanguageSwitcher from "@/components/site/LanguageSwitcher";
 import { HeaderClock } from "@/components/common/HeaderClock";
@@ -13,6 +13,14 @@ import { BRAND_INFO } from "@/constants/brand";
 const doctorAvatar = "/assets/doctor-avatar.jpg";
 const patientEleanor = "/assets/patient-eleanor.jpg";
 
+/**
+ * Medical Dictionary is deliberately absent.
+ *
+ * /portal/medical-dictionary is built and still routes — it is a static
+ * glossary of 25 terms with search and category filtering — but it is off the
+ * menu for now. The page and its route are left in place rather than deleted,
+ * so putting it back is one line here.
+ */
 const links = [
   { to: "/portal/prescription", icon: LayoutGrid, label: "Prescription" },
   { to: "/portal/queue", icon: Users, label: "Patient Queue" },
@@ -20,7 +28,6 @@ const links = [
   { to: "/portal/schedule", icon: Calendar, label: "Schedule" },
   { to: "/portal/community", icon: MessagesSquare, label: "Community" },
   { to: "/portal/user-guide", icon: BookOpen, label: "User Guide" },
-  { to: "/portal/medical-dictionary", icon: BookText, label: "Medical Dictionary" },
 ];
 
 export const PortalSidebar = () => {

@@ -1,6 +1,7 @@
 # Where we are
 
-Every menu item, by panel.
+Every menu item, by panel, **in the order the menu itself lists them** — so
+this file can be read side by side with the sidebar without hunting.
 
 **✅** = on real data, saves, survives a refresh, isolated per hospital
 **❌** = still on demo data, or only half wired
@@ -71,12 +72,23 @@ Last checked: 30 Aug 2026
 
 | | | Ticket |
 |---|---|---|
-| ✅ | Schedule | HF-59 |
 | ✅ | Prescription | HF-57, HF-58, HF-74 |
 | ✅ | Patient Queue | HF-56 |
-| ✅ | Directory | HF-60 |
+| ✅ | Patient Directory | HF-60 |
+| ✅ | Schedule | HF-59 |
+| ❌ | Community — posts live in component state, so they vanish on refresh | — |
+| ✅ | User Guide — static help text, nothing to save | — |
 
-**4 of 4 done.**
+**5 of 6 done.**
+
+Three of these were missing from this file entirely until now. **Community** is
+the worst of the demo pages: it does not even use localStorage, so a post is
+gone the moment the page reloads. It has no ticket.
+
+**Medical Dictionary** (`/portal/medical-dictionary`) is built — a static
+glossary of 25 terms with search and filtering — but is **hidden from the menu**
+for now, so it is not counted above. The page and route are still there; putting
+it back is one line in `PortalLayout.tsx`.
 
 ---
 
@@ -158,7 +170,7 @@ and the patient portal's inner pages. Nobody is working on those.
 
 ## The short answer
 
-**32 of 65 pages are on real data.** The public site is nearly finished; the
+**33 of 67 pages are on real data.** The public site is nearly finished; the
 hospital admin panel is the bulk of what is left.
 
 Everything marked ❌ still works when you click it — it shows demo data that
