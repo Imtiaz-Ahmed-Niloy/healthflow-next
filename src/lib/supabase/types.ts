@@ -263,6 +263,67 @@ export type Database = {
           },
         ]
       }
+      attendance_records: {
+        Row: {
+          check_in: string | null
+          check_out: string | null
+          created_at: string
+          employee_id: string
+          id: string
+          note: string | null
+          status: Database["public"]["Enums"]["attendance_status"]
+          tenant_id: string
+          updated_at: string
+          work_date: string
+        }
+        Insert: {
+          check_in?: string | null
+          check_out?: string | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          note?: string | null
+          status: Database["public"]["Enums"]["attendance_status"]
+          tenant_id: string
+          updated_at?: string
+          work_date: string
+        }
+        Update: {
+          check_in?: string | null
+          check_out?: string | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          note?: string | null
+          status?: Database["public"]["Enums"]["attendance_status"]
+          tenant_id?: string
+          updated_at?: string
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bed_stays: {
         Row: {
           admission_id: string
@@ -1253,6 +1314,48 @@ export type Database = {
           },
         ]
       }
+      holidays: {
+        Row: {
+          created_at: string
+          holiday_on: string
+          id: string
+          name: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          holiday_on: string
+          id?: string
+          name: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          holiday_on?: string
+          id?: string
+          name?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "holidays_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "holidays_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hospital_admin_secrets: {
         Row: {
           created_at: string
@@ -1513,6 +1616,67 @@ export type Database = {
           },
           {
             foreignKeyName: "lab_tests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leave_requests: {
+        Row: {
+          created_at: string
+          employee_id: string
+          end_date: string
+          id: string
+          reason: string | null
+          start_date: string
+          status: Database["public"]["Enums"]["leave_status"]
+          tenant_id: string
+          type: Database["public"]["Enums"]["leave_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          end_date: string
+          id?: string
+          reason?: string | null
+          start_date: string
+          status?: Database["public"]["Enums"]["leave_status"]
+          tenant_id: string
+          type: Database["public"]["Enums"]["leave_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          end_date?: string
+          id?: string
+          reason?: string | null
+          start_date?: string
+          status?: Database["public"]["Enums"]["leave_status"]
+          tenant_id?: string
+          type?: Database["public"]["Enums"]["leave_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -2968,6 +3132,7 @@ export type Database = {
         | "patient"
       appointment_priority: "high" | "standard" | "routine"
       appointment_status: "scheduled" | "completed" | "cancelled"
+      attendance_status: "present" | "late" | "absent" | "leave" | "half_day"
       bed_status: "available" | "occupied" | "cleaning"
       bed_type: "general" | "icu" | "cabin"
       blood_group:
@@ -3005,6 +3170,8 @@ export type Database = {
         | "sample_collected"
         | "processing"
         | "reported"
+      leave_status: "pending" | "approved" | "rejected"
+      leave_type: "sick" | "casual" | "vacation" | "maternity" | "unpaid"
       marital_status: "single" | "married" | "divorced" | "widowed"
       patient_gender: "male" | "female" | "other"
       patient_history_kind: "allergy" | "illness" | "medication" | "procedure"
@@ -3168,6 +3335,7 @@ export const Constants = {
       ],
       appointment_priority: ["high", "standard", "routine"],
       appointment_status: ["scheduled", "completed", "cancelled"],
+      attendance_status: ["present", "late", "absent", "leave", "half_day"],
       bed_status: ["available", "occupied", "cleaning"],
       bed_type: ["general", "icu", "cabin"],
       blood_group: [
@@ -3209,6 +3377,8 @@ export const Constants = {
         "processing",
         "reported",
       ],
+      leave_status: ["pending", "approved", "rejected"],
+      leave_type: ["sick", "casual", "vacation", "maternity", "unpaid"],
       marital_status: ["single", "married", "divorced", "widowed"],
       patient_gender: ["male", "female", "other"],
       patient_history_kind: ["allergy", "illness", "medication", "procedure"],
