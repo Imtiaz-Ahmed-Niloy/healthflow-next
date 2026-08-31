@@ -3,19 +3,19 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { X, Sparkles, ArrowRight } from "lucide-react";
-import { Announcement, getActiveAnnouncement, dismissAnnouncement } from "@/data/announcements";
+import { Announcement, pickActiveAnnouncement, dismissAnnouncement } from "@/data/announcements";
 
-const AnnouncementPopup = () => {
+const AnnouncementPopup = ({ announcements }: { announcements: Announcement[] }) => {
   const [ann, setAnn] = useState<Announcement | null>(null);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => {
-      const a = getActiveAnnouncement();
+      const a = pickActiveAnnouncement(announcements);
       if (a) { setAnn(a); setOpen(true); }
     }, 800);
     return () => clearTimeout(t);
-  }, []);
+  }, [announcements]);
 
   if (!open || !ann) return null;
 
@@ -24,7 +24,7 @@ const AnnouncementPopup = () => {
     setOpen(false);
   };
 
-  const isExternal = ann.ctaUrl?.startsWith("http");
+  const isExternal = ann.cta_url?.startsWith("http");
 
   return (
     <div className="fixed inset-0 z-[100] grid place-items-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
@@ -54,23 +54,23 @@ const AnnouncementPopup = () => {
           <p className="text-sm text-foreground/70 leading-relaxed">{ann.body}</p>
 
           <div className="flex items-center gap-3 pt-3">
-            {ann.ctaLabel && ann.ctaUrl && (
+            {ann.cta_label && ann.cta_url && (
               isExternal ? (
                 <a
-                  href={ann.ctaUrl}
+                  href={ann.cta_url}
                   target="_blank"
                   rel="noreferrer"
                   onClick={close}
                   className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
                 >
-                  {ann.ctaLabel} <ArrowRight className="h-4 w-4" />
+                  {ann.cta_label} <ArrowRight className="h-4 w-4" />
                 </a>
               ) : (
-                <Link href={ann.ctaUrl}
+                <Link href={ann.cta_url}
                   onClick={close}
                   className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
                 >
-                  {ann.ctaLabel} <ArrowRight className="h-4 w-4" />
+                  {ann.cta_label} <ArrowRight className="h-4 w-4" />
                 </Link>
               )
             )}
@@ -88,4 +88,3 @@ const AnnouncementPopup = () => {
 };
 
 export default AnnouncementPopup;
-

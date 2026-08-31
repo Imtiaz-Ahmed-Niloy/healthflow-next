@@ -14,8 +14,17 @@ import Chatbot from "@/components/site/Chatbot";
 import AnnouncementPopup from "@/components/site/AnnouncementPopup";
 import type { HomeContent } from "@/data/homeContent";
 import type { PricingPlan } from "@/data/pricingContent";
+import type { Announcement } from "@/data/announcements";
 
-const Index = ({ homeContent, pricingPlans }: { homeContent: HomeContent; pricingPlans: PricingPlan[] }) => {
+const Index = ({
+  homeContent,
+  pricingPlans,
+  announcements,
+}: {
+  homeContent: HomeContent;
+  pricingPlans: PricingPlan[];
+  announcements: Announcement[];
+}) => {
   const [division, setDivision] = useState("");
   const [zilla, setZilla] = useState("");
   const [upazila, setUpazila] = useState("");
@@ -56,7 +65,7 @@ const Index = ({ homeContent, pricingPlans }: { homeContent: HomeContent; pricin
       </main>
       <Footer />
       <Chatbot />
-      <AnnouncementPopup />
+      <AnnouncementPopup announcements={announcements} />
     </div>
   );
 };

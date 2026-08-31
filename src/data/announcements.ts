@@ -1,96 +1,60 @@
-import { useEffect, useState } from "react";
-const healthCamp = "/assets/announcement-health-camp.jpg";
+/**
+ * Shared announcement types plus the per-visitor "I dismissed this" memory.
+ *
+ * The announcements themselves now live in public.announcements (migration
+ * 0038) and are fetched through the resource API on /super/announcements and
+ * server-side for the public popup (src/app/page.tsx). This file no longer
+ * stores any -- the seed list and its localStorage cache are gone.
+ */
 
 export type AnnouncementType = "text" | "image";
-export type AnnouncementStatus = "Published" | "Draft" | "Archived";
+export type AnnouncementStatus = "published" | "draft" | "archived";
 
+/**
+ * Mirrors public.announcements (supabase/migrations/0038_announcements.sql).
+ * Column names are the database's, so form values post straight through with
+ * no mapping layer.
+ */
 export type Announcement = {
   id: string;
   type: AnnouncementType;
   title: string;
   body: string;
-  image?: string; // dataURL or imported asset path
-  ctaLabel?: string;
-  ctaUrl?: string;
+  image: string | null; // base64 data URL today, an R2 URL later -- text either way
+  cta_label: string | null;
+  cta_url: string | null;
   status: AnnouncementStatus;
-  updated: string; // ISO
+  created_at: string;
+  updated_at: string;
 };
 
-const STORAGE_KEY = "hf:announcements:v1";
-const EVENT = "hf:announcements:changed";
 const DISMISS_KEY = "hf:announcement-dismissed";
 
-export const defaultAnnouncements: Announcement[] = [
-  {
-    id: "ann-discount",
-    type: "text",
-    title: "🎉 30% Off Annual HealthFlow Plans",
-    body: "Limited-time launch offer. Upgrade to any annual plan before June 30 and save 30% on Pro & Enterprise. Use code HEALTH30 at checkout.",
-    ctaLabel: "View Pricing",
-    ctaUrl: "/pricing",
-    status: "Published",
-    updated: new Date().toISOString(),
-  },
-  {
-    id: "ann-camp",
-    type: "image",
-    title: "Free Community Health Camp",
-    body: "Join our free general check-up & consultation camp this Saturday. Cardiology, diabetes screening and pediatric care — open to everyone.",
-    image: healthCamp,
-    ctaLabel: "Learn More",
-    ctaUrl: "/hospitals",
-    status: "Published",
-    updated: new Date().toISOString(),
-  },
-];
-
-const read = (): Announcement[] => {
-  if (typeof window === "undefined") return defaultAnnouncements;
+const readDismissed = (): string[] => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultAnnouncements;
-    return JSON.parse(raw) as Announcement[];
+    return JSON.parse(sessionStorage.getItem(DISMISS_KEY) || "[]") as string[];
   } catch {
-    return defaultAnnouncements;
+    return [];
   }
-};
-
-const write = (items: Announcement[]) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  window.dispatchEvent(new Event(EVENT));
-};
-
-export const useAnnouncements = () => {
-  const [items, setItems] = useState<Announcement[]>(() => read());
-  useEffect(() => {
-    const sync = () => setItems(read());
-    window.addEventListener(EVENT, sync);
-    window.addEventListener("storage", sync);
-    return () => {
-      window.removeEventListener(EVENT, sync);
-      window.removeEventListener("storage", sync);
-    };
-  }, []);
-  return {
-    items,
-    save: (next: Announcement[]) => write(next),
-    reset: () => write(defaultAnnouncements),
-  };
-};
-
-export const getActiveAnnouncement = (): Announcement | null => {
-  const all = read();
-  const dismissed = (() => {
-    try { return JSON.parse(sessionStorage.getItem(DISMISS_KEY) || "[]") as string[]; }
-    catch { return []; }
-  })();
-  return all.find(a => a.status === "Published" && !dismissed.includes(a.id)) || null;
 };
 
 export const dismissAnnouncement = (id: string) => {
   try {
-    const cur = JSON.parse(sessionStorage.getItem(DISMISS_KEY) || "[]") as string[];
-    if (!cur.includes(id)) cur.push(id);
-    sessionStorage.setItem(DISMISS_KEY, JSON.stringify(cur));
-  } catch {/* ignore */}
+    const current = readDismissed();
+    if (!current.includes(id)) current.push(id);
+    sessionStorage.setItem(DISMISS_KEY, JSON.stringify(current));
+  } catch {
+    /* storage disabled -- the visitor just sees the popup again next visit */
+  }
+};
+
+/**
+ * The first published announcement this visitor has not dismissed this
+ * session. `items` comes from the public read policy (published only) already
+ * sorted newest-first, so this only has to drop the dismissed ones; the status
+ * check is kept as a cheap guard against a stale prop.
+ */
+export const pickActiveAnnouncement = (items: Announcement[]): Announcement | null => {
+  const dismissed = readDismissed();
+  return items.find((a) => a.status === "published" && !dismissed.includes(a.id)) ?? null;
 };
