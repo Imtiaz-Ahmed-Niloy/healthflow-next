@@ -93,6 +93,43 @@ it gets applied early. Asking is free; an unreviewed push is not.
 Never change the database by hand in the dashboard either. A change that is not
 in a migration file does not exist as far as the rest of the team is concerned.
 
+### Does your table need a role gate?
+
+`apply_tenant_rls` is **role-blind**. Its predicate is `is_super_admin() or
+tenant_id = auth_tenant_id()` and nothing else, so *any* account carrying the
+hospital's tenant_id can read the table — and doctors carry one. That is right
+for most tables: a doctor should see patients, appointments and the lab
+catalogue.
+
+It is wrong the moment the table holds something not everyone in the building
+should read. Salaries, payslips, invoices, purchase orders, certificates,
+attendance. For those, add a gate:
+
+```sql
+select public.apply_role_gate('public.<module>', '{hospital_admin,hr_admin}');
+```
+
+Pass a third argument where reading and writing differ — `employees` is read by
+finance, because payroll is computed from it, but written only by the desks
+that hire:
+
+```sql
+select public.apply_role_gate('public.employees',
+                              '{hospital_admin,hr_admin,finance_admin}',
+                              '{hospital_admin,hr_admin}');
+```
+
+The gate is a RESTRICTIVE policy, so it ANDs with the tenant one and can only
+narrow access, never widen it. Keep it in step with the `roles` in step 2 —
+the resource definition returns a clean 403, this stops the same request
+reaching the database another way. **The publishable key ships in the browser
+bundle**, so anyone signed in can query Postgres directly and never touch our
+API.
+
+Ask the question every time. Forgetting produces no error, no failing test and
+no visible symptom — just a quiet read permission nobody notices. See
+0051_role_gate_template.sql.
+
 ### Global tables
 
 A handful of tables are not hospital-scoped (`packages`, `roles`, lookups).
