@@ -7,9 +7,9 @@ import { Constants } from "@/lib/supabase/types";
  * supabase/migrations/0008_hospitals.sql. Form values post straight through to
  * /api/v1/hospitals with no mapping layer — see docs/module-guide.md.
  *
- * Only `name` and `trade_license` are required. The table holds every hospital
- * in Bangladesh, most of them captured from partial public information, so
- * everything else has to be optional.
+ * Only `name`, `trade_license` and `address` are required. The table holds every
+ * hospital in Bangladesh, most of them captured from partial public
+ * information, so everything else has to be optional.
  */
 
 export const HOSPITAL_STEPS: FormStep[] = [
@@ -23,7 +23,7 @@ export const HOSPITAL_FIELDS: FieldDef[] = [
   { name: "trade_license", label: "Trade licence number", type: "text", required: true, step: 1 },
   { name: "tagline", label: "Tagline / Short description", type: "text", step: 1 },
   { name: "location", label: "Location (City, Country)", type: "text", step: 1 },
-  { name: "address", label: "Full address", type: "text", step: 1 },
+  { name: "address", label: "Full address", type: "text", required: true, step: 1 },
   { name: "division", label: "Division", type: "select", options: ["", ...BD_DIVISIONS], step: 1 },
   { name: "district", label: "District (Zilla)", type: "text", step: 1 },
   { name: "subdistrict", label: "Subdistrict (Upazila)", type: "text", step: 1 },

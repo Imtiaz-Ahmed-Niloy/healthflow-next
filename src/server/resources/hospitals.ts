@@ -85,10 +85,11 @@ const managementBodySchema = z.preprocess(
 );
 
 export const hospitalCreateSchema = z.object({
-  // The only two required fields. Everything else is optional so a directory
+  // The only three required fields. Everything else is optional so a directory
   // row can be captured from partial public information.
   name: z.string().trim().min(1, "Hospital name is required").max(200),
   trade_license: z.string().trim().min(1, "Trade licence number is required").max(120),
+  address: z.string().trim().min(1, "Full address is required").max(2000),
 
   // directory
   tagline: optionalText,
@@ -97,7 +98,6 @@ export const hospitalCreateSchema = z.object({
   division: optionalText,
   district: optionalText,
   subdistrict: optionalText,
-  address: optionalText,
   logo_url: optionalText,
   cover_image_url: optionalText,
 
