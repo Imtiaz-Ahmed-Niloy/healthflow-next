@@ -59,12 +59,12 @@ Last checked: 30 Aug 2026
 | ✅ | Attendance — clock-ins, leave and holidays | HF-84 |
 | ❌ | Accounts | — |
 | ❌ | HR | — |
-| ❌ | Hospital Profile | — |
+| ✅ | Hospital Profile | HF-85 |
 | ❌ | Reports | — |
 | ❌ | Notifications | — |
 | ❌ | Settings | — |
 
-**16 of 25 done.**
+**17 of 25 done.**
 
 ---
 
@@ -179,7 +179,7 @@ and the patient portal's inner pages. Nobody is working on those.
 
 ## The short answer
 
-**40 of 66 pages are on real data.** The public site is nearly finished; the
+**41 of 66 pages are on real data.** The public site is nearly finished; the
 hospital admin panel is the bulk of what is left.
 
 Everything marked ❌ still works when you click it — it shows demo data that
