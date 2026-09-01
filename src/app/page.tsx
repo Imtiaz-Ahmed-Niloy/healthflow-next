@@ -1,4 +1,3 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
 import Index from "@/views/Index";
 import { notFound } from "next/navigation";
 import { createPublicSupabase } from "@/lib/supabase/server";
@@ -18,10 +17,9 @@ export default async function HomePage() {
   const [homeResult, pricingResult, announcementsResult] = await Promise.all([
     supabase.from("cms_pages").select("blocks").eq("slug", "home").eq("published", true).maybeSingle(),
     supabase.from("cms_pages").select("blocks").eq("slug", "pricing").eq("published", true).maybeSingle(),
-    // 0038 is not in the generated types until it is applied on merge; the
-    // untyped client keeps this building meanwhile (same workaround as
-    // createResourceRoute). RLS still only hands `anon` the published rows.
-    (supabase as unknown as SupabaseClient)
+    // RLS hands `anon` only the published rows; the status filter is here so
+    // the query says what it means rather than relying on the policy alone.
+    supabase
       .from("announcements")
       .select("*")
       .eq("status", "published")

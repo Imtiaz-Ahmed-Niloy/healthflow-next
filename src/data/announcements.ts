@@ -2,7 +2,7 @@
  * Shared announcement types plus the per-visitor "I dismissed this" memory.
  *
  * The announcements themselves now live in public.announcements (migration
- * 0038) and are fetched through the resource API on /super/announcements and
+ * 0053) and are fetched through the resource API on /super/announcements and
  * server-side for the public popup (src/app/page.tsx). This file no longer
  * stores any -- the seed list and its localStorage cache are gone.
  */
@@ -11,7 +11,7 @@ export type AnnouncementType = "text" | "image";
 export type AnnouncementStatus = "published" | "draft" | "archived";
 
 /**
- * Mirrors public.announcements (supabase/migrations/0038_announcements.sql).
+ * Mirrors public.announcements (supabase/migrations/0053_announcements.sql).
  * Column names are the database's, so form values post straight through with
  * no mapping layer.
  */

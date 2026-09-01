@@ -1,4 +1,4 @@
--- 0038_announcements.sql
+-- 0053_announcements.sql
 -- The table behind /super/announcements, which until now kept two demo
 -- announcements in localStorage under "hf:announcements:v1" (see
 -- src/data/announcements.ts) -- so every visitor saw the same two, and anything

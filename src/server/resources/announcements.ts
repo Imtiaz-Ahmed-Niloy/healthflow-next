@@ -7,7 +7,7 @@ import type { ResourceDefinition } from "./types";
  * (signed out included) reads the published ones.
  *
  * Copies the doctors.ts shape -- no queries, no auth checks, no filtering here,
- * just the shape. createResourceRoute and the RLS in 0038 do the rest.
+ * just the shape. createResourceRoute and the RLS in 0053 do the rest.
  */
 
 const announcementType = z.enum(["text", "image"]);
@@ -46,7 +46,7 @@ export const announcementCreateSchema = z.object({
 
   cta_label: optionalText,
   cta_url: optionalText,
-  // tenant_id is deliberately absent: this table is global (see 0038).
+  // tenant_id is deliberately absent: this table is global (see 0053).
 });
 
 export const announcementUpdateSchema = announcementCreateSchema.partial();
