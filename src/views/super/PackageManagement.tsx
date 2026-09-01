@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { SuperLayout } from "@/components/super/SuperLayout";
 import { toast } from "sonner";
 import {
@@ -10,7 +11,7 @@ import {
   hospitalPackagesApi, offersApi, packagesApi,
   type HospitalPackageRow, type HospitalPackageWrite, type OfferRow, type OfferWrite,
 } from "@/redux/api/resources";
-import { useListResourceQuery } from "@/redux/api/createResourceApi";
+import { useGetResourceQuery, useListResourceQuery } from "@/redux/api/createResourceApi";
 import { Label } from "@/components/ui/label";
 
 /**
@@ -112,6 +113,10 @@ const SortHead = ({
 const SHOW_OFFERS_SECTION = false;
 
 const PackageManagement = () => {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [q, setQ] = useState("");
   const [planFilter, setPlanFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -185,7 +190,7 @@ const PackageManagement = () => {
   const toggleSort = (key: SortKey) =>
     setSort((s) => (s.key === key ? { key, asc: !s.asc } : { key, asc: true }));
 
-  const blankAssignment = (): HospitalPackageRow => ({
+  const blankAssignment = useCallback((): HospitalPackageRow => ({
     id: "",
     tenant_id: "",
     package_id: plans[0]?.id ?? "",
@@ -202,7 +207,61 @@ const PackageManagement = () => {
     tenants: null,
     packages: null,
     offers: null,
-  });
+  }), [plans]);
+
+  /**
+   * ?assign=<tenant_id> — /super/hospitals links here to put one hospital on a
+   * plan, so the editor opens with that hospital already chosen instead of
+   * making someone search for the row they just clicked.
+   *
+   * A hospital already on a plan opens its existing assignment rather than a
+   * blank one: `hospital_packages` is unique per tenant, so a second one is not
+   * a thing that can be created, and the editor would only refuse the save.
+   *
+   * The param is consumed once — cleared from the URL as the modal opens, so
+   * closing it and refreshing does not reopen it, and the ref stops a second
+   * pass while the replace is in flight.
+   */
+  const assignTenantId = searchParams.get("assign");
+  const assignHospital = useGetResourceQuery(
+    { resource: "hospitals", id: assignTenantId ?? "" },
+    { skip: !assignTenantId },
+  );
+  const handledAssign = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!assignTenantId || handledAssign.current === assignTenantId) return;
+    // Plans set the blank row's default price, and the assignment list decides
+    // new-versus-existing. Opening before either has landed picks wrong.
+    if (plansQuery.isLoading || packagesQuery.isLoading) return;
+
+    const existing = rows.find(r => r.tenant_id === assignTenantId);
+    // Only a new assignment needs the name looked up; an existing one carries
+    // its own embedded tenant.
+    if (!existing && assignHospital.isLoading) return;
+
+    handledAssign.current = assignTenantId;
+
+    if (existing) {
+      setEditing(existing);
+    } else {
+      const hospital = assignHospital.data?.data as HospitalPackageRow["tenants"] | undefined;
+      if (hospital) {
+        setEditing({ ...blankAssignment(), tenant_id: assignTenantId, tenants: hospital });
+      } else {
+        // Deleted between the two screens, or the request failed. Opening the
+        // editor on an id with no name behind it would show a hospital field
+        // that names nothing, so it opens unset and says why.
+        setEditing(blankAssignment());
+        toast.error("Could not load that hospital", { description: "Pick it from the list instead." });
+      }
+    }
+
+    router.replace(pathname, { scroll: false });
+  }, [
+    assignTenantId, assignHospital.data, assignHospital.isLoading, rows,
+    plansQuery.isLoading, packagesQuery.isLoading, blankAssignment, router, pathname,
+  ]);
 
   const deleteAssignment = async (row: HospitalPackageRow) => {
     setRemoving(row.id);
@@ -514,6 +573,15 @@ const AssignmentEditor = ({
   const [hospitalQuery, setHospitalQuery] = useState("");
   const [saving, setSaving] = useState(false);
 
+  /**
+   * A new assignment normally picks its hospital here. Arriving from
+   * /super/hospitals it is already decided, and `row.tenants` carries it — so
+   * the field states which hospital rather than reopening the question, with a
+   * way back to the search for a mis-click.
+   */
+  const [changingHospital, setChangingHospital] = useState(false);
+  const pickHospital = isNew && (changingHospital || !row.tenants);
+
   const [createAssignment] = hospitalPackagesApi.useCreate();
   const [updateAssignment] = hospitalPackagesApi.useUpdate();
 
@@ -582,7 +650,7 @@ const AssignmentEditor = ({
     <Modal onClose={onClose} title={isNew ? "Assign Package" : "Edit Package"}>
       <div className="grid grid-cols-2 gap-4">
         <Field label="Hospital" full>
-          {isNew ? (
+          {pickHospital ? (
             <>
               <input
                 value={hospitalQuery}
@@ -618,9 +686,23 @@ const AssignmentEditor = ({
               </div>
             </>
           ) : (
-            <p className="px-3 py-2 rounded-lg bg-muted/40 text-sm font-semibold text-primary">
-              {row.tenants?.name ?? "Unknown hospital"}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="flex-1 px-3 py-2 rounded-lg bg-muted/40 text-sm font-semibold text-primary">
+                {row.tenants?.name ?? "Unknown hospital"}
+              </p>
+              {/* Only while creating: the hospital on a saved assignment is
+                  not editable here — moving a plan between hospitals is a
+                  delete and a new assignment, not a field change. */}
+              {isNew && (
+                <button
+                  type="button"
+                  onClick={() => { setChangingHospital(true); setDraft({ ...draft, tenant_id: "" }); }}
+                  className="px-3 py-2 rounded-lg border border-border text-sm font-semibold hover:bg-muted"
+                >
+                  Change
+                </button>
+              )}
+            </div>
           )}
         </Field>
 

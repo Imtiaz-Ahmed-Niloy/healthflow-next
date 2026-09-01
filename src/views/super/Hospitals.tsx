@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
-import { Copy, KeyRound, X, CalendarDays, MapPin, BadgeCheck, Loader2 } from "lucide-react";
+import { Copy, KeyRound, X, CalendarDays, MapPin, BadgeCheck, Loader2, Package } from "lucide-react";
 import { SuperLayout } from "@/components/super/SuperLayout";
 import { ResourcePage } from "@/components/admin/ResourcePage";
 import { mediaUrl } from "@/lib/media";
@@ -243,26 +244,45 @@ const Page = () => {
         // Pending hospitals get Approve, which is what creates the login.
         // Once there is a login, the key icon reads it back — the same
         // affordance /admin/doctors has for doctors.
-        rowActions: h => (h.status === "pending" ? (
-          <button
-            type="button"
-            onClick={e => { e.stopPropagation(); void approve(h); }}
-            disabled={approving === h.id}
-            title="Approve and create the admin login"
-            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-[11px] font-semibold border border-border hover:bg-muted disabled:opacity-50">
-            <BadgeCheck className="h-3.5 w-3.5" />
-            {approving === h.id ? "Approving…" : "Approve"}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={e => { e.stopPropagation(); void viewLogin(h); }}
-            disabled={busyId === h.id}
-            title="View this hospital's admin login"
-            className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 disabled:opacity-50">
-            {busyId === h.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
-          </button>
-        )),
+        rowActions: h => (
+          <>
+            {h.status === "pending" ? (
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); void approve(h); }}
+                disabled={approving === h.id}
+                title="Approve and create the admin login"
+                className="inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-[11px] font-semibold border border-border hover:bg-muted disabled:opacity-50">
+                <BadgeCheck className="h-3.5 w-3.5" />
+                {approving === h.id ? "Approving…" : "Approve"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); void viewLogin(h); }}
+                disabled={busyId === h.id}
+                title="View this hospital's admin login"
+                className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 disabled:opacity-50">
+                {busyId === h.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+              </button>
+            )}
+            {/*
+              Plans live on their own screen, so this hands the hospital over
+              rather than duplicating the assignment form here. A real link, not
+              a click handler, so middle-click and keyboard still work; the
+              stopPropagation is only to keep the row itself from opening the
+              hospital editor underneath.
+            */}
+            <Link
+              href={`/super/package-management?assign=${h.id}`}
+              onClick={e => e.stopPropagation()}
+              title={`Assign a package to ${h.name}`}
+              aria-label={`Assign a package to ${h.name}`}
+              className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 inline-flex">
+              <Package className="h-4 w-4" />
+            </Link>
+          </>
+        ),
         columns: [
           {
             key: "name", label: "Hospital", sortable: true, accessor: r => r.name,
