@@ -25,12 +25,12 @@ Last checked: 2 Sep 2026
 | ✅ | Billing — monthly usage invoices per hospital | — |
 | ❌ | Whitelisting | — |
 | ❌ | System Logs | — |
-| ❌ | Global Settings | — |
+| ✅ | Global Settings — platform defaults and the maintenance notice | — |
 | ❌ | Integrations | — |
 | ❌ | Preferences | — |
 | ❌ | Onboarding — redirects, not a real page | — |
 
-**8 of 15 done.**
+**9 of 15 done.**
 
 ---
 
@@ -184,7 +184,7 @@ and the patient portal's inner pages. Nobody is working on those.
 
 ## The short answer
 
-**44 of 66 pages are on real data.** The public site is nearly finished; the
+**45 of 66 pages are on real data.** The public site is nearly finished; the
 hospital admin panel is the bulk of what is left.
 
 Everything marked ❌ still works when you click it — it shows demo data that

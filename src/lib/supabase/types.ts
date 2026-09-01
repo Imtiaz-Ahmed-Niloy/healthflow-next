@@ -1353,6 +1353,51 @@ export type Database = {
           },
         ]
       }
+      global_settings: {
+        Row: {
+          created_at: string
+          currency: string
+          date_format: string
+          id: string
+          language: string
+          maintenance_message: string | null
+          maintenance_mode: boolean
+          singleton: boolean
+          support_email: string | null
+          time_format: string
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          date_format?: string
+          id?: string
+          language?: string
+          maintenance_message?: string | null
+          maintenance_mode?: boolean
+          singleton?: boolean
+          support_email?: string | null
+          time_format?: string
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          date_format?: string
+          id?: string
+          language?: string
+          maintenance_message?: string | null
+          maintenance_mode?: boolean
+          singleton?: boolean
+          support_email?: string | null
+          time_format?: string
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       holidays: {
         Row: {
           created_at: string

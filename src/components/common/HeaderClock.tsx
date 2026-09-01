@@ -36,7 +36,8 @@ export const HeaderClock = ({ className = "", compact = false }: Props) => {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
-      hour12: true,
+      // The platform's clock format, unless this person picked their own.
+      hour12: settings.timeFormat !== "24h",
     }).format(now);
 
   const date = now && formatDate(now, settings);
