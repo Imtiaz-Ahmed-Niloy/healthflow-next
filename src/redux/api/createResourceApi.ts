@@ -134,7 +134,10 @@ export const {
  *   const { data, isLoading } = doctorsApi.useList({ page: 1, q: search });
  */
 export const createResourceApi = <
-  TRow extends { id: string },
+  // `string | number` because one table is not uuid-keyed: audit_logs (0058)
+  // is append-only and uses a bigint identity, so entries carry the order they
+  // happened in. Every other module is uuid and unaffected.
+  TRow extends { id: string | number },
   TCreate = Partial<TRow>,
   TUpdate = Partial<TRow>,
 >(

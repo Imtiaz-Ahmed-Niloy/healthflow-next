@@ -105,6 +105,13 @@ export type HospitalPackageRow = Tables["hospital_packages"]["Row"] & {
 };
 
 /**
+ * One write, recorded by the trigger in 0058. Read-only everywhere: there is
+ * no Write type because there is no write path, and no embed because the row
+ * carries the hospital's name itself rather than pointing at it.
+ */
+export type AuditLogRow = Tables["audit_logs"]["Row"];
+
+/**
  * What a hospital owes the platform for one month (0056). `total` is generated
  * in the database from prescriptions x unit_price less the discount, so it is
  * read here and never sent.
@@ -171,6 +178,9 @@ export type DoctorShiftWrite = {
 };
 
 export const rolesApi = createResourceApi<RoleRow, RoleWrite, RoleWrite>("roles");
+/** Read-only: the create/update generics are never used against this one. */
+export const auditLogsApi = createResourceApi<AuditLogRow>("audit-logs");
+
 export const platformInvoicesApi = createResourceApi<
   PlatformInvoiceRow,
   PlatformInvoiceWrite,

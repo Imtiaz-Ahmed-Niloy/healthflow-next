@@ -136,6 +136,27 @@ A handful of tables are not hospital-scoped (`packages`, `roles`, lookups).
 They get hand-written policies and `tenantScoped: false` in step 2. Check with
 Ridwan before deciding your module is one of these — almost none are.
 
+### Audit
+
+One more line, at the end of the migration:
+
+```sql
+select public.attach_audit('public.<module>');
+```
+
+That puts the trigger from 0058 on the table, so every insert, update and
+delete lands in `audit_logs` and shows up on /super/logs. It records who,
+when, which row and which columns changed — not the values.
+
+Pass `true` as the second argument only if the table holds **no personal
+data** (`attach_audit('public.packages', true)`), which additionally captures
+the old and new row. Never for anything clinical, staff or financial about a
+person: that would copy the data into a second table every super admin can
+read across all tenants.
+
+Forgetting this is silent — the module works, and its changes simply never
+appear in the audit trail.
+
 ---
 
 ## 2. The resource definition

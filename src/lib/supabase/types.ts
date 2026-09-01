@@ -363,6 +363,51 @@ export type Database = {
           },
         ]
       }
+      audit_logs: {
+        Row: {
+          action: Database["public"]["Enums"]["audit_action"]
+          actor_email: string | null
+          actor_id: string | null
+          actor_role: string | null
+          changed_fields: string[]
+          details: Json | null
+          id: number
+          occurred_at: string
+          record_id: string | null
+          table_name: string
+          tenant_id: string | null
+          tenant_name: string | null
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["audit_action"]
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_role?: string | null
+          changed_fields?: string[]
+          details?: Json | null
+          id?: never
+          occurred_at?: string
+          record_id?: string | null
+          table_name: string
+          tenant_id?: string | null
+          tenant_name?: string | null
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["audit_action"]
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_role?: string | null
+          changed_fields?: string[]
+          details?: Json | null
+          id?: never
+          occurred_at?: string
+          record_id?: string | null
+          table_name?: string
+          tenant_id?: string | null
+          tenant_name?: string | null
+        }
+        Relationships: []
+      }
       bed_stays: {
         Row: {
           admission_id: string
@@ -3302,6 +3347,10 @@ export type Database = {
     }
     Functions: {
       apply_tenant_rls: { Args: { p_table: unknown }; Returns: undefined }
+      attach_audit: {
+        Args: { p_log_values?: boolean; p_table: unknown }
+        Returns: undefined
+      }
       auth_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
@@ -3374,6 +3423,7 @@ export type Database = {
       appointment_priority: "high" | "standard" | "routine"
       appointment_status: "scheduled" | "completed" | "cancelled"
       attendance_status: "present" | "late" | "absent" | "leave" | "half_day"
+      audit_action: "insert" | "update" | "delete"
       bed_status: "available" | "occupied" | "cleaning"
       bed_type: "general" | "icu" | "cabin"
       blood_group:
@@ -3580,6 +3630,7 @@ export const Constants = {
       appointment_priority: ["high", "standard", "routine"],
       appointment_status: ["scheduled", "completed", "cancelled"],
       attendance_status: ["present", "late", "absent", "leave", "half_day"],
+      audit_action: ["insert", "update", "delete"],
       bed_status: ["available", "occupied", "cleaning"],
       bed_type: ["general", "icu", "cabin"],
       blood_group: [
