@@ -84,10 +84,16 @@
     visibility: hidden;
   }
   #rx-print-area,
-  #rx-print-area * {
+  #rx-print-area *,
+  /* Platform invoices (/super/billing) print the same way, for the same
+     reason. The modal is already the document — printing it directly is what
+     makes what you see the thing that comes out of the printer. */
+  #invoice-print-area,
+  #invoice-print-area * {
     visibility: visible;
   }
-  #rx-print-area {
+  #rx-print-area,
+  #invoice-print-area {
     position: absolute;
     inset: 0;
     width: 100%;

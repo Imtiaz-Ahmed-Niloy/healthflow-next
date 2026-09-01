@@ -2410,6 +2410,83 @@ export type Database = {
           },
         ]
       }
+      platform_invoices: {
+        Row: {
+          billing_month: string
+          created_at: string
+          discount_pct: number
+          due_date: string
+          id: string
+          issued_on: string
+          notes: string | null
+          package_id: string | null
+          package_name: string
+          paid_at: string | null
+          prescriptions: number
+          status: Database["public"]["Enums"]["platform_invoice_status"]
+          tenant_id: string
+          total: number | null
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          billing_month: string
+          created_at?: string
+          discount_pct?: number
+          due_date: string
+          id?: string
+          issued_on?: string
+          notes?: string | null
+          package_id?: string | null
+          package_name: string
+          paid_at?: string | null
+          prescriptions: number
+          status?: Database["public"]["Enums"]["platform_invoice_status"]
+          tenant_id: string
+          unit_price: number
+          updated_at?: string
+        }
+        Update: {
+          billing_month?: string
+          created_at?: string
+          discount_pct?: number
+          due_date?: string
+          id?: string
+          issued_on?: string
+          notes?: string | null
+          package_id?: string | null
+          package_name?: string
+          paid_at?: string | null
+          prescriptions?: number
+          status?: Database["public"]["Enums"]["platform_invoice_status"]
+          tenant_id?: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_invoices_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pharmacy_items: {
         Row: {
           category: string | null
@@ -3186,6 +3263,17 @@ export type Database = {
       }
       auth_tenant_id: { Args: never; Returns: string }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      generate_platform_invoices: {
+        Args: { p_month: string }
+        Returns: {
+          hospital: string
+          invoice_id: string
+          outcome: string
+          prescriptions: number
+          tenant_id: string
+          total: number
+        }[]
+      }
       is_my_patient_record: { Args: { p_patient_id: string }; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       record_medicine_usage: {
@@ -3284,6 +3372,7 @@ export type Database = {
       patient_gender: "male" | "female" | "other"
       patient_history_kind: "allergy" | "illness" | "medication" | "procedure"
       payroll_run_status: "draft" | "approved" | "paid"
+      platform_invoice_status: "pending" | "paid" | "void"
       requisition_stage:
         | "pending"
         | "approved"
@@ -3493,6 +3582,7 @@ export const Constants = {
       patient_gender: ["male", "female", "other"],
       patient_history_kind: ["allergy", "illness", "medication", "procedure"],
       payroll_run_status: ["draft", "approved", "paid"],
+      platform_invoice_status: ["pending", "paid", "void"],
       requisition_stage: [
         "pending",
         "approved",

@@ -104,6 +104,22 @@ export type HospitalPackageRow = Tables["hospital_packages"]["Row"] & {
   offers: Pick<Tables["offers"]["Row"], "id" | "code" | "label" | "discount_pct"> | null;
 };
 
+/**
+ * What a hospital owes the platform for one month (0056). `total` is generated
+ * in the database from prescriptions x unit_price less the discount, so it is
+ * read here and never sent.
+ */
+export type PlatformInvoiceRow = Tables["platform_invoices"]["Row"] & {
+  tenants: Pick<Tables["tenants"]["Row"], "id" | "name" | "slug"> | null;
+};
+
+/** Settling one. Every other column is the statement that was issued. */
+export type PlatformInvoiceWrite = {
+  status?: "pending" | "paid" | "void";
+  notes?: string | null;
+  due_date?: string;
+};
+
 /** Fields each screen may send. Mirrors the Zod schema on the server. */
 export type RoleWrite = {
   /** Required on create, and not accepted on update — see roleUpdateSchema. */
@@ -155,6 +171,11 @@ export type DoctorShiftWrite = {
 };
 
 export const rolesApi = createResourceApi<RoleRow, RoleWrite, RoleWrite>("roles");
+export const platformInvoicesApi = createResourceApi<
+  PlatformInvoiceRow,
+  PlatformInvoiceWrite,
+  PlatformInvoiceWrite
+>("platform-invoices");
 export const packagesApi = createResourceApi<PackageRow>("packages");
 export const doctorsApi = createResourceApi<DoctorRow>("doctors");
 export const offersApi = createResourceApi<OfferRow, OfferWrite, OfferWrite>("offers");
