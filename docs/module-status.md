@@ -15,8 +15,8 @@ Last checked: 2 Sep 2026
 | | | Ticket |
 |---|---|---|
 | ✅ | Dashboard | HF-36 |
-| ✅ | Hospitals | HF-35 |
-| ✅ | Roles & Permissions | HF-40 |
+| ✅ | Hospitals — logo uploads and structured opening hours | HF-35 |
+| ✅ | Roles & Permissions — custom roles belong to a hospital | HF-40 |
 | ✅ | Contact Messages | HF-65 |
 | ✅ | CMS — page editors, the page list and blog articles all save for real | HF-33 |
 | ✅ | Support Tickets | HF-69 |
@@ -151,6 +151,9 @@ use the portal, so there is no data behind it to make real.
 | ✅ | Ward, bed, cabin and admission backend | HF-37 |
 | ✅ | Booking creates a real appointment | HF-50, HF-51, HF-53 |
 | ✅ | Site title, favicon, brand constants | HF-34 |
+| ✅ | Image uploads: presigned PUT straight to Cloudflare R2 | — |
+| ✅ | Operating hours as structured data, not a sentence | — |
+| ✅ | Hospital rows link into packages, roles and billing | — |
 
 ---
 
@@ -168,9 +171,11 @@ patients the ticket replaced, still sitting in the tree, imported by nothing.
 It has been deleted, along with `src/data/useCmsHero.ts`, which was dead the
 same way.
 
-**HF-66** (Laboratory) is the one that was right: `/admin/lab` still runs on
-`useCrud("lab-tests", seed)` with a second `storeKey: "lab-catalog"`. It is
-marked ❌ above and is genuinely unfinished.
+**HF-66** (Laboratory) was the one that was right at the time: `/admin/lab`
+ran on `useCrud("lab-tests", seed)`. It has since been finished and is marked
+✅ above — the catalogue and the requests both save. No view in the tree calls
+`useCrud` any more, and the only two screens still holding their data in
+`localStorage` are `/admin/hr` and `/admin/accounts`, both marked ❌.
 
 **13 menu items have no ticket at all** — mostly Super Admin settings screens
 and the patient portal's inner pages. Nobody is working on those.

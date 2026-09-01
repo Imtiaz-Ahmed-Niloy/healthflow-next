@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Copy, KeyRound, X, CalendarDays, MapPin, BadgeCheck, Loader2, Package, ShieldPlus } from "lucide-react";
+import { Copy, KeyRound, X, CalendarDays, MapPin, BadgeCheck, Loader2, Package, ShieldPlus, Receipt } from "lucide-react";
 import { SuperLayout } from "@/components/super/SuperLayout";
 import { ResourcePage } from "@/components/admin/ResourcePage";
 import { mediaUrl } from "@/lib/media";
@@ -288,6 +288,14 @@ const Page = () => {
               aria-label={`Create a role for ${h.name}`}
               className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 inline-flex">
               <ShieldPlus className="h-4 w-4" />
+            </Link>
+            <Link
+              href={`/super/billing?hospital=${h.id}`}
+              onClick={e => e.stopPropagation()}
+              title={`Invoices for ${h.name}`}
+              aria-label={`Invoices for ${h.name}`}
+              className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 inline-flex">
+              <Receipt className="h-4 w-4" />
             </Link>
           </>
         ),

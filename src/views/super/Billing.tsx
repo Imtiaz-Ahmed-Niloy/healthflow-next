@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   Receipt, Wallet, AlertCircle, TrendingUp, Play, Printer, Search, X,
@@ -9,6 +10,7 @@ import {
 import { SuperLayout } from "@/components/super/SuperLayout";
 import { Card, Kpi, SectionTitle, Btn, Pill } from "@/components/admin/ui";
 import { Modal, ConfirmDialog } from "@/components/admin/crud";
+import { useGetResourceQuery } from "@/redux/api/createResourceApi";
 import { platformInvoicesApi, type PlatformInvoiceRow } from "@/redux/api/resources";
 
 /**
@@ -101,6 +103,10 @@ const statusPill = (invoice: PlatformInvoiceRow) => {
 };
 
 const Billing = () => {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [month, setMonth] = useState(thisMonth);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | Status | "overdue">("all");
@@ -122,18 +128,58 @@ const Billing = () => {
   const invoices = useMemo(() => data?.data ?? [], [data]);
 
   /**
+   * ?hospital=<tenant_id> — /super/hospitals links here to see one hospital's
+   * bills, so the hospital filter arrives already set.
+   *
+   * The name is looked up rather than taken from the URL: a hospital with no
+   * invoices yet has nothing in the list to name it, and the filter would
+   * otherwise show a blank picker over an empty table with no way to tell
+   * "nothing billed" from "nothing selected".
+   *
+   * Consumed once and cleared from the URL, so a refresh does not keep forcing
+   * the filter back on after it has been cleared by hand.
+   */
+  const hospitalParam = searchParams.get("hospital");
+  const paramHospital = useGetResourceQuery(
+    { resource: "hospitals", id: hospitalParam ?? "" },
+    { skip: !hospitalParam },
+  );
+  const handledParam = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!hospitalParam || handledParam.current === hospitalParam) return;
+    if (paramHospital.isLoading) return;
+
+    handledParam.current = hospitalParam;
+
+    if (paramHospital.data?.data) {
+      setHospitalFilter(hospitalParam);
+    } else {
+      // Deleted between the two screens, or the request failed. Filtering by an
+      // id with no name behind it would empty the table and explain nothing.
+      toast.error("Could not load that hospital", { description: "Showing every invoice instead." });
+    }
+
+    router.replace(pathname, { scroll: false });
+  }, [hospitalParam, paramHospital.isLoading, paramHospital.data, router, pathname]);
+
+  const linkedHospital = paramHospital.data?.data as { id: string; name: string } | undefined;
+
+  /**
    * Drawn from the invoices themselves rather than from /hospitals: the only
    * hospitals worth offering here are the ones with a bill to look at, and a
    * list of every hospital in Bangladesh would be a picker where almost every
-   * choice shows nothing.
+   * choice shows nothing. The one arrived at by link is added even when it has
+   * no invoices, so the filter can name what it is filtering by.
    */
   const hospitalOptions = useMemo(() => {
     const seen = new Map<string, string>();
     for (const invoice of invoices) {
       if (invoice.tenants) seen.set(invoice.tenants.id, invoice.tenants.name);
     }
+    if (linkedHospital) seen.set(linkedHospital.id, linkedHospital.name);
     return [...seen].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
-  }, [invoices]);
+  }, [invoices, linkedHospital]);
 
   const visible = useMemo(() => {
     const needle = search.trim().toLowerCase();
