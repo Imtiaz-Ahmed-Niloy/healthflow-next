@@ -54,6 +54,21 @@ export type SupportStaffRow = Tables["support_staff"]["Row"];
 /** Contact form submissions carry no relations — the sender is not a user. */
 export type ContactMessageRow = Tables["contact_messages"]["Row"];
 
+/** Support tickets raised across the platform. */
+export type SupportTicketRow = {
+  id: string;
+  tenant_id: string | null;
+  subject: string;
+  tenant: string | null;
+  priority: string;
+  assignee: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+
+
 /** The equipment register is flat — assignee is free text, not a profile reference. */
 export type AssetRow = Tables["assets"]["Row"];
 
@@ -193,3 +208,6 @@ export const nursePerformanceApi = createResourceApi<
   NursePerformanceWrite,
   NursePerformanceWrite
 >("nurse-performance");
+
+export const supportTicketsApi = createResourceApi<SupportTicketRow>("support-tickets");
+
