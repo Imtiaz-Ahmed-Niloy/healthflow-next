@@ -2645,6 +2645,57 @@ export type Database = {
           },
         ]
       }
+      support_tickets: {
+        Row: {
+          assignee: string | null
+          created_at: string
+          details: string | null
+          id: string
+          priority: Database["public"]["Enums"]["support_ticket_priority"]
+          status: Database["public"]["Enums"]["support_ticket_status"]
+          subject: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          assignee?: string | null
+          created_at?: string
+          details?: string | null
+          id?: string
+          priority?: Database["public"]["Enums"]["support_ticket_priority"]
+          status?: Database["public"]["Enums"]["support_ticket_status"]
+          subject: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          assignee?: string | null
+          created_at?: string
+          details?: string | null
+          id?: string
+          priority?: Database["public"]["Enums"]["support_ticket_priority"]
+          status?: Database["public"]["Enums"]["support_ticket_status"]
+          subject?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           about: string | null
@@ -3182,6 +3233,8 @@ export type Database = {
         | "ordered"
         | "delivered"
         | "rejected"
+      support_ticket_priority: "low" | "medium" | "high" | "critical"
+      support_ticket_status: "pending" | "processing" | "resolved"
       tenant_status: "pending" | "approved" | "suspended"
       ward_category:
         | "general"
@@ -3390,6 +3443,8 @@ export const Constants = {
         "delivered",
         "rejected",
       ],
+      support_ticket_priority: ["low", "medium", "high", "critical"],
+      support_ticket_status: ["pending", "processing", "resolved"],
       tenant_status: ["pending", "approved", "suspended"],
       ward_category: [
         "general",
