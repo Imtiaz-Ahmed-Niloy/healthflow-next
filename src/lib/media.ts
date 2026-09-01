@@ -35,7 +35,12 @@ const EXTENSIONS: Record<string, string> = {
   "image/svg+xml": "svg",
 };
 
-export type MediaFolder = "hospitals" | "doctors" | "announcements" | "blog" | "avatars";
+export type MediaFolder =
+  | "hospitals" | "doctors" | "announcements" | "blog" | "avatars"
+  // Images attached to a post on /portal/community (0059). Written by doctors,
+  // which is why the upload route gates folders by role rather than letting
+  // anyone signed in write anywhere.
+  | "community";
 
 /**
  * Where an uploaded file lands.

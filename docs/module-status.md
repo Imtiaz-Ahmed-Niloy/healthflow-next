@@ -24,13 +24,13 @@ Last checked: 2 Sep 2026
 | ✅ | Announcements | HF-76 |
 | ✅ | Billing — monthly usage invoices per hospital | — |
 | ❌ | Whitelisting | — |
-| ❌ | System Logs | — |
+| ✅ | System Logs — every write, from a database trigger | — |
 | ✅ | Global Settings — platform defaults and the maintenance notice | — |
 | ❌ | Integrations | — |
 | ❌ | Preferences | — |
 | ❌ | Onboarding — redirects, not a real page | — |
 
-**9 of 15 done.**
+**10 of 15 done.**
 
 ---
 
@@ -76,14 +76,17 @@ Last checked: 2 Sep 2026
 | ✅ | Patient Queue | HF-56 |
 | ✅ | Patient Directory | HF-60 |
 | ✅ | Schedule | HF-59 |
-| ❌ | Community — posts live in component state, so they vanish on refresh | — |
+| ✅ | Community — posts, comments and reactions, per hospital | — |
 | ✅ | User Guide — static help text, nothing to save | — |
 
-**5 of 6 done.**
+**6 of 6 done.**
 
-Three of these were missing from this file entirely until now. **Community** is
-the worst of the demo pages: it does not even use localStorage, so a post is
-gone the moment the page reloads. It has no ticket.
+Three of these were missing from this file entirely until now. **Community**
+was the worst of them — posts lived in component state, so one survived until
+the next refresh — and is now on `community_posts`, `community_comments` and
+`community_reactions` (0059). The feed is scoped to your own hospital, which is
+a decision rather than an omission: the posts carry case details. It has no
+ticket.
 
 **Medical Dictionary** (`/portal/medical-dictionary`) is built — a static
 glossary of 25 terms with search and filtering — but is **hidden from the menu**
@@ -184,7 +187,7 @@ and the patient portal's inner pages. Nobody is working on those.
 
 ## The short answer
 
-**45 of 66 pages are on real data.** The public site is nearly finished; the
+**47 of 66 pages are on real data.** The public site is nearly finished; the
 hospital admin panel is the bulk of what is left.
 
 Everything marked ❌ still works when you click it — it shows demo data that

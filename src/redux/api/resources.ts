@@ -111,6 +111,42 @@ export type HospitalPackageRow = Tables["hospital_packages"]["Row"] & {
  */
 export type AuditLogRow = Tables["audit_logs"]["Row"];
 
+/* --------------------------------------------------- community (0059) --- */
+
+/** What the feed needs to draw an author. */
+export type CommunityDoctor = Pick<DoctorRow, "id" | "name" | "specialty" | "photo_url">;
+
+export type CommunityCommentRow = Tables["community_comments"]["Row"] & {
+  doctors: CommunityDoctor | null;
+};
+
+/** Reactions arrive as rows, not counts — a count cannot tell you which is yours. */
+export type CommunityReactionRow = Tables["community_reactions"]["Row"];
+
+export type CommunityPostRow = Tables["community_posts"]["Row"] & {
+  doctors: CommunityDoctor | null;
+  community_comments: CommunityCommentRow[];
+  community_reactions: Pick<CommunityReactionRow, "id" | "reaction" | "doctor_id">[];
+};
+
+/** `doctor_id` is never sent: the column defaults to the caller's own. */
+export type CommunityPostWrite = {
+  category?: Tables["community_posts"]["Row"]["category"];
+  content?: string;
+  media?: { key: string }[];
+};
+
+export type CommunityCommentWrite = {
+  post_id?: string;
+  body?: string;
+  is_suggestion?: boolean;
+};
+
+export type CommunityReactionWrite = {
+  post_id?: string;
+  reaction?: Tables["community_reactions"]["Row"]["reaction"];
+};
+
 /**
  * What a hospital owes the platform for one month (0056). `total` is generated
  * in the database from prescriptions x unit_price less the discount, so it is
@@ -181,6 +217,23 @@ export const rolesApi = createResourceApi<RoleRow, RoleWrite, RoleWrite>("roles"
 /** Read-only: the create/update generics are never used against this one. */
 export const auditLogsApi = createResourceApi<AuditLogRow>("audit-logs");
 
+export const communityPostsApi = createResourceApi<
+  CommunityPostRow,
+  CommunityPostWrite,
+  CommunityPostWrite
+>("community-posts");
+
+export const communityCommentsApi = createResourceApi<
+  CommunityCommentRow,
+  CommunityCommentWrite,
+  CommunityCommentWrite
+>("community-comments");
+
+export const communityReactionsApi = createResourceApi<
+  CommunityReactionRow,
+  CommunityReactionWrite,
+  CommunityReactionWrite
+>("community-reactions");
 export const platformInvoicesApi = createResourceApi<
   PlatformInvoiceRow,
   PlatformInvoiceWrite,

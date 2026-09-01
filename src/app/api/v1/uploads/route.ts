@@ -44,10 +44,12 @@ const FOLDER_ROLES: Record<MediaFolder, AppRole[]> = {
   announcements: [],
   blog: [],
   avatars: ["hospital_admin", "hr_admin", "finance_admin", "doctor", "patient"],
+  // A doctor posting in the community attaches their own images.
+  community: ["doctor"],
 };
 
 const uploadRequestSchema = z.object({
-  folder: z.enum(["hospitals", "doctors", "announcements", "blog", "avatars"]),
+  folder: z.enum(["hospitals", "doctors", "announcements", "blog", "avatars", "community"]),
   contentType: z.enum(ALLOWED_IMAGE_TYPES),
   size: z.number().int().positive().max(MAX_IMAGE_BYTES, "That image is too large"),
 });

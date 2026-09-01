@@ -777,6 +777,203 @@ export type Database = {
         }
         Relationships: []
       }
+      community_comments: {
+        Row: {
+          body: string
+          created_at: string
+          doctor_id: string
+          id: string
+          is_suggestion: boolean
+          post_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          doctor_id?: string
+          id?: string
+          is_suggestion?: boolean
+          post_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          doctor_id?: string
+          id?: string
+          is_suggestion?: boolean
+          post_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_comments_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_comments_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_comments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_comments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "community_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_posts: {
+        Row: {
+          category: Database["public"]["Enums"]["community_category"]
+          content: string
+          created_at: string
+          doctor_id: string
+          id: string
+          media: Json
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["community_category"]
+          content: string
+          created_at?: string
+          doctor_id?: string
+          id?: string
+          media?: Json
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["community_category"]
+          content?: string
+          created_at?: string
+          doctor_id?: string
+          id?: string
+          media?: Json
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_posts_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_posts_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_posts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_posts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_reactions: {
+        Row: {
+          created_at: string
+          doctor_id: string
+          id: string
+          post_id: string
+          reaction: Database["public"]["Enums"]["community_reaction"]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          doctor_id?: string
+          id?: string
+          post_id: string
+          reaction: Database["public"]["Enums"]["community_reaction"]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          doctor_id?: string
+          id?: string
+          post_id?: string
+          reaction?: Database["public"]["Enums"]["community_reaction"]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_reactions_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_reactions_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_reactions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_reactions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_reactions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "community_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_messages: {
         Row: {
           created_at: string
@@ -3355,6 +3552,7 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      auth_doctor_id: { Args: never; Returns: string }
       auth_tenant_id: { Args: never; Returns: string }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
       generate_platform_invoices: {
@@ -3454,6 +3652,8 @@ export type Database = {
         | "noc"
         | "relieving"
         | "salary"
+      community_category: "discussion" | "question" | "case_study" | "thought"
+      community_reaction: "like" | "love" | "insightful"
       doctor_status: "active" | "on_leave" | "suspended"
       finance_invoice_kind: "receivable" | "payable"
       lab_order_status:
@@ -3664,6 +3864,8 @@ export const Constants = {
         "relieving",
         "salary",
       ],
+      community_category: ["discussion", "question", "case_study", "thought"],
+      community_reaction: ["like", "love", "insightful"],
       doctor_status: ["active", "on_leave", "suspended"],
       finance_invoice_kind: ["receivable", "payable"],
       lab_order_status: [
