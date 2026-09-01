@@ -9,8 +9,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  Announcement, AnnouncementStatus, AnnouncementType, useAnnouncements,
+  Announcement, AnnouncementStatus, AnnouncementType,
 } from "@/data/announcements";
+import { useResourceCrud } from "@/components/admin/useResourceCrud";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -21,23 +22,52 @@ import { format } from "date-fns";
 
 type Filter = "All" | AnnouncementStatus;
 
-const emptyForm = (): Announcement => ({
-  id: `ann-${Date.now()}`,
+/**
+ * The editor's working copy. No id means "new"; cta fields are plain strings
+ * here (the row carries them as string | null) so the inputs stay controlled.
+ */
+type Draft = {
+  id?: string;
+  type: AnnouncementType;
+  title: string;
+  body: string;
+  image: string | null;
+  cta_label: string;
+  cta_url: string;
+  status: AnnouncementStatus;
+};
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+const emptyForm = (): Draft => ({
   type: "text",
   title: "",
   body: "",
-  ctaLabel: "",
-  ctaUrl: "",
-  status: "Draft",
-  updated: new Date().toISOString(),
+  image: null,
+  cta_label: "",
+  cta_url: "",
+  status: "draft",
+});
+
+const toDraft = (a: Announcement): Draft => ({
+  id: a.id,
+  type: a.type,
+  title: a.title,
+  body: a.body,
+  image: a.image,
+  cta_label: a.cta_label ?? "",
+  cta_url: a.cta_url ?? "",
+  status: a.status,
 });
 
 const Page = () => {
-  const { items, save, reset } = useAnnouncements();
+  const crud = useResourceCrud<Announcement>("announcements");
+  const items = crud.items;
   const [filter, setFilter] = useState<Filter>("All");
   const [query, setQuery] = useState("");
-  const [editing, setEditing] = useState<Announcement | null>(null);
+  const [editing, setEditing] = useState<Draft | null>(null);
   const [preview, setPreview] = useState<Announcement | null>(null);
+  const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => {
@@ -51,35 +81,31 @@ const Page = () => {
 
   const stats = useMemo(() => ({
     total: items.length,
-    published: items.filter(i => i.status === "Published").length,
-    drafts: items.filter(i => i.status === "Draft").length,
+    published: items.filter(i => i.status === "published").length,
+    drafts: items.filter(i => i.status === "draft").length,
   }), [items]);
 
-  const upsert = (a: Announcement) => {
-    const exists = items.some(x => x.id === a.id);
-    save(exists ? items.map(x => (x.id === a.id ? a : x)) : [a, ...items]);
+  const persist = async (draft: Draft) => {
+    const payload = {
+      type: draft.type,
+      title: draft.title.trim(),
+      body: draft.body,
+      image: draft.type === "image" ? draft.image : null,
+      cta_label: draft.cta_label.trim() || null,
+      cta_url: draft.cta_url.trim() || null,
+      status: draft.status,
+    };
+    setSaving(true);
+    const ok = draft.id
+      ? await crud.update(draft.id, payload)
+      : Boolean(await crud.create(payload as never));
+    setSaving(false);
+    if (ok) setEditing(null);
   };
 
   const togglePublish = (a: Announcement) => {
-    const next: AnnouncementStatus = a.status === "Published" ? "Draft" : "Published";
-    upsert({ ...a, status: next, updated: new Date().toISOString() });
-    toast.success(`Announcement ${next.toLowerCase()}`);
-  };
-
-  const remove = (id: string) => {
-    save(items.filter(x => x.id !== id));
-    toast.success("Announcement removed");
-  };
-
-  const onPickFile = (file: File | null) => {
-    if (!file || !editing) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Image must be smaller than 2MB");
-      return;
-    }
-    const fr = new FileReader();
-    fr.onload = () => setEditing({ ...editing, image: fr.result as string });
-    fr.readAsDataURL(file);
+    const next: AnnouncementStatus = a.status === "published" ? "draft" : "published";
+    void crud.update(a.id, { status: next });
   };
 
   return (
@@ -117,9 +143,6 @@ const Page = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Btn variant="outline" onClick={() => { reset(); toast.success("Demo announcements restored"); }}>
-              Reset
-            </Btn>
             <Btn onClick={() => setEditing(emptyForm())}>
               <Plus className="h-4 w-4" /> New Announcement
             </Btn>
@@ -138,7 +161,7 @@ const Page = () => {
             />
           </div>
           <div className="flex items-center gap-1 rounded-full bg-muted/50 p-1">
-            {(["All", "Published", "Draft", "Archived"] as Filter[]).map(f => (
+            {(["All", "published", "draft", "archived"] as Filter[]).map(f => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
@@ -146,13 +169,26 @@ const Page = () => {
                   filter === f ? "bg-card text-primary shadow-soft" : "text-muted-foreground hover:text-primary"
                 }`}
               >
-                {f}
+                {f === "All" ? "All" : cap(f)}
               </button>
             ))}
           </div>
         </div>
 
         {/* Cards */}
+        {crud.error ? (
+          <div className="rounded-2xl bg-card border border-border/60 shadow-soft p-12 text-center">
+            <p className="text-sm font-semibold text-destructive">Could not load announcements.</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              You may not have access to this module, or the request failed.
+            </p>
+            <Btn variant="outline" className="mt-3" onClick={() => crud.refetch()}>Try again</Btn>
+          </div>
+        ) : crud.isLoading ? (
+          <div className="rounded-2xl bg-card border border-border/60 shadow-soft p-12 text-center text-sm text-muted-foreground">
+            Loading…
+          </div>
+        ) : (
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
           {filtered.map(a => (
             <div key={a.id} className="group rounded-2xl bg-card border border-border/60 shadow-soft overflow-hidden flex flex-col">
@@ -171,15 +207,15 @@ const Page = () => {
                     {a.type === "image" ? <ImageIcon className="h-3 w-3 mr-1 inline" /> : <Type className="h-3 w-3 mr-1 inline" />}
                     {a.type}
                   </Pill>
-                  <Pill tone={a.status === "Published" ? "ok" : a.status === "Draft" ? "warn" : "default"}>
-                    {a.status}
+                  <Pill tone={a.status === "published" ? "ok" : a.status === "draft" ? "warn" : "default"}>
+                    {cap(a.status)}
                   </Pill>
                 </div>
                 <h3 className="font-display text-lg text-primary leading-tight line-clamp-2">{a.title}</h3>
                 <p className="text-sm text-foreground/70 line-clamp-3 flex-1">{a.body}</p>
                 <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                   <Calendar className="h-3 w-3" />
-                  {format(new Date(a.updated), "MMM d, yyyy · HH:mm")}
+                  {format(new Date(a.updated_at), "MMM d, yyyy · HH:mm")}
                 </div>
                 <div className="flex items-center justify-between pt-3 border-t border-border/50">
                   <button
@@ -191,20 +227,20 @@ const Page = () => {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => togglePublish(a)}
-                      title={a.status === "Published" ? "Unpublish" : "Publish"}
+                      title={a.status === "published" ? "Unpublish" : "Publish"}
                       className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
                     >
-                      {a.status === "Published" ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {a.status === "published" ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                     <button
-                      onClick={() => setEditing(a)}
+                      onClick={() => setEditing(toDraft(a))}
                       className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
                       title="Edit"
                     >
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => remove(a.id)}
+                      onClick={() => void crud.remove(a.id)}
                       className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                       title="Delete"
                     >
@@ -223,6 +259,7 @@ const Page = () => {
             </div>
           )}
         </div>
+        )}
       </div>
 
       {/* Editor dialog */}
@@ -230,7 +267,7 @@ const Page = () => {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editing && items.some(i => i.id === editing.id) ? "Edit Announcement" : "New Announcement"}
+              {editing?.id ? "Edit Announcement" : "New Announcement"}
             </DialogTitle>
           </DialogHeader>
           {editing && (
@@ -284,7 +321,7 @@ const Page = () => {
                       <img src={editing.image} alt="" className="w-full h-40 object-cover" />
                       <button
                         type="button"
-                        onClick={() => setEditing({ ...editing, image: undefined })}
+                        onClick={() => setEditing({ ...editing, image: null })}
                         className="absolute top-2 right-2 h-7 w-7 grid place-items-center rounded-full bg-card/90 border border-border/60 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
                       >
                         <X className="h-3.5 w-3.5" />
@@ -306,7 +343,17 @@ const Page = () => {
                     type="file"
                     accept="image/*"
                     className="hidden"
-                    onChange={e => onPickFile(e.target.files?.[0] || null)}
+                    onChange={e => {
+                      const file = e.target.files?.[0] || null;
+                      if (!file) return;
+                      if (file.size > 2 * 1024 * 1024) {
+                        toast.error("Image must be smaller than 2MB");
+                        return;
+                      }
+                      const fr = new FileReader();
+                      fr.onload = () => setEditing(cur => (cur ? { ...cur, image: fr.result as string } : cur));
+                      fr.readAsDataURL(file);
+                    }}
                   />
                 </div>
               )}
@@ -315,16 +362,16 @@ const Page = () => {
                 <div className="space-y-1.5">
                   <Label>CTA Label</Label>
                   <Input
-                    value={editing.ctaLabel || ""}
-                    onChange={e => setEditing({ ...editing, ctaLabel: e.target.value })}
+                    value={editing.cta_label}
+                    onChange={e => setEditing({ ...editing, cta_label: e.target.value })}
                     placeholder="View Pricing"
                   />
                 </div>
                 <div className="space-y-1.5">
                   <Label>CTA Link</Label>
                   <Input
-                    value={editing.ctaUrl || ""}
-                    onChange={e => setEditing({ ...editing, ctaUrl: e.target.value })}
+                    value={editing.cta_url}
+                    onChange={e => setEditing({ ...editing, cta_url: e.target.value })}
                     placeholder="/pricing"
                   />
                 </div>
@@ -333,7 +380,7 @@ const Page = () => {
               <div className="space-y-1.5">
                 <Label>Status</Label>
                 <div className="grid grid-cols-3 gap-2">
-                  {(["Published", "Draft", "Archived"] as AnnouncementStatus[]).map(s => (
+                  {(["published", "draft", "archived"] as AnnouncementStatus[]).map(s => (
                     <button
                       key={s}
                       type="button"
@@ -344,7 +391,7 @@ const Page = () => {
                           : "bg-card border-border/60 text-foreground/60 hover:border-primary/50"
                       }`}
                     >
-                      {s}
+                      {cap(s)}
                     </button>
                   ))}
                 </div>
@@ -354,16 +401,15 @@ const Page = () => {
           <DialogFooter>
             <Btn variant="ghost" onClick={() => setEditing(null)}>Cancel</Btn>
             <Btn
+              disabled={saving}
               onClick={() => {
                 if (!editing) return;
                 if (!editing.title.trim()) { toast.error("Title is required"); return; }
                 if (editing.type === "image" && !editing.image) { toast.error("Please upload an image"); return; }
-                upsert({ ...editing, updated: new Date().toISOString() });
-                toast.success("Announcement saved");
-                setEditing(null);
+                void persist(editing);
               }}
             >
-              Save Announcement
+              {saving ? "Saving…" : "Save Announcement"}
             </Btn>
           </DialogFooter>
         </DialogContent>
@@ -388,10 +434,10 @@ const Page = () => {
               <div className="p-7 space-y-3">
                 <h3 className="font-display text-2xl text-primary leading-tight">{preview.title}</h3>
                 <p className="text-sm text-foreground/70 leading-relaxed">{preview.body}</p>
-                {preview.ctaLabel && preview.ctaUrl && (
+                {preview.cta_label && preview.cta_url && (
                   <div className="pt-2">
                     <span className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-semibold">
-                      {preview.ctaLabel} <ArrowRight className="h-4 w-4" />
+                      {preview.cta_label} <ArrowRight className="h-4 w-4" />
                     </span>
                   </div>
                 )}
@@ -408,4 +454,3 @@ const Page = () => {
 };
 
 export default Page;
-
