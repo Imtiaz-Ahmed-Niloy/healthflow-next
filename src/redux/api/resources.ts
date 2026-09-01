@@ -15,7 +15,13 @@ import type { Database } from "@/lib/supabase/types";
 
 type Tables = Database["public"]["Tables"];
 
-export type RoleRow = Tables["roles"]["Row"];
+/**
+ * A custom role names the hospital it belongs to (0055); the eight system
+ * roles carry no tenant, so the embed is null on those.
+ */
+export type RoleRow = Tables["roles"]["Row"] & {
+  tenants: Pick<Tables["tenants"]["Row"], "id" | "name" | "slug"> | null;
+};
 export type PackageRow = Tables["packages"]["Row"];
 
 export type DoctorRow = Tables["doctors"]["Row"];
@@ -100,6 +106,8 @@ export type HospitalPackageRow = Tables["hospital_packages"]["Row"] & {
 
 /** Fields each screen may send. Mirrors the Zod schema on the server. */
 export type RoleWrite = {
+  /** Required on create, and not accepted on update — see roleUpdateSchema. */
+  tenant_id?: string;
   label?: string;
   /** null clears it; undefined leaves it alone. */
   description?: string | null;

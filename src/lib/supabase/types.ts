@@ -2599,6 +2599,7 @@ export type Database = {
           permissions: Json
           role: Database["public"]["Enums"]["app_role"] | null
           scope: string
+          tenant_id: string | null
           updated_at: string
         }
         Insert: {
@@ -2611,6 +2612,7 @@ export type Database = {
           permissions?: Json
           role?: Database["public"]["Enums"]["app_role"] | null
           scope?: string
+          tenant_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -2623,9 +2625,25 @@ export type Database = {
           permissions?: Json
           role?: Database["public"]["Enums"]["app_role"] | null
           scope?: string
+          tenant_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "roles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       support_staff: {
         Row: {

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { SuperLayout } from "@/components/super/SuperLayout";
 import { Card, SectionTitle, Btn, Pill } from "@/components/admin/ui";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -12,6 +13,7 @@ import { toast } from "sonner";
 import { Search, ShieldCheck, Plus, Pencil, Trash2, Lock, AlertCircle, Loader2 } from "lucide-react";
 import { PANELS } from "@/data/rolePages";
 import { rolesApi, type RoleRow, type RoleWrite } from "@/redux/api/resources";
+import { useGetResourceQuery, useListResourceQuery } from "@/redux/api/createResourceApi";
 import { useGetRoleStatsQuery } from "@/redux/api/superApi";
 
 /**
@@ -20,10 +22,12 @@ import { useGetRoleStatsQuery } from "@/redux/api/superApi";
  * Two kinds of row (see 0009_roles_management.sql):
  *
  *   system   `role` is an app_role enum value. Seeded, undeletable, and the
- *            only kind a user can hold. Its page grants are editable.
+ *            only kind a user can hold. Platform-wide, so no hospital. Its
+ *            page grants are editable.
  *   custom   `role` is null. A saved template that nothing can be assigned to
  *            until the enum grows — labelled as such rather than left to look
- *            like a working role.
+ *            like a working role. Belongs to one hospital (0055), chosen when
+ *            it is created and fixed thereafter.
  *
  * User counts come from /api/v1/super/role-stats and are read-only. The screen
  * used to let you type one in, which could only ever disagree with the number
@@ -39,6 +43,10 @@ const scopeTone = (scope: string) =>
   scope === "Platform" ? "bad" : scope === "Clinical" ? "ok" : scope === "Self" ? "default" : "info";
 
 const Roles = () => {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<RoleRow | null>(null);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
@@ -56,7 +64,11 @@ const Roles = () => {
     return roles.filter(
       (role) =>
         role.label.toLowerCase().includes(needle) ||
-        (role.role ?? "").toLowerCase().includes(needle),
+        (role.role ?? "").toLowerCase().includes(needle) ||
+        // The hospital is worth searching now that custom roles belong to one.
+        // Client-side because the name is on the embedded `tenants` row, which
+        // PostgREST's `or` cannot reach into.
+        (role.tenants?.name ?? "").toLowerCase().includes(needle),
     );
   }, [roles, query]);
 
@@ -64,7 +76,7 @@ const Roles = () => {
    * A blank row for the editor. It is not saved until the dialog is, so the id
    * is a placeholder the editor uses to tell "new" from "existing".
    */
-  const blankRole = (): RoleRow => ({
+  const blankRole = useCallback((): RoleRow => ({
     id: "",
     role: null,
     label: "",
@@ -73,9 +85,51 @@ const Roles = () => {
     pages: [],
     permissions: {},
     is_system: false,
+    // Picked in the editor. A custom role without one is refused by the API
+    // and by the check constraint behind it.
+    tenant_id: null,
+    tenants: null,
     created_at: "",
     updated_at: "",
-  });
+  }), []);
+
+  /**
+   * ?hospital=<tenant_id> — /super/hospitals links here to give one hospital a
+   * role, so the New Role dialog opens with that hospital already chosen
+   * instead of asking for it again on arrival.
+   *
+   * Unlike the package link there is nothing to reopen: a hospital can hold as
+   * many roles as it likes, so this always starts a new one.
+   *
+   * The param is consumed once — cleared from the URL as the dialog opens, so
+   * closing it and refreshing does not reopen it, and the ref stops a second
+   * pass while the replace is in flight.
+   */
+  const hospitalParam = searchParams.get("hospital");
+  const paramHospital = useGetResourceQuery(
+    { resource: "hospitals", id: hospitalParam ?? "" },
+    { skip: !hospitalParam },
+  );
+  const handledParam = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!hospitalParam || handledParam.current === hospitalParam) return;
+    if (paramHospital.isLoading) return;
+
+    handledParam.current = hospitalParam;
+
+    const hospital = paramHospital.data?.data as RoleRow["tenants"] | undefined;
+    if (hospital) {
+      setEditing({ ...blankRole(), tenant_id: hospitalParam, tenants: hospital });
+    } else {
+      // Deleted between the two screens, or the request failed. A dialog naming
+      // an id nobody can read is worse than one that asks.
+      setEditing(blankRole());
+      toast.error("Could not load that hospital", { description: "Pick it from the list instead." });
+    }
+
+    router.replace(pathname, { scroll: false });
+  }, [hospitalParam, paramHospital.data, paramHospital.isLoading, blankRole, router, pathname]);
 
   const remove = async (role: RoleRow) => {
     setPendingDelete(role.id);
@@ -153,8 +207,11 @@ const Roles = () => {
                         <Lock className="h-3 w-3 text-muted-foreground shrink-0" aria-label="System role" />
                       )}
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {userLabel} · {role.pages.length} pages
+                    <p className="text-xs text-muted-foreground mt-1 truncate">
+                      {/* System roles belong to no hospital by design, so they
+                          say what they are rather than showing a blank. */}
+                      {role.is_system ? "All hospitals" : role.tenants?.name ?? "Unknown hospital"}
+                      {" · "}{userLabel} · {role.pages.length} pages
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -217,9 +274,33 @@ const RoleEditor = ({
   const isNew = role.id === "";
   const [draft, setDraft] = useState(role);
   const [saving, setSaving] = useState(false);
+  const [hospitalQuery, setHospitalQuery] = useState("");
+
+  /**
+   * A new role normally picks its hospital here. Arriving from
+   * /super/hospitals it is already decided and `role.tenants` carries it, so
+   * the field states which hospital rather than reopening the question — with
+   * a way back to the search for a mis-click.
+   */
+  const [changingHospital, setChangingHospital] = useState(false);
+  const pickHospital = isNew && (changingHospital || !role.tenants);
 
   const [createRole] = rolesApi.useCreate();
   const [updateRole] = rolesApi.useUpdate();
+
+  /**
+   * Hospitals are searched server-side rather than listed in full: `tenants`
+   * holds every hospital in Bangladesh and the endpoint caps at 100 rows, so a
+   * plain dropdown would quietly stop showing most of them. Same picker as the
+   * package assignment editor.
+   *
+   * Skipped once the role exists — the hospital is fixed at creation.
+   */
+  const hospitals = useListResourceQuery(
+    { resource: "hospitals", limit: 20, q: hospitalQuery || undefined },
+    { skip: !pickHospital },
+  );
+  const hospitalRows = (hospitals.data?.data ?? []) as { id: string; name: string }[];
 
   const togglePage = (path: string) =>
     setDraft((d) => ({
@@ -253,6 +334,13 @@ const RoleEditor = ({
       toast.error("Role name is required");
       return;
     }
+    // A custom role belongs to a hospital (0055). The API and the check
+    // constraint both refuse one without; catching it here keeps the dialog
+    // open with the page grants still ticked.
+    if (isNew && !draft.tenant_id) {
+      toast.error("Select the hospital this role is for");
+      return;
+    }
 
     // The server rejects these too; catching them here keeps the dialog open
     // with the text still in it.
@@ -263,6 +351,9 @@ const RoleEditor = ({
       label,
       scope: draft.scope as RoleWrite["scope"],
       pages: draft.pages,
+      // Only on create: the update schema does not accept it, because moving a
+      // role between hospitals is a delete and a new role, not a field edit.
+      ...(isNew ? { tenant_id: draft.tenant_id ?? undefined } : {}),
     };
 
     setSaving(true);
@@ -291,7 +382,72 @@ const RoleEditor = ({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid sm:grid-cols-3 gap-4 mt-2">
+        {/*
+          Which hospital the role is for. First, because it frames everything
+          under it: the page grants are what that hospital's staff will get.
+          Fixed once saved, so an existing role states it rather than offering
+          it as a field.
+        */}
+        <div className="mt-2">
+          <Label htmlFor={pickHospital ? "role-hospital-search" : undefined}>Hospital</Label>
+          {role.is_system ? (
+            <p className="h-9 flex items-center text-sm text-muted-foreground">
+              All hospitals — a system role is part of the auth layer.
+            </p>
+          ) : !pickHospital ? (
+            <div className="flex items-center gap-2">
+              <p className="h-9 flex-1 flex items-center text-sm font-semibold text-primary">
+                {role.tenants?.name ?? "Unknown hospital"}
+              </p>
+              {/* Only while creating: the hospital on a saved role is fixed —
+                  the API does not accept it on update. */}
+              {isNew && (
+                <Btn
+                  variant="ghost"
+                  onClick={() => { setChangingHospital(true); setDraft({ ...draft, tenant_id: null }); }}
+                >
+                  Change
+                </Btn>
+              )}
+            </div>
+          ) : (
+            <>
+              <Input
+                id="role-hospital-search"
+                value={hospitalQuery}
+                onChange={(e) => setHospitalQuery(e.target.value)}
+                placeholder="Search hospitals…"
+                className="mb-2"
+              />
+              <div className="max-h-36 overflow-y-auto rounded-lg border border-border divide-y divide-border/50">
+                {hospitals.isFetching ? (
+                  <p className="px-3 py-2 text-sm text-muted-foreground">Searching…</p>
+                ) : hospitalRows.length === 0 ? (
+                  <p className="px-3 py-2 text-sm text-muted-foreground">No hospitals found.</p>
+                ) : (
+                  hospitalRows.map((hospital) => {
+                    const chosen = draft.tenant_id === hospital.id;
+                    return (
+                      <button
+                        key={hospital.id}
+                        type="button"
+                        onClick={() => setDraft({ ...draft, tenant_id: hospital.id })}
+                        aria-pressed={chosen}
+                        className={`w-full text-left px-3 py-2 text-sm transition ${
+                          chosen ? "bg-primary/10 text-primary font-semibold" : "hover:bg-muted/50"
+                        }`}
+                      >
+                        <span className="truncate">{hospital.name}</span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="grid sm:grid-cols-3 gap-4 mt-4">
           <div>
             <Label htmlFor="role-name">Role name</Label>
             <Input

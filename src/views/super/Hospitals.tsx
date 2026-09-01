@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Copy, KeyRound, X, CalendarDays, MapPin, BadgeCheck, Loader2, Package } from "lucide-react";
+import { Copy, KeyRound, X, CalendarDays, MapPin, BadgeCheck, Loader2, Package, ShieldPlus } from "lucide-react";
 import { SuperLayout } from "@/components/super/SuperLayout";
 import { ResourcePage } from "@/components/admin/ResourcePage";
 import { mediaUrl } from "@/lib/media";
@@ -31,7 +31,7 @@ type TenantRow = Database["public"]["Tables"]["tenants"]["Row"];
 type H = Pick<
   TenantRow,
   | "id" | "name" | "slug" | "location" | "region" | "division" | "district"
-  | "subdistrict" | "beds" | "doctor_count" | "created_at" | "trade_license" | "logo_url"
+  | "subdistrict" | "beds" | "doctor_count" | "created_at" | "logo_url"
 > & { status: string };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -267,11 +267,11 @@ const Page = () => {
               </button>
             )}
             {/*
-              Plans live on their own screen, so this hands the hospital over
-              rather than duplicating the assignment form here. A real link, not
-              a click handler, so middle-click and keyboard still work; the
-              stopPropagation is only to keep the row itself from opening the
-              hospital editor underneath.
+              Plans and roles live on their own screens, so these hand the
+              hospital over rather than duplicating those forms here. Real
+              links, not click handlers, so middle-click and keyboard still
+              work; the stopPropagation is only to keep the row itself from
+              opening the hospital editor underneath.
             */}
             <Link
               href={`/super/package-management?assign=${h.id}`}
@@ -280,6 +280,14 @@ const Page = () => {
               aria-label={`Assign a package to ${h.name}`}
               className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 inline-flex">
               <Package className="h-4 w-4" />
+            </Link>
+            <Link
+              href={`/super/roles?hospital=${h.id}`}
+              onClick={e => e.stopPropagation()}
+              title={`Create a role for ${h.name}`}
+              aria-label={`Create a role for ${h.name}`}
+              className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 inline-flex">
+              <ShieldPlus className="h-4 w-4" />
             </Link>
           </>
         ),
@@ -305,7 +313,6 @@ const Page = () => {
           },
           { key: "location", label: "Location", sortable: true, accessor: r => r.location || "" },
           { key: "district", label: "District", accessor: r => r.district || "" },
-          { key: "trade_license", label: "Trade licence", accessor: r => r.trade_license || "" },
           // accessor drives sorting, render drives display. A directory row
           // usually has no bed count, and showing "0" would claim it has none.
           { key: "beds", label: "Beds", sortable: true, accessor: r => Number(r.beds ?? 0), render: r => r.beds ?? "—" },
