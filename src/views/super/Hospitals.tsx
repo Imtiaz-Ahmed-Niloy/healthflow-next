@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Copy, KeyRound, X, CalendarDays, MapPin, BadgeCheck, Loader2 } from "lucide-react";
 import { SuperLayout } from "@/components/super/SuperLayout";
 import { ResourcePage } from "@/components/admin/ResourcePage";
+import { mediaUrl } from "@/lib/media";
 import { Pill } from "@/components/admin/ui";
 import { Modal, ConfirmDialog } from "@/components/admin/crud";
 import { statusTone } from "@/components/admin/crud";
@@ -29,7 +30,7 @@ type TenantRow = Database["public"]["Tables"]["tenants"]["Row"];
 type H = Pick<
   TenantRow,
   | "id" | "name" | "slug" | "location" | "region" | "division" | "district"
-  | "subdistrict" | "beds" | "doctor_count" | "created_at" | "trade_license"
+  | "subdistrict" | "beds" | "doctor_count" | "created_at" | "trade_license" | "logo_url"
 > & { status: string };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -263,7 +264,25 @@ const Page = () => {
           </button>
         )),
         columns: [
-          { key: "name", label: "Hospital", sortable: true, accessor: r => r.name, render: r => <span className="font-semibold text-primary">{r.name}</span> },
+          {
+            key: "name", label: "Hospital", sortable: true, accessor: r => r.name,
+            // The logo rides in the name cell rather than taking a column of
+            // its own — most hospitals have no logo yet, and a column of empty
+            // squares reads as broken. Initial as the fallback.
+            render: r => {
+              const logo = mediaUrl(r.logo_url);
+              return (
+                <span className="inline-flex items-center gap-2.5">
+                  <span className="h-8 w-8 rounded-lg overflow-hidden bg-muted/50 border border-border/60 grid place-items-center shrink-0 text-[11px] font-bold text-muted-foreground">
+                    {logo
+                      ? <img src={logo} alt="" className="h-full w-full object-cover" />
+                      : (r.name?.[0]?.toUpperCase() ?? "?")}
+                  </span>
+                  <span className="font-semibold text-primary">{r.name}</span>
+                </span>
+              );
+            },
+          },
           { key: "location", label: "Location", sortable: true, accessor: r => r.location || "" },
           { key: "district", label: "District", accessor: r => r.district || "" },
           { key: "trade_license", label: "Trade licence", accessor: r => r.trade_license || "" },

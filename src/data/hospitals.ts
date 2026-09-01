@@ -70,6 +70,9 @@ export type Hospital = {
   websites?: string[];
   social?: { platform: string; url: string }[];
   image: string;
+  /** The hospital's own logo, if one has been uploaded. Distinct from
+   *  `image`, which is the wide cover photo behind the hero. */
+  logo?: string;
   summary: string;
   about: string;
   facilities: string[];

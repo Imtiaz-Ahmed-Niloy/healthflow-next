@@ -29,6 +29,59 @@ const optionalDate = z.preprocess(blankToUndefined, z.string().trim().optional()
 const optionalEmail = z.preprocess(blankToUndefined, z.string().trim().email().optional());
 
 /**
+ * Weekly operating hours.
+ *
+ * Mirrors public.is_operating_hours in 0054 and src/lib/hours.ts. All three
+ * say the same thing on purpose: the database is the boundary, this turns a
+ * malformed week into a clean 422 instead of a 23514 surfaced as
+ * "Invalid values", and hours.ts is what the browser edits.
+ */
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+const dayHoursSchema = z.union([
+  z.object({
+    mode: z.literal("hours"),
+    open: z.string().regex(TIME, "Opening time must be HH:MM"),
+    close: z.string().regex(TIME, "Closing time must be HH:MM"),
+  }),
+  z.object({ mode: z.literal("24h") }),
+  z.object({ mode: z.literal("closed") }),
+]);
+
+const weekSchema = z
+  .object({
+    sun: dayHoursSchema.optional(),
+    mon: dayHoursSchema.optional(),
+    tue: dayHoursSchema.optional(),
+    wed: dayHoursSchema.optional(),
+    thu: dayHoursSchema.optional(),
+    fri: dayHoursSchema.optional(),
+    sat: dayHoursSchema.optional(),
+  })
+  // strict, so a typo'd day key is rejected rather than silently stored and
+  // then never read back. The check constraint refuses it too; this is the
+  // half that produces a sentence a human can act on.
+  .strict()
+  .refine(week => Object.keys(week).length > 0, "Set hours for at least one day");
+
+/**
+ * The form posts one hidden input, so the week arrives as a JSON string. An
+ * API client may send the object directly. Both are accepted; anything that
+ * is neither is a 422 rather than a cast error from Postgres.
+ */
+const operatingHours = z.preprocess(value => {
+  if (value === "" || value === null || value === undefined) return undefined;
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    // Left as the original string so the union below fails with a message
+    // about the shape rather than throwing here.
+    return value;
+  }
+}, weekSchema.nullable().optional());
+
+/**
  * The form collects these as repeatable text inputs; Postgres holds text[].
  * A single string is accepted and wrapped, so a plain input still works.
  */
@@ -113,7 +166,7 @@ export const hospitalCreateSchema = z.object({
   // descriptive
   specialties: optionalText,
   certifications: optionalText,
-  opening_hours: optionalText,
+  opening_hours: operatingHours,
   facilities: optionalText,
   awards: optionalText,
   summary: optionalText,

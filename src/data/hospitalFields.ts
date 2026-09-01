@@ -19,6 +19,8 @@ export const HOSPITAL_STEPS: FormStep[] = [
 
 export const HOSPITAL_FIELDS: FieldDef[] = [
   // ===== Step 1: Hospital details =====
+  // Uploads to R2 and stores the object key, not a URL — see src/lib/media.ts.
+  { name: "logo_url", label: "Hospital logo", type: "image", folder: "hospitals", step: 1 },
   { name: "name", label: "Hospital name", type: "text", required: true, step: 1 },
   { name: "trade_license", label: "Trade licence number", type: "text", required: true, step: 1 },
   { name: "tagline", label: "Tagline / Short description", type: "text", step: 1 },
@@ -54,7 +56,9 @@ export const HOSPITAL_FIELDS: FieldDef[] = [
     options: [...Constants.public.Enums.tenant_status],
     step: 1,
   },
-  { name: "opening_hours", label: "Operating hours", type: "text", step: 1 },
+  // Seven days, each with its own open/close, posted as one JSON value.
+  // Old free-text values still render on the public page — see src/lib/hours.ts.
+  { name: "opening_hours", label: "Operating hours", type: "hours", step: 1 },
   { name: "specialties", label: "Specialties (comma separated)", type: "textarea", step: 1 },
   { name: "facilities", label: "Facilities (comma separated)", type: "textarea", step: 1 },
   { name: "awards", label: "Awards (comma separated)", type: "textarea", step: 1 },
@@ -65,11 +69,16 @@ export const HOSPITAL_FIELDS: FieldDef[] = [
   { name: "operating_license", label: "Operating licence number", type: "text", step: 1 },
   { name: "other_licenses", label: "Other licences & accreditations", type: "textarea", step: 1 },
 
-  // Deliberately absent until Supabase Storage buckets exist: the document
-  // upload widgets (`file` / `files` / `image`) embed files as base64 data URIs,
-  // which would write megabytes into text columns. The columns above hold the
-  // reference *numbers*; the scanned documents and cover photo are a separate
-  // task under HF-8.
+  // The scanned documents are still absent, and for the original reason: the
+  // `file` / `files` widgets embed their contents as base64 data URIs, which
+  // would write megabytes into a text column. The columns above hold the
+  // reference *numbers*; the scans are a separate task under HF-8, and they
+  // need a private bucket with expiring links rather than the public one the
+  // logo uses (docs/image-uploads-r2.md).
+  //
+  // `image` no longer has that problem — it uploads to R2 and stores a key —
+  // which is what let the logo above be added. `cover_image_url` can follow
+  // the same way whenever HF-8 wants it.
   //
   // Also absent: `package_id`. The old free-text `plan` select
   // (Starter/Pro/Enterprise) cannot populate a uuid foreign key; package

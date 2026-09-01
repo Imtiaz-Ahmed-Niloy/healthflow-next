@@ -2763,7 +2763,7 @@ export type Database = {
           management_body: Json
           medical_director: string | null
           name: string
-          opening_hours: string | null
+          opening_hours: Json | null
           operating_license: string | null
           other_licenses: string | null
           owner_address: string | null
@@ -2816,7 +2816,7 @@ export type Database = {
           management_body?: Json
           medical_director?: string | null
           name: string
-          opening_hours?: string | null
+          opening_hours?: Json | null
           operating_license?: string | null
           other_licenses?: string | null
           owner_address?: string | null
@@ -2869,7 +2869,7 @@ export type Database = {
           management_body?: Json
           medical_director?: string | null
           name?: string
-          opening_hours?: string | null
+          opening_hours?: Json | null
           operating_license?: string | null
           other_licenses?: string | null
           owner_address?: string | null
@@ -3086,7 +3086,7 @@ export type Database = {
           location: string | null
           logo_url: string | null
           name: string | null
-          opening_hours: string | null
+          opening_hours: Json | null
           rating: number | null
           reviews_count: number | null
           slug: string | null
@@ -3116,7 +3116,7 @@ export type Database = {
           location?: string | null
           logo_url?: string | null
           name?: string | null
-          opening_hours?: string | null
+          opening_hours?: Json | null
           rating?: number | null
           reviews_count?: number | null
           slug?: string | null
@@ -3146,7 +3146,7 @@ export type Database = {
           location?: string | null
           logo_url?: string | null
           name?: string | null
-          opening_hours?: string | null
+          opening_hours?: Json | null
           rating?: number | null
           reviews_count?: number | null
           slug?: string | null

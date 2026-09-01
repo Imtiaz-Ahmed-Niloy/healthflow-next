@@ -103,18 +103,45 @@ const HospitalDetail = () => {
             <Link href="/hospitals" className="inline-flex items-center gap-1.5 text-sm opacity-90 hover:opacity-100 mb-6 w-fit">
               <ArrowLeft className="h-4 w-4" /> All Hospitals
             </Link>
-            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-              <span className="inline-flex items-center rounded-full bg-accent/90 text-primary px-3 py-1 text-[11px] font-semibold">
-                {hospital.tag.toUpperCase()}
-              </span>
-              <h1 className="font-display text-4xl md:text-6xl mt-4 max-w-3xl leading-tight">{hospital.name}</h1>
-              <div className="flex flex-wrap gap-5 mt-5 text-sm opacity-95">
-                <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" />{hospital.location}</span>
-                <span className="inline-flex items-center gap-1.5"><Award className="h-4 w-4" />{hospital.cert}</span>
-                <span className="inline-flex items-center gap-1.5"><Star className="h-4 w-4 fill-accent text-accent" />{hospital.rating} ({hospital.reviews} reviews)</span>
-                <span className="inline-flex items-center gap-1.5"><Calendar className="h-4 w-4" />Est. {hospital.founded}</span>
-              </div>
-            </motion.div>
+            <div className="flex flex-col-reverse gap-6 md:flex-row md:items-end md:justify-between md:gap-10">
+              <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
+                <span className="inline-flex items-center rounded-full bg-accent/90 text-primary px-3 py-1 text-[11px] font-semibold">
+                  {hospital.tag.toUpperCase()}
+                </span>
+                <h1 className="font-display text-4xl md:text-6xl mt-4 max-w-3xl leading-tight">{hospital.name}</h1>
+                <div className="flex flex-wrap gap-5 mt-5 text-sm opacity-95">
+                  <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" />{hospital.location}</span>
+                  <span className="inline-flex items-center gap-1.5"><Award className="h-4 w-4" />{hospital.cert}</span>
+                  <span className="inline-flex items-center gap-1.5"><Star className="h-4 w-4 fill-accent text-accent" />{hospital.rating} ({hospital.reviews} reviews)</span>
+                  <span className="inline-flex items-center gap-1.5"><Calendar className="h-4 w-4" />Est. {hospital.founded}</span>
+                </div>
+              </motion.div>
+
+              {/* The hospital's own logo, beside the title on the cover photo.
+                  On its own light panel rather than bare on the image: the cover
+                  is a photograph we do not control, and a dark logo laid
+                  straight onto a dark one would disappear. Stacks above the
+                  title on mobile (flex-col-reverse), where there is no room
+                  beside it. Most hospitals have no logo, so the panel is not
+                  rendered at all rather than left as an empty square. */}
+              {hospital.logo && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.92 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.6, delay: 0.2 }}
+                  className="shrink-0 self-start rounded-2xl bg-card/95 backdrop-blur-sm border border-white/25 shadow-card p-5 md:mr-20 md:mb-6 md:self-end"
+                >
+                  <img
+                    src={hospital.logo}
+                    alt={`${hospital.name} logo`}
+                    /* Contained, never cropped — a cropped logo is a damaged
+                       logo — and capped so a tall or very wide one cannot
+                       crowd out the title. */
+                    className="h-24 w-auto max-w-[220px] object-contain md:h-32 md:max-w-[280px]"
+                  />
+                </motion.div>
+              )}
+            </div>
           </div>
         </section>
 

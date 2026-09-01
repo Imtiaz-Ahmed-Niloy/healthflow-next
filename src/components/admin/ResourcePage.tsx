@@ -1,42 +1,214 @@
 "use client";
 
 import { ReactNode, useState, useMemo, useRef, useEffect } from "react";
-import { Upload, X, Plus, Facebook, Twitter, Instagram, Linkedin, Youtube, Globe, FileText, Paperclip, User, ChevronLeft, ChevronRight } from "lucide-react";
+import { Upload, X, Plus, Copy, Facebook, Twitter, Instagram, Linkedin, Youtube, Globe, FileText, Paperclip, User, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, Pill } from "./ui";
 import { DataTable, Toolbar, Modal, ConfirmDialog, RowActions, Drawer, exportCSV, useCrud, Field, Input, Select, Chips, statusTone, type Column } from "./crud";
 import { useResourceCrud } from "./useResourceCrud";
+import { mediaUrl, MAX_IMAGE_BYTES, ALLOWED_IMAGE_TYPES, type MediaFolder } from "@/lib/media";
+import {
+  DAYS, defaultWeek, parseWeek, serialiseWeek, summariseWeek, formatDay,
+  type DayKey, type DayHours, type WeekHours,
+} from "@/lib/hours";
 
-function ImageUploadField({ name, required, defaultValue }: { name: string; required?: boolean; defaultValue?: string }) {
-  const [preview, setPreview] = useState<string>(defaultValue || "");
+/**
+ * Uploads to Cloudflare R2 and stores the object KEY, not a URL.
+ *
+ * It used to read the file with FileReader and put a base64 data URL straight
+ * into the column — a 2MB logo became a ~2.7MB string inside Postgres, on a
+ * row the public site reads. The file now goes browser -> Cloudflare directly
+ * and the row holds "hospitals/2026/09/a1b2c3d4.png".
+ *
+ * See docs/image-uploads-r2.md and src/lib/media.ts.
+ */
+function ImageUploadField({ name, required, defaultValue, folder = "hospitals" }: { name: string; required?: boolean; defaultValue?: string; folder?: MediaFolder }) {
+  // What goes in the column: a key for anything uploaded here, or whatever was
+  // already stored (an Unsplash link, an /assets path) left untouched.
+  const [stored, setStored] = useState<string>(defaultValue || "");
+  // What the <img> shows. Kept separate because the browser can preview a file
+  // it has in hand before R2 has finished taking it.
+  const [preview, setPreview] = useState<string>(() => mediaUrl(defaultValue) || "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+
+  const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setPreview(String(reader.result || ""));
-    reader.readAsDataURL(file);
+    setError(null);
+
+    if (file.size > MAX_IMAGE_BYTES) {
+      setError(`That image is ${(file.size / 1024 / 1024).toFixed(1)}MB — the limit is 5MB.`);
+      return;
+    }
+
+    const localPreview = URL.createObjectURL(file);
+    setPreview(localPreview);
+    setBusy(true);
+
+    try {
+      const permission = await fetch("/api/v1/uploads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folder, contentType: file.type, size: file.size }),
+      });
+      const body = await permission.json().catch(() => null);
+      if (!permission.ok) throw new Error(body?.error?.message || "Could not start the upload.");
+
+      const { key, uploadUrl, publicUrl } = body.data;
+
+      // Straight to Cloudflare. Never through our server.
+      const put = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!put.ok) throw new Error("Cloudflare refused the upload.");
+
+      setStored(key);
+      setPreview(publicUrl);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not upload that image.");
+      // Put the field back how it was rather than leaving a preview of a file
+      // that never landed.
+      setPreview(mediaUrl(stored) || "");
+    } finally {
+      setBusy(false);
+      URL.revokeObjectURL(localPreview);
+      if (inputRef.current) inputRef.current.value = "";
+    }
   };
+
+  const clear = () => { setStored(""); setPreview(""); setError(null); };
+
   return (
     <div className="flex items-center gap-4">
       <div className="h-24 w-24 rounded-xl bg-muted/40 border border-border/60 overflow-hidden flex items-center justify-center shrink-0">
         {preview ? <img src={preview} alt="preview" className="h-full w-full object-cover" /> : <Upload className="h-5 w-5 text-muted-foreground" />}
       </div>
       <div className="flex-1">
-        <input type="hidden" name={name} value={preview} required={required} />
-        <input ref={inputRef} type="file" accept="image/*" onChange={onPick} className="hidden" />
+        <input type="hidden" name={name} value={stored} required={required} />
+        <input ref={inputRef} type="file" accept={ALLOWED_IMAGE_TYPES.join(",")} onChange={onPick} className="hidden" />
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => inputRef.current?.click()}
-            className="px-3 py-2 rounded-lg text-xs font-semibold bg-primary text-primary-foreground inline-flex items-center gap-1.5">
-            <Upload className="h-3.5 w-3.5" /> {preview ? "Change" : "Upload"} photo
+          <button type="button" onClick={() => inputRef.current?.click()} disabled={busy}
+            className="px-3 py-2 rounded-lg text-xs font-semibold bg-primary text-primary-foreground inline-flex items-center gap-1.5 disabled:opacity-60">
+            <Upload className="h-3.5 w-3.5" /> {busy ? "Uploading…" : preview ? "Change" : "Upload"} image
           </button>
-          {preview && (
-            <button type="button" onClick={() => setPreview("")}
+          {preview && !busy && (
+            <button type="button" onClick={clear}
               className="px-3 py-2 rounded-lg text-xs font-semibold border border-border inline-flex items-center gap-1.5">
               <X className="h-3.5 w-3.5" /> Remove
             </button>
           )}
         </div>
-        <p className="text-[11px] text-muted-foreground mt-1.5">PNG or JPG, up to a few MB.</p>
+        {error
+          ? <p className="text-[11px] text-destructive mt-1.5">{error}</p>
+          : <p className="text-[11px] text-muted-foreground mt-1.5">PNG, JPG, WebP, AVIF or SVG, up to 5MB.</p>}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The seven-day operating hours editor.
+ *
+ * One field, one value, posted as JSON — see src/lib/hours.ts.
+ *
+ * Built around the fact that a hospital almost never has seven different
+ * schedules. It has one, and then Friday is different. So the row does the
+ * work: set a day, then "Copy to all" pushes it across the week and you
+ * correct the one or two that differ. Filling seven rows by hand is possible,
+ * but it is not the path the design expects anyone to take.
+ *
+ * Each day carries a MODE rather than only a pair of times, because "Closed"
+ * and "Open 24 hours" are not times. Encoding them as 00:00–00:00 is how a
+ * hospital ends up claiming to be shut and open at once.
+ */
+function WeeklyHoursField({ name, defaultValue }: { name: string; defaultValue?: unknown }) {
+  const [week, setWeek] = useState<WeekHours>(() => parseWeek(defaultValue) ?? defaultWeek());
+
+
+  const setDay = (key: DayKey, day: DayHours) => setWeek(w => ({ ...w, [key]: day }));
+
+  const copyToAll = (key: DayKey) =>
+    setWeek(w => DAYS.reduce((next, d) => ({ ...next, [d.key]: w[key] }), {} as WeekHours));
+
+  const summary = summariseWeek(week);
+
+  return (
+    <div className="space-y-3">
+      <input type="hidden" name={name} value={serialiseWeek(week)} />
+
+
+      <div className="rounded-xl border border-border/60 divide-y divide-border/40 overflow-hidden">
+        {DAYS.map(d => {
+          const day = week[d.key];
+          return (
+            <div key={d.key} className="flex flex-wrap items-center gap-2 px-3 py-2 hover:bg-muted/30">
+              <span className="w-24 shrink-0 text-sm font-medium text-foreground/80">{d.label}</span>
+
+              <select
+                value={day.mode}
+                onChange={e => {
+                  const mode = e.target.value as DayHours["mode"];
+                  if (mode === "hours") {
+                    // Keep the times the row last had rather than snapping
+                    // back to the default and throwing away the edit.
+                    const prev = day.mode === "hours" ? day : null;
+                    setDay(d.key, { mode: "hours", open: prev?.open ?? "09:00", close: prev?.close ?? "17:00" });
+                  } else {
+                    setDay(d.key, { mode } as DayHours);
+                  }
+                }}
+                className="bg-muted/40 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="hours">Open</option>
+                <option value="24h">24 hours</option>
+                <option value="closed">Closed</option>
+              </select>
+
+              {day.mode === "hours" ? (
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="time"
+                    value={day.open}
+                    onChange={e => setDay(d.key, { ...day, open: e.target.value })}
+                    className="bg-muted/40 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <span className="text-xs text-muted-foreground">to</span>
+                  <input
+                    type="time"
+                    value={day.close}
+                    onChange={e => setDay(d.key, { ...day, close: e.target.value })}
+                    className="bg-muted/40 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              ) : (
+                <span className="text-xs text-muted-foreground italic">{formatDay(day)}</span>
+              )}
+
+              <button
+                type="button"
+                onClick={() => copyToAll(d.key)}
+                title={`Copy ${d.label} to every day`}
+                className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-muted-foreground border border-transparent hover:border-border hover:text-primary"
+              >
+                <Copy className="h-3 w-3" /> Copy to all
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* What a visitor will actually be shown. The editor is seven rows; the
+          public page collapses them, so the admin should see that collapse. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+        <span className="font-semibold uppercase tracking-wide">Visitors see</span>
+        {summary.map(row => (
+          <span key={row.days} className="rounded-full bg-muted/50 px-2.5 py-1">
+            <span className="font-medium text-foreground/70">{row.days}</span> · {row.hours}
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -314,11 +486,12 @@ export type FieldDef = (
    */
   | { name: string; label: string; type: "select"; options: SelectOption[]; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "textarea"; required?: boolean; fullWidth?: boolean }
-  | { name: string; label: string; type: "image"; required?: boolean; fullWidth?: boolean }
+  | { name: string; label: string; type: "image"; folder?: MediaFolder; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "file"; accept?: string; hint?: string; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "files"; accept?: string; hint?: string; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "list"; itemType?: "text" | "email" | "tel" | "url"; placeholder?: string; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "social"; required?: boolean; fullWidth?: boolean }
+  | { name: string; label: string; type: "hours"; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "people"; roleOptions?: string[]; addLabel?: string; required?: boolean; fullWidth?: boolean }
 ) & { step?: number };
 
@@ -338,7 +511,7 @@ export function RecordFormFields({
       {fields.map(f => {
         const fieldStep = f.step ?? ids[0];
         const hidden = activeStepId !== undefined ? fieldStep !== activeStepId : false;
-        const wide = f.fullWidth || f.type === "textarea" || f.type === "image" || f.type === "file" || f.type === "files" || f.type === "list" || f.type === "social" || f.type === "people";
+        const wide = f.fullWidth || f.type === "textarea" || f.type === "image" || f.type === "file" || f.type === "files" || f.type === "list" || f.type === "social" || f.type === "hours" || f.type === "people";
         return (
           <div key={f.name} className={`${wide ? "col-span-2" : ""} ${hidden ? "hidden" : ""}`}>
             <Field label={f.label} required={f.required}>
@@ -350,7 +523,7 @@ export function RecordFormFields({
                 <textarea name={f.name} required={f.required} defaultValue={(editing as never)?.[f.name] ?? ""} rows={3}
                   className="w-full bg-muted/40 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary text-sm" />
               ) : f.type === "image" ? (
-                <ImageUploadField name={f.name} required={f.required} defaultValue={(editing as never)?.[f.name] ?? ""} />
+                <ImageUploadField name={f.name} required={f.required} folder={f.folder} defaultValue={(editing as never)?.[f.name] ?? ""} />
               ) : f.type === "file" ? (
                 <FileUploadField name={f.name} required={f.required} accept={f.accept} hint={f.hint} defaultValue={(editing as never)?.[f.name] ?? ""} />
               ) : f.type === "files" ? (
@@ -360,6 +533,8 @@ export function RecordFormFields({
                   defaultValue={(editing as never)?.[f.name]} />
               ) : f.type === "social" ? (
                 <SocialField name={f.name} defaultValue={(editing as never)?.[f.name]} />
+              ) : f.type === "hours" ? (
+                <WeeklyHoursField name={f.name} defaultValue={(editing as never)?.[f.name]} />
               ) : f.type === "people" ? (
                 <PeopleField name={f.name} defaultValue={(editing as never)?.[f.name]} roleOptions={f.roleOptions} addLabel={f.addLabel} />
               ) : (
@@ -672,7 +847,7 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
             {config.fields.map(f => {
               const fieldStep = f.step ?? stepIds[0];
               const hidden = steps ? fieldStep !== activeStepId : false;
-              const wide = f.fullWidth || f.type === "textarea" || f.type === "image" || f.type === "file" || f.type === "files" || f.type === "list" || f.type === "social" || f.type === "people";
+              const wide = f.fullWidth || f.type === "textarea" || f.type === "image" || f.type === "file" || f.type === "files" || f.type === "list" || f.type === "social" || f.type === "hours" || f.type === "people";
               return (
                 <div key={f.name} className={`${wide ? "col-span-2" : ""} ${hidden ? "hidden" : ""}`}>
                   <Field label={f.label} required={f.required}>
@@ -684,7 +859,7 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
                       <textarea name={f.name} required={f.required} defaultValue={(editing as never)?.[f.name] ?? ""} rows={3}
                         className="w-full bg-muted/40 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary text-sm" />
                     ) : f.type === "image" ? (
-                      <ImageUploadField name={f.name} required={f.required} defaultValue={(editing as never)?.[f.name] ?? ""} />
+                      <ImageUploadField name={f.name} required={f.required} folder={f.folder} defaultValue={(editing as never)?.[f.name] ?? ""} />
                     ) : f.type === "file" ? (
                       <FileUploadField name={f.name} required={f.required} accept={f.accept} hint={f.hint} defaultValue={(editing as never)?.[f.name] ?? ""} />
                     ) : f.type === "files" ? (
@@ -694,6 +869,8 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
                         defaultValue={(editing as never)?.[f.name]} />
                     ) : f.type === "social" ? (
                       <SocialField name={f.name} defaultValue={(editing as never)?.[f.name]} />
+                    ) : f.type === "hours" ? (
+                      <WeeklyHoursField name={f.name} defaultValue={(editing as never)?.[f.name]} />
                     ) : f.type === "people" ? (
                       <PeopleField name={f.name} defaultValue={(editing as never)?.[f.name]} roleOptions={f.roleOptions} addLabel={f.addLabel} />
                     ) : (

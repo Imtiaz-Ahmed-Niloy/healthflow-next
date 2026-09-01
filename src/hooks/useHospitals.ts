@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { hospitals as staticHospitals, baseLabTests, baseRooms, baseManagement, type Hospital, type Doctor } from "@/data/hospitals";
 import { slugify } from "@/lib/slug";
+import { mediaUrl } from "@/lib/media";
+import { parseWeek, summariseWeek } from "@/lib/hours";
 import { supabase } from "@/lib/supabase/client";
 const atriumFallback = "/assets/hub-atrium.jpg";
 const doctorFallback = "/assets/doctors/doc-1.jpg";
@@ -117,7 +119,7 @@ type PublicHospital = {
   cover_image_url: string | null;
   specialties: string | null;
   facilities: string | null;
-  opening_hours: string | null;
+  opening_hours: unknown;
   summary: string | null;
   about: string | null;
   beds: number | null;
@@ -254,18 +256,32 @@ const mapPublicToHospital = (r: PublicHospital, doctors: Doctor[] = []): Hospita
     emails,
     websites,
     social: socialLinks(r.social),
-    image: r.cover_image_url || r.logo_url || atriumFallback,
+    // Both go through mediaUrl: an uploaded logo is stored as an R2 key
+    // ("hospitals/2026/09/x.jpg"), while the seeded covers are absolute
+    // Unsplash URLs. mediaUrl tells them apart — see src/lib/media.ts.
+    image: mediaUrl(r.cover_image_url) || mediaUrl(r.logo_url) || atriumFallback,
+    logo: mediaUrl(r.logo_url) ?? undefined,
     summary: r.summary || r.tagline || "",
     about: r.about || r.summary || "",
     facilities: splitList(r.facilities),
     awards: [],
-    hours: r.opening_hours
-      ? [{ day: "All week", time: r.opening_hours }]
-      : [
-          { day: "Mon – Fri", time: "9:00 AM – 6:00 PM" },
-          { day: "Sat – Sun", time: "10:00 AM – 4:00 PM" },
-          { day: "Emergency", time: "24 Hours" },
-        ],
+    // 0054 made this column jsonb with a check constraint, so it is either a
+    // well-formed week or null — the free text that used to live here was
+    // converted or cleared by that migration.
+    //
+    // The empty case still falls back to a generic schedule, which is invented
+    // and always has been. It is left alone here because replacing it with an
+    // honest "hours not listed" changes what every hospital page says, and
+    // that is a product decision rather than part of this change.
+    hours: (() => {
+      const week = parseWeek(r.opening_hours);
+      if (week) return summariseWeek(week).map(row => ({ day: row.days, time: row.hours }));
+      return [
+        { day: "Mon – Fri", time: "9:00 AM – 6:00 PM" },
+        { day: "Sat – Sun", time: "10:00 AM – 4:00 PM" },
+        { day: "Emergency", time: "24 Hours" },
+      ];
+    })(),
     doctors_list: doctors,
     lab_tests: baseLabTests,
     rooms: baseRooms,
