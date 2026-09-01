@@ -6,7 +6,7 @@ this file can be read side by side with the sidebar without hunting.
 **✅** = on real data, saves, survives a refresh, isolated per hospital
 **❌** = still on demo data, or only half wired
 
-Last checked: 30 Aug 2026
+Last checked: 1 Sep 2026
 
 ---
 
@@ -19,7 +19,7 @@ Last checked: 30 Aug 2026
 | ✅ | Roles & Permissions | HF-40 |
 | ✅ | Contact Messages | HF-65 |
 | ✅ | CMS — page editors, the page list and blog articles all save for real | HF-33 |
-| ❌ | Support Tickets | HF-69 |
+| ✅ | Support Tickets | HF-69 |
 | ❌ | Packages — redirects to CMS, not a real page | HF-41 |
 | ❌ | Announcements | HF-76 |
 | ❌ | Billing | — |
@@ -30,7 +30,7 @@ Last checked: 30 Aug 2026
 | ❌ | Preferences | — |
 | ❌ | Onboarding — redirects, not a real page | — |
 
-**5 of 15 done.**
+**6 of 15 done.**
 
 ---
 
@@ -179,7 +179,7 @@ and the patient portal's inner pages. Nobody is working on those.
 
 ## The short answer
 
-**41 of 66 pages are on real data.** The public site is nearly finished; the
+**42 of 66 pages are on real data.** The public site is nearly finished; the
 hospital admin panel is the bulk of what is left.
 
 Everything marked ❌ still works when you click it — it shows demo data that
