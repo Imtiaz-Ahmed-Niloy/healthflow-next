@@ -27,7 +27,7 @@ const Hero = ({ content }: { content: HomeContent }) => {
               </>
             )}
           </h1>
-          <p className="mt-6 text-base text-muted-foreground max-w-xl leading-relaxed md:text-base text-justify">
+          <p className="mt-6 text-base text-muted-foreground max-w-xl leading-relaxed md:text-base text-justify whitespace-pre-line">
             {content.heroDesc}
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
