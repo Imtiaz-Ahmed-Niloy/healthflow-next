@@ -107,8 +107,8 @@ const Queue = () => {
   );
 
   const handleAddWalkIn = async () => {
-    if (!form.name.trim() || !form.reason.trim()) {
-      toast.error("Please enter patient name and reason");
+    if (!form.name.trim()) {
+      toast.error("Please enter the patient's name");
       return;
     }
     setSubmitting(true);
@@ -120,7 +120,7 @@ const Queue = () => {
           full_name: form.name.trim(),
           date_of_birth: form.dob || undefined,
           phone: form.phone.trim() || undefined,
-          reason: form.reason.trim(),
+          reason: form.reason.trim() || undefined,
           priority: form.priority,
         }),
       });
@@ -239,7 +239,7 @@ const Queue = () => {
                   <Input id="phone" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+1 (555) 000-0000" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="reason">Reason for Visit</Label>
+                  <Label htmlFor="reason">Reason for Visit <span className="text-muted-foreground font-normal">(optional)</span></Label>
                   <Input id="reason" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Chest discomfort" />
                 </div>
                 <div className="space-y-1.5">

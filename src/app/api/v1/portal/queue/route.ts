@@ -159,7 +159,9 @@ const walkInSchema = z.object({
   full_name: z.string().trim().min(1, "Patient name is required").max(200),
   date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
   phone: z.string().trim().max(30).optional().or(z.literal("")),
-  reason: z.string().trim().min(1, "Reason for visit is required").max(500),
+  // Optional: a name is enough to get someone into the queue. Blank arrives
+  // as "" from the dialog and is stored as null, not an empty note.
+  reason: z.string().trim().max(500).optional().or(z.literal("")),
   priority: z.enum(["high", "standard", "routine"]).default("standard"),
 });
 
@@ -175,6 +177,7 @@ export const POST = async (request: Request) => {
   const { full_name, phone, reason, priority } = parsed.data;
   const date_of_birth = parsed.data.date_of_birth || undefined;
   const phoneValue = phone || undefined;
+  const reasonValue = reason || null;
 
   const supabase = await createServerSupabase();
 
@@ -228,7 +231,7 @@ export const POST = async (request: Request) => {
       scheduled_time: nowTime(),
       status: "scheduled",
       priority,
-      notes: reason,
+      notes: reasonValue,
     })
     .select("id, scheduled_time, priority")
     .single();

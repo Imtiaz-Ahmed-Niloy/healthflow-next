@@ -39,7 +39,7 @@ const sections = [
       "Open Queue. It shows today's appointments booked with you, soonest first, with how long each patient has been waiting.",
       "The tiles above the list are real counts: seen, remaining, and the average wait so far today.",
       "Filter by priority — High, Standard or Routine — using the buttons over the list. The priority is set when the appointment is booked.",
-      "Someone arriving without an appointment goes in through Add Walk-in Patient: a name and a reason is enough, and it creates the patient and today's appointment together.",
+      "Someone arriving without an appointment goes in through Add Walk-in Patient: the name is the only thing required — date of birth, phone and reason for visit are all optional — and it creates the patient and today's appointment together.",
       "Start Consult opens the prescription pad for that visit. Everything you write there is attached to that appointment.",
       "Seen Today, underneath, is what you have already completed — open one to read the chart back.",
     ],
@@ -180,7 +180,7 @@ const faqs = [
   },
   {
     q: "Someone walked in without an appointment. What do I do?",
-    a: "Queue → Add Walk-in Patient. A name and the reason for the visit is enough: it creates the patient record and today's appointment together, and they appear in your queue immediately.",
+    a: "Queue → Add Walk-in Patient. The name is the only required field; date of birth, phone and reason are optional. It creates the patient record and today's appointment together, and they appear in your queue immediately.",
   },
   {
     q: "Who can see what I post in the Community?",
