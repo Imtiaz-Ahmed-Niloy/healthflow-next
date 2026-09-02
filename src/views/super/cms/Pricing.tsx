@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, Save, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
-import type { PricingContent, PricingPlan, CompareRow, Faq } from "@/data/pricingContent";
+import type { PricingContent, PricingPlan, Faq } from "@/data/pricingContent";
 import { usePricingContent } from "@/data/usePricingContent";
 
 const describeError = (cause: unknown, fallback: string) =>
@@ -42,8 +42,14 @@ const CmsPricing = () => {
         ...data.plans,
         { name: "New Plan", price: "0", tag: "Description", cta: "Get Started", featured: false, features: [{ text: "Feature", on: true }] },
       ],
+      // Give the new plan a column in every compare row.
+      compareRows: data.compareRows.map(r => ({ ...r, values: [...r.values, "—"] })),
     });
-  const removePlan = (i: number) => update({ plans: data.plans.filter((_, idx) => idx !== i) });
+  const removePlan = (i: number) =>
+    update({
+      plans: data.plans.filter((_, idx) => idx !== i),
+      compareRows: data.compareRows.map(r => ({ ...r, values: r.values.filter((_, idx) => idx !== i) })),
+    });
 
   const updateFeature = (pi: number, fi: number, patch: Partial<{ text: string; on: boolean }>) => {
     const features = data.plans[pi].features.map((f, idx) => (idx === fi ? { ...f, ...patch } : f));
@@ -53,9 +59,16 @@ const CmsPricing = () => {
   const removeFeature = (pi: number, fi: number) =>
     updatePlan(pi, { features: data.plans[pi].features.filter((_, idx) => idx !== fi) });
 
-  const updateRow = (i: number, patch: Partial<CompareRow>) =>
-    update({ compareRows: data.compareRows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)) });
-  const addRow = () => update({ compareRows: [...data.compareRows, { label: "New spec", basic: "—", pro: "—", enterprise: "—" }] });
+  const updateRowLabel = (i: number, label: string) =>
+    update({ compareRows: data.compareRows.map((r, idx) => (idx === i ? { ...r, label } : r)) });
+  const updateCell = (ri: number, ci: number, value: string) =>
+    update({
+      compareRows: data.compareRows.map((r, idx) =>
+        idx === ri ? { ...r, values: r.values.map((v, vIdx) => (vIdx === ci ? value : v)) } : r,
+      ),
+    });
+  const addRow = () =>
+    update({ compareRows: [...data.compareRows, { label: "New spec", values: data.plans.map(() => "—") }] });
   const removeRow = (i: number) => update({ compareRows: data.compareRows.filter((_, idx) => idx !== i) });
 
   const updateFaq = (i: number, patch: Partial<Faq>) =>
@@ -169,24 +182,27 @@ const CmsPricing = () => {
           <SectionTitle title="Compare table" />
           <Btn onClick={addRow}><Plus className="h-4 w-4" />Add row</Btn>
         </div>
+        <p className="text-xs text-muted-foreground mt-1">One column per plan — columns follow the plans above.</p>
         <div className="overflow-x-auto mt-4">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-muted-foreground">
-                <th className="py-2 pr-2">Spec</th>
-                <th className="py-2 pr-2">Basic</th>
-                <th className="py-2 pr-2">Pro</th>
-                <th className="py-2 pr-2">Enterprise</th>
+                <th className="py-2 pr-2 min-w-[160px]">Spec</th>
+                {data.plans.map((p, pi) => (
+                  <th key={pi} className="py-2 pr-2 min-w-[140px]">{p.name || `Plan ${pi + 1}`}</th>
+                ))}
                 <th />
               </tr>
             </thead>
             <tbody>
               {data.compareRows.map((r, i) => (
                 <tr key={i} className="border-t border-border/60">
-                  <td className="py-2 pr-2"><Input value={r.label} onChange={e => updateRow(i, { label: e.target.value })} /></td>
-                  <td className="py-2 pr-2"><Input value={r.basic} onChange={e => updateRow(i, { basic: e.target.value })} /></td>
-                  <td className="py-2 pr-2"><Input value={r.pro} onChange={e => updateRow(i, { pro: e.target.value })} /></td>
-                  <td className="py-2 pr-2"><Input value={r.enterprise} onChange={e => updateRow(i, { enterprise: e.target.value })} /></td>
+                  <td className="py-2 pr-2"><Input value={r.label} onChange={e => updateRowLabel(i, e.target.value)} /></td>
+                  {data.plans.map((_, ci) => (
+                    <td key={ci} className="py-2 pr-2">
+                      <Input value={r.values[ci] ?? ""} onChange={e => updateCell(i, ci, e.target.value)} />
+                    </td>
+                  ))}
                   <td><button onClick={() => removeRow(i)} className="text-destructive hover:opacity-70"><Trash2 className="h-4 w-4" /></button></td>
                 </tr>
               ))}

@@ -62,14 +62,14 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
               <thead>
                 <tr className="border-b border-border">
                   <th className="py-4 font-display text-lg text-primary">Technical Specs</th>
-                  <th className="py-4 font-display text-lg text-primary">Basic</th>
-                  <th className="py-4 font-display text-lg text-primary">Pro</th>
-                  <th className="py-4 font-display text-lg text-primary">Enterprise</th>
+                  {plans.map((p, i) => (
+                    <th key={i} className="py-4 font-display text-lg text-primary">{p.name}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {compareRows.map((row, i) => {
-                  const cells = [row.label, row.basic, row.pro, row.enterprise];
+                  const cells = [row.label, ...row.values];
                   const bold = row.bold || [];
                   return (
                     <tr key={i} className="border-b border-border/60">
