@@ -116,15 +116,29 @@ export type AuditLogRow = Tables["audit_logs"]["Row"];
 /** What the feed needs to draw an author. */
 export type CommunityDoctor = Pick<DoctorRow, "id" | "name" | "specialty" | "photo_url">;
 
-export type CommunityCommentRow = Tables["community_comments"]["Row"] & {
+/**
+ * The same author seen through the public view, which reaches across hospitals
+ * where `doctors` cannot and carries the hospital's name. Its columns are all
+ * nullable — it is a view, and PostgREST types every column of one as
+ * optional.
+ */
+export type CommunityPublicDoctor = Pick<
+  Database["public"]["Views"]["doctors_public"]["Row"],
+  "id" | "name" | "specialty" | "photo_url" | "hospital_name"
+>;
+
+/** Either embed may be null; the screen takes whichever came back. */
+type WithAuthor = {
   doctors: CommunityDoctor | null;
+  doctors_public: CommunityPublicDoctor | null;
 };
+
+export type CommunityCommentRow = Tables["community_comments"]["Row"] & WithAuthor;
 
 /** Reactions arrive as rows, not counts — a count cannot tell you which is yours. */
 export type CommunityReactionRow = Tables["community_reactions"]["Row"];
 
-export type CommunityPostRow = Tables["community_posts"]["Row"] & {
-  doctors: CommunityDoctor | null;
+export type CommunityPostRow = Tables["community_posts"]["Row"] & WithAuthor & {
   community_comments: CommunityCommentRow[];
   community_reactions: Pick<CommunityReactionRow, "id" | "reaction" | "doctor_id">[];
 };

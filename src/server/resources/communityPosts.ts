@@ -52,16 +52,25 @@ export const communityPostsResource: ResourceDefinition<
    * The whole thread in one request: the author, every comment with its own
    * author, and every reaction.
    *
+   * Authors are embedded TWICE, and both are needed since 0060 opened the feed
+   * across hospitals. `doctors` is tenant-scoped by its own RLS, so it fills in
+   * for colleagues at your hospital and comes back null for everyone else;
+   * `doctors_public` reaches across hospitals but only covers active doctors at
+   * approved ones. Each covers the other's gap, and the screen takes whichever
+   * arrives. `doctors_public` is also where the author's hospital name comes
+   * from — which matters now that the person answering may work somewhere else.
+   *
    * Reactions come back as rows rather than counts because PostgREST cannot
    * group them, and because the client needs to know which one is YOURS — a
-   * count cannot tell you that. Fine for a hospital-sized feed; a post with
-   * thousands of reactions would want a view, and that is the point at which
-   * to write one.
+   * count cannot tell you that. A post with thousands of reactions would want
+   * a view; that is the point at which to write one.
    */
   select:
     "*, doctors ( id, name, specialty, photo_url ), "
+    + "doctors_public ( id, name, specialty, photo_url, hospital_name ), "
     + "community_comments ( id, body, is_suggestion, created_at, doctor_id, "
-    + "doctors ( id, name, specialty, photo_url ) ), "
+    + "doctors ( id, name, specialty, photo_url ), "
+    + "doctors_public ( id, name, specialty, photo_url, hospital_name ) ), "
     + "community_reactions ( id, reaction, doctor_id )",
 
   searchFields: ["content"],

@@ -7,11 +7,13 @@ import {
   Loader2, AlertCircle, Trash2, Users,
 } from "lucide-react";
 import { PortalLayout } from "@/components/portal/PortalLayout";
+import { useAppDispatch } from "@/redux/hooks";
+import { invalidateResource } from "@/redux/api/createResourceApi";
 import { mediaUrl } from "@/lib/media";
 import { formatDate, formatTime } from "@/lib/appSettings";
 import {
   communityPostsApi, communityCommentsApi, communityReactionsApi,
-  type CommunityPostRow, type CommunityDoctor,
+  type CommunityPostRow, type CommunityDoctor, type CommunityPublicDoctor,
 } from "@/redux/api/resources";
 
 /**
@@ -25,9 +27,10 @@ import {
  * every user of every hospital with the same three posts, and the header
  * claimed "2,148 doctors · 47 today".
  *
- * The feed is your own hospital's. That is enforced by policy, not here: these
- * posts carry case details, and this database keeps one hospital's clinical
- * material away from another everywhere else.
+ * The feed is every doctor on HealthFlow, not one hospital's (0060). Where an
+ * author works is shown beside their name, because the colleague answering your
+ * question may be at another hospital entirely. What is NOT shared is anything
+ * a post refers to: patients, appointments and prescriptions stay tenant-scoped.
  */
 
 type Category = CommunityPostRow["category"];
@@ -51,6 +54,16 @@ const REACTIONS: { value: Reaction; label: string; icon: typeof ThumbsUp }[] = [
 
 const FALLBACK_AVATAR = "/assets/doctor-avatar.jpg";
 
+/**
+ * What the server actually said. A generic "please try again" on a reaction is
+ * indistinguishable from the button doing nothing at all, which is exactly how
+ * this went wrong the first time.
+ */
+const reason = (cause: unknown) =>
+  (cause as { data?: { error?: { message?: string } } })?.data?.error?.message
+  ?? (cause as { error?: string })?.error
+  ?? "Please try again.";
+
 /** "2h ago" up to a day, then the real date — a week-old post saying "168h ago" helps nobody. */
 const when = (iso: string) => {
   const then = new Date(iso);
@@ -63,9 +76,29 @@ const when = (iso: string) => {
 
 type Me = { id: string; name: string; specialty: string | null; photo_url: string | null } | null;
 
-const Avatar = ({ doctor, className = "h-10 w-10" }: { doctor: CommunityDoctor | Me; className?: string }) => (
+/**
+ * Who wrote a post or a comment.
+ *
+ * Two embeds arrive and either can be null: `doctors` is tenant-scoped, so it
+ * fills in for your own colleagues; `doctors_public` reaches across hospitals
+ * and carries the hospital's name, but covers only active doctors at approved
+ * ones. Whichever came back is used, and the hospital shows when it is known —
+ * since 0060 the person answering may work somewhere else entirely.
+ */
+type Authored = { doctors: CommunityDoctor | null; doctors_public: CommunityPublicDoctor | null };
+
+const authorOf = (row: Authored) => ({
+  name: row.doctors?.name ?? row.doctors_public?.name ?? "A colleague",
+  specialty: row.doctors?.specialty ?? row.doctors_public?.specialty ?? null,
+  photo_url: row.doctors?.photo_url ?? row.doctors_public?.photo_url ?? null,
+  hospital: row.doctors_public?.hospital_name ?? null,
+});
+
+const Avatar = ({
+  photo, className = "h-10 w-10",
+}: { photo: string | null; className?: string }) => (
   <img
-    src={mediaUrl(doctor?.photo_url ?? null) || FALLBACK_AVATAR}
+    src={mediaUrl(photo) || FALLBACK_AVATAR}
     alt=""
     className={`${className} rounded-full object-cover bg-chip shrink-0`}
   />
@@ -114,8 +147,7 @@ const Community = () => {
           <div>
             <h1 className="font-display text-3xl text-primary">Doctor Community</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Share thoughts, ask questions, and discuss cases with the other doctors at your
-              hospital.
+              Share thoughts, ask questions, and discuss cases with doctors across HealthFlow.
             </p>
           </div>
           {/* A real count of what is actually here, or nothing at all. */}
@@ -129,8 +161,8 @@ const Community = () => {
           <div className="flex items-start gap-3 rounded-2xl bg-yellow-100/60 text-yellow-900 p-4 text-sm">
             <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
             <p>
-              You are signed in, but not as a doctor — so you can read the feed and remove a post
-              that should not be here, and you cannot write in it.
+              You are signed in, but not as a doctor — so you see your own hospital&apos;s posts
+              and can remove one that should not be there, and you cannot write in the feed.
             </p>
           </div>
         )}
@@ -187,7 +219,9 @@ const Community = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {posts.map((post) => <Post key={post.id} post={post} me={me} />)}
+            {posts.map((post) => (
+              <Post key={post.id} post={post} me={me} meLoading={loadingMe} />
+            ))}
           </div>
         )}
       </div>
@@ -274,7 +308,7 @@ const Composer = ({ me }: { me: NonNullable<Me> }) => {
   return (
     <div className="rounded-2xl bg-card border border-border/60 p-5 shadow-soft">
       <div className="flex gap-3">
-        <Avatar doctor={me} />
+        <Avatar photo={me.photo_url} />
         <div className="flex-1">
           <textarea
             value={content}
@@ -351,7 +385,20 @@ const Composer = ({ me }: { me: NonNullable<Me> }) => {
 
 /* -------------------------------------------------------------- post --- */
 
-const Post = ({ post, me }: { post: CommunityPostRow; me: Me }) => {
+const Post = ({
+  post, me, meLoading,
+}: {
+  post: CommunityPostRow;
+  me: Me;
+  /**
+   * The feed renders before /portal/me answers, and the reaction buttons need
+   * to know which doctor is pressing. While that is in flight they say so
+   * rather than sitting there disabled and silent — a dead button and a broken
+   * one look identical, which is how this was first reported.
+   */
+  meLoading: boolean;
+}) => {
+  const dispatch = useAppDispatch();
   const [showComments, setShowComments] = useState(false);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -362,7 +409,9 @@ const Post = ({ post, me }: { post: CommunityPostRow; me: Me }) => {
   const [createComment, { isLoading: commenting }] = communityCommentsApi.useCreate();
   const [removePost] = communityPostsApi.useRemove();
 
-  const reactions = post.community_reactions ?? [];
+  // Memoised so the `?? []` fallback does not hand the counts a new array on
+  // every render, which would make the memo below pointless.
+  const reactions = useMemo(() => post.community_reactions ?? [], [post.community_reactions]);
   const comments = post.community_comments ?? [];
   const mine = me ? reactions.find((r) => r.doctor_id === me.id) : undefined;
 
@@ -373,6 +422,7 @@ const Post = ({ post, me }: { post: CommunityPostRow; me: Me }) => {
   }, [reactions]);
 
   const media = (post.media as { key: string }[] | null) ?? [];
+  const author = authorOf(post);
 
   /**
    * One row per doctor per post, so this is three cases rather than a counter:
@@ -387,8 +437,14 @@ const Post = ({ post, me }: { post: CommunityPostRow; me: Me }) => {
       if (mine?.reaction === reaction) await removeReaction(mine.id).unwrap();
       else if (mine) await updateReaction(mine.id, { reaction }).unwrap();
       else await createReaction({ post_id: post.id, reaction }).unwrap();
-    } catch {
-      toast.error("Could not save that reaction", { description: "Please try again." });
+
+      // The reactions live on the FEED's rows, not in the reactions list this
+      // mutation invalidates on its own — so without this the write lands in
+      // the database and the screen sits there unchanged, which reads exactly
+      // like a button that does not work.
+      dispatch(invalidateResource("community-posts"));
+    } catch (cause) {
+      toast.error("Could not save that reaction", { description: reason(cause) });
     } finally {
       setBusy(false);
     }
@@ -400,11 +456,9 @@ const Post = ({ post, me }: { post: CommunityPostRow; me: Me }) => {
     try {
       await createComment({ post_id: post.id, body, is_suggestion: isSuggestion }).unwrap();
       setDraft("");
+      dispatch(invalidateResource("community-posts"));
     } catch (cause) {
-      const message =
-        (cause as { data?: { error?: { message?: string } } })?.data?.error?.message
-        ?? "Please try again.";
-      toast.error("Could not comment", { description: message });
+      toast.error("Could not comment", { description: reason(cause) });
     }
   };
 
@@ -428,13 +482,12 @@ const Post = ({ post, me }: { post: CommunityPostRow; me: Me }) => {
   return (
     <article className="rounded-2xl bg-card border border-border/60 p-5 shadow-soft">
       <header className="flex items-start gap-3">
-        <Avatar doctor={post.doctors} />
+        <Avatar photo={author.photo_url} />
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-primary truncate">
-            {post.doctors?.name ?? "A colleague"}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {post.doctors?.specialty ?? "—"} · {when(post.created_at)}
+          <p className="font-semibold text-primary truncate">{author.name}</p>
+          <p className="text-xs text-muted-foreground truncate">
+            {[author.specialty, author.hospital].filter(Boolean).join(" · ") || "—"}
+            {" · "}{when(post.created_at)}
           </p>
         </div>
         <span className="rounded-full bg-chip px-2.5 py-0.5 text-[11px] font-semibold text-chip-foreground shrink-0">
@@ -476,6 +529,7 @@ const Post = ({ post, me }: { post: CommunityPostRow; me: Me }) => {
               onClick={() => void react(value)}
               disabled={!me || busy}
               aria-pressed={on}
+              title={me ? label : meLoading ? "One moment — loading your profile" : "Only doctors can react"}
               className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50 ${
                 on ? "bg-primary/10 text-primary" : "text-foreground/70 hover:bg-chip"
               }`}
@@ -500,29 +554,35 @@ const Post = ({ post, me }: { post: CommunityPostRow; me: Me }) => {
 
       {showComments && (
         <div className="mt-3 space-y-3 border-t border-border/40 pt-3">
-          {comments.map((c) => (
-            <div key={c.id} className="flex gap-2.5">
-              <Avatar doctor={c.doctors} className="h-8 w-8" />
-              <div className="flex-1 min-w-0">
-                <div className={`rounded-xl px-3 py-2 ${c.is_suggestion ? "bg-primary/5 border border-primary/20" : "bg-muted/40"}`}>
-                  <p className="text-xs font-semibold text-primary">
-                    {c.doctors?.name ?? "A colleague"}
-                    {c.is_suggestion && (
-                      <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
-                        Suggestion
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-sm mt-0.5 whitespace-pre-wrap">{c.body}</p>
+          {comments.map((c) => {
+            const by = authorOf(c);
+            return (
+              <div key={c.id} className="flex gap-2.5">
+                <Avatar photo={by.photo_url} className="h-8 w-8" />
+                <div className="flex-1 min-w-0">
+                  <div className={`rounded-xl px-3 py-2 ${c.is_suggestion ? "bg-primary/5 border border-primary/20" : "bg-muted/40"}`}>
+                    <p className="text-xs font-semibold text-primary">
+                      {by.name}
+                      {by.hospital && (
+                        <span className="ml-1.5 font-normal text-muted-foreground">· {by.hospital}</span>
+                      )}
+                      {c.is_suggestion && (
+                        <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+                          Suggestion
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-sm mt-0.5 whitespace-pre-wrap">{c.body}</p>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">{when(c.created_at)}</p>
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-1">{when(c.created_at)}</p>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {me && (
             <div className="flex gap-2.5">
-              <Avatar doctor={me} className="h-8 w-8" />
+              <Avatar photo={me.photo_url} className="h-8 w-8" />
               <div className="flex-1">
                 <textarea
                   value={draft}

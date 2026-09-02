@@ -35,7 +35,10 @@ export const communityCommentsResource: ResourceDefinition<
   createSchema: communityCommentCreateSchema,
   updateSchema: communityCommentUpdateSchema,
 
-  select: "*, doctors ( id, name, specialty, photo_url )",
+  /** Both author embeds, for the reason given in communityPosts.ts. */
+  select:
+    "*, doctors ( id, name, specialty, photo_url ), "
+    + "doctors_public ( id, name, specialty, photo_url, hospital_name )",
 
   searchFields: ["body"],
   filterFields: ["post_id", "doctor_id"],

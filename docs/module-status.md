@@ -76,7 +76,7 @@ Last checked: 2 Sep 2026
 | ✅ | Patient Queue | HF-56 |
 | ✅ | Patient Directory | HF-60 |
 | ✅ | Schedule | HF-59 |
-| ✅ | Community — posts, comments and reactions, per hospital | — |
+| ✅ | Community — posts, comments and reactions, across every hospital | — |
 | ✅ | User Guide — static help text, nothing to save | — |
 
 **6 of 6 done.**
@@ -84,9 +84,11 @@ Last checked: 2 Sep 2026
 Three of these were missing from this file entirely until now. **Community**
 was the worst of them — posts lived in component state, so one survived until
 the next refresh — and is now on `community_posts`, `community_comments` and
-`community_reactions` (0059). The feed is scoped to your own hospital, which is
-a decision rather than an omission: the posts carry case details. It has no
-ticket.
+`community_reactions` (0059). The feed reaches every doctor on the platform
+(0060) — a colleague at another hospital is often exactly who you want an
+answer from — while what a post refers to, patients and appointments and
+prescriptions, stays tenant-scoped. A hospital admin still sees and moderates
+only their own hospital's threads. It has no ticket.
 
 **Medical Dictionary** (`/portal/medical-dictionary`) is built — a static
 glossary of 25 terms with search and filtering — but is **hidden from the menu**
