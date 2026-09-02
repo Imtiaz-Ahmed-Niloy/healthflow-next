@@ -7,7 +7,7 @@ import { Constants } from "@/lib/supabase/types";
  * supabase/migrations/0008_hospitals.sql. Form values post straight through to
  * /api/v1/hospitals with no mapping layer — see docs/module-guide.md.
  *
- * Only `name`, `trade_license` and `address` are required. The table holds every
+ * Only `name` and `address` are required. The table holds every
  * hospital in Bangladesh, most of them captured from partial public
  * information, so everything else has to be optional.
  */
@@ -22,7 +22,8 @@ export const HOSPITAL_FIELDS: FieldDef[] = [
   // Uploads to R2 and stores the object key, not a URL — see src/lib/media.ts.
   { name: "logo_url", label: "Hospital logo", type: "image", folder: "hospitals", step: 1 },
   { name: "name", label: "Hospital name", type: "text", required: true, step: 1 },
-  { name: "trade_license", label: "Trade licence number", type: "text", required: true, step: 1 },
+  { name: "trade_license", label: "Trade licence number", type: "text", step: 1 },
+  { name: "trade_license_doc", label: "Trade licence (PDF)", type: "document", step: 1 },
   { name: "tagline", label: "Tagline / Short description", type: "text", step: 1 },
   { name: "location", label: "Location (City, Country)", type: "text", step: 1 },
   { name: "address", label: "Full address", type: "text", required: true, step: 1 },
@@ -64,21 +65,30 @@ export const HOSPITAL_FIELDS: FieldDef[] = [
   { name: "awards", label: "Awards (comma separated)", type: "textarea", step: 1 },
   { name: "summary", label: "Summary", type: "textarea", step: 1 },
   { name: "about", label: "About / Full description", type: "textarea", step: 1 },
+  // Each licence is a number AND a scan (0061). The number is searchable and
+  // printable; the PDF is what proves it. Neither replaces the other, and the
+  // scans are never published — see the note at the foot of the migration.
   { name: "tin", label: "TIN", type: "text", step: 1 },
+  { name: "tin_doc", label: "TIN certificate (PDF)", type: "document", step: 1 },
   { name: "bin", label: "BIN", type: "text", step: 1 },
+  { name: "bin_doc", label: "BIN certificate (PDF)", type: "document", step: 1 },
   { name: "operating_license", label: "Operating licence number", type: "text", step: 1 },
+  { name: "operating_license_doc", label: "Operating licence (PDF)", type: "document", step: 1 },
   { name: "other_licenses", label: "Other licences & accreditations", type: "textarea", step: 1 },
+  { name: "other_licenses_doc", label: "Other licences & accreditations (PDF)", type: "document", step: 1 },
 
-  // The scanned documents are still absent, and for the original reason: the
-  // `file` / `files` widgets embed their contents as base64 data URIs, which
-  // would write megabytes into a text column. The columns above hold the
-  // reference *numbers*; the scans are a separate task under HF-8, and they
-  // need a private bucket with expiring links rather than the public one the
-  // logo uses (docs/image-uploads-r2.md).
+  // The scans arrived in 0061, and NOT through the `file` / `files` widgets:
+  // those embed their contents as base64 data URIs, which would write
+  // megabytes into a text column. `document` uploads to R2 and stores the key,
+  // the way `image` does for the logo.
   //
-  // `image` no longer has that problem — it uploads to R2 and stores a key —
-  // which is what let the logo above be added. `cover_image_url` can follow
-  // the same way whenever HF-8 wants it.
+  // The expiring-link problem the old note here raised is handled rather than
+  // dodged: the bucket is public, so nothing renders a document's public
+  // address — /api/v1/documents checks the caller against RLS and redirects to
+  // a presigned link good for one minute. Making the bucket itself private is
+  // a Cloudflare setting away and needs no code change.
+  //
+  // `cover_image_url` can still follow the logo's pattern whenever HF-8 wants it.
   //
   // Also absent: `package_id`. The old free-text `plan` select
   // (Starter/Pro/Enterprise) cannot populate a uuid foreign key; package

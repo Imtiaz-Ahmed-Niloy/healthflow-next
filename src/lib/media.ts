@@ -27,12 +27,26 @@ export const ALLOWED_IMAGE_TYPES = [
  */
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
+/**
+ * Scanned paperwork — a hospital's TIN certificate, trade licence, operating
+ * licence (0061). PDF only: a licence is a document, and accepting photos of
+ * one invites a blurry phone snap where a scan belongs.
+ */
+export const ALLOWED_DOCUMENT_TYPES = ["application/pdf"] as const;
+
+/**
+ * 10 MB. A scanned multi-page licence is heavier than a logo, and unlike a
+ * logo nobody is going to re-export it smaller.
+ */
+export const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
+
 const EXTENSIONS: Record<string, string> = {
   "image/png": "png",
   "image/jpeg": "jpg",
   "image/webp": "webp",
   "image/avif": "avif",
   "image/svg+xml": "svg",
+  "application/pdf": "pdf",
 };
 
 export type MediaFolder =
@@ -40,7 +54,12 @@ export type MediaFolder =
   // Images attached to a post on /portal/community (0059). Written by doctors,
   // which is why the upload route gates folders by role rather than letting
   // anyone signed in write anywhere.
-  | "community";
+  | "community"
+  // Scanned licences and certificates — a hospital's TIN, BIN, trade licence
+  // (0061). The only folder holding PDFs, and never published: the upload
+  // route gates who may write here, and hospitals_public carries neither the
+  // licence columns nor the columns pointing at these scans.
+  | "documents";
 
 /**
  * Where an uploaded file lands.

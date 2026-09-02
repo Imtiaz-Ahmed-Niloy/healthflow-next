@@ -29,6 +29,13 @@ const optionalDate = z.preprocess(blankToUndefined, z.string().trim().optional()
 const optionalEmail = z.preprocess(blankToUndefined, z.string().trim().email().optional());
 
 /**
+ * An R2 object key — "documents/2026/09/a1b2c3d4.pdf" — not a URL and not the
+ * file. Short by nature, so the cap is small enough that a data URL pasted in
+ * by an older client is refused rather than stored.
+ */
+const optionalMediaKey = z.preprocess(blankToUndefined, z.string().trim().max(300).optional());
+
+/**
  * Weekly operating hours.
  *
  * Mirrors public.is_operating_hours in 0054 and src/lib/hours.ts. All three
@@ -138,10 +145,12 @@ const managementBodySchema = z.preprocess(
 );
 
 export const hospitalCreateSchema = z.object({
-  // The only three required fields. Everything else is optional so a directory
+  // The only two required fields. Everything else is optional so a directory
   // row can be captured from partial public information.
   name: z.string().trim().min(1, "Hospital name is required").max(200),
-  trade_license: z.string().trim().min(1, "Trade licence number is required").max(120),
+  // Optional: a directory row is often captured before anyone has the licence
+  // number, and the unique index on the column ignores nulls (0008).
+  trade_license: z.preprocess(blankToUndefined, z.string().trim().max(120).optional()),
   address: z.string().trim().min(1, "Full address is required").max(2000),
 
   // directory
@@ -183,6 +192,13 @@ export const hospitalCreateSchema = z.object({
 
   // registration / licences
   tin: optionalText,
+  // Scans of each licence, alongside the numbers rather than instead of them
+  // (0061). Kept out of hospitals_public, like the numbers.
+  tin_doc: optionalMediaKey,
+  bin_doc: optionalMediaKey,
+  trade_license_doc: optionalMediaKey,
+  operating_license_doc: optionalMediaKey,
+  other_licenses_doc: optionalMediaKey,
   bin: optionalText,
   operating_license: optionalText,
   other_licenses: optionalText,
@@ -229,6 +245,13 @@ export const hospitalsResource: ResourceDefinition<HospitalCreate, HospitalUpdat
 
   createSchema: hospitalCreateSchema,
   updateSchema: hospitalUpdateSchema,
+  /**
+   * The package by name, not just the uuid the column holds. `package_id`
+   * means nothing to the person reading a hospital's details, and it is the
+   * only foreign key on this table (tenants_package_id_fkey).
+   */
+  select: "*, packages ( id, name, price_monthly )",
+
   searchFields: ["name", "region", "location"],
   filterFields: ["status", "division", "district", "subdistrict", "package_id"],
   defaultSort: { column: "created_at", ascending: false },

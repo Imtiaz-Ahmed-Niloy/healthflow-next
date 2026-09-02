@@ -3126,6 +3126,7 @@ export type Database = {
           awards: string | null
           beds: number | null
           bin: string | null
+          bin_doc: string | null
           board_notes: string | null
           ceo: string | null
           certifications: string | null
@@ -3147,7 +3148,9 @@ export type Database = {
           name: string
           opening_hours: Json | null
           operating_license: string | null
+          operating_license_doc: string | null
           other_licenses: string | null
+          other_licenses_doc: string | null
           owner_address: string | null
           owner_email: string | null
           owner_name: string | null
@@ -3167,7 +3170,9 @@ export type Database = {
           summary: string | null
           tagline: string | null
           tin: string | null
+          tin_doc: string | null
           trade_license: string | null
+          trade_license_doc: string | null
           updated_at: string
           websites: string[]
         }
@@ -3179,6 +3184,7 @@ export type Database = {
           awards?: string | null
           beds?: number | null
           bin?: string | null
+          bin_doc?: string | null
           board_notes?: string | null
           ceo?: string | null
           certifications?: string | null
@@ -3200,7 +3206,9 @@ export type Database = {
           name: string
           opening_hours?: Json | null
           operating_license?: string | null
+          operating_license_doc?: string | null
           other_licenses?: string | null
+          other_licenses_doc?: string | null
           owner_address?: string | null
           owner_email?: string | null
           owner_name?: string | null
@@ -3220,7 +3228,9 @@ export type Database = {
           summary?: string | null
           tagline?: string | null
           tin?: string | null
+          tin_doc?: string | null
           trade_license?: string | null
+          trade_license_doc?: string | null
           updated_at?: string
           websites?: string[]
         }
@@ -3232,6 +3242,7 @@ export type Database = {
           awards?: string | null
           beds?: number | null
           bin?: string | null
+          bin_doc?: string | null
           board_notes?: string | null
           ceo?: string | null
           certifications?: string | null
@@ -3253,7 +3264,9 @@ export type Database = {
           name?: string
           opening_hours?: Json | null
           operating_license?: string | null
+          operating_license_doc?: string | null
           other_licenses?: string | null
+          other_licenses_doc?: string | null
           owner_address?: string | null
           owner_email?: string | null
           owner_name?: string | null
@@ -3273,7 +3286,9 @@ export type Database = {
           summary?: string | null
           tagline?: string | null
           tin?: string | null
+          tin_doc?: string | null
           trade_license?: string | null
+          trade_license_doc?: string | null
           updated_at?: string
           websites?: string[]
         }

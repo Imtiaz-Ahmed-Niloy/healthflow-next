@@ -5,7 +5,12 @@ import { Upload, X, Plus, Copy, Facebook, Twitter, Instagram, Linkedin, Youtube,
 import { Card, Pill } from "./ui";
 import { DataTable, Toolbar, Modal, ConfirmDialog, RowActions, Drawer, exportCSV, useCrud, Field, Input, Select, Chips, statusTone, type Column } from "./crud";
 import { useResourceCrud } from "./useResourceCrud";
-import { mediaUrl, MAX_IMAGE_BYTES, ALLOWED_IMAGE_TYPES, type MediaFolder } from "@/lib/media";
+import { useFormatters } from "@/lib/appSettings";
+import { createPortal } from "react-dom";
+import {
+  mediaUrl, MAX_IMAGE_BYTES, ALLOWED_IMAGE_TYPES,
+  MAX_DOCUMENT_BYTES, ALLOWED_DOCUMENT_TYPES, type MediaFolder,
+} from "@/lib/media";
 import {
   DAYS, defaultWeek, parseWeek, serialiseWeek, summariseWeek, formatDay,
   type DayKey, type DayHours, type WeekHours,
@@ -30,13 +35,20 @@ function ImageUploadField({ name, required, defaultValue, folder = "hospitals" }
   const [preview, setPreview] = useState<string>(() => mediaUrl(defaultValue) || "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Purely visual: the zone lights up while a file is over it.
+  const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const upload = async (file: File) => {
     setError(null);
 
+    // The file input's `accept` filters the picker, but a drop bypasses it
+    // entirely — someone can drag a PDF onto this. Check the type ourselves
+    // rather than sending it and reading Cloudflare's refusal back.
+    if (!(ALLOWED_IMAGE_TYPES as readonly string[]).includes(file.type)) {
+      setError("That is not an image we take — PNG, JPG, WebP, AVIF or SVG.");
+      return;
+    }
     if (file.size > MAX_IMAGE_BYTES) {
       setError(`That image is ${(file.size / 1024 / 1024).toFixed(1)}MB — the limit is 5MB.`);
       return;
@@ -79,18 +91,61 @@ function ImageUploadField({ name, required, defaultValue, folder = "hospitals" }
     }
   };
 
+  const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) void upload(file);
+  };
+
+  // preventDefault on dragover is what makes a drop land here at all —
+  // without it the browser navigates away to the dropped file.
+  const onDragOver = (e: React.DragEvent) => {
+    if (busy) return;
+    e.preventDefault();
+    setDragging(true);
+  };
+
+  const onDragLeave = (e: React.DragEvent) => {
+    // Ignore the leave events fired while crossing the zone's own children.
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+    setDragging(false);
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    if (busy) return;
+    const file = e.dataTransfer.files?.[0];
+    if (file) void upload(file);
+  };
+
+  const openPicker = () => { if (!busy) inputRef.current?.click(); };
+
   const clear = () => { setStored(""); setPreview(""); setError(null); };
 
   return (
-    <div className="flex items-center gap-4">
-      <div className="h-24 w-24 rounded-xl bg-muted/40 border border-border/60 overflow-hidden flex items-center justify-center shrink-0">
+    <div
+      onDragOver={onDragOver}
+      onDragEnter={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      className={`flex items-center gap-4 rounded-xl border border-dashed p-3 transition-colors ${
+        dragging ? "border-primary bg-primary/5" : "border-border/60"
+      }`}
+    >
+      <button
+        type="button"
+        onClick={openPicker}
+        disabled={busy}
+        aria-label={preview ? "Change image" : "Choose an image"}
+        className="h-24 w-24 rounded-xl bg-muted/40 border border-border/60 overflow-hidden flex items-center justify-center shrink-0 disabled:opacity-60"
+      >
         {preview ? <img src={preview} alt="preview" className="h-full w-full object-cover" /> : <Upload className="h-5 w-5 text-muted-foreground" />}
-      </div>
+      </button>
       <div className="flex-1">
         <input type="hidden" name={name} value={stored} required={required} />
         <input ref={inputRef} type="file" accept={ALLOWED_IMAGE_TYPES.join(",")} onChange={onPick} className="hidden" />
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => inputRef.current?.click()} disabled={busy}
+          <button type="button" onClick={openPicker} disabled={busy}
             className="px-3 py-2 rounded-lg text-xs font-semibold bg-primary text-primary-foreground inline-flex items-center gap-1.5 disabled:opacity-60">
             <Upload className="h-3.5 w-3.5" /> {busy ? "Uploading…" : preview ? "Change" : "Upload"} image
           </button>
@@ -103,7 +158,9 @@ function ImageUploadField({ name, required, defaultValue, folder = "hospitals" }
         </div>
         {error
           ? <p className="text-[11px] text-destructive mt-1.5">{error}</p>
-          : <p className="text-[11px] text-muted-foreground mt-1.5">PNG, JPG, WebP, AVIF or SVG, up to 5MB.</p>}
+          : <p className="text-[11px] text-muted-foreground mt-1.5">
+              {dragging ? "Drop it here." : "Drag an image here, or click to choose. PNG, JPG, WebP, AVIF or SVG, up to 5MB."}
+            </p>}
       </div>
     </div>
   );
@@ -124,6 +181,154 @@ function ImageUploadField({ name, required, defaultValue, folder = "hospitals" }
  * and "Open 24 hours" are not times. Encoding them as 00:00–00:00 is how a
  * hospital ends up claiming to be shut and open at once.
  */
+/**
+ * A scanned licence or certificate — PDF, straight to R2, column holds the key
+ * (0061).
+ *
+ * Deliberately NOT FileUploadField, which base64-encodes the file into the
+ * column. That is what logos used to do, and a 2MB image became a ~2.7MB
+ * string inside Postgres; a scanned licence is heavier still. Same upload path
+ * as the logo instead: presigned PUT to Cloudflare, "documents/2026/09/x.pdf"
+ * in the row.
+ */
+function DocumentUploadField({ name, required, defaultValue, hint }: { name: string; required?: boolean; defaultValue?: string; hint?: string }) {
+  const [stored, setStored] = useState<string>(defaultValue || "");
+  // The name of the file the user just picked, so the field says "licence.pdf"
+  // rather than the opaque key. Nothing persists it — an existing document
+  // falls back to the filename inside its key.
+  const [label, setLabel] = useState<string>("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Never mediaUrl(): that builds the PUBLIC address, and a licence scan is
+  // not public. This route checks who is asking and hands back a link that
+  // expires in a minute.
+  const href = stored ? `/api/v1/documents?key=${encodeURIComponent(stored)}` : null;
+  const shown = label || (stored ? stored.split("/").pop() || "Document" : "");
+
+  const upload = async (file: File) => {
+    setError(null);
+
+    // A drop bypasses the picker's `accept` filter entirely.
+    if (!(ALLOWED_DOCUMENT_TYPES as readonly string[]).includes(file.type)) {
+      setError("Licence documents must be PDFs.");
+      return;
+    }
+    if (file.size > MAX_DOCUMENT_BYTES) {
+      setError(`That file is ${(file.size / 1024 / 1024).toFixed(1)}MB — the limit is 10MB.`);
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const permission = await fetch("/api/v1/uploads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folder: "documents", contentType: file.type, size: file.size }),
+      });
+      const body = await permission.json().catch(() => null);
+      if (!permission.ok) throw new Error(body?.error?.message || "Could not start the upload.");
+
+      const { key, uploadUrl } = body.data;
+
+      const put = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!put.ok) throw new Error("Cloudflare refused the upload.");
+
+      setStored(key);
+      setLabel(file.name);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not upload that document.");
+    } finally {
+      setBusy(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  };
+
+  const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) void upload(file);
+  };
+
+  // preventDefault on dragover is what makes a drop land here at all —
+  // without it the browser navigates away to the dropped file.
+  const onDragOver = (e: React.DragEvent) => {
+    if (busy) return;
+    e.preventDefault();
+    setDragging(true);
+  };
+
+  const onDragLeave = (e: React.DragEvent) => {
+    // Ignore the leave events fired while crossing the zone's own children.
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+    setDragging(false);
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    if (busy) return;
+    const file = e.dataTransfer.files?.[0];
+    if (file) void upload(file);
+  };
+
+  const openPicker = () => { if (!busy) inputRef.current?.click(); };
+
+  const clear = () => { setStored(""); setLabel(""); setError(null); };
+
+  return (
+    <div
+      onDragOver={onDragOver}
+      onDragEnter={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      className={`flex items-center gap-3 rounded-xl border border-dashed p-3 transition-colors ${
+        dragging ? "border-primary bg-primary/5" : "border-border/60"
+      }`}
+    >
+      <input type="hidden" name={name} value={stored} required={required} />
+      <input ref={inputRef} type="file" accept="application/pdf" onChange={onPick} className="hidden" />
+
+      <button type="button" onClick={openPicker} disabled={busy} aria-label={stored ? "Replace document" : "Choose a PDF"}
+        className="h-12 w-12 rounded-lg bg-muted/40 border border-border/60 flex items-center justify-center shrink-0 disabled:opacity-60">
+        <FileText className="h-5 w-5 text-muted-foreground" />
+      </button>
+
+      <div className="flex-1 min-w-0">
+        {stored ? (
+          <p className="text-xs font-semibold text-foreground truncate">
+            {href
+              ? <a href={href} target="_blank" rel="noreferrer" className="hover:underline">{shown}</a>
+              : shown}
+          </p>
+        ) : null}
+        <div className="flex items-center gap-2 mt-1">
+          <button type="button" onClick={openPicker} disabled={busy}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground inline-flex items-center gap-1.5 disabled:opacity-60">
+            <Upload className="h-3.5 w-3.5" /> {busy ? "Uploading…" : stored ? "Replace" : "Upload"} PDF
+          </button>
+          {stored && !busy && (
+            <button type="button" onClick={clear}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-border inline-flex items-center gap-1.5">
+              <X className="h-3.5 w-3.5" /> Remove
+            </button>
+          )}
+        </div>
+        {error
+          ? <p className="text-[11px] text-destructive mt-1.5">{error}</p>
+          : <p className="text-[11px] text-muted-foreground mt-1.5">
+              {dragging ? "Drop it here." : hint || "Drag the scan here, or click to choose. PDF, up to 10MB."}
+            </p>}
+      </div>
+    </div>
+  );
+}
+
 function WeeklyHoursField({ name, defaultValue }: { name: string; defaultValue?: unknown }) {
   const [week, setWeek] = useState<WeekHours>(() => parseWeek(defaultValue) ?? defaultWeek());
 
@@ -460,6 +665,181 @@ function PeopleField({ name, defaultValue, roleOptions, addLabel }: { name: stri
 export type SelectOption = string | { value: string; label: string };
 
 /** Normalises the two accepted option shapes to the one the markup needs. */
+/**
+ * One value in the view drawer.
+ *
+ * The drawer used to print `String(v)` for every column, which is fine for a
+ * name and useless for everything else: the weekly hours, the social links and
+ * the management body are all objects, and every one of them rendered as
+ * "[object Object]". The columns that hold real structure are the ones a
+ * person opens the drawer to read.
+ */
+/**
+ * A uuid is not information — nobody recognises
+ * "bb2c5b38-1745-4677-8de8-69c6eeb8ee40" as the Growth package. The drawer
+ * drops these columns entirely; where the name matters, the resource embeds
+ * the row it points at (hospitals embeds `packages`) and that is shown instead.
+ */
+const isIdColumn = (key: string) => key === "id" || key.endsWith("_id");
+
+/** "owner_email" reads better as "OWNER EMAIL" than "OWNER_EMAIL". */
+const label = (key: string) => key.replace(/_/g, " ").toUpperCase();
+
+/**
+ * Columns that hold a picture rather than a word: logo_url, cover_image_url,
+ * photo_url, avatar_url. The stored value is an R2 key, which tells the reader
+ * nothing; the picture tells them everything.
+ */
+const isImageColumn = (key: string) => /(logo|image|photo|avatar|cover)/.test(key);
+
+/** A thumbnail in the drawer, full size on click. */
+const DetailImage = ({ value }: { value: string }) => {
+  const [zoom, setZoom] = useState(false);
+  const src = mediaUrl(value);
+
+  useEffect(() => {
+    if (!zoom) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setZoom(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [zoom]);
+
+  // No R2 public base configured, or an empty column: show what is stored
+  // rather than a broken image.
+  if (!src) return <>{value}</>;
+
+  return (
+    <>
+      <button type="button" onClick={() => setZoom(true)} title="Open full size"
+        className="block rounded-lg overflow-hidden border border-border/60 hover:border-primary transition-colors">
+        <img src={src} alt="" className="h-24 w-24 object-cover" />
+      </button>
+
+      {zoom && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setZoom(false)}
+          className="fixed inset-0 z-[120] grid place-items-center bg-black/80 p-6 animate-in fade-in duration-150"
+        >
+          <button type="button" aria-label="Close" onClick={() => setZoom(false)}
+            className="absolute top-4 right-4 h-9 w-9 grid place-items-center rounded-full bg-card/90 border border-border/60 text-muted-foreground hover:text-primary">
+            <X className="h-4 w-4" />
+          </button>
+          {/* Clicking the picture itself must not close what you opened to look at. */}
+          <img src={src} alt="" onClick={e => e.stopPropagation()}
+            className="max-h-[90vh] max-w-[90vw] rounded-xl object-contain shadow-2xl" />
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+};
+
+/** "2026-08-29" and "2026-08-29T16:43:16.659416+00:00" respectively. */
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+const TIMESTAMP = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/;
+
+const DetailValue = ({ name, value }: { name: string; value: unknown }) => {
+  // The platform's timezone, date format and clock format (0057) — so a row
+  // written at 16:43 UTC reads as the Dhaka time the reader lives in.
+  const { formatDate, formatDateTime } = useFormatters();
+
+  if (value === null || value === undefined || value === "") {
+    return <span className="text-muted-foreground font-normal">—</span>;
+  }
+
+  // created_at, updated_at, and any date column: a raw ISO string is a
+  // machine's format, and it is what the drawer used to print.
+  if (typeof value === "string") {
+    if (TIMESTAMP.test(value)) return <>{formatDateTime(value)}</>;
+    if (DATE_ONLY.test(value)) return <>{formatDate(value)}</>;
+  }
+
+  if (typeof value === "boolean") return <>{value ? "Yes" : "No"}</>;
+
+  // A logo or photo: show the picture, not the key that points at it.
+  if (isImageColumn(name) && typeof value === "string") return <DetailImage value={value} />;
+
+  // A scanned licence (0061). The column holds an R2 key, which is no use to
+  // read; what the reader wants is to open the document. Through
+  // /api/v1/documents, never the public bucket address — see that route.
+  if (name.endsWith("_doc") && typeof value === "string") {
+    return (
+      <a
+        href={`/api/v1/documents?key=${encodeURIComponent(value)}`}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-1.5 text-primary hover:underline"
+      >
+        <FileText className="h-3.5 w-3.5 shrink-0" />
+        {value.split("/").pop() || "Document"}
+      </a>
+    );
+  }
+
+  // The weekly opening hours, shown the way the public page shows them:
+  // "Mon – Fri · 9:00 AM – 5:00 PM" rather than seven near-identical rows.
+  const week = name === "opening_hours" ? parseWeek(value) : null;
+  if (week) {
+    return (
+      <span className="flex flex-col gap-0.5">
+        {summariseWeek(week).map(row => (
+          <span key={row.days}>
+            <span className="font-normal text-muted-foreground">{row.days}</span> · {row.hours}
+          </span>
+        ))}
+      </span>
+    );
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) return <span className="text-muted-foreground font-normal">—</span>;
+    return (
+      <span className="flex flex-col gap-0.5">
+        {value.map((item, i) => <span key={i}>{describe(item)}</span>)}
+      </span>
+    );
+  }
+
+  if (typeof value === "object") {
+    // An embedded row — the package a hospital is on, say. Its name is the
+    // whole reason it was embedded; the rest is the machinery behind it.
+    const named = (value as Record<string, unknown>).name;
+    if (typeof named === "string" && named) return <>{named}</>;
+
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([k, v]) => !isIdColumn(k) && v !== null && v !== "");
+    if (entries.length === 0) return <span className="text-muted-foreground font-normal">—</span>;
+    return (
+      <span className="flex flex-col gap-0.5">
+        {entries.map(([k, v]) => (
+          <span key={k}>
+            <span className="font-normal text-muted-foreground">{k.replace(/_/g, " ")}:</span> {describe(v)}
+          </span>
+        ))}
+      </span>
+    );
+  }
+
+  return <>{String(value)}</>;
+};
+
+/**
+ * One item of a list: "Dr Karim · Chairman · 01711…" for a person, the value
+ * itself for a plain string. Keys are dropped because the values carry their
+ * own meaning here and the labels would double the length of every line.
+ */
+const describe = (item: unknown): string => {
+  if (item === null || item === undefined) return "—";
+  if (typeof item !== "object") return String(item);
+  return Object.entries(item as Record<string, unknown>)
+    .filter(([k, v]) => !isIdColumn(k) && v !== null && v !== undefined && v !== "")
+    .map(([, v]) => v)
+    .map(v => (typeof v === "object" ? JSON.stringify(v) : String(v)))
+    .join(" · ") || "—";
+};
+
 const toOptions = (options: SelectOption[]) =>
   options.map(o => (typeof o === "string" ? { value: o, label: o } : o));
 
@@ -488,6 +868,8 @@ export type FieldDef = (
   | { name: string; label: string; type: "textarea"; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "image"; folder?: MediaFolder; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "file"; accept?: string; hint?: string; required?: boolean; fullWidth?: boolean }
+  // A scanned PDF in R2, the column holding its object key — DocumentUploadField.
+  | { name: string; label: string; type: "document"; hint?: string; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "files"; accept?: string; hint?: string; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "list"; itemType?: "text" | "email" | "tel" | "url"; placeholder?: string; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "social"; required?: boolean; fullWidth?: boolean }
@@ -511,7 +893,7 @@ export function RecordFormFields({
       {fields.map(f => {
         const fieldStep = f.step ?? ids[0];
         const hidden = activeStepId !== undefined ? fieldStep !== activeStepId : false;
-        const wide = f.fullWidth || f.type === "textarea" || f.type === "image" || f.type === "file" || f.type === "files" || f.type === "list" || f.type === "social" || f.type === "hours" || f.type === "people";
+        const wide = f.fullWidth || f.type === "textarea" || f.type === "image" || f.type === "file" || f.type === "document" || f.type === "files" || f.type === "list" || f.type === "social" || f.type === "hours" || f.type === "people";
         return (
           <div key={f.name} className={`${wide ? "col-span-2" : ""} ${hidden ? "hidden" : ""}`}>
             <Field label={f.label} required={f.required}>
@@ -526,6 +908,8 @@ export function RecordFormFields({
                 <ImageUploadField name={f.name} required={f.required} folder={f.folder} defaultValue={(editing as never)?.[f.name] ?? ""} />
               ) : f.type === "file" ? (
                 <FileUploadField name={f.name} required={f.required} accept={f.accept} hint={f.hint} defaultValue={(editing as never)?.[f.name] ?? ""} />
+              ) : f.type === "document" ? (
+                <DocumentUploadField name={f.name} required={f.required} hint={f.hint} defaultValue={(editing as never)?.[f.name] ?? ""} />
               ) : f.type === "files" ? (
                 <FilesUploadField name={f.name} accept={f.accept} hint={f.hint} defaultValue={(editing as never)?.[f.name] ?? ""} />
               ) : f.type === "list" ? (
@@ -847,7 +1231,7 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
             {config.fields.map(f => {
               const fieldStep = f.step ?? stepIds[0];
               const hidden = steps ? fieldStep !== activeStepId : false;
-              const wide = f.fullWidth || f.type === "textarea" || f.type === "image" || f.type === "file" || f.type === "files" || f.type === "list" || f.type === "social" || f.type === "hours" || f.type === "people";
+              const wide = f.fullWidth || f.type === "textarea" || f.type === "image" || f.type === "file" || f.type === "document" || f.type === "files" || f.type === "list" || f.type === "social" || f.type === "hours" || f.type === "people";
               return (
                 <div key={f.name} className={`${wide ? "col-span-2" : ""} ${hidden ? "hidden" : ""}`}>
                   <Field label={f.label} required={f.required}>
@@ -862,6 +1246,8 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
                       <ImageUploadField name={f.name} required={f.required} folder={f.folder} defaultValue={(editing as never)?.[f.name] ?? ""} />
                     ) : f.type === "file" ? (
                       <FileUploadField name={f.name} required={f.required} accept={f.accept} hint={f.hint} defaultValue={(editing as never)?.[f.name] ?? ""} />
+                    ) : f.type === "document" ? (
+                      <DocumentUploadField name={f.name} required={f.required} hint={f.hint} defaultValue={(editing as never)?.[f.name] ?? ""} />
                     ) : f.type === "files" ? (
                       <FilesUploadField name={f.name} accept={f.accept} hint={f.hint} defaultValue={(editing as never)?.[f.name] ?? ""} />
                     ) : f.type === "list" ? (
@@ -891,11 +1277,13 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
       <Drawer open={!!viewing} onClose={() => setViewing(null)} title="Details">
         {viewing && (
           <div className="space-y-3 text-sm">
-            {Object.entries(viewing).map(([k, v]) => (
+            {Object.entries(viewing).filter(([k]) => !isIdColumn(k)).map(([k, v]) => (
               <div key={k} className="border-b border-border/40 pb-2">
-                <p className="text-[10px] tracking-widest text-muted-foreground">{k.toUpperCase()}</p>
-                <p className="text-primary font-semibold mt-0.5 break-all">
-                  {k === "status" ? <Pill tone={statusTone(String(v))}>{String(v)}</Pill> : String(v)}
+                <p className="text-[10px] tracking-widest text-muted-foreground">{label(k)}</p>
+                <p className="text-primary font-semibold mt-0.5 break-words">
+                  {k === "status"
+                    ? <Pill tone={statusTone(String(v))}>{String(v)}</Pill>
+                    : <DetailValue name={k} value={v} />}
                 </p>
               </div>
             ))}
