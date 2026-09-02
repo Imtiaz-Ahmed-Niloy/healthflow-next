@@ -226,6 +226,10 @@ const Queue = () => {
               </DialogHeader>
               <div className="space-y-4 py-2">
                 <div className="space-y-1.5">
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <Input id="phone" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+1 (555) 000-0000" />
+                </div>
+                <div className="space-y-1.5">
                   <Label htmlFor="name">Patient Name</Label>
                   <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Jane Doe" />
                 </div>
@@ -233,10 +237,6 @@ const Queue = () => {
                   <Label htmlFor="dob">Date of Birth</Label>
                   <Input id="dob" type="date" value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })}
                     max={new Date().toISOString().split("T")[0]} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input id="phone" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+1 (555) 000-0000" />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="reason">Reason for Visit <span className="text-muted-foreground font-normal">(optional)</span></Label>
