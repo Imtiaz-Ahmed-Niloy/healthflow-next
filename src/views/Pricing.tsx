@@ -15,7 +15,7 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
             <span className="inline-flex rounded-full bg-chip text-chip-foreground px-4 py-1.5 text-xs font-semibold">{hero.eyebrow}</span>
             <h1 className="mt-5 font-display text-4xl md:text-6xl text-primary">{hero.title}</h1>
-            <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">{hero.subtitle}</p>
+            <p className="text-muted-foreground mt-4 max-w-2xl mx-auto whitespace-pre-line">{hero.subtitle}</p>
           </motion.div>
         </section>
 
@@ -95,7 +95,7 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
                 <motion.div key={f.q}
                   initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4, delay: i * 0.05 }}>
                   <h3 className="font-semibold text-primary">{f.q}</h3>
-                  <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{f.a}</p>
+                  <p className="text-sm text-muted-foreground mt-2 leading-relaxed whitespace-pre-line">{f.a}</p>
                 </motion.div>
               ))}
             </div>

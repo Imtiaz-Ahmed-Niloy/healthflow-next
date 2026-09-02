@@ -59,7 +59,7 @@ const Contact = ({ hero, content }: { hero: CmsHeroFields; content: ContactConte
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="max-w-3xl">
           {hero.eyebrow && <span className="text-xs font-bold tracking-[0.2em] text-primary-glow">{hero.eyebrow}</span>}
           <h1 className="font-display text-4xl md:text-6xl text-primary mt-4 leading-[1.05]">{hero.title}</h1>
-          <p className="text-muted-foreground mt-5 max-w-xl">{hero.description}</p>
+          <p className="text-muted-foreground mt-5 max-w-xl whitespace-pre-line">{hero.description}</p>
         </motion.div>
 
         <div className="grid lg:grid-cols-2 gap-10 mt-14">
@@ -125,7 +125,7 @@ const Contact = ({ hero, content }: { hero: CmsHeroFields; content: ContactConte
 
             <div className="border-t border-border/60 pt-8">
               <h2 className="font-display text-2xl md:text-3xl text-primary">{sanctuary.title}</h2>
-              <p className="text-sm text-muted-foreground mt-3">{sanctuary.description}</p>
+              <p className="text-sm text-muted-foreground mt-3 whitespace-pre-line">{sanctuary.description}</p>
               <div className="relative mt-5 rounded-2xl overflow-hidden h-56 bg-muted">
                 <div className="absolute inset-0 opacity-70" style={{
                   backgroundImage: `linear-gradient(45deg, hsl(var(--muted)) 25%, transparent 25%, transparent 75%, hsl(var(--muted)) 75%), linear-gradient(45deg, hsl(var(--muted)) 25%, hsl(var(--accent) / 0.3) 25%, hsl(var(--accent) / 0.3) 75%, hsl(var(--muted)) 75%)`,
@@ -144,7 +144,7 @@ const Contact = ({ hero, content }: { hero: CmsHeroFields; content: ContactConte
                 <div className="h-10 w-10 rounded-xl bg-accent/60 grid place-items-center shrink-0"><Leaf className="h-4 w-4 text-primary" /></div>
                 <div>
                   <div className="font-semibold text-primary">{sanctuary.noteTitle}</div>
-                  <div className="text-xs text-muted-foreground">{sanctuary.noteDescription}</div>
+                  <div className="text-xs text-muted-foreground whitespace-pre-line">{sanctuary.noteDescription}</div>
                 </div>
               </div>
             </div>

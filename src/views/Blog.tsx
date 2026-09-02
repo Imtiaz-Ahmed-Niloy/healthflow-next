@@ -93,7 +93,7 @@ const Blog = ({ chrome, posts }: { chrome: BlogContent; posts: BlogPost[] }) => 
                   {lead.title}
                 </h2>
               </Link>
-              <p className="text-base md:text-lg text-foreground/70 mt-4 leading-relaxed first-letter:font-display first-letter:text-5xl first-letter:float-left first-letter:mr-2 first-letter:leading-[0.85] first-letter:text-primary">
+              <p className="text-base md:text-lg text-foreground/70 mt-4 leading-relaxed whitespace-pre-line first-letter:font-display first-letter:text-5xl first-letter:float-left first-letter:mr-2 first-letter:leading-[0.85] first-letter:text-primary">
                 {lead.dek} {leadKicker}
               </p>
               <div className="mt-5 overflow-hidden rounded-2xl border border-border/60">
