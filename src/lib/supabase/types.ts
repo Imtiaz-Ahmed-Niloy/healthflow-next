@@ -1798,6 +1798,112 @@ export type Database = {
           },
         ]
       }
+      journal_entries: {
+        Row: {
+          created_at: string
+          entry_date: string
+          entry_no: string
+          id: string
+          narration: string | null
+          party: string | null
+          status: Database["public"]["Enums"]["journal_status"]
+          tenant_id: string
+          type: Database["public"]["Enums"]["voucher_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          entry_date?: string
+          entry_no: string
+          id?: string
+          narration?: string | null
+          party?: string | null
+          status?: Database["public"]["Enums"]["journal_status"]
+          tenant_id: string
+          type?: Database["public"]["Enums"]["voucher_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          entry_date?: string
+          entry_no?: string
+          id?: string
+          narration?: string | null
+          party?: string | null
+          status?: Database["public"]["Enums"]["journal_status"]
+          tenant_id?: string
+          type?: Database["public"]["Enums"]["voucher_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_entries_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_lines: {
+        Row: {
+          account_id: string
+          created_at: string
+          credit: number
+          debit: number
+          entry_id: string
+          id: string
+          tenant_id: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          entry_id: string
+          id?: string
+          tenant_id: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          entry_id?: string
+          id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_balances"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "journal_lines_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lab_orders: {
         Row: {
           created_at: string
@@ -2003,6 +2109,50 @@ export type Database = {
           },
           {
             foreignKeyName: "leave_requests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ledger_accounts: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          group: Database["public"]["Enums"]["ledger_group"]
+          id: string
+          name: string
+          opening_balance: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          group: Database["public"]["Enums"]["ledger_group"]
+          id?: string
+          name: string
+          opening_balance?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          group?: Database["public"]["Enums"]["ledger_group"]
+          id?: string
+          name?: string
+          opening_balance?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_accounts_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -3475,6 +3625,29 @@ export type Database = {
       }
     }
     Views: {
+      ledger_balances: {
+        Row: {
+          account_id: string | null
+          active: boolean | null
+          balance: number | null
+          code: string | null
+          credit_total: number | null
+          debit_total: number | null
+          group: Database["public"]["Enums"]["ledger_group"] | null
+          name: string | null
+          opening_balance: number | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_accounts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctors_public: {
         Row: {
           availability: string | null
@@ -3638,6 +3811,26 @@ export type Database = {
           total: number
         }[]
       }
+      post_journal_entry: {
+        Args: { p_entry_id: string }
+        Returns: Database["public"]["Tables"]["journal_entries"]["Row"]
+      }
+      record_voucher: {
+        Args: {
+          p_entry_date: string
+          p_entry_no: string
+          p_lines: Json
+          p_narration: string | null
+          p_party: string | null
+          p_post?: boolean
+          p_type: Database["public"]["Enums"]["voucher_type"]
+        }
+        Returns: Database["public"]["Tables"]["journal_entries"]["Row"]
+      }
+      seed_chart_of_accounts: {
+        Args: never
+        Returns: Database["public"]["Tables"]["ledger_accounts"]["Row"][]
+      }
       is_my_patient_record: { Args: { p_patient_id: string }; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       record_medicine_usage: {
@@ -3728,12 +3921,14 @@ export type Database = {
       community_reaction: "like" | "love" | "insightful"
       doctor_status: "active" | "on_leave" | "suspended"
       finance_invoice_kind: "receivable" | "payable"
+      journal_status: "draft" | "posted"
       lab_order_status:
         | "pending"
         | "sample_collected"
         | "processing"
         | "reported"
       leave_status: "pending" | "approved" | "rejected"
+      ledger_group: "asset" | "liability" | "income" | "expense" | "capital"
       leave_type: "sick" | "casual" | "vacation" | "maternity" | "unpaid"
       marital_status: "single" | "married" | "divorced" | "widowed"
       patient_gender: "male" | "female" | "other"
@@ -3749,6 +3944,15 @@ export type Database = {
       support_ticket_priority: "low" | "medium" | "high" | "critical"
       support_ticket_status: "pending" | "processing" | "resolved"
       tenant_status: "pending" | "approved" | "suspended"
+      voucher_type:
+        | "payment"
+        | "receipt"
+        | "contra"
+        | "journal"
+        | "sales"
+        | "purchase"
+        | "credit_note"
+        | "debit_note"
       ward_category:
         | "general"
         | "semi_private"
