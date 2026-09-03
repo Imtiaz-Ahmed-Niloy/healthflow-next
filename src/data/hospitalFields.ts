@@ -14,13 +14,14 @@ import { Constants } from "@/lib/supabase/types";
 
 export const HOSPITAL_STEPS: FormStep[] = [
   { id: 1, label: "Hospital details" },
-  { id: 2, label: "Owner & Management" },
+  // The pictures get a step of their own rather than sitting on top of step 1,
+  // where they pushed the name and address below the fold.
+  { id: 2, label: "Photos & Branding" },
+  { id: 3, label: "Owner & Management" },
 ];
 
 export const HOSPITAL_FIELDS: FieldDef[] = [
   // ===== Step 1: Hospital details =====
-  // Uploads to R2 and stores the object key, not a URL — see src/lib/media.ts.
-  { name: "logo_url", label: "Hospital logo", type: "image", folder: "hospitals", step: 1 },
   { name: "name", label: "Hospital name", type: "text", required: true, step: 1 },
   { name: "trade_license", label: "Trade licence number", type: "text", step: 1 },
   { name: "trade_license_doc", label: "Trade licence (PDF)", type: "document", step: 1 },
@@ -88,23 +89,21 @@ export const HOSPITAL_FIELDS: FieldDef[] = [
   // a presigned link good for one minute. Making the bucket itself private is
   // a Cloudflare setting away and needs no code change.
   //
-  // `cover_image_url` can still follow the logo's pattern whenever HF-8 wants it.
-  //
   // Also absent: `package_id`. The old free-text `plan` select
   // (Starter/Pro/Enterprise) cannot populate a uuid foreign key; package
   // assignment needs its own UI sourced from the packages table.
 
-  // ===== Step 2: Owner & Management body =====
-  { name: "owner_name", label: "Owner full name", type: "text", step: 2 },
-  { name: "ownership_type", label: "Ownership type", type: "select", options: ["", "Individual / Proprietor", "Partnership", "Private Limited Company", "Public Limited Company", "Trust / NGO", "Government", "Other"], step: 2 },
-  { name: "owner_nid", label: "Owner NID / Passport No.", type: "text", step: 2 },
-  { name: "owner_email", label: "Owner email (fallback for the admin login)", type: "email", step: 2 },
-  { name: "owner_phone", label: "Owner phone", type: "tel", step: 2 },
-  { name: "owner_since", label: "Owner since (date)", type: "date", step: 2 },
-  { name: "owner_address", label: "Owner address", type: "textarea", step: 2 },
-  { name: "chairman", label: "Chairman / Board Chair", type: "text", step: 2 },
-  { name: "ceo", label: "CEO / Managing Director", type: "text", step: 2 },
-  { name: "medical_director", label: "Medical Director", type: "text", step: 2 },
+  // ===== Step 3: Owner & Management body =====
+  { name: "owner_name", label: "Owner full name", type: "text", step: 3 },
+  { name: "ownership_type", label: "Ownership type", type: "select", options: ["", "Individual / Proprietor", "Partnership", "Private Limited Company", "Public Limited Company", "Trust / NGO", "Government", "Other"], step: 3 },
+  { name: "owner_nid", label: "Owner NID / Passport No.", type: "text", step: 3 },
+  { name: "owner_email", label: "Owner email (fallback for the admin login)", type: "email", step: 3 },
+  { name: "owner_phone", label: "Owner phone", type: "tel", step: 3 },
+  { name: "owner_since", label: "Owner since (date)", type: "date", step: 3 },
+  { name: "owner_address", label: "Owner address", type: "textarea", step: 3 },
+  { name: "chairman", label: "Chairman / Board Chair", type: "text", step: 3 },
+  { name: "ceo", label: "CEO / Managing Director", type: "text", step: 3 },
+  { name: "medical_director", label: "Medical Director", type: "text", step: 3 },
   {
     name: "management_body", label: "Management body members", type: "people",
     addLabel: "Add management member",
@@ -113,7 +112,15 @@ export const HOSPITAL_FIELDS: FieldDef[] = [
       "Director of Nursing", "Chief Financial Officer", "Chief Operating Officer",
       "HR Director", "IT Director", "Board Member", "Other",
     ],
-    step: 2,
+    step: 3,
   },
-  { name: "board_notes", label: "Board / governance notes", type: "textarea", step: 2 },
+  { name: "board_notes", label: "Board / governance notes", type: "textarea", step: 3 },
+
+  // ===== Step 2: Photos & Branding =====
+  // Both upload to R2 and store the object KEY, not a URL — see src/lib/media.ts.
+  { name: "logo_url", label: "Hospital logo", type: "image", folder: "hospitals", step: 2 },
+  // The wide photo across the top of /hospitals/<slug>. Published, unlike the
+  // licence scans on step 1 — hospitals_public carries this column (0008), so
+  // whatever goes here is visible to the whole internet.
+  { name: "cover_image_url", label: "Hospital cover photo", type: "image", folder: "hospitals", step: 2 },
 ];

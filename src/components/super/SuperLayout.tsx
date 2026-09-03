@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode, useEffect, useState } from "react";
+import { Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
 import { NavLink } from "@/components/NavLink";
 import { usePathname, useRouter } from "next/navigation";
@@ -35,6 +36,7 @@ export const superNav = [
   { to: "/super/billing", icon: Receipt, label: "Billing", group: "Commerce" },
   { to: "/super/cms", icon: FileCode2, label: "CMS Management", group: "Content" },
   { to: "/super/announcements", icon: Megaphone, label: "Announcements", group: "Content" },
+  { to: "/super/ads", icon: ImageIcon, label: "Advertisements", group: "Content" },
   { to: "/super/contact-messages", icon: Mail, label: "Contact Messages", group: "Content" },
   { to: "/super/tickets", icon: LifeBuoy, label: "Support Tickets", group: "System" },
   { to: "/super/integrations", icon: Network, label: "Integrations", group: "System" },

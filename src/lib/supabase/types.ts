@@ -14,6 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      ads: {
+        Row: {
+          active: boolean
+          badge: string | null
+          badge_tone: string
+          body: string | null
+          created_at: string
+          ends_on: string | null
+          id: string
+          image_url: string | null
+          link_url: string | null
+          position: number
+          placement: Database["public"]["Enums"]["ad_placement"]
+          side: Database["public"]["Enums"]["ad_side"]
+          starts_on: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          badge?: string | null
+          badge_tone?: string
+          body?: string | null
+          created_at?: string
+          ends_on?: string | null
+          id?: string
+          image_url?: string | null
+          link_url?: string | null
+          position?: number
+          side: Database["public"]["Enums"]["ad_side"]
+          starts_on?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          badge?: string | null
+          badge_tone?: string
+          body?: string | null
+          created_at?: string
+          ends_on?: string | null
+          id?: string
+          image_url?: string | null
+          link_url?: string | null
+          position?: number
+          placement?: Database["public"]["Enums"]["ad_placement"]
+          side?: Database["public"]["Enums"]["ad_side"]
+          starts_on?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       admissions: {
         Row: {
           admitted_at: string
@@ -3868,6 +3921,8 @@ export type Database = {
       }
     }
     Enums: {
+      ad_placement: "signin"
+      ad_side: "left" | "right"
       admission_priority: "routine" | "urgent" | "critical"
       admission_status:
         | "admitted"

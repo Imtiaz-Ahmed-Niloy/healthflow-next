@@ -57,6 +57,12 @@ export type NursePerformanceRow = Tables["nurse_performance"]["Row"] & {
 /** Support staff carry no relations, so the row is the table row. */
 export type SupportStaffRow = Tables["support_staff"]["Row"];
 
+/**
+ * One promotional card (0064, 0065). `placement` says which page shows it;
+ * platform-level, so the row has no tenant.
+ */
+export type AdRow = Tables["ads"]["Row"];
+
 /** Contact form submissions carry no relations — the sender is not a user. */
 export type ContactMessageRow = Tables["contact_messages"]["Row"];
 

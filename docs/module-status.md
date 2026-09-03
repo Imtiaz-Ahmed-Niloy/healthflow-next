@@ -25,13 +25,14 @@ Last checked: 3 Sep 2026
 | ✅ | Billing — monthly usage invoices per hospital | — |
 | ✅ | CMS Management — page editors, the page list and blog articles all save | HF-33 |
 | ✅ | Announcements | HF-76 |
+| ✅ | Advertisements — promotional cards, placed per page | — |
 | ✅ | Contact Messages | HF-65 |
 | ✅ | Support Tickets | HF-69 |
 | ❌ | Integrations | — |
 | ✅ | Global Settings — platform defaults and the maintenance notice | — |
 | ❌ | Preferences | — |
 
-**11 of 14 done.**
+**12 of 15 done.**
 
 `/super/onboarding` is not on this list any more because it is not on the menu:
 Hospital Management lists every hospital and `pending` is the queue, so the
@@ -194,7 +195,7 @@ and the finance and system pages above. Nobody is working on those.
 
 ## The short answer
 
-**53 of 66 pages are on real data.** The public site is nearly finished; the
+**54 of 67 pages are on real data.** The public site is nearly finished; the
 hospital admin panel is the bulk of what is left.
 
 Everything marked ❌ still works when you click it — it shows demo data that

@@ -59,7 +59,10 @@ export type MediaFolder =
   // (0061). The only folder holding PDFs, and never published: the upload
   // route gates who may write here, and hospitals_public carries neither the
   // licence columns nor the columns pointing at these scans.
-  | "documents";
+  | "documents"
+  // Images on the promotional cards beside the sign-in form (0064). Public by
+  // nature — they are shown to anyone who opens /signin.
+  | "ads";
 
 /**
  * Where an uploaded file lands.

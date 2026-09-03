@@ -53,11 +53,14 @@ const FOLDER_ROLES: Record<MediaFolder, AppRole[]> = {
   // files shelf (0062) — hr_admin keeps the staff paperwork. super_admin
   // passes here as everywhere.
   documents: ["hospital_admin", "hr_admin"],
+  // The sign-in page's promotional cards. Nobody but a super admin edits the
+  // platform's front door, and an empty list means exactly that.
+  ads: [],
 };
 
 const uploadRequestSchema = z.object({
   folder: z.enum([
-    "hospitals", "doctors", "announcements", "blog", "avatars", "community", "documents",
+    "hospitals", "doctors", "announcements", "blog", "avatars", "community", "documents", "ads",
   ]),
   contentType: z.enum([...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOCUMENT_TYPES]),
   size: z.number().int().positive(),
