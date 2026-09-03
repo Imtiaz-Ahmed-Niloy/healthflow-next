@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { BadgeInfo, CalendarDays, ChevronDown, Eye, EyeOff, Lock, Mail, Phone, Shield, User } from "lucide-react";
+import { BadgeInfo, CalendarDays, ChevronDown, Eye, EyeOff, Lock, Mail, Phone, User } from "lucide-react";
 import { toast } from "sonner";
 import { useForm, type SubmitErrorHandler, type SubmitHandler } from "react-hook-form";
 import { useRouter } from "next/navigation";
@@ -59,6 +59,7 @@ const Signup = () => {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsSubmitting] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const {
     register,
     handleSubmit,
@@ -161,6 +162,35 @@ const Signup = () => {
     }
   };
 
+  /**
+   * Hands off to Google and comes back at /auth/callback, which is where the
+   * session cookies are actually written — see that route for why the exchange
+   * cannot happen in the browser.
+   *
+   * No profile is created here. The trigger on auth.users (0006) does it, and
+   * a public signup lands on `patient` with no hospital, which is the only
+   * role anyone may give themselves.
+   */
+  const signUpWithGoogle = async () => {
+    setGoogleLoading(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        // Google returns a name and an email and nothing else, so the patient
+        // still has a phone, gender and date of birth to fill in afterwards.
+        queryParams: { prompt: "select_account" },
+      },
+    });
+
+    // On success the browser is already navigating to Google; only a failure
+    // gets this far.
+    if (error) {
+      setGoogleLoading(false);
+      toast.error(error.message || "Could not start Google sign-up.");
+    }
+  };
+
   const onInvalid: SubmitErrorHandler<PatientSignupFormValues> = () => {
     toast.error("Please complete all required fields correctly.");
   };
@@ -186,26 +216,23 @@ const Signup = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 mt-6">
-            <button
-              type="button"
-              onClick={() => toast("Google sign-up coming soon")}
-              className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card hover:bg-muted/40 py-3 text-sm font-semibold transition-colors"
-            >
-              <span className="h-5 w-5 rounded-full bg-gradient-dark grid place-items-center text-[10px] text-surface-dark-foreground font-bold">
-                G
-              </span>
-              Google
-            </button>
-            <button
-              type="button"
-              onClick={() => toast("SSO coming soon")}
-              className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card hover:bg-muted/40 py-3 text-sm font-semibold transition-colors"
-            >
-              <Shield className="h-4 w-4 text-primary" />
-              SSO
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={signUpWithGoogle}
+            disabled={googleLoading || isLoading}
+            data-testid="signup-google"
+            className="mt-8 w-full flex items-center justify-center gap-3 rounded-xl border border-border bg-card hover:bg-muted/40 py-3 text-sm font-semibold transition-colors disabled:opacity-60"
+          >
+            {/* Google's mark, in its own colours — their brand guidelines ask
+                for this rather than a tinted letter G. */}
+            <svg className="h-4 w-4" viewBox="0 0 48 48" aria-hidden="true">
+              <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.1 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.3 13.2 17.6 9.5 24 9.5z" />
+              <path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-3.1-.4-4.6H24v9.1h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.1 5.5c4.2-3.9 6.6-9.6 6.6-16.4z" />
+              <path fill="#FBBC05" d="M10.4 28.7c-.5-1.4-.8-2.9-.8-4.4s.3-3 .8-4.4l-7.8-6.1C1 17 0 20.4 0 24s1 7 2.6 10.1l7.8-5.4z" />
+              <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.1-5.5c-2 1.3-4.6 2.1-8.8 2.1-6.4 0-11.7-3.7-13.6-9.1l-7.8 5.4C6.5 42.6 14.6 48 24 48z" />
+            </svg>
+            {googleLoading ? "Opening Google…" : "Continue with Google"}
+          </button>
 
           <div className="my-6 flex items-center gap-3">
             <hr className="flex-1 border-border/60" />

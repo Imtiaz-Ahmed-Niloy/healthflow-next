@@ -10,8 +10,7 @@ import { HeaderClock } from "@/components/common/HeaderClock";
 import { useSession, displayName } from "@/lib/auth/useSession";
 import { roleLabel } from "@/lib/auth/permissions";
 import { BRAND_INFO } from "@/constants/brand";
-const doctorAvatar = "/assets/doctor-avatar.jpg";
-const patientEleanor = "/assets/patient-eleanor.jpg";
+import { Avatar } from "@/components/common/Avatar";
 
 /**
  * Medical Dictionary is deliberately absent.
@@ -44,7 +43,7 @@ export const PortalSidebar = () => {
     </Link>
 
     <div className="px-6 mt-10 flex items-center gap-3">
-      <img src={doctorAvatar} alt="Doctor" loading="lazy" width={48} height={48} className="h-12 w-12 rounded-full object-cover" />
+      <Avatar src={user?.avatarUrl} name={displayName(user)} className="h-12 w-12" />
       <div>
         <p className="font-display text-lg text-primary leading-tight">{displayName(user)}</p>
         {/* TODO: specialty comes from the doctors row for this profile_id.
@@ -84,7 +83,7 @@ export const PortalTopbar = () => {
               <p className="font-semibold text-sm text-primary leading-tight">{displayName(user)}</p>
               <p className="text-[10px] tracking-widest font-bold text-primary-glow">{roleLabel(user?.role).toUpperCase()}</p>
             </div>
-            <img src={patientEleanor} alt="user" loading="lazy" width={40} height={40} className="h-10 w-10 rounded-full object-cover" />
+            <Avatar src={user?.avatarUrl} name={displayName(user)} />
           </div>
           <button onClick={async () => { await signOut(); toast.success("Signed out"); router.replace("/signin"); router.refresh(); }}
             className="flex items-center gap-2 text-sm font-semibold text-foreground/70 hover:text-destructive">

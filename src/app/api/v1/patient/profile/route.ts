@@ -1,26 +1,27 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createAdminSupabase, getAuthContext } from "@/lib/supabase/server";
-import type { TablesUpdate } from "@/lib/supabase/types";
+import { createServerSupabase, getAuthContext } from "@/lib/supabase/server";
+import type { TablesInsert, TablesUpdate } from "@/lib/supabase/types";
 
 /**
- * /api/v1/patient/profile (HF-79)
+ * /api/v1/patient/profile (HF-79, rebuilt on 0066)
  *
- * The patient's own record: the details on `patients`, plus the standing
- * clinical facts in `patient_history` (0046) — allergies, chronic illnesses,
- * standing medications, past procedures.
+ * The patient's OWN record: their details in `patient_profiles`, the name and
+ * contact on `profiles`, and their standing clinical facts in
+ * `patient_history` — allergies, chronic illnesses, medications, procedures.
  *
- * Admin client, for the reason the appointments and medical-records routes
- * document: a patient has no tenant_id, and one login can hold a `patients`
- * row in several hospitals, so tenant RLS cannot express "mine".
+ * This used to read and write `patients`, which is a hospital's record of a
+ * person and needs a tenant. The effect was that a patient who had never
+ * booked saw a blank profile they could not save: "You do not have a patient
+ * record yet". A date of birth is not something a hospital gives you, so 0066
+ * moved the personal record onto the login and left `patients` as what it
+ * always was — one row per hospital that has registered you, holding that
+ * hospital's MRN and its own clinical file.
  *
- * That makes this file the boundary, so two rules hold throughout:
- *
- *   1. Every id is resolved from the caller's own profile. Nothing the client
- *      sends is ever used to choose a row.
- *   2. Writes name their columns explicitly. `patients` carries tenant_id, mrn
- *      and profile_id, and spreading the request body would let a patient move
- *      themselves between hospitals or take over another record.
+ * No admin client any more, which is the nicer half of the change. These rows
+ * belong to the caller, so RLS can express "mine" directly (`profile_id =
+ * auth.uid()`) and this route runs as the person asking. Nothing here chooses
+ * a row from anything the client sent.
  */
 
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status });
@@ -30,14 +31,21 @@ const fail = (message: string, status: number) => json({ error: { message } }, s
 const blankToNull = (value: unknown) => (value === "" ? null : value);
 const optionalText = z.preprocess(blankToNull, z.string().trim().max(500).nullable().optional());
 
-const profileSchema = z.object({
+/** What lives on `profiles`: who you are and how to reach you. */
+const identitySchema = z.object({
   full_name: z.string().trim().min(1, "Name is required").max(200).optional(),
+  /** An R2 object key from /api/v1/uploads, never a URL — see src/lib/media.ts. */
+  avatar_url: z.preprocess(blankToNull, z.string().trim().max(300).nullable().optional()),
+  email: z.preprocess(blankToNull, z.string().trim().email("That email does not look right").nullable().optional()),
+  phone: optionalText,
+});
+
+/** What lives on `patient_profiles`: the rest of the person. */
+const personalSchema = z.object({
   date_of_birth: z.preprocess(blankToNull, z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional()),
   gender: z.preprocess(blankToNull, z.enum(["male", "female", "other"]).nullable().optional()),
   marital_status: z.preprocess(blankToNull, z.enum(["single", "married", "divorced", "widowed"]).nullable().optional()),
   national_id: optionalText,
-  email: z.preprocess(blankToNull, z.string().trim().email("That email does not look right").nullable().optional()),
-  phone: optionalText,
   address: optionalText,
   blood_group: z.preprocess(
     blankToNull,
@@ -52,7 +60,14 @@ const profileSchema = z.object({
   emergency_contact_name: optionalText,
   emergency_contact_phone: optionalText,
   emergency_contact_relation: optionalText,
+  emergency_contact_email: z.preprocess(
+    blankToNull,
+    z.string().trim().email("That email does not look right").nullable().optional(),
+  ),
+  emergency_contact_address: optionalText,
 });
+
+const profileSchema = identitySchema.merge(personalSchema);
 
 const historySchema = z.object({
   kind: z.enum(["allergy", "illness", "medication", "procedure"]),
@@ -61,23 +76,6 @@ const historySchema = z.object({
   started_on: z.preprocess(blankToNull, z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional()),
   ongoing: z.boolean().optional(),
 });
-
-/**
- * The caller's own patients rows, newest first.
- *
- * One login can have a row per hospital. The most recent is the one this page
- * edits — the record they are currently being seen under. The others still
- * feed their history elsewhere; they are simply not what "my profile" means.
- */
-const myPatients = async (admin: ReturnType<typeof createAdminSupabase>, userId: string) => {
-  const { data, error } = await admin
-    .from("patients")
-    .select("*")
-    .eq("profile_id", userId)
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return data ?? [];
-};
 
 const requirePatient = async () => {
   const auth = await getAuthContext();
@@ -88,28 +86,53 @@ const requirePatient = async () => {
   return { auth } as const;
 };
 
+/** Only keys actually sent, so an omitted field is left alone rather than nulled. */
+const onlySent = <T extends object>(parsed: T) => {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(parsed)) {
+    if (value !== undefined) out[key] = value;
+  }
+  return out;
+};
+
 export const GET = async () => {
   const guard = await requirePatient();
   if ("error" in guard) return guard.error;
 
-  const admin = createAdminSupabase();
-  const patients = await myPatients(admin, guard.auth.userId);
-  const patient = patients[0] ?? null;
+  const supabase = await createServerSupabase();
+  const userId = guard.auth.userId;
 
-  if (!patient) {
-    // A login with no patients row yet: they have never booked. Not an error —
-    // the page shows an empty profile rather than a failure.
-    return json({ data: { profile: null, history: [] } });
-  }
+  const [identity, personal, history, hospitals] = await Promise.all([
+    supabase.from("profiles").select("full_name, email, phone, avatar_url").eq("id", userId).maybeSingle(),
+    supabase.from("patient_profiles").select("*").eq("profile_id", userId).maybeSingle(),
+    supabase
+      .from("patient_history")
+      .select("id, kind, label, detail, started_on, ongoing")
+      .eq("profile_id", userId)
+      .order("created_at", { ascending: false }),
+    // Which hospitals hold a record of this person. The personal profile is
+    // the patient's; these are the links to it — shown so they can see who
+    // has their details rather than having to ask.
+    supabase
+      .from("patients")
+      .select("id, mrn, created_at, tenants ( id, name, slug )")
+      .eq("profile_id", userId)
+      .order("created_at", { ascending: false }),
+  ]);
 
-  const { data: history, error } = await admin
-    .from("patient_history")
-    .select("id, kind, label, detail, started_on, ongoing")
-    .eq("patient_id", patient.id)
-    .order("created_at", { ascending: false });
-  if (error) return fail(error.message, 400);
+  const firstError = identity.error || personal.error || history.error || hospitals.error;
+  if (firstError) return fail(firstError.message, 400);
 
-  return json({ data: { profile: patient, history: history ?? [] } });
+  return json({
+    data: {
+      // One object, so the page does not need to know which table each field
+      // came from. A login with no personal row yet simply has nulls — the
+      // form is editable either way, which is the whole point of 0066.
+      profile: { ...(identity.data ?? {}), ...(personal.data ?? {}) },
+      history: history.data ?? [],
+      hospitals: hospitals.data ?? [],
+    },
+  });
 };
 
 export const PATCH = async (request: Request) => {
@@ -122,32 +145,41 @@ export const PATCH = async (request: Request) => {
     return fail(parsed.error.issues[0]?.message ?? "Those details are not valid", 422);
   }
 
-  const admin = createAdminSupabase();
-  const patients = await myPatients(admin, guard.auth.userId);
-  const patient = patients[0];
-  if (!patient) return fail("You do not have a patient record yet", 404);
+  const supabase = await createServerSupabase();
+  const userId = guard.auth.userId;
 
-  // Only the fields actually sent, and only ones the schema names. Built key
-  // by key rather than with Object.fromEntries, which erases the key types and
-  // would let this compile against a column that does not exist.
-  const updates: TablesUpdate<"patients"> = {};
-  for (const [key, value] of Object.entries(parsed.data)) {
-    if (value !== undefined) (updates as Record<string, unknown>)[key] = value;
+  // Cast at the boundary rather than inside onlySent: the schemas above are
+  // what guarantee these keys, and a Record<string, unknown> is not something
+  // the generated Update types will accept.
+  const identity = onlySent(identitySchema.parse(body)) as TablesUpdate<"profiles">;
+  const personal = onlySent(personalSchema.parse(body)) as Omit<TablesInsert<"patient_profiles">, "profile_id">;
+
+  if (Object.keys(identity).length > 0) {
+    // profiles_update_self allows this; the trigger from 0002 refuses any
+    // attempt to touch role or tenant_id, so those cannot ride along.
+    const { error } = await supabase.from("profiles").update(identity).eq("id", userId);
+    if (error) return fail(error.message, 400);
   }
-  if (Object.keys(updates).length === 0) return json({ data: patient });
 
-  const { data, error } = await admin
-    .from("patients")
-    .update(updates)
-    .eq("id", patient.id)
-    .select("*")
-    .single();
+  if (Object.keys(personal).length > 0) {
+    // Upsert, because the row may not exist yet — a patient editing their
+    // profile for the first time is the normal case, not an error.
+    const row: TablesInsert<"patient_profiles"> = { profile_id: userId, ...personal };
+    const { error } = await supabase
+      .from("patient_profiles")
+      .upsert(row, { onConflict: "profile_id" });
+    if (error) return fail(error.message, 400);
+  }
 
-  if (error) return fail(error.message, 400);
-  return json({ data });
+  const [identityRow, personalRow] = await Promise.all([
+    supabase.from("profiles").select("full_name, email, phone, avatar_url").eq("id", userId).maybeSingle(),
+    supabase.from("patient_profiles").select("*").eq("profile_id", userId).maybeSingle(),
+  ]);
+
+  return json({ data: { ...(identityRow.data ?? {}), ...(personalRow.data ?? {}) } });
 };
 
-/** Add one entry to a clinical list. */
+/** Add one entry to a standing clinical list. */
 export const POST = async (request: Request) => {
   const guard = await requirePatient();
   if ("error" in guard) return guard.error;
@@ -158,24 +190,16 @@ export const POST = async (request: Request) => {
     return fail(parsed.error.issues[0]?.message ?? "That entry is not valid", 422);
   }
 
-  const admin = createAdminSupabase();
-  const patients = await myPatients(admin, guard.auth.userId);
-  const patient = patients[0];
-  if (!patient) return fail("You do not have a patient record yet", 404);
+  const supabase = await createServerSupabase();
 
-  const { data, error } = await admin
+  const { data, error } = await supabase
     .from("patient_history")
-    .insert({
-      ...parsed.data,
-      patient_id: patient.id,
-      // Stamped from the patient's own row, never from the request.
-      tenant_id: patient.tenant_id,
-    })
+    // profile_id from the session, never from the request.
+    .insert({ ...parsed.data, profile_id: guard.auth.userId })
     .select("id, kind, label, detail, started_on, ongoing")
     .single();
 
   if (error) {
-    // The unique index: the same condition entered twice.
     if (error.code === "23505") return fail("That is already on your list.", 409);
     return fail(error.message, 400);
   }
@@ -183,8 +207,8 @@ export const POST = async (request: Request) => {
 };
 
 /**
- * Remove one entry. Scoped by patient_id as well as id, so an id guessed from
- * another patient's record matches nothing.
+ * Remove one entry. Scoped by profile_id as well as id, so an id guessed from
+ * someone else's record matches nothing — and RLS says the same thing again.
  */
 export const DELETE = async (request: Request) => {
   const guard = await requirePatient();
@@ -193,16 +217,12 @@ export const DELETE = async (request: Request) => {
   const id = new URL(request.url).searchParams.get("id");
   if (!id) return fail("Which entry?", 400);
 
-  const admin = createAdminSupabase();
-  const patients = await myPatients(admin, guard.auth.userId);
-  const patient = patients[0];
-  if (!patient) return fail("You do not have a patient record yet", 404);
-
-  const { error } = await admin
+  const supabase = await createServerSupabase();
+  const { error } = await supabase
     .from("patient_history")
     .delete()
     .eq("id", id)
-    .eq("patient_id", patient.id);
+    .eq("profile_id", guard.auth.userId);
 
   if (error) return fail(error.message, 400);
   return json({ data: { id } });

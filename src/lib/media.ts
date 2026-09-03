@@ -35,6 +35,15 @@ export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 export const ALLOWED_DOCUMENT_TYPES = ["application/pdf"] as const;
 
 /**
+ * Identity papers take either: a scan is a PDF, a phone photo is a JPEG. The
+ * server still decides per folder — see /api/v1/uploads.
+ */
+export const ALLOWED_IDENTITY_TYPES = [
+  ...ALLOWED_IMAGE_TYPES,
+  ...ALLOWED_DOCUMENT_TYPES,
+] as const;
+
+/**
  * 10 MB. A scanned multi-page licence is heavier than a logo, and unlike a
  * logo nobody is going to re-export it smaller.
  */
@@ -62,7 +71,11 @@ export type MediaFolder =
   | "documents"
   // Images on the promotional cards beside the sign-in form (0064). Public by
   // nature — they are shown to anyone who opens /signin.
-  | "ads";
+  | "ads"
+  // A patient's own identity papers (0068): an NID photographed on a phone, a
+  // passport page, a scanned birth certificate. Images as well as PDFs, since
+  // this is the one thing people photograph rather than scan.
+  | "identity";
 
 /**
  * Where an uploaded file lands.

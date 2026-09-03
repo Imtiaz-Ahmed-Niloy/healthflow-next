@@ -105,6 +105,22 @@ export const POST = async (request: Request) => {
     .maybeSingle();
   if (profileError) return fail(profileError.message, 400);
 
+  /**
+   * What the patient has already entered about themselves (0066). Copied onto
+   * the hospital record below, so a hospital starts from the details the
+   * person gave rather than an empty file it has to ask for again.
+   *
+   * A copy, not a reference: a hospital's row is its own document of what it
+   * was told and when. If the patient later corrects their blood group, the
+   * hospital can see that on the personal profile — the correction does not
+   * silently rewrite the hospital's own record.
+   */
+  const { data: personal } = await supabase
+    .from("patient_profiles")
+    .select("date_of_birth, gender, marital_status, national_id, address, blood_group, height_feet, height_inches, weight_kg, emergency_contact_name, emergency_contact_phone, emergency_contact_relation")
+    .eq("profile_id", auth.userId)
+    .maybeSingle();
+
   const admin = createAdminSupabase();
 
   // Step 1: already linked to this hospital.
@@ -155,6 +171,7 @@ export const POST = async (request: Request) => {
         full_name: profile?.full_name || profile?.email?.split("@")[0] || "Patient",
         phone: profile?.phone ?? null,
         email: profile?.email ?? null,
+        ...(personal ?? {}),
       })
       .select("id")
       .single();

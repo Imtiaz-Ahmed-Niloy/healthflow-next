@@ -36,6 +36,10 @@ import { r2Config, createR2Client, R2_BUCKET } from "@/lib/r2";
  *     RESTRICTIVE role gate: only hospital_admin and hr_admin see a row at
  *     all. There the visibility of the row IS the answer, and asking the
  *     database is better than repeating the list here, where it could drift.
+ *
+ *   - A patient's identity papers (0068), where the same trick works: the row
+ *     is visible to the person it belongs to and to a super admin reviewing
+ *     it, and to nobody else — not even the hospital treating them.
  */
 
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status });
@@ -59,7 +63,7 @@ const keySchema = z
   .string()
   .trim()
   .regex(
-    /^documents\/\d{4}\/\d{2}\/[a-f0-9]{16}\.pdf$/,
+    /^(documents|identity)\/\d{4}\/\d{2}\/[a-f0-9]{16}\.(pdf|png|jpg|webp|avif|svg)$/,
     "That is not a document key",
   );
 
@@ -76,18 +80,30 @@ export const GET = async (request: Request) => {
 
   const supabase = await createServerSupabase();
 
-  // A file on the confidential shelf. The role gate on the table means an
-  // unauthorised caller simply sees no row, and gets the same 404 as a key
-  // that was never stored.
-  const { data: file, error: fileError } = await supabase
-    .from("personal_files")
+  // A patient's identity paper. RLS shows the row to its owner and to a super
+  // admin; anyone else sees nothing and gets the 404 below.
+  const { data: identity, error: identityError } = await supabase
+    .from("identity_documents")
     .select("id")
     .eq("file_key", key)
     .limit(1)
     .maybeSingle();
+  if (identityError) return fail(identityError.message, 500);
+
+  // A file on the confidential shelf. The role gate on the table means an
+  // unauthorised caller simply sees no row, and gets the same 404 as a key
+  // that was never stored.
+  const { data: file, error: fileError } = identity
+    ? { data: null, error: null }
+    : await supabase
+        .from("personal_files")
+        .select("id")
+        .eq("file_key", key)
+        .limit(1)
+        .maybeSingle();
   if (fileError) return fail(fileError.message, 500);
 
-  if (!file) {
+  if (!identity && !file) {
     // Otherwise a licence scan, and `tenants` cannot answer who on its own.
     if (auth.role !== "super_admin" && auth.role !== "hospital_admin") {
       return fail("Not allowed to open this document", 403);

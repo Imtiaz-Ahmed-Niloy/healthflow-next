@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -88,6 +88,17 @@ const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  /**
+   * /auth/callback sends a failed Google sign-in back here with the reason
+   * rather than dropping the person on a blank form wondering what happened.
+   */
+  const oauthError = searchParams?.get("error");
+  useEffect(() => {
+    if (!oauthError) return;
+    setGeneralError(oauthError);
+    toast.error(oauthError);
+  }, [oauthError]);
   const {
     register,
     handleSubmit,

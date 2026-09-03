@@ -1851,6 +1851,72 @@ export type Database = {
           },
         ]
       }
+      identity_documents: {
+        Row: {
+          created_at: string
+          document_number: string | null
+          file_key: string
+          file_name: string | null
+          holder: Database["public"]["Enums"]["id_document_holder"]
+          id: string
+          kind: Database["public"]["Enums"]["id_document_kind"]
+          profile_id: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["id_verification_status"]
+          submitted_at: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          document_number?: string | null
+          file_key: string
+          file_name?: string | null
+          holder?: Database["public"]["Enums"]["id_document_holder"]
+          id?: string
+          kind: Database["public"]["Enums"]["id_document_kind"]
+          profile_id: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["id_verification_status"]
+          submitted_at?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          document_number?: string | null
+          file_key?: string
+          file_name?: string | null
+          holder?: Database["public"]["Enums"]["id_document_holder"]
+          id?: string
+          kind?: Database["public"]["Enums"]["id_document_kind"]
+          profile_id?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["id_verification_status"]
+          submitted_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "identity_documents_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_documents_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journal_entries: {
         Row: {
           created_at: string
@@ -2483,9 +2549,8 @@ export type Database = {
           kind: Database["public"]["Enums"]["patient_history_kind"]
           label: string
           ongoing: boolean
-          patient_id: string
+          profile_id: string
           started_on: string | null
-          tenant_id: string
           updated_at: string
         }
         Insert: {
@@ -2495,9 +2560,8 @@ export type Database = {
           kind: Database["public"]["Enums"]["patient_history_kind"]
           label: string
           ongoing?: boolean
-          patient_id: string
+          profile_id: string
           started_on?: string | null
-          tenant_id: string
           updated_at?: string
         }
         Update: {
@@ -2507,31 +2571,84 @@ export type Database = {
           kind?: Database["public"]["Enums"]["patient_history_kind"]
           label?: string
           ongoing?: boolean
-          patient_id?: string
+          profile_id?: string
           started_on?: string | null
-          tenant_id?: string
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "patient_history_patient_id_fkey"
-            columns: ["patient_id"]
+            foreignKeyName: "patient_history_profile_id_fkey"
+            columns: ["profile_id"]
             isOneToOne: false
-            referencedRelation: "patients"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      patient_profiles: {
+        Row: {
+          address: string | null
+          blood_group: Database["public"]["Enums"]["blood_group"] | null
+          created_at: string
+          date_of_birth: string | null
+          emergency_contact_address: string | null
+          emergency_contact_email: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          emergency_contact_relation: string | null
+          gender: Database["public"]["Enums"]["patient_gender"] | null
+          height_feet: number | null
+          height_inches: number | null
+          marital_status: Database["public"]["Enums"]["marital_status"] | null
+          national_id: string | null
+          profile_id: string
+          updated_at: string
+          weight_kg: number | null
+        }
+        Insert: {
+          address?: string | null
+          blood_group?: Database["public"]["Enums"]["blood_group"] | null
+          created_at?: string
+          date_of_birth?: string | null
+          emergency_contact_address?: string | null
+          emergency_contact_email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relation?: string | null
+          gender?: Database["public"]["Enums"]["patient_gender"] | null
+          height_feet?: number | null
+          height_inches?: number | null
+          marital_status?: Database["public"]["Enums"]["marital_status"] | null
+          national_id?: string | null
+          profile_id: string
+          updated_at?: string
+          weight_kg?: number | null
+        }
+        Update: {
+          address?: string | null
+          blood_group?: Database["public"]["Enums"]["blood_group"] | null
+          created_at?: string
+          date_of_birth?: string | null
+          emergency_contact_address?: string | null
+          emergency_contact_email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relation?: string | null
+          gender?: Database["public"]["Enums"]["patient_gender"] | null
+          height_feet?: number | null
+          height_inches?: number | null
+          marital_status?: Database["public"]["Enums"]["marital_status"] | null
+          national_id?: string | null
+          profile_id?: string
+          updated_at?: string
+          weight_kg?: number | null
+        }
+        Relationships: [
           {
-            foreignKeyName: "patient_history_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "hospitals_public"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "patient_history_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
+            foreignKeyName: "patient_profiles_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -3886,6 +4003,7 @@ export type Database = {
       }
       is_my_patient_record: { Args: { p_patient_id: string }; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
+      shares_hospital_with: { Args: { p_profile_id: string }; Returns: boolean }
       record_medicine_usage: {
         Args: { p_doctor_id: string; p_medicines: Json; p_tenant_id: string }
         Returns: undefined
@@ -3976,6 +4094,9 @@ export type Database = {
       community_reaction: "like" | "love" | "insightful"
       doctor_status: "active" | "on_leave" | "suspended"
       finance_invoice_kind: "receivable" | "payable"
+      id_document_holder: "self" | "emergency_contact"
+      id_document_kind: "birth_certificate" | "nid" | "passport"
+      id_verification_status: "pending" | "verified" | "rejected"
       journal_status: "draft" | "posted"
       lab_order_status:
         | "pending"

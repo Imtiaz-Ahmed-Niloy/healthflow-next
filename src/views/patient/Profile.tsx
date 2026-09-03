@@ -1,15 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  User, HeartPulse, ShieldCheck, FolderOpen, Users, Plus, Trash2, Pencil, Save, X, Lock,
+  User, UserSquare2, HeartPulse, ShieldCheck, FolderOpen, Users, Plus, Trash2, Pencil, Save, X, Lock,
+  BadgeCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
+import { mediaUrl, MAX_IMAGE_BYTES, ALLOWED_IMAGE_TYPES } from "@/lib/media";
+import { IdentityDocumentField, type IdentityDoc } from "@/components/patient/IdentityDocumentField";
 import type { Tables } from "@/lib/supabase/types";
 
-type Patient = Tables<"patients">;
+/**
+ * What the page edits: the name and contact from `profiles`, plus everything
+ * else from `patient_profiles`. One flat object, assembled by the route —
+ * see /api/v1/patient/profile.
+ */
+type Patient = Pick<Tables<"profiles">, "full_name" | "email" | "phone" | "avatar_url">
+  & Partial<Omit<Tables<"patient_profiles">, "profile_id" | "created_at" | "updated_at">>;
+
+/** A hospital that holds a record of this person, and its own ID for them. */
+type HospitalLink = {
+  id: string;
+  mrn: string;
+  created_at: string;
+  tenants: { id: string; name: string; slug: string } | null;
+};
 type HistoryKind = "allergy" | "illness" | "medication" | "procedure";
 type HistoryEntry = {
   id: string;
@@ -50,10 +67,10 @@ const LISTS: { kind: HistoryKind; title: string; blurb: string; placeholder: str
   { kind: "procedure", title: "Past Procedures", blurb: "Operations and procedures you have had.", placeholder: "Appendectomy" },
 ];
 
-const labelFor = (options: { value: string; label: string }[], value: string | null) =>
+const labelFor = (options: { value: string; label: string }[], value: string | null | undefined) =>
   options.find(o => o.value === value)?.label ?? "—";
 
-const dateLabel = (iso: string | null) => {
+const dateLabel = (iso: string | null | undefined) => {
   if (!iso) return "—";
   const d = new Date(`${iso}T00:00:00`);
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
@@ -69,7 +86,7 @@ const SectionHead = ({ icon: Icon, title, action }: { icon: typeof User; title: 
   </div>
 );
 
-const ReadField = ({ label, value }: { label: string; value: string }) => (
+const ReadField = ({ label, value }: { label: string; value: string | null | undefined }) => (
   <div>
     <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{label}</p>
     <p className="text-sm text-foreground/85 mt-1">{value || "—"}</p>
@@ -103,6 +120,7 @@ const Profile = () => {
   const [tab, setTab] = useState<Tab>("General");
   const [profile, setProfile] = useState<Patient | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [hospitals, setHospitals] = useState<HospitalLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
@@ -110,9 +128,28 @@ const Profile = () => {
   const [draft, setDraft] = useState<Partial<Patient>>({});
   const [saving, setSaving] = useState(false);
 
+  const [idDocs, setIdDocs] = useState<IdentityDoc[]>([]);
+
+  const [editingEc, setEditingEc] = useState(false);
+  const [ecDraft, setEcDraft] = useState<Partial<Patient>>({});
+  const [savingEc, setSavingEc] = useState(false);
+
+  const avatarRef = useRef<HTMLInputElement>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+
   const [adding, setAdding] = useState<HistoryKind | null>(null);
   const [newLabel, setNewLabel] = useState("");
   const [newDetail, setNewDetail] = useState("");
+
+  const loadIdDocs = async () => {
+    try {
+      const res = await fetch("/api/v1/identity-documents?limit=10");
+      const body = await res.json().catch(() => null);
+      if (res.ok) setIdDocs((body.data ?? []) as IdentityDoc[]);
+    } catch {
+      // The rest of the profile still works without this list.
+    }
+  };
 
   const load = async () => {
     try {
@@ -124,6 +161,8 @@ const Profile = () => {
         return;
       }
       setProfile(body.data.profile);
+      setHospitals(body.data.hospitals ?? []);
+      void loadIdDocs();
       setHistory(body.data.history ?? []);
     } catch {
       setFailed(true);
@@ -136,6 +175,91 @@ const Profile = () => {
   useEffect(() => { void load(); }, []);
 
   const startEdit = () => { setDraft(profile ?? {}); setEditing(true); };
+
+  const startEditEc = () => {
+    setEcDraft({
+      emergency_contact_name: profile?.emergency_contact_name ?? "",
+      emergency_contact_relation: profile?.emergency_contact_relation ?? "",
+      emergency_contact_phone: profile?.emergency_contact_phone ?? "",
+      emergency_contact_email: profile?.emergency_contact_email ?? "",
+      emergency_contact_address: profile?.emergency_contact_address ?? "",
+    });
+    setEditingEc(true);
+  };
+
+  /** Sends only the fields this card owns, never the rest of the profile. */
+  const saveEc = async () => {
+    setSavingEc(true);
+    try {
+      const res = await fetch("/api/v1/patient/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(ecDraft),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(body?.error?.message || "Couldn't save your emergency contact.");
+        return;
+      }
+      setProfile(body.data);
+      setEditingEc(false);
+      toast.success("Emergency contact saved");
+    } catch {
+      toast.error("Couldn't reach the server.");
+    } finally {
+      setSavingEc(false);
+    }
+  };
+
+  /**
+   * Straight to Cloudflare and back with a key, the same path every other
+   * image in the app takes — see src/lib/media.ts. The column holds the key,
+   * never a data URL.
+   */
+  const onAvatarPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!(ALLOWED_IMAGE_TYPES as readonly string[]).includes(file.type)) {
+      toast.error("That is not an image we take — PNG, JPG, WebP, AVIF or SVG.");
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      toast.error(`That image is ${(file.size / 1024 / 1024).toFixed(1)}MB — the limit is 5MB.`);
+      return;
+    }
+
+    setAvatarBusy(true);
+    try {
+      const permission = await fetch("/api/v1/uploads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folder: "avatars", contentType: file.type, size: file.size }),
+      });
+      const body = await permission.json().catch(() => null);
+      if (!permission.ok) throw new Error(body?.error?.message || "Could not start the upload.");
+
+      const { key, uploadUrl } = body.data;
+      const put = await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
+      if (!put.ok) throw new Error("Cloudflare refused the upload.");
+
+      const saved = await fetch("/api/v1/patient/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avatar_url: key }),
+      });
+      const savedBody = await saved.json().catch(() => null);
+      if (!saved.ok) throw new Error(savedBody?.error?.message || "Could not save that picture.");
+
+      setProfile(savedBody.data);
+      toast.success("Profile picture updated");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not upload that picture.");
+    } finally {
+      setAvatarBusy(false);
+      if (avatarRef.current) avatarRef.current.value = "";
+    }
+  };
   const upd = (patch: Partial<Patient>) => setDraft(d => ({ ...d, ...patch }));
 
   const save = async () => {
@@ -203,31 +327,80 @@ const Profile = () => {
 
   return (
     <PatientPortalLayout>
-      <div>
-        <p className="text-[10px] tracking-widest font-bold text-muted-foreground">MY RECORD</p>
-        <h1 className="font-display text-5xl text-primary mt-2">{profile?.full_name ?? "Profile"}</h1>
-        {profile?.mrn && (
-          <p className="text-sm text-muted-foreground mt-2">
-            Patient ID <span className="font-mono text-primary">{profile.mrn}</span>
-          </p>
-        )}
-      </div>
-
-      <div className="mt-6 flex gap-2 flex-wrap">
-        {TABS.map(t => (
+      {/* Header: the picture and the name, the way this page has always led. */}
+      <div className="flex flex-wrap items-center gap-8 max-w-6xl mx-auto">
+        <div className="relative shrink-0">
+          {mediaUrl(profile?.avatar_url) ? (
+            <motion.img
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              src={mediaUrl(profile?.avatar_url) as string}
+              alt={profile?.full_name ?? "Profile picture"}
+              loading="lazy"
+              width={160}
+              height={160}
+              className="h-40 w-40 rounded-3xl object-cover shadow-card"
+            />
+          ) : (
+            <div className="h-40 w-40 rounded-3xl bg-chip grid place-items-center shadow-card">
+              <User className="h-14 w-14 text-primary/40" />
+            </div>
+          )}
+          <input ref={avatarRef} type="file" accept={ALLOWED_IMAGE_TYPES.join(",")} className="hidden" onChange={onAvatarPick} />
           <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`rounded-full px-5 py-2 text-sm font-semibold transition-colors ${
-              tab === t ? "bg-primary text-primary-foreground" : "bg-chip text-primary hover:bg-chip/70"
-            }`}
+            onClick={() => avatarRef.current?.click()}
+            disabled={avatarBusy}
+            aria-label="Change profile picture"
+            className="absolute bottom-2 right-2 h-9 w-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-glow hover:opacity-90 transition disabled:opacity-60"
           >
-            {t}
+            <Pencil className="h-4 w-4" />
           </button>
-        ))}
+        </div>
+
+        <div className="flex-1 min-w-[260px]">
+          <p className="text-[10px] tracking-widest font-bold text-muted-foreground">MY RECORD</p>
+          <h1 className="font-display text-5xl text-primary mt-2 flex items-center gap-2">
+            {profile?.full_name ?? "Profile"}
+            {/* Icon only, no label — it means the same thing everywhere and a
+                word beside it would only take up room. */}
+            {idDocs.some(d => d.holder === "self" && d.status === "verified") && (
+              <BadgeCheck className="h-7 w-7 text-primary-glow shrink-0" aria-label="Identity verified" />
+            )}
+          </h1>
+          {hospitals.length > 0 && (
+            <p className="text-sm text-muted-foreground mt-2">
+              Registered at{" "}
+              {hospitals.map((h, i) => (
+                <span key={h.id}>
+                  {i > 0 && ", "}
+                  {h.tenants?.name ?? "a hospital"}
+                  {h.mrn && <> · <span className="font-mono text-primary">{h.mrn}</span></>}
+                </span>
+              ))}
+            </p>
+          )}
+        </div>
       </div>
 
-      <div className="mt-6">
+      {/* Tabs, centred under the header with the highlight sliding between. */}
+      <div className="flex justify-center mt-10">
+        <div className="bg-muted/40 rounded-full p-1.5 flex gap-1 flex-wrap">
+          {TABS.map(t => (
+            <button key={t} onClick={() => setTab(t)} className="relative px-5 py-2.5 text-sm font-semibold rounded-full">
+              {tab === t && (
+                <motion.div
+                  layoutId="patient-profile-tab"
+                  className="absolute inset-0 bg-card shadow-soft rounded-full"
+                  transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                />
+              )}
+              <span className={`relative ${tab === t ? "text-primary" : "text-muted-foreground"}`}>{t}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-10 max-w-6xl mx-auto">
         {loading ? (
           <p className="text-sm text-muted-foreground py-16 text-center">Loading your profile…</p>
         ) : failed ? (
@@ -235,15 +408,9 @@ const Profile = () => {
             Your profile couldn&apos;t be loaded. Reload the page to try again.
           </p>
         ) : !profile ? (
-          <div className="rounded-3xl bg-card border border-border/60 p-10 shadow-soft text-center">
-            <User className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
-            <p className="font-display text-2xl text-primary">No record yet</p>
-            <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
-              Your record is created the first time you book an appointment. Once you have,
-              your details will appear here for you to keep up to date.
-            </p>
-          </div>
+          <p className="text-sm text-muted-foreground py-16 text-center">Loading your profile…</p>
         ) : tab === "General" ? (
+          <div className="space-y-6">
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
             className="rounded-3xl bg-card border border-border/60 p-7 shadow-soft">
             <SectionHead
@@ -292,16 +459,6 @@ const Profile = () => {
                   <input className={inputClass} value={draft.phone ?? ""} onChange={e => upd({ phone: e.target.value })} /></label>
                 <label className="space-y-1.5 md:col-span-2"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">ADDRESS</span>
                   <input className={inputClass} value={draft.address ?? ""} onChange={e => upd({ address: e.target.value })} /></label>
-
-                <div className="md:col-span-2 border-t border-border/50 pt-4 mt-2">
-                  <p className="text-[10px] tracking-widest font-bold text-primary-glow">EMERGENCY CONTACT</p>
-                </div>
-                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">NAME</span>
-                  <input className={inputClass} value={draft.emergency_contact_name ?? ""} onChange={e => upd({ emergency_contact_name: e.target.value })} /></label>
-                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">RELATIONSHIP</span>
-                  <input className={inputClass} placeholder="Brother, spouse…" value={draft.emergency_contact_relation ?? ""} onChange={e => upd({ emergency_contact_relation: e.target.value })} /></label>
-                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">PHONE</span>
-                  <input className={inputClass} value={draft.emergency_contact_phone ?? ""} onChange={e => upd({ emergency_contact_phone: e.target.value })} /></label>
               </div>
             ) : (
               <div className="mt-6 grid md:grid-cols-3 gap-5">
@@ -313,14 +470,85 @@ const Profile = () => {
                 <ReadField label="EMAIL" value={profile.email ?? ""} />
                 <ReadField label="PHONE" value={profile.phone ?? ""} />
                 <div className="md:col-span-2"><ReadField label="ADDRESS" value={profile.address ?? ""} /></div>
-                <div className="md:col-span-3 border-t border-border/50 pt-5 grid md:grid-cols-3 gap-5">
-                  <ReadField label="EMERGENCY CONTACT" value={profile.emergency_contact_name ?? ""} />
-                  <ReadField label="RELATIONSHIP" value={profile.emergency_contact_relation ?? ""} />
-                  <ReadField label="THEIR PHONE" value={profile.emergency_contact_phone ?? ""} />
-                </div>
               </div>
             )}
+
+            <IdentityDocumentField
+              holder="self"
+              docs={idDocs}
+              onChanged={loadIdDocs}
+              title="IDENTITY DOCUMENT"
+              note="Upload one legal document and we will check it. Once verified, a badge appears beside your name — and if you are ever brought in unable to speak for yourself, the hospital can be told who you are."
+            />
           </motion.div>
+
+          {/* Its own card, as it was before: the person to call is not another
+              line of your address, and it gets edited on its own. */}
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+            className="rounded-3xl bg-card border border-border/60 p-7 shadow-soft">
+            <SectionHead
+              icon={UserSquare2}
+              title="Emergency Contact"
+              action={editingEc ? (
+                <div className="flex gap-2">
+                  <button onClick={() => setEditingEc(false)} disabled={savingEc}
+                    className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-primary inline-flex items-center gap-1.5">
+                    <X className="h-3.5 w-3.5" /> Cancel
+                  </button>
+                  <button onClick={saveEc} disabled={savingEc}
+                    className="rounded-full bg-gradient-dark text-surface-dark-foreground px-4 py-2 text-xs font-semibold shadow-glow inline-flex items-center gap-1.5 disabled:opacity-60">
+                    <Save className="h-3.5 w-3.5" /> {savingEc ? "Saving…" : "Save"}
+                  </button>
+                </div>
+              ) : (
+                <button onClick={startEditEc}
+                  className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-primary inline-flex items-center gap-1.5 hover:bg-chip">
+                  <Pencil className="h-3.5 w-3.5" /> Edit
+                </button>
+              )}
+            />
+
+            {editingEc ? (
+              <div className="mt-6 grid md:grid-cols-3 gap-4">
+                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">NAME</span>
+                  <input className={inputClass} value={ecDraft.emergency_contact_name ?? ""}
+                    onChange={e => setEcDraft(d => ({ ...d, emergency_contact_name: e.target.value }))} /></label>
+                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">RELATIONSHIP</span>
+                  <input className={inputClass} placeholder="Brother, spouse…" value={ecDraft.emergency_contact_relation ?? ""}
+                    onChange={e => setEcDraft(d => ({ ...d, emergency_contact_relation: e.target.value }))} /></label>
+                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">PHONE</span>
+                  <input className={inputClass} value={ecDraft.emergency_contact_phone ?? ""}
+                    onChange={e => setEcDraft(d => ({ ...d, emergency_contact_phone: e.target.value }))} /></label>
+                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">EMAIL</span>
+                  <input className={inputClass} type="email" placeholder="Where to write if a call does not connect"
+                    value={ecDraft.emergency_contact_email ?? ""}
+                    onChange={e => setEcDraft(d => ({ ...d, emergency_contact_email: e.target.value }))} /></label>
+                <label className="space-y-1.5 md:col-span-2"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">ADDRESS</span>
+                  <input className={inputClass} placeholder="Where that person can be found"
+                    value={ecDraft.emergency_contact_address ?? ""}
+                    onChange={e => setEcDraft(d => ({ ...d, emergency_contact_address: e.target.value }))} /></label>
+              </div>
+            ) : profile.emergency_contact_name || profile.emergency_contact_phone ? (
+              <div className="mt-6 grid md:grid-cols-3 gap-5">
+                <ReadField label="NAME" value={profile.emergency_contact_name ?? ""} />
+                <ReadField label="RELATIONSHIP" value={profile.emergency_contact_relation ?? ""} />
+                <ReadField label="PHONE" value={profile.emergency_contact_phone ?? ""} />
+                <ReadField label="EMAIL" value={profile.emergency_contact_email ?? ""} />
+                <ReadField label="ADDRESS" value={profile.emergency_contact_address ?? ""} />
+              </div>
+            ) : (
+              <p className="mt-6 text-sm text-muted-foreground">
+                Nobody listed yet. Add the person a hospital should call if you cannot answer for yourself.
+              </p>
+            )}
+
+            <IdentityDocumentField
+              holder="emergency_contact"
+              docs={idDocs}
+              onChanged={loadIdDocs}
+            />
+          </motion.div>
+          </div>
         ) : tab === "Clinical" ? (
           <div className="space-y-6">
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}

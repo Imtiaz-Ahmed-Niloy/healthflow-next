@@ -9,6 +9,7 @@ import {
   ALLOWED_IMAGE_TYPES,
   MAX_IMAGE_BYTES,
   ALLOWED_DOCUMENT_TYPES,
+  ALLOWED_IDENTITY_TYPES,
   MAX_DOCUMENT_BYTES,
   type MediaFolder,
 } from "@/lib/media";
@@ -56,11 +57,15 @@ const FOLDER_ROLES: Record<MediaFolder, AppRole[]> = {
   // The sign-in page's promotional cards. Nobody but a super admin edits the
   // platform's front door, and an empty list means exactly that.
   ads: [],
+  // A patient proving who they are (0068). Only they upload it; only a super
+  // admin reviews it, and super_admin passes every folder anyway.
+  identity: ["patient"],
 };
 
 const uploadRequestSchema = z.object({
   folder: z.enum([
     "hospitals", "doctors", "announcements", "blog", "avatars", "community", "documents", "ads",
+    "identity",
   ]),
   contentType: z.enum([...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOCUMENT_TYPES]),
   size: z.number().int().positive(),
@@ -72,10 +77,15 @@ const uploadRequestSchema = z.object({
  * as a scanned licence — and the 10MB document limit does not quietly become
  * the limit for images everywhere.
  */
-const folderRules = (folder: MediaFolder) =>
-  folder === "documents"
-    ? { types: ALLOWED_DOCUMENT_TYPES as readonly string[], maxBytes: MAX_DOCUMENT_BYTES, noun: "document" }
-    : { types: ALLOWED_IMAGE_TYPES as readonly string[], maxBytes: MAX_IMAGE_BYTES, noun: "image" };
+const folderRules = (folder: MediaFolder) => {
+  if (folder === "documents") {
+    return { types: ALLOWED_DOCUMENT_TYPES as readonly string[], maxBytes: MAX_DOCUMENT_BYTES, noun: "document" };
+  }
+  if (folder === "identity") {
+    return { types: ALLOWED_IDENTITY_TYPES as readonly string[], maxBytes: MAX_DOCUMENT_BYTES, noun: "document" };
+  }
+  return { types: ALLOWED_IMAGE_TYPES as readonly string[], maxBytes: MAX_IMAGE_BYTES, noun: "image" };
+};
 
 export const POST = async (request: Request) => {
   const auth = await getAuthContext();
@@ -106,7 +116,9 @@ export const POST = async (request: Request) => {
     return fail(
       folder === "documents"
         ? "Licence documents must be PDFs."
-        : "That file type is not accepted here.",
+        : folder === "identity"
+          ? "Upload a photo or a PDF of the document."
+          : "That file type is not accepted here.",
       422,
     );
   }

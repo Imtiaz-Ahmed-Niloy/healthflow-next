@@ -63,6 +63,15 @@ export type SupportStaffRow = Tables["support_staff"]["Row"];
  */
 export type AdRow = Tables["ads"]["Row"];
 
+/**
+ * One identity document a patient uploaded for verification (0068). The
+ * embedded profile is who it belongs to — the review queue needs a name and
+ * a face beside the file.
+ */
+export type IdentityDocumentRow = Tables["identity_documents"]["Row"] & {
+  profiles: Pick<Tables["profiles"]["Row"], "id" | "full_name" | "email" | "phone" | "avatar_url"> | null;
+};
+
 /** Contact form submissions carry no relations — the sender is not a user. */
 export type ContactMessageRow = Tables["contact_messages"]["Row"];
 

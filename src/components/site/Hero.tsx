@@ -16,7 +16,11 @@ const Hero = ({ content }: { content: HomeContent }) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          <h1 className="mt-6 font-display md:text-6xl lg:text-7xl leading-[1.05] text-primary text-balance text-4xl">
+          {/* whitespace-pre-line so the break the editor typed is the break that
+              renders — the headline is written as lines, not left to the browser.
+              The sizes step down at lg because the column halves there: the type
+              is as large as the longest line can be without wrapping again. */}
+          <h1 className="mt-6 font-display text-4xl md:text-6xl lg:text-[2.7rem] xl:text-[3.4rem] 2xl:text-[3.8rem] leading-[1.05] text-primary whitespace-pre-line">
             {content.heroTitle1}
             {content.heroTitle2 && (
               <>
@@ -59,6 +63,26 @@ const Hero = ({ content }: { content: HomeContent }) => {
             height={1024}
             className="rounded-[2rem] w-full aspect-[4/3] object-cover shadow-card"
           />
+
+          {/* The reflection: the same picture flipped under itself, faded out
+              with a mask so it reads as a surface rather than a second image.
+              aria-hidden and empty alt — there is nothing here to announce. */}
+          <div
+            aria-hidden
+            className="pointer-events-none select-none mt-2 h-24 md:h-32 overflow-hidden rounded-[2rem] opacity-25 [mask-image:linear-gradient(to_bottom,black,transparent)] [-webkit-mask-image:linear-gradient(to_bottom,black,transparent)]"
+          >
+            {/* Flipped about its centre, then clipped to this strip: what shows
+                is the bottom of the picture, mirrored — the way a reflection
+                falls. Flipping about an edge would push it out of the box. */}
+            <img
+              src={hero}
+              alt=""
+              width={1280}
+              height={1024}
+              className="w-full aspect-[4/3] object-cover -scale-y-100 blur-[1px]"
+            />
+          </div>
+
           <div className="absolute -inset-4 -z-10 rounded-[2.5rem] bg-accent/40 blur-3xl" />
         </motion.div>
       </div>

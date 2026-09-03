@@ -10,7 +10,9 @@ export type HomeContent = {
 };
 
 export const defaultHomeContent: HomeContent = {
-  heroTitle1: "Your Health, Connected in One Place.",
+  // The newline is deliberate: "Connected in One Place." reads as one
+  // phrase and is kept on one line. Hero renders it with whitespace-pre-line.
+  heroTitle1: "Your Health,\nConnected in One Place.",
   heroTitle2: "",
   heroDesc:
     "Find trusted hospitals, clinics, doctors, diagnostics, and pharmacies — all in one powerful platform designed for your complete healthcare journey. Book appointments. Compare services. Access reports. Order medicines. Get better care — faster, smarter.",

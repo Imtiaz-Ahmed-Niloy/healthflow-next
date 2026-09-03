@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode, useEffect, useState } from "react";
-import { Image as ImageIcon } from "lucide-react";
+import { BadgeCheck, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
 import { NavLink } from "@/components/NavLink";
 import { usePathname, useRouter } from "next/navigation";
@@ -19,6 +19,7 @@ import { formatDistanceToNow } from "date-fns";
 import LanguageSwitcher from "@/components/site/LanguageSwitcher";
 import { HeaderClock } from "@/components/common/HeaderClock";
 import { useSession, displayName } from "@/lib/auth/useSession";
+import { Avatar } from "@/components/common/Avatar";
 import { roleLabel } from "@/lib/auth/permissions";
 import { BRAND_INFO } from "@/constants/brand";
 
@@ -30,6 +31,7 @@ export const superNav = [
   { to: "/super/roles", icon: ShieldCheck, label: "User Role Management", group: "Tenants" },
   { to: "/super/package-management", icon: Package, label: "Package Management", group: "Tenants" },
   { to: "/super/logs", icon: FileBarChart, label: "Log Reports", group: "Monitoring" },
+  { to: "/super/verification", icon: BadgeCheck, label: "Patient Verification", group: "Monitoring" },
   
   { to: "/super/whitelisting", icon: ListChecks, label: "Whitelisting", group: "Monitoring" },
   
@@ -177,9 +179,8 @@ const TopbarInner = ({ title, subtitle, onMenu, menuOpen }: { title: string; sub
                 <p className="font-semibold text-sm text-primary leading-tight">{displayName(user)}</p>
                 <p className="text-[10px] tracking-widest font-bold text-primary-glow">{roleLabel(user?.role).toUpperCase()}</p>
               </div>
-              <div className="h-10 w-10 rounded-full bg-gradient-dark grid place-items-center text-surface-dark-foreground text-xs font-bold">
-                {displayName(user).split(" ").map(s => s[0]).slice(0, 2).join("").toUpperCase()}
-              </div>
+              {/* Initials until there is a picture — Avatar decides. */}
+              <Avatar src={user?.avatarUrl} name={displayName(user)} />
             </div>
             <button onClick={async () => { await signOut(); toast.success("Signed out"); router.replace("/signin"); router.refresh(); }}
               className="hidden md:flex items-center gap-2 text-sm font-semibold text-foreground/70 hover:text-destructive">
