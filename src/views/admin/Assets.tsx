@@ -1,9 +1,11 @@
 "use client";
 
+import { Boxes, CheckCircle2, Wrench, Archive } from "lucide-react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ResourcePage } from "@/components/admin/ResourcePage";
-import { Pill } from "@/components/admin/ui";
+import { Kpi, Pill } from "@/components/admin/ui";
 import { statusTone } from "@/components/admin/crud";
+import { useListResourceQuery } from "@/redux/api/createResourceApi";
 import type { AssetRow } from "@/redux/api/resources";
 
 /**
@@ -26,8 +28,46 @@ const ASSET_STATUSES = [
 const assetStatusLabel = (value: string) =>
   ASSET_STATUSES.find(s => s.value === value)?.label ?? value;
 
+/**
+ * Every count comes from the server's `meta.total`, which is an exact count
+ * over the whole table, not a tally of the rows in hand. Counting the rows
+ * would count one PAGE of them — the route caps `limit` at 100 — so a
+ * hospital with more equipment than that would quietly see the wrong numbers.
+ * `limit: 1` because the rows themselves are not wanted, only the count.
+ */
+const useAssetCount = (status?: string) =>
+  useListResourceQuery({
+    resource: "assets",
+    limit: 1,
+    filters: status ? { status } : undefined,
+  }).data?.meta?.total;
+
+const n = (value?: number) => (value === undefined ? "—" : String(value));
+
+/**
+ * The register at a glance, above the table. Shares the `assets:LIST` cache
+ * tag, so adding, editing or deleting a row in the table below moves these
+ * tiles with it.
+ */
+const AssetSummary = () => {
+  const total = useAssetCount();
+  const active = useAssetCount("active");
+  const maintenance = useAssetCount("maintenance");
+  const retired = useAssetCount("retired");
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <Kpi icon={Boxes} label="Total Assets" value={n(total)} tone="primary" />
+      <Kpi icon={CheckCircle2} label="Active" value={n(active)} tone="accent" />
+      <Kpi icon={Wrench} label="In Maintenance" value={n(maintenance)} tone="destructive" />
+      <Kpi icon={Archive} label="Retired" value={n(retired)} tone="chip" />
+    </div>
+  );
+};
+
 const Page = () => (
   <AdminLayout title="Asset Management" subtitle="Equipment, devices and maintenance">
+    <AssetSummary />
     <ResourcePage<AssetRow> config={{
       storeKey: "assets",
       resource: "assets",
