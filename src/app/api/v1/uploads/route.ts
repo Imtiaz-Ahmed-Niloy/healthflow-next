@@ -49,9 +49,10 @@ const FOLDER_ROLES: Record<MediaFolder, AppRole[]> = {
   avatars: ["hospital_admin", "hr_admin", "finance_admin", "doctor", "patient"],
   // A doctor posting in the community attaches their own images.
   community: ["doctor"],
-  // Scanned licences on a hospital's own record (0061). A hospital admin
-  // uploads their paperwork; super_admin passes here as everywhere.
-  documents: ["hospital_admin"],
+  // Scanned licences on a hospital's own record (0061) and the confidential
+  // files shelf (0062) — hr_admin keeps the staff paperwork. super_admin
+  // passes here as everywhere.
+  documents: ["hospital_admin", "hr_admin"],
 };
 
 const uploadRequestSchema = z.object({

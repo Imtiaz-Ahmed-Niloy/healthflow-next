@@ -83,6 +83,13 @@ export type PharmacyItemRow = Tables["pharmacy_items"]["Row"];
  */
 export type EmployeeRow = Tables["employees"]["Row"];
 
+/**
+ * One row on the confidential document shelf (0062). Flat — the owner is free
+ * text rather than a profile reference, and the document itself lives in R2
+ * under `file_key`.
+ */
+export type PersonalFileRow = Tables["personal_files"]["Row"];
+
 /** Patients carry no relations on the registry screen — profile_id is a raw uuid, not embedded. */
 export type PatientRow = Tables["patients"]["Row"];
 

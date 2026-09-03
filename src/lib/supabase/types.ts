@@ -2774,6 +2774,63 @@ export type Database = {
           },
         ]
       }
+      personal_files: {
+        Row: {
+          created_at: string
+          file_key: string | null
+          folder: string
+          id: string
+          notes: string | null
+          owner: string | null
+          size_bytes: number | null
+          status: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          file_key?: string | null
+          folder?: string
+          id?: string
+          notes?: string | null
+          owner?: string | null
+          size_bytes?: number | null
+          status?: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          file_key?: string | null
+          folder?: string
+          id?: string
+          notes?: string | null
+          owner?: string | null
+          size_bytes?: number | null
+          status?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_files_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_files_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pharmacy_items: {
         Row: {
           category: string | null

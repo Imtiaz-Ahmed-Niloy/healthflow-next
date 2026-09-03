@@ -58,7 +58,7 @@ panel look one page further behind than it is.
 | ✅ | Hospital Profile | HF-85 |
 | ❌ | HR Dashboard | — |
 | ✅ | Employees | HF-68 |
-| ❌ | Personal Files — waiting on file storage | HF-64 |
+| ✅ | Personal Files — PDFs in R2, opened through an expiring link | HF-64 |
 | ✅ | Attendance & Leave — clock-ins, leave and holidays | HF-84 |
 | ✅ | Payroll — runs, payslips and salary settings | HF-67 |
 | ❌ | Accounts (Tally) | — |
@@ -72,7 +72,7 @@ panel look one page further behind than it is.
 | ✅ | Administration | HF-72 |
 | ❌ | Settings | — |
 
-**17 of 26 done.**
+**18 of 26 done.**
 
 27 menu entries, 26 pages: `adminNav` points both **Financial Reports** and
 **Reports** at `/admin/reports`. **Admissions** was missing from this file
@@ -177,14 +177,12 @@ make real.
 
 ## What is still local
 
-Nine hospital-admin pages are not on the API. They divide into three kinds,
-and the difference matters when picking one up:
+Eight hospital-admin pages are not on the API. They divide into two kinds, and
+the difference matters when picking one up:
 
 - **`/admin/wards` and `/admin/admissions`** call `useCrud` directly, so what
   you type is saved — to that browser's localStorage. The tables behind both
   already exist (HF-37); these two are a rewiring job, not a schema job.
-- **`/admin/personal-files`** is a `ResourcePage` with no `resource`, which
-  falls back to the same localStorage path. It waits on file storage (HF-64).
 - **`/admin/hr`, `/admin/accounts`, `/admin/reports`, `/admin/notifications`,
   `/admin/settings` and `/admin/vendors`** hold static demo arrays and save
   nothing at all. Vendors has a table waiting for it (HF-61); the others need
@@ -197,7 +195,7 @@ and the finance and system pages above. Nobody is working on those.
 
 ## The short answer
 
-**48 of 66 pages are on real data.** The public site is nearly finished; the
+**49 of 66 pages are on real data.** The public site is nearly finished; the
 hospital admin panel is the bulk of what is left.
 
 Everything marked ❌ still works when you click it — it shows demo data that

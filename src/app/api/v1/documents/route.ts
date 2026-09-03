@@ -22,13 +22,20 @@ import { r2Config, createR2Client, R2_BUCKET } from "@/lib/r2";
  * still fetchable by anyone who learns its key; the key is 16 random hex
  * characters and is never published.
  *
- * Who may read one: super_admin, and a hospital_admin for their own hospital.
- * That takes two checks, and RLS is only one of them. The read policy on
- * `public.tenants` is hospital-WIDE — proved it: a doctor at the hospital can
- * select the row, scan column and all — so leaning on RLS alone would hand a
- * hospital's trade licence to every doctor, nurse and receptionist on staff.
- * The role gate below decides who; RLS then decides which hospital, which is
- * the half it is genuinely good at.
+ * Two kinds of document live behind this route, and they are authorised
+ * differently because the tables behind them are:
+ *
+ *   - A hospital's licence scans (0061), which hang off columns on
+ *     `public.tenants`. That table's read policy is hospital-WIDE — proved it:
+ *     a doctor at the hospital can select the row, scan column and all — so
+ *     RLS alone would hand a trade licence to every doctor and receptionist on
+ *     staff. The role check below is what stops that; RLS then decides which
+ *     hospital, the half it is genuinely good at.
+ *
+ *   - The personal & confidential files shelf (0062), which carries its own
+ *     RESTRICTIVE role gate: only hospital_admin and hr_admin see a row at
+ *     all. There the visibility of the row IS the answer, and asking the
+ *     database is better than repeating the list here, where it could drift.
  */
 
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status });
@@ -60,12 +67,6 @@ export const GET = async (request: Request) => {
   const auth = await getAuthContext();
   if (!auth) return fail("Not signed in", 401);
 
-  // Owner paperwork, not staff-facing material: only the people who administer
-  // the hospital record itself.
-  if (auth.role !== "super_admin" && auth.role !== "hospital_admin") {
-    return fail("Not allowed to open this document", 403);
-  }
-
   const parsed = keySchema.safeParse(new URL(request.url).searchParams.get("key") ?? "");
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Which document?", 422);
   const key = parsed.data;
@@ -73,19 +74,35 @@ export const GET = async (request: Request) => {
   const config = r2Config();
   if (!config) return fail("Uploads are not configured on this environment yet.", 503);
 
-  // Which hospital's is it? A super_admin sees every row, a hospital_admin
-  // only their own — so a hospital admin asking for another hospital's scan
-  // gets the same 404 as a key that was never stored.
   const supabase = await createServerSupabase();
-  const { data, error } = await supabase
-    .from("tenants")
+
+  // A file on the confidential shelf. The role gate on the table means an
+  // unauthorised caller simply sees no row, and gets the same 404 as a key
+  // that was never stored.
+  const { data: file, error: fileError } = await supabase
+    .from("personal_files")
     .select("id")
-    .or(DOCUMENT_COLUMNS.map(column => `${column}.eq."${key}"`).join(","))
+    .eq("file_key", key)
     .limit(1)
     .maybeSingle();
+  if (fileError) return fail(fileError.message, 500);
 
-  if (error) return fail(error.message, 500);
-  if (!data) return fail("Document not found", 404);
+  if (!file) {
+    // Otherwise a licence scan, and `tenants` cannot answer who on its own.
+    if (auth.role !== "super_admin" && auth.role !== "hospital_admin") {
+      return fail("Not allowed to open this document", 403);
+    }
+
+    const { data: hospital, error } = await supabase
+      .from("tenants")
+      .select("id")
+      .or(DOCUMENT_COLUMNS.map(column => `${column}.eq."${key}"`).join(","))
+      .limit(1)
+      .maybeSingle();
+
+    if (error) return fail(error.message, 500);
+    if (!hospital) return fail("Document not found", 404);
+  }
 
   const client = createR2Client(config);
   const url = await getSignedUrl(

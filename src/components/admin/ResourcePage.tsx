@@ -191,8 +191,12 @@ function ImageUploadField({ name, required, defaultValue, folder = "hospitals" }
  * as the logo instead: presigned PUT to Cloudflare, "documents/2026/09/x.pdf"
  * in the row.
  */
-function DocumentUploadField({ name, required, defaultValue, hint }: { name: string; required?: boolean; defaultValue?: string; hint?: string }) {
+function DocumentUploadField({ name, required, defaultValue, hint, sizeName, defaultSize }: { name: string; required?: boolean; defaultValue?: string; hint?: string; sizeName?: string; defaultSize?: unknown }) {
   const [stored, setStored] = useState<string>(defaultValue || "");
+  // Posted alongside the key when the resource has somewhere to put it. Known
+  // for free here and nowhere else — reading it back would mean a round trip
+  // to Cloudflare for every row in a list.
+  const [size, setSize] = useState<string>(defaultSize ? String(defaultSize) : "");
   // The name of the file the user just picked, so the field says "licence.pdf"
   // rather than the opaque key. Nothing persists it — an existing document
   // falls back to the filename inside its key.
@@ -242,6 +246,7 @@ function DocumentUploadField({ name, required, defaultValue, hint }: { name: str
 
       setStored(key);
       setLabel(file.name);
+      setSize(String(file.size));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not upload that document.");
     } finally {
@@ -279,7 +284,7 @@ function DocumentUploadField({ name, required, defaultValue, hint }: { name: str
 
   const openPicker = () => { if (!busy) inputRef.current?.click(); };
 
-  const clear = () => { setStored(""); setLabel(""); setError(null); };
+  const clear = () => { setStored(""); setLabel(""); setSize(""); setError(null); };
 
   return (
     <div
@@ -292,6 +297,7 @@ function DocumentUploadField({ name, required, defaultValue, hint }: { name: str
       }`}
     >
       <input type="hidden" name={name} value={stored} required={required} />
+      {sizeName && <input type="hidden" name={sizeName} value={size} />}
       <input ref={inputRef} type="file" accept="application/pdf" onChange={onPick} className="hidden" />
 
       <button type="button" onClick={openPicker} disabled={busy} aria-label={stored ? "Replace document" : "Choose a PDF"}
@@ -869,7 +875,8 @@ export type FieldDef = (
   | { name: string; label: string; type: "image"; folder?: MediaFolder; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "file"; accept?: string; hint?: string; required?: boolean; fullWidth?: boolean }
   // A scanned PDF in R2, the column holding its object key — DocumentUploadField.
-  | { name: string; label: string; type: "document"; hint?: string; required?: boolean; fullWidth?: boolean }
+  // `sizeField` names a second column to post the byte count into.
+  | { name: string; label: string; type: "document"; hint?: string; sizeField?: string; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "files"; accept?: string; hint?: string; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "list"; itemType?: "text" | "email" | "tel" | "url"; placeholder?: string; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "social"; required?: boolean; fullWidth?: boolean }
@@ -909,7 +916,7 @@ export function RecordFormFields({
               ) : f.type === "file" ? (
                 <FileUploadField name={f.name} required={f.required} accept={f.accept} hint={f.hint} defaultValue={(editing as never)?.[f.name] ?? ""} />
               ) : f.type === "document" ? (
-                <DocumentUploadField name={f.name} required={f.required} hint={f.hint} defaultValue={(editing as never)?.[f.name] ?? ""} />
+                <DocumentUploadField name={f.name} required={f.required} hint={f.hint} sizeName={f.sizeField} defaultValue={(editing as never)?.[f.name] ?? ""} defaultSize={f.sizeField ? (editing as never)?.[f.sizeField] : undefined} />
               ) : f.type === "files" ? (
                 <FilesUploadField name={f.name} accept={f.accept} hint={f.hint} defaultValue={(editing as never)?.[f.name] ?? ""} />
               ) : f.type === "list" ? (
@@ -1200,6 +1207,17 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
           const fd = new FormData(e.currentTarget);
           const obj: Record<string, unknown> = { ...((config.defaults as Record<string, unknown>) || {}) };
           config.fields.forEach(f => {
+            // A document field can post a second value — the uploaded file's
+            // size — into a column of its own. It is not in `fields`, so this
+            // loop is the only place that would ever pick it up.
+            if (f.type === "document" && f.sizeField) {
+              const size = String(fd.get(f.sizeField) ?? "");
+              // null rather than omitted when the file was removed, so the
+              // column is cleared instead of keeping the size of a document
+              // that is no longer attached.
+              obj[f.sizeField] = size || null;
+            }
+
             const raw = String(fd.get(f.name) ?? "");
             if (!JSON_VALUED_TYPES.has(f.type)) { obj[f.name] = raw; return; }
             // Omit rather than send "" or a broken parse — an empty key lets the
@@ -1247,7 +1265,7 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
                     ) : f.type === "file" ? (
                       <FileUploadField name={f.name} required={f.required} accept={f.accept} hint={f.hint} defaultValue={(editing as never)?.[f.name] ?? ""} />
                     ) : f.type === "document" ? (
-                      <DocumentUploadField name={f.name} required={f.required} hint={f.hint} defaultValue={(editing as never)?.[f.name] ?? ""} />
+                      <DocumentUploadField name={f.name} required={f.required} hint={f.hint} sizeName={f.sizeField} defaultValue={(editing as never)?.[f.name] ?? ""} defaultSize={f.sizeField ? (editing as never)?.[f.sizeField] : undefined} />
                     ) : f.type === "files" ? (
                       <FilesUploadField name={f.name} accept={f.accept} hint={f.hint} defaultValue={(editing as never)?.[f.name] ?? ""} />
                     ) : f.type === "list" ? (
