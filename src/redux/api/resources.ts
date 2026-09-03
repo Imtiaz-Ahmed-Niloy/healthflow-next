@@ -71,6 +71,9 @@ export type SupportTicketRow = Tables["support_tickets"]["Row"] & {
 /** The equipment register is flat — assignee is free text, not a profile reference. */
 export type AssetRow = Tables["assets"]["Row"];
 
+/** A supplier. Flat — the contact is a name and phone, not a user account. */
+export type VendorRow = Tables["vendors"]["Row"];
+
 /** The lab catalogue is a flat price list — no patient or doctor references. */
 export type LabTestRow = Tables["lab_tests"]["Row"];
 

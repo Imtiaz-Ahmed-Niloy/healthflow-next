@@ -66,13 +66,13 @@ panel look one page further behind than it is.
 | ✅ | Financial Reports — six reports counted from real rows, with CSV | — |
 | ✅ | Assets | HF-62 |
 | ✅ | Procurement | HF-71 |
-| ❌ | Vendors — table exists, page not wired to it | HF-61 |
+| ✅ | Vendors | HF-61 |
 | ✅ | Reports — the same page as Financial Reports, listed twice in the menu | — |
 | ❌ | Notifications | — |
 | ✅ | Administration | HF-72 |
 | ❌ | Settings | — |
 
-**21 of 26 done.**
+**22 of 26 done.**
 
 27 menu entries, 26 pages: `adminNav` points both **Financial Reports** and
 **Reports** at `/admin/reports`. **Admissions** was missing from this file
@@ -177,15 +177,15 @@ make real.
 
 ## What is still local
 
-Five hospital-admin pages are not on the API. They divide into two kinds, and
+Four hospital-admin pages are not on the API. They divide into two kinds, and
 the difference matters when picking one up:
 
 - **`/admin/wards` and `/admin/admissions`** call `useCrud` directly, so what
   you type is saved — to that browser's localStorage. The tables behind both
   already exist (HF-37); these two are a rewiring job, not a schema job.
-- **`/admin/notifications`, `/admin/settings` and `/admin/vendors`** hold
-  static demo arrays and save nothing at all. Vendors has a table waiting for it (HF-61); the others need
-  a decision about what the page is for before they need a table.
+- **`/admin/notifications` and `/admin/settings`** hold static demo arrays and
+  save nothing at all. Both need a decision about what the page is for before
+  they need a table.
 
 **13 menu items have no ticket at all** — mostly Super Admin settings screens
 and the finance and system pages above. Nobody is working on those.
@@ -194,7 +194,7 @@ and the finance and system pages above. Nobody is working on those.
 
 ## The short answer
 
-**52 of 66 pages are on real data.** The public site is nearly finished; the
+**53 of 66 pages are on real data.** The public site is nearly finished; the
 hospital admin panel is the bulk of what is left.
 
 Everything marked ❌ still works when you click it — it shows demo data that
