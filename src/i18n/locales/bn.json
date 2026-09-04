@@ -80,7 +80,8 @@
   "testimonials": {
     "heading": "মানুষ আমাদের সম্পর্কে কী ভাবে?",
     "patients": "রোগী",
-    "doctors": "ডাক্তার"
+    "doctors": "ডাক্তার",
+    "hospitals": "হাসপাতাল"
   },
   "sidebar": {
     "dashboard": "ড্যাশবোর্ড",

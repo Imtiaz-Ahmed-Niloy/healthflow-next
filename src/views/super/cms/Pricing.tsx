@@ -94,8 +94,6 @@ const CmsPricing = () => {
         <SectionTitle title="Hero section" />
         <div className="grid md:grid-cols-3 gap-4 mt-4">
           <div>
-            <Label>Eyebrow</Label>
-            <Input value={data.hero.eyebrow} onChange={e => updateHero({ eyebrow: e.target.value })} />
           </div>
           <div className="md:col-span-2">
             <Label>Title</Label>

@@ -133,20 +133,6 @@ const FooterEditor = () => {
             onChange={e => update({ tagline: e.target.value })}
           />
         </div>
-        <div className="space-y-1.5">
-          <Label>Newsletter title</Label>
-          <Input
-            value={draft.newsletterTitle}
-            onChange={e => update({ newsletterTitle: e.target.value })}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Newsletter placeholder</Label>
-          <Input
-            value={draft.newsletterPlaceholder}
-            onChange={e => update({ newsletterPlaceholder: e.target.value })}
-          />
-        </div>
       </div>
 
       <div className="mt-6">

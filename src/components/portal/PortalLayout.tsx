@@ -29,10 +29,7 @@ const links = [
   { to: "/portal/user-guide", icon: BookOpen, label: "User Guide" },
 ];
 
-export const PortalSidebar = () => {
-  const { user } = useSession();
-
-  return (
+export const PortalSidebar = () => (
   <aside className="w-64 bg-chip/40 border-r border-border/50 flex flex-col py-6 sticky top-0 h-screen">
     <Link href="/" className="px-6 flex items-center gap-2">
       <img src={BRAND_INFO.logo} alt={`${BRAND_INFO.name} logo`} className="h-12 w-12 object-contain" />
@@ -42,17 +39,7 @@ export const PortalSidebar = () => {
       </div>
     </Link>
 
-    <div className="px-6 mt-10 flex items-center gap-3">
-      <Avatar src={user?.avatarUrl} name={displayName(user)} className="h-12 w-12" />
-      <div>
-        <p className="font-display text-lg text-primary leading-tight">{displayName(user)}</p>
-        {/* TODO: specialty comes from the doctors row for this profile_id.
-            Needs a lookup that does not exist yet, so left static. */}
-        <p className="text-[11px] text-muted-foreground">Internal Medicine</p>
-      </div>
-    </div>
-
-    <nav className="mt-8 px-3 flex-1 flex flex-col gap-1">
+    <nav className="mt-10 px-3 flex-1 flex flex-col gap-1">
       {links.map(l => (
         <NavLink key={l.to} to={l.to}
           className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${isActive ? "bg-card text-primary shadow-soft" : "text-foreground/70 hover:bg-card/60"}`}>
@@ -63,8 +50,7 @@ export const PortalSidebar = () => {
 
     <div className="px-6 text-[10px] tracking-widest font-semibold text-muted-foreground">{BRAND_INFO.copyrightUppercase}</div>
   </aside>
-  );
-};
+);
 
 export const PortalTopbar = () => {
   const router = useRouter();

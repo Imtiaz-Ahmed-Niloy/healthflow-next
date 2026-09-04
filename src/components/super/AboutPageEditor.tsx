@@ -123,7 +123,6 @@ const AboutPageEditor = () => {
         <Card className="p-5">
           <SectionTitle title="HealthFlow Journey" action={bar} />
           <div className="grid md:grid-cols-3 gap-3 mb-4">
-            <div className="space-y-1.5"><Label>Eyebrow</Label><Input value={draft.journey.eyebrow} onChange={e => setJourney({ eyebrow: e.target.value })} /></div>
             <div className="space-y-1.5"><Label>Title</Label><Input value={draft.journey.title} onChange={e => setJourney({ title: e.target.value })} /></div>
           </div>
           <div className="space-y-1.5 mb-4"><Label>Subtitle</Label><Textarea rows={2} value={draft.journey.subtitle} onChange={e => setJourney({ subtitle: e.target.value })} /></div>
@@ -147,11 +146,10 @@ const AboutPageEditor = () => {
       <TabsContent value="ceo">
         <Card className="p-5">
           <SectionTitle title="CEO Message" action={bar} />
-          <div className="space-y-1.5 mb-3"><Label>Eyebrow</Label><Input value={draft.ceoMessage.eyebrow} onChange={e => setCeoMessage({ eyebrow: e.target.value })} /></div>
           <div className="space-y-1.5 mb-3"><Label>Quote</Label><Textarea rows={5} value={draft.ceoMessage.quote} onChange={e => setCeoMessage({ quote: e.target.value })} /></div>
           <div className="grid md:grid-cols-2 gap-3">
-            <div className="space-y-1.5"><Label>Name</Label><Input value={draft.ceoMessage.name} onChange={e => setCeoMessage({ name: e.target.value })} /></div>
-            <div className="space-y-1.5"><Label>Role</Label><Input value={draft.ceoMessage.role} onChange={e => setCeoMessage({ role: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label>Attribution — first line</Label><Input value={draft.ceoMessage.attributionLead} onChange={e => setCeoMessage({ attributionLead: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label>Attribution — second line</Label><Input value={draft.ceoMessage.attributionName} onChange={e => setCeoMessage({ attributionName: e.target.value })} /></div>
           </div>
         </Card>
       </TabsContent>
@@ -160,7 +158,6 @@ const AboutPageEditor = () => {
         <Card className="p-5">
           <SectionTitle title="Core Objectives" action={bar} />
           <div className="grid md:grid-cols-3 gap-3 mb-4">
-            <div className="space-y-1.5"><Label>Eyebrow</Label><Input value={draft.objectives.eyebrow} onChange={e => setObjectives({ eyebrow: e.target.value })} /></div>
             <div className="space-y-1.5"><Label>Title</Label><Input value={draft.objectives.title} onChange={e => setObjectives({ title: e.target.value })} /></div>
           </div>
           <div className="space-y-1.5 mb-4"><Label>Subtitle</Label><Textarea rows={2} value={draft.objectives.subtitle} onChange={e => setObjectives({ subtitle: e.target.value })} /></div>
@@ -212,7 +209,6 @@ const AboutPageEditor = () => {
         <Card className="p-5">
           <SectionTitle title="Visionaries" action={bar} />
           <div className="grid md:grid-cols-2 gap-3 mb-3">
-            <div className="space-y-1.5"><Label>Eyebrow</Label><Input value={draft.team.eyebrow} onChange={e => setTeam({ eyebrow: e.target.value })} /></div>
             <div className="space-y-1.5"><Label>Title</Label><Input value={draft.team.title} onChange={e => setTeam({ title: e.target.value })} /></div>
           </div>
           <div className="space-y-1.5 mb-4"><Label>Subtitle</Label>

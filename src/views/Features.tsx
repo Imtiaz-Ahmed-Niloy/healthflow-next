@@ -30,7 +30,6 @@ const Features = ({ hero, content }: { hero: CmsHeroFields; content: FeaturesCon
         <section className="container mx-auto pt-12 pb-16">
           <div className="grid lg:grid-cols-2 gap-10 items-center">
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
-              {hero.eyebrow && <span className="text-xs font-bold tracking-[0.2em] text-primary-glow">{hero.eyebrow}</span>}
               <h1 className="mt-6 font-display text-4xl md:text-6xl text-primary leading-[1.05]">{hero.title}</h1>
               <p className="mt-5 text-muted-foreground max-w-lg">{hero.description}</p>
               <div className="mt-7 flex gap-3">

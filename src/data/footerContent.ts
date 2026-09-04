@@ -8,8 +8,6 @@ export type FooterSocial = { twitter: string; facebook: string; instagram: strin
 export type FooterContent = {
   brand: string;
   tagline: string;
-  newsletterTitle: string;
-  newsletterPlaceholder: string;
   rights: string;
   columns: FooterColumn[];
   social: FooterSocial;
@@ -21,8 +19,6 @@ const EVENT = "hf:footer-content:changed";
 export const defaultFooterContent: FooterContent = {
   brand: BRAND_INFO.name,
   tagline: BRAND_INFO.tagline,
-  newsletterTitle: "Newsletter",
-  newsletterPlaceholder: "Your email",
   rights: `© ${BRAND_INFO.name}. All rights reserved.`,
   columns: [
     {

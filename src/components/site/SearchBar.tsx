@@ -129,10 +129,12 @@ const SearchBar = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="container mx-auto -mt-4">
+    // No container of its own any more: it renders inside the dark band on the
+    // home page, which already sets the column and the padding.
+    <form onSubmit={handleSubmit}>
       <div className="mx-auto max-w-4xl">
         {/* Pill search bar */}
-        <div className="relative flex items-center rounded-full bg-muted/70 border border-border/60 shadow-card pl-6 pr-2 py-2">
+        <div className="relative flex items-center rounded-full bg-card border border-white/80 shadow-card pl-6 pr-2 py-2">
           <Search className="h-5 w-5 text-foreground/80 shrink-0" strokeWidth={2.25} />
           <input
             value={q}
@@ -156,11 +158,15 @@ const SearchBar = ({
           <button
             type="button"
             onClick={() => setFilterOpen((v) => !v)}
+            // Both states have to read on the dark band this renders in.
+            // bg-primary did not: at 18% lightness on a 16%-to-11% ground it
+            // was a button-shaped hole. Glass when idle, accent when it is
+            // holding something, which is how the plans band marks a choice.
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full px-4 py-1 text-sm font-medium transition-colors",
               filterOpen || hasFilters
-                ? "bg-primary text-primary-foreground"
-                : "bg-primary/90 text-primary-foreground hover:bg-primary",
+                ? "bg-accent text-primary"
+                : "bg-white/10 border border-white/20 text-surface-dark-foreground hover:bg-white/20",
             )}
             aria-expanded={filterOpen}
           >
@@ -201,7 +207,7 @@ const SearchBar = ({
                 <button
                   type="button"
                   onClick={clearFilters}
-                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                  className="inline-flex items-center gap-1 text-xs text-surface-dark-foreground/70 hover:text-surface-dark-foreground"
                 >
                   <X className="h-3 w-3" />
                   Clear

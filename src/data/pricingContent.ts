@@ -11,7 +11,7 @@ export type CompareRow = { label: string; basic: string; pro: string; enterprise
 export type Faq = { q: string; a: string };
 
 export type PricingContent = {
-  hero: { eyebrow: string; title: string; subtitle: string };
+  hero: { title: string; subtitle: string };
   plans: PricingPlan[];
   compareRows: CompareRow[];
   faqs: Faq[];
@@ -19,7 +19,6 @@ export type PricingContent = {
 
 export const defaultPricingContent: PricingContent = {
   hero: {
-    eyebrow: "FLEXIBLE PLANS",
     title: "Invest in Restorative Care",
     subtitle:
       "Transparent pricing designed for individuals, growing clinics, and established health institutions. Choose the flow that fits your lifestyle.",

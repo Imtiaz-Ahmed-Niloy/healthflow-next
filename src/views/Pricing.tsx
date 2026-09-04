@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import TiltCard from "@/components/site/TiltCard";
 import { Check, X } from "lucide-react";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
@@ -13,8 +14,7 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
       <main>
         <section className="container mx-auto pt-16 pb-12 text-center">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-            <span className="inline-flex rounded-full bg-chip text-chip-foreground px-4 py-1.5 text-xs font-semibold">{hero.eyebrow}</span>
-            <h1 className="mt-5 font-display text-4xl md:text-6xl text-primary">{hero.title}</h1>
+            <h1 className="font-display text-4xl md:text-6xl text-primary">{hero.title}</h1>
             <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">{hero.subtitle}</p>
           </motion.div>
         </section>
@@ -22,9 +22,9 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
         <section className="container mx-auto pb-20">
           <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto items-start">
             {plans.map((p, i) => (
-              <motion.div key={p.name}
-                initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: i * 0.1 }}
-                className={`relative rounded-3xl p-8 ${p.featured ? "bg-accent/40 border-2 border-accent shadow-glow md:-mt-6 md:mb-0" : "bg-card border border-border/60 shadow-soft"}`}>
+              <TiltCard key={p.name}
+                delay={i * 0.1}
+                className={`relative rounded-3xl p-8 transition-shadow duration-300 hover:shadow-card ${p.featured ? "bg-accent/40 border-2 border-accent shadow-glow md:-mt-6 md:mb-0" : "bg-card border border-border/60 shadow-soft"}`}>
                 {p.featured && (
                   <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary text-primary-foreground px-4 py-1 text-[10px] font-bold tracking-wider">MOST POPULAR</span>
                 )}
@@ -47,7 +47,7 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
                 <button className={`mt-7 w-full rounded-full py-3 text-sm font-semibold transition-all ${p.featured ? "bg-primary text-primary-foreground hover:bg-primary-glow" : "bg-accent/40 text-primary hover:bg-accent/60"}`}>
                   {p.cta}
                 </button>
-              </motion.div>
+              </TiltCard>
             ))}
           </div>
         </section>
@@ -87,15 +87,31 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
         </section>
 
         <section className="container mx-auto py-16">
-          <div className="rounded-3xl bg-muted/60 p-10 md:p-14">
-            <h2 className="font-display text-3xl md:text-4xl text-primary">Frequently Asked Questions</h2>
-            <p className="text-muted-foreground mt-2 text-sm">Everything you need to know about our restorative care subscriptions.</p>
-            <div className="grid md:grid-cols-2 gap-x-12 gap-y-8 mt-10">
+          {/* A white panel, not a tint of the page: bg-muted sat a couple of
+             percent off the cream gradient behind it, so the section had no
+             edge at all. Card white plus a border and an accent wash gives it
+             one, and each question sits on its own tinted tile inside. */}
+          <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-card shadow-card p-8 md:p-14">
+            <div aria-hidden className="pointer-events-none absolute -top-24 -right-20 h-72 w-72 rounded-full bg-accent/30 blur-3xl" />
+            <div aria-hidden className="pointer-events-none absolute -bottom-28 -left-24 h-72 w-72 rounded-full bg-secondary/60 blur-3xl" />
+
+            <div className="relative text-center max-w-2xl mx-auto">
+              <h2 className="font-display text-3xl md:text-4xl text-primary">Frequently Asked Questions</h2>
+              <p className="text-muted-foreground mt-3 text-sm">Everything you need to know about our restorative care subscriptions.</p>
+            </div>
+
+            <div className="relative grid md:grid-cols-2 gap-5 mt-10">
               {faqs.map((f, i) => (
                 <motion.div key={f.q}
-                  initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4, delay: i * 0.05 }}>
-                  <h3 className="font-semibold text-primary">{f.q}</h3>
-                  <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{f.a}</p>
+                  initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4, delay: i * 0.05 }}
+                  className="rounded-2xl border border-border/70 bg-background/70 p-6 transition-all duration-300 hover:border-accent hover:shadow-soft">
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent/40 text-primary text-xs font-bold">{i + 1}</span>
+                    <div>
+                      <h3 className="font-semibold text-primary leading-snug">{f.q}</h3>
+                      <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{f.a}</p>
+                    </div>
+                  </div>
                 </motion.div>
               ))}
             </div>
