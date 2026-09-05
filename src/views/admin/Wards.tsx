@@ -293,18 +293,26 @@ const Wards = () => {
 
   const [dischargeTarget, setDischargeTarget] = useState<AdmissionRow | null>(null);
   const openDischarge = (a: AdmissionRow) => { setBedDetail(null); setCabinDetail(null); setDischargeTarget(a); };
+  /**
+   * Release the bed FIRST, then flip the status — same order and same reason
+   * as Admissions.tsx's confirmDischarge: transfer_admission() rejects an
+   * admission that already carries a discharged_at (HF003), so the other way
+   * round leaves the patient discharged and the bed still occupied.
+   */
   const confirmDischarge = async () => {
     if (!dischargeTarget) return;
     try {
+      await transferBed({ admission_id: dischargeTarget.id, bed_id: null, cabin_id: null }).unwrap();
+    } catch {
+      push({ title: "Could not release the bed", body: "Nothing was changed — try again", tone: "bad" });
+      setDischargeTarget(null);
+      return;
+    }
+    try {
       await updateAdmission(dischargeTarget.id, { status: "discharged", discharged_at: new Date().toISOString() }).unwrap();
-      try {
-        await transferBed({ admission_id: dischargeTarget.id, bed_id: null, cabin_id: null }).unwrap();
-      } catch {
-        push({ title: "Discharged, but the release failed", body: "Free the bed/cabin manually", tone: "warn" });
-      }
       push({ title: "Discharged", body: `${dischargeTarget.patients?.full_name ?? "Patient"} discharged`, tone: "ok" });
     } catch {
-      push({ title: "Discharge failed", tone: "bad" });
+      push({ title: "Bed released, but the discharge did not save", body: "Set the status to Discharged from the Admissions page", tone: "warn" });
     }
     setDischargeTarget(null);
   };

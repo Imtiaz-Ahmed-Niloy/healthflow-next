@@ -10,6 +10,8 @@ export type AdmitInput = {
   diagnosis?: string;
   priority?: AdmissionRow["priority"];
   notes?: string;
+  /** Omit to let the database stamp now(), which is right for a walk-in. */
+  admitted_at?: string;
   /** At most one — see bed-transfers' own "choose a bed or a cabin" rule. */
   bed_id?: string;
   cabin_id?: string;
@@ -28,6 +30,12 @@ const errorMessage = (error: unknown, fallback: string) => {
  * admission still exists with no location — a visible, recoverable state,
  * not a corrupted one — so the two failure modes get distinct messages
  * rather than one generic error.
+ *
+ * That distinction is why this resolves true when the admission was created
+ * but the placement wasn't: the caller closes its form on true, and leaving
+ * the form open over a patient who IS now admitted invites the desk to press
+ * Admit again and create a second admission for the same person. The toast
+ * says where to finish the job instead.
  *
  * Shared between Admissions.tsx's "Admit Patient" button and Wards.tsx's
  * click-an-empty-bed flow, so the two-call sequence and its error handling
@@ -56,7 +64,7 @@ export const useAdmitPatient = () => {
         toast.error(
           errorMessage(cause, "Admitted, but the bed/cabin could not be assigned — use Transfer to assign one"),
         );
-        return false;
+        return true;
       }
     }
 

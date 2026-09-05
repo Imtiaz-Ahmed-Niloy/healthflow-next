@@ -181,6 +181,10 @@ const Admissions = () => {
         diagnosis: draft.diagnosis || undefined,
         priority: draft.priority as AdmissionRow["priority"],
         notes: draft.notes || undefined,
+        // The form asks for this, so it has to be sent — dropping it here
+        // silently overrode a backdated admission with the row's now()
+        // default, and the desk had no way to tell.
+        admitted_at: draft.admitted_at || undefined,
         bed_id: draft.bed_id || undefined,
         cabin_id: draft.cabin_id || undefined,
       });
@@ -188,17 +192,34 @@ const Admissions = () => {
     }
   };
 
-  /** Two calls, chained behind one confirmation: flip the status, then release the bed. */
+  /**
+   * Two calls behind one confirmation, and the order is not a matter of taste:
+   * release the bed FIRST, then flip the status.
+   *
+   * transfer_admission() refuses an admission that already has a
+   * discharged_at (HF003 → 422, see docs/ward-admission-api.md), so setting
+   * the status first makes the release fail every single time — the patient
+   * reads as discharged while the bed stays occupied with an open bed_stays
+   * row, which is the exact bug this ticket exists to close.
+   *
+   * If the release fails, the status is deliberately left alone: an admitted
+   * patient still holding a bed is consistent, and the desk can retry. The
+   * half-state to avoid is the other one.
+   */
   const confirmDischarge = async () => {
     if (!discharge) return;
+    try {
+      await transferBed({ admission_id: discharge.id, bed_id: null, cabin_id: null }).unwrap();
+    } catch {
+      push({ title: "Could not release the bed", body: "Nothing was changed — try again, or release it from the Wards floor map", tone: "bad" });
+      setDischarge(null);
+      return;
+    }
     const ok = await crud.update(discharge.id, { status: "discharged", discharged_at: now() });
     if (ok) {
-      try {
-        await transferBed({ admission_id: discharge.id, bed_id: null, cabin_id: null }).unwrap();
-      } catch {
-        push({ title: "Discharged, but the bed/cabin release failed", body: "Release it manually from the Wards floor map", tone: "warn" });
-      }
       push({ title: "Discharged", body: `${discharge.patients?.full_name ?? "Patient"} discharged`, tone: "ok" });
+    } else {
+      push({ title: "Bed released, but the discharge did not save", body: "Set the status to Discharged from the row's edit form", tone: "warn" });
     }
     setDischarge(null);
   };
