@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { MapPin, ArrowRight, Building2, Star, ChevronLeft, ChevronRight } from "lucide-react";
 import { useHospitals } from "@/hooks/useHospitals";
+import TiltCard from "@/components/site/TiltCard";
 
 const Hubs = () => {
   const hospitals = useHospitals();
@@ -37,6 +38,11 @@ const Hubs = () => {
   if (!total) return null;
   const go = (n: number) => setIndex(Math.max(0, Math.min(maxIndex, n)));
 
+  // The card in the middle of the three on screen. Only meaningful three-up:
+  // with one or two showing there is no middle to single out, and shrinking
+  // half of a two-card row would just look lopsided.
+  const focused = perView >= 3 ? index + 1 : -1;
+
   return (
     <section id="hubs" className="container mx-auto py-20">
       <div className="text-center max-w-2xl mx-auto mb-12">
@@ -54,12 +60,22 @@ const Hubs = () => {
             className="flex transition-transform duration-700 ease-out"
             style={{ transform: `translateX(-${index * (100 / perView)}%)` }}
           >
-            {hospitals.map(h => (
+            {hospitals.map((h, i) => (
               <div
                 key={h.slug}
                 className="shrink-0 px-2 md:px-3"
                 style={{ width: `${100 / perView}%` }}
               >
+                {/* The middle card stands at full size; the two beside it sit
+                    back a little, so the eye is told where to look. Scaling
+                    rather than resizing keeps the track arithmetic — and the
+                    translate that drives it — exactly as it was. */}
+                <TiltCard
+                  animateIn={false}
+                  lift={0}
+                  scale={focused === -1 || i === focused ? 1 : 0.88}
+                  className={`transition-opacity duration-700 ease-out ${focused === -1 || i === focused ? "opacity-100" : "opacity-80"}`}
+                >
                 <Link href={`/hospitals/${h.slug}`}
                   className="block relative overflow-hidden rounded-2xl shadow-card h-[420px] group/card"
                 >
@@ -85,6 +101,7 @@ const Hubs = () => {
                     </div>
                   </div>
                 </Link>
+                </TiltCard>
               </div>
             ))}
           </div>

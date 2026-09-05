@@ -27,12 +27,35 @@ export const ALLOWED_IMAGE_TYPES = [
  */
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
+/**
+ * Scanned paperwork — a hospital's TIN certificate, trade licence, operating
+ * licence (0061). PDF only: a licence is a document, and accepting photos of
+ * one invites a blurry phone snap where a scan belongs.
+ */
+export const ALLOWED_DOCUMENT_TYPES = ["application/pdf"] as const;
+
+/**
+ * Identity papers take either: a scan is a PDF, a phone photo is a JPEG. The
+ * server still decides per folder — see /api/v1/uploads.
+ */
+export const ALLOWED_IDENTITY_TYPES = [
+  ...ALLOWED_IMAGE_TYPES,
+  ...ALLOWED_DOCUMENT_TYPES,
+] as const;
+
+/**
+ * 10 MB. A scanned multi-page licence is heavier than a logo, and unlike a
+ * logo nobody is going to re-export it smaller.
+ */
+export const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
+
 const EXTENSIONS: Record<string, string> = {
   "image/png": "png",
   "image/jpeg": "jpg",
   "image/webp": "webp",
   "image/avif": "avif",
   "image/svg+xml": "svg",
+  "application/pdf": "pdf",
 };
 
 export type MediaFolder =
@@ -40,7 +63,19 @@ export type MediaFolder =
   // Images attached to a post on /portal/community (0059). Written by doctors,
   // which is why the upload route gates folders by role rather than letting
   // anyone signed in write anywhere.
-  | "community";
+  | "community"
+  // Scanned licences and certificates — a hospital's TIN, BIN, trade licence
+  // (0061). The only folder holding PDFs, and never published: the upload
+  // route gates who may write here, and hospitals_public carries neither the
+  // licence columns nor the columns pointing at these scans.
+  | "documents"
+  // Images on the promotional cards beside the sign-in form (0064). Public by
+  // nature — they are shown to anyone who opens /signin.
+  | "ads"
+  // A patient's own identity papers (0068): an NID photographed on a phone, a
+  // passport page, a scanned birth certificate. Images as well as PDFs, since
+  // this is the one thing people photograph rather than scan.
+  | "identity";
 
 /**
  * Where an uploaded file lands.

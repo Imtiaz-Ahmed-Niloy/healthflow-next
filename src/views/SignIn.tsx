@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -12,21 +12,30 @@ import { supabase } from "@/lib/supabase/client";
 import { homePathForRole, type AppRole } from "@/lib/auth/permissions";
 import { BRAND_INFO } from "@/constants/brand";
 import { Label } from "@/components/ui/label";
+import { mediaUrl } from "@/lib/media";
 
-const vitamin = "/assets/product-vitamin.jpg";
-const brain = "/assets/product-brain.jpg";
-const sanitizer = "/assets/product-sanitizer.jpg";
-const mist = "/assets/product-mist.jpg";
+/**
+ * One promotional card, as `public.signin_ads` stores it (0064). A super
+ * admin edits these on /super/ads; this page draws whatever is live.
+ */
+export type SigninAd = {
+  id: string;
+  side: "left" | "right";
+  position: number;
+  badge: string | null;
+  badge_tone: string;
+  title: string;
+  body: string | null;
+  image_url: string | null;
+  link_url: string | null;
+};
 
-const sideAds = {
-  left: [
-    { tag: "SPONSORED", img: vitamin, t: "VitaBoost Pro", d: "Advanced multivitamin complex for daily performance and immunity support.", tagColor: "bg-primary text-primary-foreground" },
-    { tag: "NEW ARRIVAL", img: sanitizer, t: "EcoSanit Max", d: "Eco-friendly medical grade sanitization for healthcare professionals.", tagColor: "bg-primary text-primary-foreground" },
-  ],
-  right: [
-    { tag: "LIMITED OFFER", img: brain, t: "NeuroPlus", d: "Nootropic formulation for enhanced cognitive focus and mental clarity.", tagColor: "bg-destructive text-destructive-foreground" },
-    { tag: "HEALTH TIP", img: mist, t: "SleepWell Mist", d: "Calming lavender and melatonin pillow spray for restorative sleep cycles.", tagColor: "bg-accent text-primary" },
-  ],
+/** The four tones the badge may take, as the table's check constraint allows. */
+const BADGE_TONE: Record<string, string> = {
+  primary: "bg-primary text-primary-foreground",
+  accent: "bg-accent text-primary",
+  destructive: "bg-destructive text-destructive-foreground",
+  muted: "bg-muted text-muted-foreground",
 };
 
 const demos = [
@@ -36,30 +45,60 @@ const demos = [
   { icon: Stethoscope, t: "Super Admin", e: "root@demo.pro", p: "system000" },
 ];
 
-const AdCard = ({ a }: { a: (typeof sideAds.left)[0] }) => (
-  <motion.div whileHover={{ y: -4 }} className="rounded-3xl bg-card border border-border/60 overflow-hidden shadow-soft">
-    <div className="relative">
-      <img src={a.img} alt={a.t} loading="lazy" width={512} height={512} className="aspect-square w-full object-cover" />
-      <span className={`absolute top-4 left-4 rounded-full px-3 py-1 text-[10px] font-bold tracking-wider ${a.tagColor}`}>{a.tag}</span>
-    </div>
-    <div className="p-5">
-      <h4 className="font-semibold text-primary">{a.t}</h4>
-      <p className="text-xs text-muted-foreground mt-2">{a.d}</p>
-    </div>
-  </motion.div>
-);
+const AdCard = ({ ad }: { ad: SigninAd }) => {
+  const image = mediaUrl(ad.image_url);
+
+  const card = (
+    <motion.div whileHover={{ y: -4 }} className="rounded-3xl bg-card border border-border/60 overflow-hidden shadow-soft h-full">
+      <div className="relative">
+        {image
+          ? <img src={image} alt={ad.title} loading="lazy" width={512} height={512} className="aspect-square w-full object-cover" />
+          : <div className="aspect-square w-full bg-muted/40" />}
+        {ad.badge && (
+          <span className={`absolute top-4 left-4 rounded-full px-3 py-1 text-[10px] font-bold tracking-wider ${BADGE_TONE[ad.badge_tone] ?? BADGE_TONE.primary}`}>
+            {ad.badge}
+          </span>
+        )}
+      </div>
+      <div className="p-5">
+        <h4 className="font-semibold text-primary">{ad.title}</h4>
+        {ad.body && <p className="text-xs text-muted-foreground mt-2">{ad.body}</p>}
+      </div>
+    </motion.div>
+  );
+
+  // A card without a link is not a link — wrapping it in an anchor that goes
+  // nowhere would give it a pointer cursor and a tab stop for nothing.
+  return ad.link_url
+    ? <a href={ad.link_url} target="_blank" rel="noreferrer noopener sponsored" className="block">{card}</a>
+    : card;
+};
 
 interface SignInFormValues {
   email: string;
   password: string;
 }
 
-const SignIn = () => {
+const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
+  const left = ads.filter(a => a.side === "left");
+  const right = ads.filter(a => a.side === "right");
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  /**
+   * /auth/callback sends a failed Google sign-in back here with the reason
+   * rather than dropping the person on a blank form wondering what happened.
+   */
+  const oauthError = searchParams?.get("error");
+  useEffect(() => {
+    if (!oauthError) return;
+    setGeneralError(oauthError);
+    toast.error(oauthError);
+  }, [oauthError]);
   const {
     register,
     handleSubmit,
@@ -157,7 +196,7 @@ const SignIn = () => {
   return (
     <AuthLayout>
       <div className="grid lg:grid-cols-[1fr_minmax(380px,520px)_1fr] gap-6 items-start">
-        <div className="hidden lg:flex flex-col gap-6">{sideAds.left.map(a => <AdCard key={a.t} a={a} />)}</div>
+        <div className="hidden lg:flex flex-col gap-6">{left.map(a => <AdCard key={a.id} ad={a} />)}</div>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
           className="rounded-3xl bg-card shadow-soft p-8 md:p-10">
@@ -284,7 +323,7 @@ const SignIn = () => {
           </div>
         </motion.div>
 
-        <div className="hidden lg:flex flex-col gap-6">{sideAds.right.map(a => <AdCard key={a.t} a={a} />)}</div>
+        <div className="hidden lg:flex flex-col gap-6">{right.map(a => <AdCard key={a.id} ad={a} />)}</div>
       </div>
     </AuthLayout>
   );

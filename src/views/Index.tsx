@@ -40,18 +40,21 @@ const Index = ({
       <Navbar />
       <main>
         <Hero content={homeContent} />
-        <Stats content={homeContent} />
-        <SearchBar
-          division={division}
-          zilla={zilla}
-          upazila={upazila}
-          specialty={specialty}
-          onDivisionChange={(v) => { setDivision(v); setZilla(""); setUpazila(""); scrollToSpecialists(); }}
-          onZillaChange={(v) => { setZilla(v); setUpazila(""); scrollToSpecialists(); }}
-          onUpazilaChange={(v) => { setUpazila(v); scrollToSpecialists(); }}
-          onSpecialtyChange={(v) => { setSpecialty(v); scrollToSpecialists(); }}
-          onClear={() => { setDivision(""); setZilla(""); setUpazila(""); setSpecialty(""); }}
-        />
+        {/* The search sits inside the dark band, under the numbers — it is the
+            one thing on this page people came to do. */}
+        <Stats content={homeContent}>
+          <SearchBar
+            division={division}
+            zilla={zilla}
+            upazila={upazila}
+            specialty={specialty}
+            onDivisionChange={(v) => { setDivision(v); setZilla(""); setUpazila(""); scrollToSpecialists(); }}
+            onZillaChange={(v) => { setZilla(v); setUpazila(""); scrollToSpecialists(); }}
+            onUpazilaChange={(v) => { setUpazila(v); scrollToSpecialists(); }}
+            onSpecialtyChange={(v) => { setSpecialty(v); scrollToSpecialists(); }}
+            onClear={() => { setDivision(""); setZilla(""); setUpazila(""); setSpecialty(""); }}
+          />
+        </Stats>
         <Specialists
           ref={specialistsRef}
           division={division}

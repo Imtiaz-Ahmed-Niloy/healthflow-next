@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { mediaKey, mediaUrl, isMediaKey, MAX_IMAGE_BYTES, ALLOWED_IMAGE_TYPES } from "./media";
+import {
+  mediaKey, mediaUrl, isMediaKey,
+  MAX_IMAGE_BYTES, ALLOWED_IMAGE_TYPES,
+  MAX_DOCUMENT_BYTES, ALLOWED_DOCUMENT_TYPES,
+} from "./media";
 
 const AT = new Date(Date.UTC(2026, 8, 1, 12, 0, 0)); // 1 Sep 2026
 const FIXED = () => "a1b2c3d4e5f60718";
@@ -21,8 +25,16 @@ describe("mediaKey", () => {
     expect(extensions).toEqual(["png", "jpg", "webp", "avif", "svg"]);
   });
 
+  it("names a scanned licence with a .pdf under the documents folder", () => {
+    expect(mediaKey("documents", "application/pdf", AT, FIXED))
+      .toBe("documents/2026/09/a1b2c3d4e5f60718.pdf");
+  });
+
   it("refuses a type we do not accept, rather than inventing an extension", () => {
-    expect(() => mediaKey("hospitals", "application/pdf", AT, FIXED)).toThrow(/unsupported/i);
+    // PDF is accepted since 0061 — for documents. Which folders take which
+    // types is the upload route's decision, not this function's.
+    expect(() => mediaKey("documents", "application/zip", AT, FIXED)).toThrow(/unsupported/i);
+    expect(() => mediaKey("hospitals", "text/html", AT, FIXED)).toThrow(/unsupported/i);
   });
 
   it("never puts the caller's filename in the path", () => {
@@ -30,6 +42,17 @@ describe("mediaKey", () => {
     const key = mediaKey("hospitals", "image/png", AT, FIXED);
     expect(key).not.toContain("..");
     expect(key.split("/")).toHaveLength(4);
+  });
+});
+
+describe("document limits", () => {
+  it("takes PDFs and nothing else", () => {
+    expect(ALLOWED_DOCUMENT_TYPES).toEqual(["application/pdf"]);
+  });
+
+  it("allows a heavier file than an image, because a scan is heavier", () => {
+    expect(MAX_DOCUMENT_BYTES).toBe(10 * 1024 * 1024);
+    expect(MAX_DOCUMENT_BYTES).toBeGreaterThan(MAX_IMAGE_BYTES);
   });
 });
 

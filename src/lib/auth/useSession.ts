@@ -8,6 +8,8 @@ export type SessionUser = {
   id: string;
   email: string | null;
   fullName: string | null;
+  /** An R2 key or an absolute URL — run it through mediaUrl() before rendering. */
+  avatarUrl: string | null;
   role: AppRole | null;
   tenantId: string | null;
 };
@@ -35,16 +37,41 @@ export const useSession = () => {
       return;
     }
 
-    const metadata = (claims.user_metadata ?? {}) as { full_name?: string };
+    const metadata = (claims.user_metadata ?? {}) as { full_name?: string; avatar_url?: string };
 
     setUser({
       id: claims.sub,
       email: typeof claims.email === "string" ? claims.email : null,
       fullName: metadata.full_name ?? null,
+      // From the token first, so something draws immediately; the row below
+      // then wins, because that is where an uploaded picture lands.
+      avatarUrl: metadata.avatar_url ?? null,
       role: typeof claims.user_role === "string" ? (claims.user_role as AppRole) : null,
       tenantId: typeof claims.tenant_id === "string" ? claims.tenant_id : null,
     });
     setIsLoading(false);
+
+    /**
+     * The name and picture as the person last saved them. The JWT carries what
+     * the identity provider said at sign-in, which goes stale the moment
+     * somebody edits their profile — this is why the topbar kept showing a
+     * stock photo after an upload.
+     *
+     * profiles_select_self (0002) allows exactly this one row.
+     */
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, avatar_url")
+      .eq("id", claims.sub)
+      .maybeSingle();
+
+    if (profile) {
+      setUser(current => (current ? {
+        ...current,
+        fullName: profile.full_name ?? current.fullName,
+        avatarUrl: profile.avatar_url ?? current.avatarUrl,
+      } : current));
+    }
   }, []);
 
   useEffect(() => {

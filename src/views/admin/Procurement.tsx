@@ -6,6 +6,7 @@ import { Card, Btn, Pill } from "@/components/admin/ui";
 import { Modal, Field, Input, Select } from "@/components/admin/crud";
 import { useResourceCrud } from "@/components/admin/useResourceCrud";
 import { useNotifications } from "@/components/admin/NotificationProvider";
+import { WorkOrderModal } from "@/components/admin/WorkOrderModal";
 import type { Tables } from "@/lib/supabase/types";
 
 /**
@@ -19,6 +20,9 @@ type Requisition = Omit<Tables<"procurement_requisitions">, "amount"> & {
 };
 
 type VendorOption = { id: string; name: string; status: string };
+
+/** Only what this page needs off a work order: its number, to suggest the next. */
+type WorkOrderRow = { id: string; reference: string };
 
 /**
  * The board's four columns. `rejected` is deliberately not one of them — it is
@@ -49,13 +53,24 @@ const suggestReference = (rows: Requisition[]) => {
   return `REQ-${used.length ? Math.max(...used) + 1 : 3001}`;
 };
 
+/** The same, for work orders (0071), which carry their own series. */
+const suggestWorkOrderReference = (rows: { reference: string }[]) => {
+  const used = rows
+    .map(r => Number(r.reference.trim().toUpperCase().replace(/^WO-/, "")))
+    .filter(Number.isFinite);
+  return `WO-${used.length ? Math.max(...used) + 1 : 1001}`;
+};
+
 const Procurement = () => {
   const crud = useResourceCrud<Requisition>("procurement-requisitions");
   // The vendor register (0030). A requisition is bought from someone.
   const vendors = useResourceCrud<VendorOption>("vendors");
+  // The orders raised from these requisitions (0071).
+  const workOrders = useResourceCrud<WorkOrderRow>("work-orders");
   const { push } = useNotifications();
 
   const [add, setAdd] = useState(false);
+  const [workOrder, setWorkOrder] = useState(false);
   const [view, setView] = useState<Requisition | null>(null);
   const [showRejected, setShowRejected] = useState(false);
 
@@ -100,7 +115,8 @@ const Procurement = () => {
 
   return (
     <AdminLayout title="Procurement (Requisition)" subtitle="Approve, order and track delivery">
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end gap-2 mb-4">
+        <Btn variant="outline" onClick={() => setWorkOrder(true)}>Create Work Order</Btn>
         <Btn onClick={() => setAdd(true)}>+ New Requisition</Btn>
       </div>
 
@@ -214,6 +230,23 @@ const Procurement = () => {
           )}
         </form>
       </Modal>
+
+      {/* An order is raised against an approved requisition, so those are what
+          the picker offers — a pending one has not been agreed to yet, and a
+          rejected one never will be. */}
+      <WorkOrderModal
+        open={workOrder}
+        onClose={() => setWorkOrder(false)}
+        suggestedReference={suggestWorkOrderReference(workOrders.items)}
+        departments={DEPARTMENTS}
+        requisitions={rows.filter(r => r.stage === "approved" || r.stage === "ordered")}
+        onSubmit={async values => {
+          const created = await workOrders.create(values as never);
+          if (!created) return false; // useResourceCrud has surfaced the error
+          push({ title: `Work order ${values.reference} created`, tone: "info" });
+          return true;
+        }}
+      />
 
       <Modal open={!!view} onClose={() => setView(null)} title={view?.reference ?? ""}>
         {view && (

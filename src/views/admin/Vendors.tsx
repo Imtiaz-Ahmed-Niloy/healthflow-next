@@ -4,37 +4,65 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ResourcePage } from "@/components/admin/ResourcePage";
 import { Pill } from "@/components/admin/ui";
 import { statusTone } from "@/components/admin/crud";
+import type { VendorRow } from "@/redux/api/resources";
 
-type V = { id: string; name: string; category: string; contact: string; phone: string; rating: string; status: string };
-const seed: V[] = [
-  { id: "v1", name: "Vendor A", category: "Medical Supplies", contact: "Anwar Hossain", phone: "+1 555 1001", rating: "4.8", status: "Active" },
-  { id: "v2", name: "Vendor B", category: "Stationery", contact: "Beatrice Lee", phone: "+1 555 1002", rating: "4.2", status: "Active" },
-  { id: "v3", name: "Vendor C", category: "Imaging Reagents", contact: "Carlos Diaz", phone: "+1 555 1003", rating: "4.6", status: "Active" },
-  { id: "v4", name: "Vendor D", category: "Furniture", contact: "Daniela Roy", phone: "+1 555 1004", rating: "3.9", status: "On Hold" },
+/**
+ * The supplier list behind /admin/vendors (HF-61).
+ *
+ * The backend has been on main since 27ea22b; this page was still showing the
+ * same four invented suppliers to every hospital. Field names are the
+ * database's, because form values post straight through with no mapping layer
+ * — `contact_person`, not `contact`.
+ */
+
+/** Free text in the database, like assets.category — the list is a convenience. */
+const VENDOR_CATEGORIES = [
+  "Medical Supplies", "Pharmaceuticals", "Imaging Reagents", "Laboratory",
+  "Equipment", "Furniture", "Stationery", "IT", "Services", "Other",
 ];
+
+/** Lowercase in the database (0030); the UI supplies the labels. */
+const VENDOR_STATUSES = [
+  { value: "active", label: "Active" },
+  { value: "on_hold", label: "On Hold" },
+  { value: "suspended", label: "Suspended" },
+];
+
+const statusLabel = (value: string) =>
+  VENDOR_STATUSES.find(s => s.value === value)?.label ?? value;
+
 const Vendors = () => (
   <AdminLayout title="Vendor Management" subtitle="Suppliers powering procurement">
-    <ResourcePage<V> config={{
-      storeKey: "vendors", seed, searchFields: ["name", "category", "contact"],
-      statuses: ["Active", "On Hold", "Suspended"],
+    <ResourcePage<VendorRow> config={{
+      storeKey: "vendors",
+      resource: "vendors",
+      searchFields: ["name", "category", "contact_person"],
+      statuses: VENDOR_STATUSES,
       columns: [
         { key: "name", label: "Vendor", sortable: true, accessor: r => r.name, render: r => <span className="font-semibold text-primary">{r.name}</span> },
-        { key: "category", label: "Category", sortable: true, accessor: r => r.category },
-        { key: "contact", label: "Contact" },
-        { key: "phone", label: "Phone" },
-        { key: "rating", label: "Rating", sortable: true, accessor: r => Number(r.rating) },
-        { key: "status", label: "Status", render: r => <Pill tone={statusTone(r.status)}>{r.status}</Pill> },
+        { key: "category", label: "Category", sortable: true, accessor: r => r.category ?? "", render: r => <span>{r.category || "—"}</span> },
+        { key: "contact_person", label: "Contact", render: r => <span>{r.contact_person || "—"}</span> },
+        { key: "phone", label: "Phone", render: r => <span>{r.phone || "—"}</span> },
+        { key: "email", label: "Email", render: r => (
+          r.email
+            ? <a href={`mailto:${r.email}`} className="text-primary hover:underline">{r.email}</a>
+            : <span>—</span>
+        ) },
+        { key: "rating", label: "Rating", sortable: true, accessor: r => Number(r.rating ?? 0), render: r => <span>{r.rating ? `${r.rating} / 5` : "—"}</span> },
+        { key: "status", label: "Status", render: r => <Pill tone={statusTone(r.status)}>{statusLabel(r.status)}</Pill> },
       ],
       fields: [
         { name: "name", label: "Vendor name", type: "text", required: true },
-        { name: "category", label: "Category", type: "text" },
-        { name: "contact", label: "Contact person", type: "text" },
+        { name: "category", label: "Category", type: "select", options: VENDOR_CATEGORIES },
+        { name: "contact_person", label: "Contact person", type: "text" },
         { name: "phone", label: "Phone", type: "tel" },
+        { name: "email", label: "Email", type: "email" },
         { name: "rating", label: "Rating (1-5)", type: "number", min: 1, max: 5, numberStep: 0.1 },
-        { name: "status", label: "Status", type: "select", options: ["Active", "On Hold", "Suspended"] },
+        { name: "status", label: "Status", type: "select", options: VENDOR_STATUSES },
+        { name: "notes", label: "Notes", type: "textarea" },
       ],
     }} />
   </AdminLayout>
 );
-export default Vendors;
 
+export default Vendors;

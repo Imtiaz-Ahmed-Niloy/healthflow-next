@@ -79,8 +79,6 @@ const PageHeroEditor = ({ route, showCtas = true, content, save, reset }: Props)
       <p className="text-xs text-muted-foreground font-mono mb-3">{route}</p>
       <div className="space-y-3">
         <div className="space-y-1.5">
-          <Label>Eyebrow / Tag</Label>
-          <Input value={draft.eyebrow} onChange={e => set("eyebrow", e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label>Headline</Label>

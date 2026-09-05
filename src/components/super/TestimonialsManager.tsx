@@ -69,7 +69,7 @@ const TestimonialsManager = () => {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-semibold text-primary truncate">{t.name}</p>
-                    <Pill tone={t.audience === "Patients" ? "info" : "ok"}>{t.audience}</Pill>
+                    <Pill tone={t.audience === "Patients" ? "info" : t.audience === "Doctors" ? "ok" : "warn"}>{t.audience}</Pill>
                   </div>
                   <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
                     <Quote className="h-3 w-3" /> {t.text}
@@ -103,6 +103,7 @@ const TestimonialsManager = () => {
                   <SelectContent>
                     <SelectItem value="Patients">Patients</SelectItem>
                     <SelectItem value="Doctors">Doctors</SelectItem>
+                    <SelectItem value="Hospitals">Hospitals</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

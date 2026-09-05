@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Save, Building2, Users } from "lucide-react";
+import { Save, Building2, Users, ImagePlus } from "lucide-react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, SectionTitle } from "@/components/admin/ui";
 import { RecordFormFields } from "@/components/admin/ResourcePage";
@@ -50,7 +50,7 @@ const HospitalProfile = () => {
 
   const stepIds = HOSPITAL_STEPS.map(s => s.id);
   const activeStepId = HOSPITAL_STEPS[step]?.id;
-  const stepIcons = [Building2, Users];
+  const stepIcons = [Building2, ImagePlus, Users];
 
   const onSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

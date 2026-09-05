@@ -57,6 +57,21 @@ export type NursePerformanceRow = Tables["nurse_performance"]["Row"] & {
 /** Support staff carry no relations, so the row is the table row. */
 export type SupportStaffRow = Tables["support_staff"]["Row"];
 
+/**
+ * One promotional card (0064, 0065). `placement` says which page shows it;
+ * platform-level, so the row has no tenant.
+ */
+export type AdRow = Tables["ads"]["Row"];
+
+/**
+ * One identity document a patient uploaded for verification (0068). The
+ * embedded profile is who it belongs to — the review queue needs a name and
+ * a face beside the file.
+ */
+export type IdentityDocumentRow = Tables["identity_documents"]["Row"] & {
+  profiles: Pick<Tables["profiles"]["Row"], "id" | "full_name" | "email" | "phone" | "avatar_url"> | null;
+};
+
 /** Contact form submissions carry no relations — the sender is not a user. */
 export type ContactMessageRow = Tables["contact_messages"]["Row"];
 
@@ -71,6 +86,9 @@ export type SupportTicketRow = Tables["support_tickets"]["Row"] & {
 /** The equipment register is flat — assignee is free text, not a profile reference. */
 export type AssetRow = Tables["assets"]["Row"];
 
+/** A supplier. Flat — the contact is a name and phone, not a user account. */
+export type VendorRow = Tables["vendors"]["Row"];
+
 /** The lab catalogue is a flat price list — no patient or doctor references. */
 export type LabTestRow = Tables["lab_tests"]["Row"];
 
@@ -83,6 +101,13 @@ export type PharmacyItemRow = Tables["pharmacy_items"]["Row"];
  */
 export type EmployeeRow = Tables["employees"]["Row"];
 
+/**
+ * One row on the confidential document shelf (0062). Flat — the owner is free
+ * text rather than a profile reference, and the document itself lives in R2
+ * under `file_key`.
+ */
+export type PersonalFileRow = Tables["personal_files"]["Row"];
+
 /** Patients carry no relations on the registry screen — profile_id is a raw uuid, not embedded. */
 export type PatientRow = Tables["patients"]["Row"];
 
@@ -92,6 +117,52 @@ type PatientSummary = Pick<PatientRow, "id" | "full_name" | "mrn" | "phone">;
 export type AppointmentRow = Tables["appointments"]["Row"] & {
   patients: PatientSummary | null;
   doctors: DoctorSummary | null;
+};
+
+/* ------------------------------------------- wards / beds / cabins --- */
+
+export type WardRow = Tables["wards"]["Row"];
+
+/** Ward summary embedded on beds — the floor map's ward name/rate/category. */
+type WardSummary = Pick<WardRow, "id" | "name" | "category" | "daily_rate">;
+
+export type BedRow = Tables["beds"]["Row"] & {
+  wards: WardSummary | null;
+};
+
+/** Cabins carry no relations — they are not a child of any ward. */
+export type CabinRow = Tables["cabins"]["Row"];
+
+/* ------------------------------------------------------- admissions --- */
+
+/** Patient summary embedded on admissions — more than appointments' PatientSummary needs (gender/DOB for the bedside view). */
+type AdmissionPatientSummary = Pick<
+  PatientRow,
+  "id" | "full_name" | "mrn" | "gender" | "date_of_birth" | "phone"
+>;
+
+/**
+ * One placement inside an admission's history. Narrower than the bed_stays
+ * table itself — only what the admissions list/detail view renders (current
+ * location, or where a discharged stay last was).
+ */
+export type AdmissionBedStay = Pick<
+  Tables["bed_stays"]["Row"],
+  "id" | "bed_id" | "cabin_id" | "started_at" | "ended_at"
+> & {
+  beds: Pick<BedRow, "number"> | null;
+  cabins: Pick<CabinRow, "number"> | null;
+};
+
+/**
+ * bed_stays comes back as every placement the admission has ever had, not
+ * just the open one — PostgREST embeds can't carry an "ended_at is null"
+ * filter. Screens pick the open row (or the most recent one) themselves.
+ */
+export type AdmissionRow = Tables["admissions"]["Row"] & {
+  patients: AdmissionPatientSummary | null;
+  doctors: DoctorSummary | null;
+  bed_stays: AdmissionBedStay[];
 };
 
 export type OfferRow = Tables["offers"]["Row"] & {
@@ -295,6 +366,11 @@ export const nursesApi = createResourceApi<NurseRow>("nurses");
 export const patientsApi = createResourceApi<PatientRow>("patients");
 
 export const appointmentsApi = createResourceApi<AppointmentRow>("appointments");
+
+export const wardsApi = createResourceApi<WardRow>("wards");
+export const bedsApi = createResourceApi<BedRow>("beds");
+export const cabinsApi = createResourceApi<CabinRow>("cabins");
+export const admissionsApi = createResourceApi<AdmissionRow>("admissions");
 
 export const nurseShiftsApi = createResourceApi<
   NurseShiftRow,

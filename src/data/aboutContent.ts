@@ -6,13 +6,13 @@ export type CoreObjective = { icon: string; title: string; desc: string };
 
 export type AboutContent = {
   pillars: { title: string; items: Pillar[] };
-  team: { eyebrow: string; title: string; subtitle: string; members: TeamMember[] };
+  team: { title: string; subtitle: string; members: TeamMember[] };
   stats: Stat[];
-  journey: { eyebrow: string; title: string; subtitle: string; steps: JourneyStep[] };
-  ceoMessage: { eyebrow: string; quote: string; name: string; role: string };
+  journey: { title: string; subtitle: string; steps: JourneyStep[] };
+  ceoMessage: { quote: string; attributionLead: string; attributionName: string };
   vision: { eyebrow: string; title: string; statement: string };
   mission: { eyebrow: string; title: string; statement: string };
-  objectives: { eyebrow: string; title: string; subtitle: string; items: CoreObjective[] };
+  objectives: { title: string; subtitle: string; items: CoreObjective[] };
 };
 
 export const defaultAboutContent: AboutContent = {
@@ -25,7 +25,6 @@ export const defaultAboutContent: AboutContent = {
     ],
   },
   team: {
-    eyebrow: "OUR LEADERSHIP",
     title: "The Visionaries",
     subtitle: "Meet the multidisciplinary team bridging the gap between clinical excellence and digital innovation.",
     members: [
@@ -42,7 +41,6 @@ export const defaultAboutContent: AboutContent = {
     { value: "15+", label: "Global Awards" },
   ],
   journey: {
-    eyebrow: "OUR STORY",
     title: "The HealthFlow Journey",
     subtitle: "From a bold idea to a transformative platform — every step has been driven by our commitment to reimagining healthcare.",
     steps: [
@@ -52,10 +50,9 @@ export const defaultAboutContent: AboutContent = {
     ],
   },
   ceoMessage: {
-    eyebrow: "MESSAGE FROM THE CEO",
     quote: "At HealthFlow, we believe that technology should serve humanity — not the other way around. Every feature we build, every partnership we forge, is guided by a singular purpose: to make quality healthcare accessible to every person, everywhere. This is not just our mission; it is our promise.",
-    name: "IAN",
-    role: "Founder & CEO, HealthFlow",
+    attributionLead: "A message from",
+    attributionName: "HealthFlow",
   },
   vision: {
     eyebrow: "OUR VISION",
@@ -68,7 +65,6 @@ export const defaultAboutContent: AboutContent = {
     statement: "To empower healthcare organizations with integrated digital solutions that enhance operational efficiency, improve patient outcomes, and make quality healthcare more accessible.",
   },
   objectives: {
-    eyebrow: "CORE OBJECTIVES",
     title: "What Drives Us Every Day",
     subtitle: "Our objectives are the compass that guides every decision we make — from product design to patient care.",
     items: [

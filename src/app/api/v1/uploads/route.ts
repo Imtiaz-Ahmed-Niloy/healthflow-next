@@ -8,11 +8,15 @@ import {
   mediaKey,
   ALLOWED_IMAGE_TYPES,
   MAX_IMAGE_BYTES,
+  ALLOWED_DOCUMENT_TYPES,
+  ALLOWED_IDENTITY_TYPES,
+  MAX_DOCUMENT_BYTES,
   type MediaFolder,
 } from "@/lib/media";
 
 /**
- * POST /api/v1/uploads — asks for permission to upload one image.
+ * POST /api/v1/uploads — asks for permission to upload one file: an image,
+ * or a scanned licence PDF into the documents folder (0061).
  *
  * The file itself never touches this server. The browser sends what it wants
  * to upload, this decides whether that is allowed, and hands back a presigned
@@ -46,13 +50,42 @@ const FOLDER_ROLES: Record<MediaFolder, AppRole[]> = {
   avatars: ["hospital_admin", "hr_admin", "finance_admin", "doctor", "patient"],
   // A doctor posting in the community attaches their own images.
   community: ["doctor"],
+  // Scanned licences on a hospital's own record (0061) and the confidential
+  // files shelf (0062) — hr_admin keeps the staff paperwork. super_admin
+  // passes here as everywhere.
+  documents: ["hospital_admin", "hr_admin"],
+  // The sign-in page's promotional cards. Nobody but a super admin edits the
+  // platform's front door, and an empty list means exactly that.
+  ads: [],
+  // A patient proving who they are (0068). Only they upload it; only a super
+  // admin reviews it, and super_admin passes every folder anyway.
+  identity: ["patient"],
 };
 
 const uploadRequestSchema = z.object({
-  folder: z.enum(["hospitals", "doctors", "announcements", "blog", "avatars", "community"]),
-  contentType: z.enum(ALLOWED_IMAGE_TYPES),
-  size: z.number().int().positive().max(MAX_IMAGE_BYTES, "That image is too large"),
+  folder: z.enum([
+    "hospitals", "doctors", "announcements", "blog", "avatars", "community", "documents", "ads",
+    "identity",
+  ]),
+  contentType: z.enum([...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOCUMENT_TYPES]),
+  size: z.number().int().positive(),
 });
+
+/**
+ * What each folder takes. Checked against the folder rather than globally,
+ * so a PDF cannot be filed as a hospital logo and a JPEG cannot be passed off
+ * as a scanned licence — and the 10MB document limit does not quietly become
+ * the limit for images everywhere.
+ */
+const folderRules = (folder: MediaFolder) => {
+  if (folder === "documents") {
+    return { types: ALLOWED_DOCUMENT_TYPES as readonly string[], maxBytes: MAX_DOCUMENT_BYTES, noun: "document" };
+  }
+  if (folder === "identity") {
+    return { types: ALLOWED_IDENTITY_TYPES as readonly string[], maxBytes: MAX_DOCUMENT_BYTES, noun: "document" };
+  }
+  return { types: ALLOWED_IMAGE_TYPES as readonly string[], maxBytes: MAX_IMAGE_BYTES, noun: "image" };
+};
 
 export const POST = async (request: Request) => {
   const auth = await getAuthContext();
@@ -63,7 +96,7 @@ export const POST = async (request: Request) => {
     // Deliberately explicit: this is a deployment gap, not a user error, and
     // the person who hits it is the one who can fix it.
     return fail(
-      "Image uploads are not configured on this environment yet — R2_ACCOUNT_ID, "
+      "Uploads are not configured on this environment yet — R2_ACCOUNT_ID, "
         + "R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and NEXT_PUBLIC_R2_PUBLIC_URL "
         + "need setting. See docs/image-uploads-r2.md.",
       503,
@@ -77,6 +110,24 @@ export const POST = async (request: Request) => {
   }
 
   const { folder, contentType, size } = parsed.data;
+
+  const rules = folderRules(folder);
+  if (!rules.types.includes(contentType)) {
+    return fail(
+      folder === "documents"
+        ? "Licence documents must be PDFs."
+        : folder === "identity"
+          ? "Upload a photo or a PDF of the document."
+          : "That file type is not accepted here.",
+      422,
+    );
+  }
+  if (size > rules.maxBytes) {
+    return fail(
+      `That ${rules.noun} is ${(size / 1024 / 1024).toFixed(1)}MB — the limit is ${rules.maxBytes / 1024 / 1024}MB.`,
+      422,
+    );
+  }
 
   const allowed = FOLDER_ROLES[folder];
   if (auth.role !== "super_admin" && !(auth.role && allowed.includes(auth.role))) {

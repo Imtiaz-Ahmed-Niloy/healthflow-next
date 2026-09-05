@@ -85,7 +85,10 @@ const HomepageEditor = () => {
         <TabsContent value="hero" className="mt-5 space-y-3">
           <div className="space-y-1.5">
             <Label>Headline</Label>
-            <Input value={draft.heroTitle1} onChange={e => set("heroTitle1", e.target.value)} />
+            {/* A textarea, not an input: the hero keeps the line breaks typed
+                here, so where the headline wraps is a decision made here. */}
+            <Textarea rows={2} value={draft.heroTitle1} onChange={e => set("heroTitle1", e.target.value)} />
+            <p className="text-xs text-muted-foreground">Line breaks are kept exactly as you type them.</p>
           </div>
           <div className="space-y-1.5">
             <Label>Headline accent (italic)</Label>

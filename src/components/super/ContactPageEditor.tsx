@@ -143,11 +143,8 @@ const ContactPageEditor = () => {
           <SectionTitle title="Our Sanctuary" action={bar} />
           <div className="grid md:grid-cols-2 gap-3">
             <div className="space-y-1.5"><Label>Title</Label><Input value={draft.sanctuary.title} onChange={e => setSanctuary({ title: e.target.value })} /></div>
-            <div className="space-y-1.5"><Label>Badge label</Label><Input value={draft.sanctuary.badgeLabel} onChange={e => setSanctuary({ badgeLabel: e.target.value })} /></div>
             <div className="space-y-1.5 md:col-span-2"><Label>Description</Label>
               <Textarea rows={2} value={draft.sanctuary.description} onChange={e => setSanctuary({ description: e.target.value })} /></div>
-            <div className="space-y-1.5 md:col-span-2"><Label>Address</Label>
-              <Input value={draft.sanctuary.address} onChange={e => setSanctuary({ address: e.target.value })} /></div>
             <div className="space-y-1.5"><Label>Eco note title</Label>
               <Input value={draft.sanctuary.noteTitle} onChange={e => setSanctuary({ noteTitle: e.target.value })} /></div>
             <div className="space-y-1.5"><Label>Eco note description</Label>

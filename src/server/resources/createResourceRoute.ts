@@ -189,6 +189,12 @@ export const createResourceRoute = <TCreate, TUpdate>(
       }
     }
 
+    // Person-owned tables get the same treatment, from the session rather than
+    // the body. See ownerColumn on ResourceDefinition.
+    if (definition.ownerColumn && !(auth.role === "super_admin" && payload[definition.ownerColumn])) {
+      payload[definition.ownerColumn] = auth.userId;
+    }
+
     const supabase = await untyped();
     const { data, error } = await supabase
       .from(definition.table)

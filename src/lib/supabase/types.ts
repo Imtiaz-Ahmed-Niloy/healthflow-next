@@ -14,6 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      ads: {
+        Row: {
+          active: boolean
+          badge: string | null
+          badge_tone: string
+          body: string | null
+          created_at: string
+          ends_on: string | null
+          id: string
+          image_url: string | null
+          link_url: string | null
+          position: number
+          placement: Database["public"]["Enums"]["ad_placement"]
+          side: Database["public"]["Enums"]["ad_side"]
+          starts_on: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          badge?: string | null
+          badge_tone?: string
+          body?: string | null
+          created_at?: string
+          ends_on?: string | null
+          id?: string
+          image_url?: string | null
+          link_url?: string | null
+          position?: number
+          side: Database["public"]["Enums"]["ad_side"]
+          starts_on?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          badge?: string | null
+          badge_tone?: string
+          body?: string | null
+          created_at?: string
+          ends_on?: string | null
+          id?: string
+          image_url?: string | null
+          link_url?: string | null
+          position?: number
+          placement?: Database["public"]["Enums"]["ad_placement"]
+          side?: Database["public"]["Enums"]["ad_side"]
+          starts_on?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       admissions: {
         Row: {
           admitted_at: string
@@ -1798,6 +1851,178 @@ export type Database = {
           },
         ]
       }
+      identity_documents: {
+        Row: {
+          created_at: string
+          document_number: string | null
+          file_key: string
+          file_name: string | null
+          holder: Database["public"]["Enums"]["id_document_holder"]
+          id: string
+          kind: Database["public"]["Enums"]["id_document_kind"]
+          profile_id: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["id_verification_status"]
+          submitted_at: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          document_number?: string | null
+          file_key: string
+          file_name?: string | null
+          holder?: Database["public"]["Enums"]["id_document_holder"]
+          id?: string
+          kind: Database["public"]["Enums"]["id_document_kind"]
+          profile_id: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["id_verification_status"]
+          submitted_at?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          document_number?: string | null
+          file_key?: string
+          file_name?: string | null
+          holder?: Database["public"]["Enums"]["id_document_holder"]
+          id?: string
+          kind?: Database["public"]["Enums"]["id_document_kind"]
+          profile_id?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["id_verification_status"]
+          submitted_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "identity_documents_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_documents_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_entries: {
+        Row: {
+          created_at: string
+          entry_date: string
+          entry_no: string
+          id: string
+          narration: string | null
+          party: string | null
+          status: Database["public"]["Enums"]["journal_status"]
+          tenant_id: string
+          type: Database["public"]["Enums"]["voucher_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          entry_date?: string
+          entry_no: string
+          id?: string
+          narration?: string | null
+          party?: string | null
+          status?: Database["public"]["Enums"]["journal_status"]
+          tenant_id: string
+          type?: Database["public"]["Enums"]["voucher_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          entry_date?: string
+          entry_no?: string
+          id?: string
+          narration?: string | null
+          party?: string | null
+          status?: Database["public"]["Enums"]["journal_status"]
+          tenant_id?: string
+          type?: Database["public"]["Enums"]["voucher_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_entries_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_lines: {
+        Row: {
+          account_id: string
+          created_at: string
+          credit: number
+          debit: number
+          entry_id: string
+          id: string
+          tenant_id: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          entry_id: string
+          id?: string
+          tenant_id: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          entry_id?: string
+          id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_balances"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "journal_lines_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lab_orders: {
         Row: {
           created_at: string
@@ -2003,6 +2228,50 @@ export type Database = {
           },
           {
             foreignKeyName: "leave_requests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ledger_accounts: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          group: Database["public"]["Enums"]["ledger_group"]
+          id: string
+          name: string
+          opening_balance: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          group: Database["public"]["Enums"]["ledger_group"]
+          id?: string
+          name: string
+          opening_balance?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          group?: Database["public"]["Enums"]["ledger_group"]
+          id?: string
+          name?: string
+          opening_balance?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_accounts_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -2280,9 +2549,8 @@ export type Database = {
           kind: Database["public"]["Enums"]["patient_history_kind"]
           label: string
           ongoing: boolean
-          patient_id: string
+          profile_id: string
           started_on: string | null
-          tenant_id: string
           updated_at: string
         }
         Insert: {
@@ -2292,9 +2560,8 @@ export type Database = {
           kind: Database["public"]["Enums"]["patient_history_kind"]
           label: string
           ongoing?: boolean
-          patient_id: string
+          profile_id: string
           started_on?: string | null
-          tenant_id: string
           updated_at?: string
         }
         Update: {
@@ -2304,31 +2571,84 @@ export type Database = {
           kind?: Database["public"]["Enums"]["patient_history_kind"]
           label?: string
           ongoing?: boolean
-          patient_id?: string
+          profile_id?: string
           started_on?: string | null
-          tenant_id?: string
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "patient_history_patient_id_fkey"
-            columns: ["patient_id"]
+            foreignKeyName: "patient_history_profile_id_fkey"
+            columns: ["profile_id"]
             isOneToOne: false
-            referencedRelation: "patients"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      patient_profiles: {
+        Row: {
+          address: string | null
+          blood_group: Database["public"]["Enums"]["blood_group"] | null
+          created_at: string
+          date_of_birth: string | null
+          emergency_contact_address: string | null
+          emergency_contact_email: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          emergency_contact_relation: string | null
+          gender: Database["public"]["Enums"]["patient_gender"] | null
+          height_feet: number | null
+          height_inches: number | null
+          marital_status: Database["public"]["Enums"]["marital_status"] | null
+          national_id: string | null
+          profile_id: string
+          updated_at: string
+          weight_kg: number | null
+        }
+        Insert: {
+          address?: string | null
+          blood_group?: Database["public"]["Enums"]["blood_group"] | null
+          created_at?: string
+          date_of_birth?: string | null
+          emergency_contact_address?: string | null
+          emergency_contact_email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relation?: string | null
+          gender?: Database["public"]["Enums"]["patient_gender"] | null
+          height_feet?: number | null
+          height_inches?: number | null
+          marital_status?: Database["public"]["Enums"]["marital_status"] | null
+          national_id?: string | null
+          profile_id: string
+          updated_at?: string
+          weight_kg?: number | null
+        }
+        Update: {
+          address?: string | null
+          blood_group?: Database["public"]["Enums"]["blood_group"] | null
+          created_at?: string
+          date_of_birth?: string | null
+          emergency_contact_address?: string | null
+          emergency_contact_email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relation?: string | null
+          gender?: Database["public"]["Enums"]["patient_gender"] | null
+          height_feet?: number | null
+          height_inches?: number | null
+          marital_status?: Database["public"]["Enums"]["marital_status"] | null
+          national_id?: string | null
+          profile_id?: string
+          updated_at?: string
+          weight_kg?: number | null
+        }
+        Relationships: [
           {
-            foreignKeyName: "patient_history_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "hospitals_public"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "patient_history_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
+            foreignKeyName: "patient_profiles_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2774,6 +3094,63 @@ export type Database = {
           },
         ]
       }
+      personal_files: {
+        Row: {
+          created_at: string
+          file_key: string | null
+          folder: string
+          id: string
+          notes: string | null
+          owner: string | null
+          size_bytes: number | null
+          status: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          file_key?: string | null
+          folder?: string
+          id?: string
+          notes?: string | null
+          owner?: string | null
+          size_bytes?: number | null
+          status?: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          file_key?: string | null
+          folder?: string
+          id?: string
+          notes?: string | null
+          owner?: string | null
+          size_bytes?: number | null
+          status?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_files_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_files_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pharmacy_items: {
         Row: {
           category: string | null
@@ -3126,6 +3503,7 @@ export type Database = {
           awards: string | null
           beds: number | null
           bin: string | null
+          bin_doc: string | null
           board_notes: string | null
           ceo: string | null
           certifications: string | null
@@ -3147,7 +3525,9 @@ export type Database = {
           name: string
           opening_hours: Json | null
           operating_license: string | null
+          operating_license_doc: string | null
           other_licenses: string | null
+          other_licenses_doc: string | null
           owner_address: string | null
           owner_email: string | null
           owner_name: string | null
@@ -3167,7 +3547,9 @@ export type Database = {
           summary: string | null
           tagline: string | null
           tin: string | null
+          tin_doc: string | null
           trade_license: string | null
+          trade_license_doc: string | null
           updated_at: string
           websites: string[]
         }
@@ -3179,6 +3561,7 @@ export type Database = {
           awards?: string | null
           beds?: number | null
           bin?: string | null
+          bin_doc?: string | null
           board_notes?: string | null
           ceo?: string | null
           certifications?: string | null
@@ -3200,7 +3583,9 @@ export type Database = {
           name: string
           opening_hours?: Json | null
           operating_license?: string | null
+          operating_license_doc?: string | null
           other_licenses?: string | null
+          other_licenses_doc?: string | null
           owner_address?: string | null
           owner_email?: string | null
           owner_name?: string | null
@@ -3220,7 +3605,9 @@ export type Database = {
           summary?: string | null
           tagline?: string | null
           tin?: string | null
+          tin_doc?: string | null
           trade_license?: string | null
+          trade_license_doc?: string | null
           updated_at?: string
           websites?: string[]
         }
@@ -3232,6 +3619,7 @@ export type Database = {
           awards?: string | null
           beds?: number | null
           bin?: string | null
+          bin_doc?: string | null
           board_notes?: string | null
           ceo?: string | null
           certifications?: string | null
@@ -3253,7 +3641,9 @@ export type Database = {
           name?: string
           opening_hours?: Json | null
           operating_license?: string | null
+          operating_license_doc?: string | null
           other_licenses?: string | null
+          other_licenses_doc?: string | null
           owner_address?: string | null
           owner_email?: string | null
           owner_name?: string | null
@@ -3273,7 +3663,9 @@ export type Database = {
           summary?: string | null
           tagline?: string | null
           tin?: string | null
+          tin_doc?: string | null
           trade_license?: string | null
+          trade_license_doc?: string | null
           updated_at?: string
           websites?: string[]
         }
@@ -3403,6 +3795,29 @@ export type Database = {
       }
     }
     Views: {
+      ledger_balances: {
+        Row: {
+          account_id: string | null
+          active: boolean | null
+          balance: number | null
+          code: string | null
+          credit_total: number | null
+          debit_total: number | null
+          group: Database["public"]["Enums"]["ledger_group"] | null
+          name: string | null
+          opening_balance: number | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_accounts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctors_public: {
         Row: {
           availability: string | null
@@ -3566,8 +3981,29 @@ export type Database = {
           total: number
         }[]
       }
+      post_journal_entry: {
+        Args: { p_entry_id: string }
+        Returns: Database["public"]["Tables"]["journal_entries"]["Row"]
+      }
+      record_voucher: {
+        Args: {
+          p_entry_date: string
+          p_entry_no: string
+          p_lines: Json
+          p_narration: string | null
+          p_party: string | null
+          p_post?: boolean
+          p_type: Database["public"]["Enums"]["voucher_type"]
+        }
+        Returns: Database["public"]["Tables"]["journal_entries"]["Row"]
+      }
+      seed_chart_of_accounts: {
+        Args: never
+        Returns: Database["public"]["Tables"]["ledger_accounts"]["Row"][]
+      }
       is_my_patient_record: { Args: { p_patient_id: string }; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
+      shares_hospital_with: { Args: { p_profile_id: string }; Returns: boolean }
       record_medicine_usage: {
         Args: { p_doctor_id: string; p_medicines: Json; p_tenant_id: string }
         Returns: undefined
@@ -3603,6 +4039,8 @@ export type Database = {
       }
     }
     Enums: {
+      ad_placement: "signin"
+      ad_side: "left" | "right"
       admission_priority: "routine" | "urgent" | "critical"
       admission_status:
         | "admitted"
@@ -3656,12 +4094,17 @@ export type Database = {
       community_reaction: "like" | "love" | "insightful"
       doctor_status: "active" | "on_leave" | "suspended"
       finance_invoice_kind: "receivable" | "payable"
+      id_document_holder: "self" | "emergency_contact"
+      id_document_kind: "birth_certificate" | "nid" | "passport"
+      id_verification_status: "pending" | "verified" | "rejected"
+      journal_status: "draft" | "posted"
       lab_order_status:
         | "pending"
         | "sample_collected"
         | "processing"
         | "reported"
       leave_status: "pending" | "approved" | "rejected"
+      ledger_group: "asset" | "liability" | "income" | "expense" | "capital"
       leave_type: "sick" | "casual" | "vacation" | "maternity" | "unpaid"
       marital_status: "single" | "married" | "divorced" | "widowed"
       patient_gender: "male" | "female" | "other"
@@ -3677,6 +4120,15 @@ export type Database = {
       support_ticket_priority: "low" | "medium" | "high" | "critical"
       support_ticket_status: "pending" | "processing" | "resolved"
       tenant_status: "pending" | "approved" | "suspended"
+      voucher_type:
+        | "payment"
+        | "receipt"
+        | "contra"
+        | "journal"
+        | "sales"
+        | "purchase"
+        | "credit_note"
+        | "debit_note"
       ward_category:
         | "general"
         | "semi_private"

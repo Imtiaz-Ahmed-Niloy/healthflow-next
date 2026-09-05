@@ -16,6 +16,7 @@ import { CommandPalette } from "./CommandPalette";
 import { Drawer } from "./crud";
 import { Pill as Badge } from "./ui";
 import { useSession, displayName } from "@/lib/auth/useSession";
+import { Avatar } from "@/components/common/Avatar";
 import { roleLabel } from "@/lib/auth/permissions";
 import { formatDistanceToNow } from "date-fns";
 import LanguageSwitcher from "@/components/site/LanguageSwitcher";
@@ -131,9 +132,8 @@ const TopbarInner = ({ title, subtitle, onMenu, menuOpen, hospital }: { title: s
                 <p className="font-semibold text-sm text-primary leading-tight truncate max-w-[180px]">{displayName(user)}</p>
                 <p className="text-[10px] tracking-widest font-bold text-primary-glow">{roleLabel(user?.role).toUpperCase()}</p>
               </div>
-              <div className="h-10 w-10 rounded-full bg-gradient-dark grid place-items-center text-surface-dark-foreground text-xs font-bold">
-                {displayName(user).split(" ").map(s => s[0]).slice(0, 2).join("").toUpperCase()}
-              </div>
+              {/* Initials until there is a picture — Avatar decides. */}
+              <Avatar src={user?.avatarUrl} name={displayName(user)} />
             </div>
             <button onClick={async () => { await signOut(); toast.success("Signed out"); router.replace("/signin"); router.refresh(); }}
               className="hidden md:flex items-center gap-2 text-sm font-semibold text-foreground/70 hover:text-destructive">

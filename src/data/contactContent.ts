@@ -27,8 +27,6 @@ export type ContactContent = {
   sanctuary: {
     title: string;
     description: string;
-    badgeLabel: string;
-    address: string;
     noteTitle: string;
     noteDescription: string;
   };
@@ -55,8 +53,6 @@ export const defaultContactContent: ContactContent = {
   sanctuary: {
     title: "Our Sanctuary",
     description: "Located in the heart of the regenerative district, our primary clinic is designed for tranquility.",
-    badgeLabel: "HEADQUARTERS",
-    address: "1200 Serenity Way, SF",
     noteTitle: "Eco-Certified Clinic",
     noteDescription: "Our facilities operate on 100% renewable energy and utilize restorative biophilic design.",
   },

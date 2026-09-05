@@ -27,6 +27,15 @@ export type ResourceDefinition<TCreate = unknown, TUpdate = unknown> = {
   tenantScoped: boolean;
 
   /**
+   * For tables owned by a PERSON rather than a hospital — a patient's identity
+   * papers (0068), for instance. Names the column holding the owner's
+   * profile id; the factory stamps it from the JWT on create, for the same
+   * reason it stamps tenant_id: a body field must never choose whose row this
+   * is. A super_admin may pass one explicitly, to act on someone's behalf.
+   */
+  ownerColumn?: string;
+
+  /**
    * Validates POST bodies.
    *
    * The input type is `unknown` rather than TCreate because request bodies

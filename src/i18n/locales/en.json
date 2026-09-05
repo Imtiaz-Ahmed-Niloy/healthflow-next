@@ -80,7 +80,8 @@
   "testimonials": {
     "heading": "What Do People Think About Us?",
     "patients": "Patients",
-    "doctors": "Doctors"
+    "doctors": "Doctors",
+    "hospitals": "Hospitals"
   },
   "sidebar": {
     "dashboard": "Dashboard",

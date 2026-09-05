@@ -1,12 +1,14 @@
 # Where we are
 
 Every menu item, by panel, **in the order the menu itself lists them** — so
-this file can be read side by side with the sidebar without hunting.
+this file can be read side by side with the sidebar without hunting. The order
+comes from `superNav` in `src/components/super/SuperLayout.tsx`, `adminNav` in
+`src/components/admin/AdminLayout.tsx`, and the two portal layouts.
 
 **✅** = on real data, saves, survives a refresh, isolated per hospital
 **❌** = still on demo data, or only half wired
 
-Last checked: 2 Sep 2026
+Last checked: 3 Sep 2026
 
 ---
 
@@ -15,22 +17,27 @@ Last checked: 2 Sep 2026
 | | | Ticket |
 |---|---|---|
 | ✅ | Dashboard | HF-36 |
-| ✅ | Hospitals — logo uploads and structured opening hours | HF-35 |
-| ✅ | Roles & Permissions — custom roles belong to a hospital | HF-40 |
-| ✅ | Contact Messages | HF-65 |
-| ✅ | CMS — page editors, the page list and blog articles all save for real | HF-33 |
-| ✅ | Support Tickets | HF-69 |
-| ❌ | Packages — redirects to CMS, not a real page | HF-41 |
-| ✅ | Announcements | HF-76 |
-| ✅ | Billing — monthly usage invoices per hospital | — |
+| ✅ | Hospital Management — logo uploads, structured opening hours, licence scans | HF-35 |
+| ✅ | User Role Management — custom roles belong to a hospital | HF-40 |
+| ✅ | Package Management — plans, offers and per-hospital assignments | HF-41 |
+| ✅ | Log Reports — every write, from a database trigger | — |
 | ❌ | Whitelisting | — |
-| ✅ | System Logs — every write, from a database trigger | — |
-| ✅ | Global Settings — platform defaults and the maintenance notice | — |
+| ✅ | Billing — monthly usage invoices per hospital | — |
+| ✅ | CMS Management — page editors, the page list and blog articles all save | HF-33 |
+| ✅ | Announcements | HF-76 |
+| ✅ | Advertisements — promotional cards, placed per page | — |
+| ✅ | Contact Messages | HF-65 |
+| ✅ | Support Tickets | HF-69 |
 | ❌ | Integrations | — |
+| ✅ | Global Settings — platform defaults and the maintenance notice | — |
 | ❌ | Preferences | — |
-| ❌ | Onboarding — redirects, not a real page | — |
 
-**10 of 15 done.**
+**12 of 15 done.**
+
+`/super/onboarding` is not on this list any more because it is not on the menu:
+Hospital Management lists every hospital and `pending` is the queue, so the
+route redirects there. It used to be counted as an unbuilt page, which made the
+panel look one page further behind than it is.
 
 ---
 
@@ -45,26 +52,32 @@ Last checked: 2 Sep 2026
 | ✅ | Support Staff | HF-43 |
 | ✅ | Patients | HF-45 |
 | ✅ | Appointments | HF-46 |
-| ✅ | Pharmacy | HF-63 |
-| ✅ | Assets | HF-62 |
-| ✅ | Onboarding / Employees | HF-68 |
-| ✅ | Payroll — runs, payslips and salary settings | HF-67 |
+| ❌ | Wards & Beds | HF-47 |
+| ❌ | Admissions — the backend is built (HF-37); the page still reads localStorage | HF-37 |
 | ✅ | Laboratory — catalogue and requests | HF-66 |
-| ❌ | Wards & Cabins | HF-47 |
-| ❌ | Vendors — table exists, page not wired to it | HF-61 |
-| ✅ | Finance | HF-70 |
-| ✅ | Procurement | HF-71 |
-| ✅ | Administration | HF-72 |
-| ❌ | Personal Files — waiting on file storage | HF-64 |
-| ✅ | Attendance — clock-ins, leave and holidays | HF-84 |
-| ❌ | Accounts | — |
-| ❌ | HR | — |
+| ✅ | Pharmacy | HF-63 |
 | ✅ | Hospital Profile | HF-85 |
-| ❌ | Reports | — |
+| ✅ | HR Dashboard — headcount, attendance, leave decisions, last payroll run | — |
+| ✅ | Employees | HF-68 |
+| ✅ | Personal Files — PDFs in R2, opened through an expiring link | HF-64 |
+| ✅ | Attendance & Leave — clock-ins, leave and holidays | HF-84 |
+| ✅ | Payroll — runs, payslips and salary settings | HF-67 |
+| ✅ | Accounts — double-entry ledger, vouchers, trial balance, P&L, balance sheet | — |
+| ✅ | Invoices & AR/AP | HF-70 |
+| ✅ | Financial Reports — six reports counted from real rows, with CSV | — |
+| ✅ | Assets | HF-62 |
+| ✅ | Procurement | HF-71 |
+| ✅ | Vendors | HF-61 |
+| ✅ | Reports — the same page as Financial Reports, listed twice in the menu | — |
 | ❌ | Notifications | — |
+| ✅ | Administration | HF-72 |
 | ❌ | Settings | — |
 
-**17 of 25 done.**
+**22 of 26 done.**
+
+27 menu entries, 26 pages: `adminNav` points both **Financial Reports** and
+**Reports** at `/admin/reports`. **Admissions** was missing from this file
+entirely until now — it is a menu item, and it is not built.
 
 ---
 
@@ -81,14 +94,14 @@ Last checked: 2 Sep 2026
 
 **6 of 6 done.**
 
-Three of these were missing from this file entirely until now. **Community**
-was the worst of them — posts lived in component state, so one survived until
-the next refresh — and is now on `community_posts`, `community_comments` and
-`community_reactions` (0059). The feed reaches every doctor on the platform
-(0060) — a colleague at another hospital is often exactly who you want an
-answer from — while what a post refers to, patients and appointments and
-prescriptions, stays tenant-scoped. A hospital admin still sees and moderates
-only their own hospital's threads. It has no ticket.
+Three of these were missing from this file entirely until recently.
+**Community** was the worst of them — posts lived in component state, so one
+survived until the next refresh — and is now on `community_posts`,
+`community_comments` and `community_reactions` (0059). The feed reaches every
+doctor on the platform (0060) — a colleague at another hospital is often
+exactly who you want an answer from — while what a post refers to, patients and
+appointments and prescriptions, stays tenant-scoped. A hospital admin still
+sees and moderates only their own hospital's threads. It has no ticket.
 
 **Medical Dictionary** (`/portal/medical-dictionary`) is built — a static
 glossary of 25 terms with search and filtering — but is **hidden from the menu**
@@ -106,7 +119,7 @@ it back is one line in `PortalLayout.tsx`.
 | ✅ | Find Doctors | HF-49 |
 | ✅ | Billing | HF-77 |
 | ✅ | Medical Records | HF-78 |
-| ✅ | Profile — General and Clinical; three tabs deferred, see below | HF-79 |
+| ✅ | My Profile — General and Clinical; three tabs deferred, see below | HF-79 |
 
 **6 of 6 done.**
 
@@ -116,9 +129,9 @@ a history of them, **Documents** waits on file storage like HF-64, and
 **Family Management** (HF-82) is a consent question before it is a table. All
 three say so on screen rather than accepting input that goes nowhere.
 
-Ordered the way the patient sidebar lists them. **Tutorial** is not on that
-menu and is not counted: like User Guide, it is a static walkthrough of how to
-use the portal, so there is no data behind it to make real.
+**Tutorial** is not on that menu and is not counted: like User Guide, it is a
+static walkthrough of how to use the portal, so there is no data behind it to
+make real.
 
 ---
 
@@ -157,39 +170,32 @@ use the portal, so there is no data behind it to make real.
 | ✅ | Booking creates a real appointment | HF-50, HF-51, HF-53 |
 | ✅ | Site title, favicon, brand constants | HF-34 |
 | ✅ | Image uploads: presigned PUT straight to Cloudflare R2 | — |
+| ✅ | Licence PDFs, served through an authenticated link that expires | — |
 | ✅ | Operating hours as structured data, not a sentence | — |
 | ✅ | Hospital rows link into packages, roles and billing | — |
 
 ---
 
-## Worth checking
+## What is still local
 
-This list used to name four tickets in **QA** whose pages were suspected of
-still reading part of their data locally. Three of the four were checked and
-were wrong — **HF-56** (Patient Queue), **HF-60** (Directory) and **HF-52**
-(Patient Appointments) each fetch a real API, hold no localStorage at all, and
-scope by the signed-in doctor or patient rather than by tenant alone. They are
-marked done above.
+Four hospital-admin pages are not on the API. They divide into two kinds, and
+the difference matters when picking one up:
 
-What misled the check for HF-56 was `src/data/queue.ts` — the three hardcoded
-patients the ticket replaced, still sitting in the tree, imported by nothing.
-It has been deleted, along with `src/data/useCmsHero.ts`, which was dead the
-same way.
-
-**HF-66** (Laboratory) was the one that was right at the time: `/admin/lab`
-ran on `useCrud("lab-tests", seed)`. It has since been finished and is marked
-✅ above — the catalogue and the requests both save. No view in the tree calls
-`useCrud` any more, and the only two screens still holding their data in
-`localStorage` are `/admin/hr` and `/admin/accounts`, both marked ❌.
+- **`/admin/wards` and `/admin/admissions`** call `useCrud` directly, so what
+  you type is saved — to that browser's localStorage. The tables behind both
+  already exist (HF-37); these two are a rewiring job, not a schema job.
+- **`/admin/notifications` and `/admin/settings`** hold static demo arrays and
+  save nothing at all. Both need a decision about what the page is for before
+  they need a table.
 
 **13 menu items have no ticket at all** — mostly Super Admin settings screens
-and the patient portal's inner pages. Nobody is working on those.
+and the finance and system pages above. Nobody is working on those.
 
 ---
 
 ## The short answer
 
-**47 of 66 pages are on real data.** The public site is nearly finished; the
+**54 of 67 pages are on real data.** The public site is nearly finished; the
 hospital admin panel is the bulk of what is left.
 
 Everything marked ❌ still works when you click it — it shows demo data that

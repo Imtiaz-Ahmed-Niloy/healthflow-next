@@ -1,128 +1,351 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, Btn, Pill, SectionTitle } from "@/components/admin/ui";
-import { useCrud, Modal, Field, Input, Select, Chips, statusTone, ConfirmDialog } from "@/components/admin/crud";
+import { Modal, Field, Input, Select, Chips, ConfirmDialog } from "@/components/admin/crud";
+import { useResourceCrud } from "@/components/admin/useResourceCrud";
+import { useAdmitPatient } from "@/components/admin/useAdmitPatient";
 import { useNotifications } from "@/components/admin/NotificationProvider";
-import { Bed, Home, Wifi, Tv, Wind, Coffee, Bath, Users } from "lucide-react";
+import { useTransferBedMutation } from "@/redux/api/bedTransfers";
+import {
+  admissionsApi, doctorsApi, patientsApi,
+  type WardRow, type BedRow, type CabinRow, type AdmissionRow,
+} from "@/redux/api/resources";
+import { Bed, Home, Wifi, Tv, Wind, Coffee, Bath, Users, Pencil, ArrowRightLeft, LogOut } from "lucide-react";
 
-type BedRow = { id: string; ward: string; number: string; type: string; patient: string; status: string };
-const seed: BedRow[] = [
-  ...Array.from({ length: 8 }, (_, i) => ({ id: `w1-${i}`, ward: "Ward 3B", number: `301-${i + 1}`, type: "General", patient: i % 3 === 0 ? "Aisha B." : i % 3 === 1 ? "" : "John D.", status: i % 3 === 0 ? "Occupied" : i % 3 === 1 ? "Available" : "Occupied" })),
-  ...Array.from({ length: 6 }, (_, i) => ({ id: `icu-${i}`, ward: "ICU", number: `ICU-${i + 1}`, type: "ICU", patient: i % 2 === 0 ? "Robert L." : "", status: i % 2 === 0 ? "Occupied" : "Available" })),
-  ...Array.from({ length: 4 }, (_, i) => ({ id: `mat-${i}`, ward: "Maternity", number: `MAT-${i + 1}`, type: "Cabin", patient: "", status: "Cleaning" })),
-];
+/**
+ * HF-37 frontend wiring. Real tables now: wards, beds, cabins, plus
+ * admissions (read, to resolve who's in a bed) and patients/doctors (for the
+ * admit form). See docs/ward-admission-api.md.
+ *
+ * The one behavioural change beyond a plain data swap: clicking a bed or
+ * cabin to admit, move, or discharge someone now goes through
+ * /api/v1/bed-transfers (useAdmitPatient / useTransferBedMutation) instead of
+ * writing a status/patient field directly. beds.patient / cabins.patient /
+ * cabins.attendant still exist in the schema but are transitional — nothing
+ * here reads or writes them; occupant identity comes from
+ * bed_stays -> admissions -> patients instead.
+ *
+ * What's still a direct field write, deliberately: a bed's cleaning ->
+ * available flip, and a cabin's cleaning/maintenance/reserved/available
+ * status — housekeeping metadata with no patient identity at stake, not an
+ * occupancy event. "occupied" is never set this way; only
+ * transfer_admission() (via bed-transfers) sets it, so it always corresponds
+ * to a real bed_stays row.
+ */
 
-type CabinRow = {
-  id: string;
-  number: string;
-  category: "Deluxe" | "Premium" | "Standard" | "Suite";
-  floor: string;
-  capacity: number;
-  rate: number;
-  amenities: string[];
-  patient: string;
-  attendant: string;
-  admittedOn: string;
-  status: "Available" | "Occupied" | "Cleaning" | "Maintenance" | "Reserved";
+const WARD_CATEGORIES = [
+  { value: "general", label: "General" },
+  { value: "semi_private", label: "Semi-Private" },
+  { value: "icu", label: "ICU" },
+  { value: "maternity", label: "Maternity" },
+  { value: "pediatric", label: "Pediatric" },
+] as const;
+const wardCategoryLabel = (v: string) => WARD_CATEGORIES.find(c => c.value === v)?.label ?? v;
+const wardCategoryTone: Record<string, string> = {
+  general: "bg-primary text-primary-foreground",
+  semi_private: "bg-primary-glow text-primary-foreground",
+  icu: "bg-destructive text-destructive-foreground",
+  maternity: "bg-accent text-accent-foreground",
+  pediatric: "bg-secondary text-secondary-foreground",
+};
+
+const BED_TYPES = [
+  { value: "general", label: "General" },
+  { value: "icu", label: "ICU" },
+  { value: "cabin", label: "Cabin" },
+] as const;
+
+const BED_STATUS_FILTERS = [
+  { value: "all", label: "All" },
+  { value: "available", label: "Available" },
+  { value: "occupied", label: "Occupied" },
+  { value: "cleaning", label: "Cleaning" },
+] as const;
+
+const CABIN_CATEGORIES = [
+  { value: "standard", label: "Standard" },
+  { value: "deluxe", label: "Deluxe" },
+  { value: "premium", label: "Premium" },
+  { value: "suite", label: "Suite" },
+] as const;
+const cabinCategoryLabel = (v: string) => CABIN_CATEGORIES.find(c => c.value === v)?.label ?? v;
+
+const CABIN_STATUS_FILTERS = [
+  { value: "all", label: "All" },
+  { value: "available", label: "Available" },
+  { value: "occupied", label: "Occupied" },
+  { value: "reserved", label: "Reserved" },
+  { value: "cleaning", label: "Cleaning" },
+  { value: "maintenance", label: "Maintenance" },
+] as const;
+
+/** Never "occupied" here — that only ever comes from a real bed_stays row. */
+const CABIN_MANUAL_STATUSES = CABIN_STATUS_FILTERS.filter(s => s.value !== "all" && s.value !== "occupied");
+
+const cabinStatusLabel = (v: string) => CABIN_STATUS_FILTERS.find(c => c.value === v)?.label ?? v;
+const cabinStatusBg: Record<string, string> = {
+  available: "bg-accent/40 text-accent-foreground",
+  occupied: "bg-destructive/10 text-destructive",
+  reserved: "bg-blue-50 text-blue-700",
+  cleaning: "bg-yellow-50 text-yellow-800",
+  maintenance: "bg-orange-50 text-orange-700",
+};
+const cabinBorder: Record<string, string> = {
+  available: "border-l-primary-glow",
+  occupied: "border-l-destructive",
+  reserved: "border-l-blue-500",
+  cleaning: "border-l-yellow-400",
+  maintenance: "border-l-orange-500",
 };
 
 const AMENITY_LIST = ["WiFi", "TV", "AC", "Mini Fridge", "Attached Bath", "Sofa Bed"];
 const AMENITY_ICON: Record<string, typeof Wifi> = { WiFi: Wifi, TV: Tv, AC: Wind, "Mini Fridge": Coffee, "Attached Bath": Bath, "Sofa Bed": Users };
-
 const WARD_FACILITY_LIST = ["AC", "WiFi", "TV", "Attached Bath", "Shared Bath", "Oxygen Supply", "Ventilator", "Nurse Call", "Cardiac Monitor", "Visitor Chair", "Locker", "Meals Included"];
-type WardConfigRow = {
-  id: string;
-  ward: string;
-  category: "General" | "Semi-Private" | "ICU" | "Maternity" | "Pediatric";
-  rate: number;
-  nursingCharge: number;
-  facilities: string[];
-  notes: string;
-};
-const wardConfigSeed: WardConfigRow[] = [
-  { id: "wc-1", ward: "Ward 3B", category: "General", rate: 1200, nursingCharge: 300, facilities: ["AC", "Shared Bath", "Nurse Call", "Visitor Chair", "Meals Included"], notes: "8-bed general ward" },
-  { id: "wc-2", ward: "ICU", category: "ICU", rate: 5500, nursingCharge: 1500, facilities: ["AC", "Oxygen Supply", "Ventilator", "Cardiac Monitor", "Nurse Call"], notes: "24x7 intensivist coverage" },
-  { id: "wc-3", ward: "Maternity", category: "Maternity", rate: 2800, nursingCharge: 600, facilities: ["AC", "Attached Bath", "TV", "Nurse Call", "Visitor Chair", "Meals Included"], notes: "Includes newborn cot" },
-];
 
-const cabinSeed: CabinRow[] = [
-  { id: "cab-1", number: "C-101", category: "Deluxe", floor: "1st Floor", capacity: 2, rate: 4500, amenities: ["WiFi", "TV", "AC", "Attached Bath"], patient: "Priya S.", attendant: "Rohit S.", admittedOn: "2026-05-20", status: "Occupied" },
-  { id: "cab-2", number: "C-102", category: "Premium", floor: "1st Floor", capacity: 2, rate: 6500, amenities: ["WiFi", "TV", "AC", "Mini Fridge", "Attached Bath", "Sofa Bed"], patient: "", attendant: "", admittedOn: "", status: "Available" },
-  { id: "cab-3", number: "C-201", category: "Suite", floor: "2nd Floor", capacity: 3, rate: 9500, amenities: ["WiFi", "TV", "AC", "Mini Fridge", "Attached Bath", "Sofa Bed"], patient: "Mr. Khan", attendant: "Mrs. Khan", admittedOn: "2026-05-18", status: "Occupied" },
-  { id: "cab-4", number: "C-202", category: "Standard", floor: "2nd Floor", capacity: 1, rate: 3000, amenities: ["WiFi", "AC", "Attached Bath"], patient: "", attendant: "", admittedOn: "", status: "Cleaning" },
-  { id: "cab-5", number: "C-203", category: "Deluxe", floor: "2nd Floor", capacity: 2, rate: 4500, amenities: ["WiFi", "TV", "AC", "Attached Bath"], patient: "", attendant: "", admittedOn: "2026-05-25", status: "Reserved" },
-  { id: "cab-6", number: "C-301", category: "Premium", floor: "3rd Floor", capacity: 2, rate: 6500, amenities: ["WiFi", "TV", "AC", "Mini Fridge", "Attached Bath"], patient: "", attendant: "", admittedOn: "", status: "Maintenance" },
-];
-
-const cabinTone: Record<string, string> = {
-  Available: "bg-accent/30 border-accent text-accent-foreground",
-  Occupied: "bg-destructive/10 border-destructive/40 text-destructive",
-  Cleaning: "bg-yellow-100 border-yellow-300 text-yellow-800",
-  Maintenance: "bg-orange-100 border-orange-300 text-orange-800",
-  Reserved: "bg-blue-100 border-blue-300 text-blue-800",
+const ageFromDob = (dob: string | null | undefined) => {
+  if (!dob) return null;
+  return Math.max(0, Math.floor((Date.now() - new Date(dob).getTime()) / (365.25 * 24 * 3600 * 1000)));
 };
+
+type AdmitTarget = { bed_id?: string; cabin_id?: string; label: string };
+type AdmitDraft = { patient_id: string; doctor_id: string; diagnosis: string; priority: string; notes: string };
+const emptyAdmitDraft: AdmitDraft = { patient_id: "", doctor_id: "", diagnosis: "", priority: "routine", notes: "" };
 
 const Wards = () => {
-  const crud = useCrud<BedRow>("beds", seed);
-  const cabins = useCrud<CabinRow>("cabins", cabinSeed);
+  const wardsCrud = useResourceCrud<WardRow>("wards");
+  const bedsCrud = useResourceCrud<BedRow>("beds");
+  const cabinsCrud = useResourceCrud<CabinRow>("cabins");
   const { push } = useNotifications();
-  const [filter, setFilter] = useState<"all" | "Occupied" | "Available" | "Cleaning">("all");
-  const [edit, setEdit] = useState<BedRow | null>(null);
-  const [add, setAdd] = useState(false);
-  const [del, setDel] = useState<string | null>(null);
+  const { admit } = useAdmitPatient();
+  const [transferBed] = useTransferBedMutation();
+  const [updateAdmission] = admissionsApi.useUpdate();
 
-  const [cabFilter, setCabFilter] = useState<string>("all");
-  const [editCab, setEditCab] = useState<CabinRow | null>(null);
-  const [addCab, setAddCab] = useState(false);
-  const [delCab, setDelCab] = useState<string | null>(null);
-  const [amenityDraft, setAmenityDraft] = useState<string[]>([]);
+  // Read-only here — resolving "who is in this bed/cabin" without touching
+  // the transitional beds.patient/cabins.patient/cabins.attendant columns.
+  const { data: admissionsData } = admissionsApi.useList({ limit: 100 });
+  const admissions = useMemo(() => admissionsData?.data ?? [], [admissionsData]);
+  const occupantByBed = useMemo(() => {
+    const map = new Map<string, AdmissionRow>();
+    for (const a of admissions) {
+      const stay = a.bed_stays.find(s => s.ended_at === null);
+      if (stay?.bed_id) map.set(stay.bed_id, a);
+    }
+    return map;
+  }, [admissions]);
+  const occupantByCabin = useMemo(() => {
+    const map = new Map<string, AdmissionRow>();
+    for (const a of admissions) {
+      const stay = a.bed_stays.find(s => s.ended_at === null);
+      if (stay?.cabin_id) map.set(stay.cabin_id, a);
+    }
+    return map;
+  }, [admissions]);
 
-  const wardConfigs = useCrud<WardConfigRow>("ward-configs", wardConfigSeed);
-  const [editWc, setEditWc] = useState<WardConfigRow | null>(null);
-  const [addWc, setAddWc] = useState(false);
-  const [delWc, setDelWc] = useState<string | null>(null);
+  const { data: patientsData, isLoading: patientsLoading } = patientsApi.useList({ limit: 100 });
+  const patients = useMemo(() => patientsData?.data ?? [], [patientsData]);
+  const patientOptions = useMemo(() => [
+    { value: "", label: patientsLoading ? "Loading patients…" : "— Select a patient —" },
+    ...patients.map(p => ({ value: p.id, label: `${p.full_name} (${p.mrn})` })),
+  ], [patients, patientsLoading]);
+
+  const { data: doctorsData, isLoading: doctorsLoading } = doctorsApi.useList({ limit: 100 });
+  const doctors = useMemo(() => doctorsData?.data ?? [], [doctorsData]);
+  const doctorOptions = useMemo(() => [
+    { value: "", label: doctorsLoading ? "Loading doctors…" : "— Not assigned —" },
+    ...doctors.map(d => ({ value: d.id, label: d.specialty ? `${d.name} · ${d.specialty}` : d.name })),
+  ], [doctors, doctorsLoading]);
+
+  // ---- ward pricing/facilities ----
+  const [editWard, setEditWard] = useState<WardRow | null>(null);
+  const [addWard, setAddWard] = useState(false);
+  const [delWard, setDelWard] = useState<string | null>(null);
   const [facDraft, setFacDraft] = useState<string[]>([]);
-  const openEditWc = (w: WardConfigRow) => { setEditWc(w); setFacDraft(w.facilities); };
-  const openAddWc = () => { setAddWc(true); setFacDraft([]); };
+  const openEditWard = (w: WardRow) => { setEditWard(w); setFacDraft(w.facilities); };
+  const openAddWard = () => { setAddWard(true); setFacDraft([]); };
   const toggleFac = (f: string) => setFacDraft(d => d.includes(f) ? d.filter(x => x !== f) : [...d, f]);
 
-  const wards = Array.from(new Set(crud.items.map(b => b.ward)));
-  const list = filter === "all" ? crud.items : crud.items.filter(b => b.status === filter);
-  const occupied = crud.items.filter(b => b.status === "Occupied").length;
-  const available = crud.items.filter(b => b.status === "Available").length;
-  const wardConfigFor = (w: string) => wardConfigs.items.find(c => c.ward === w);
-
-  const cabinList = cabFilter === "all" ? cabins.items : cabins.items.filter(c => c.status === cabFilter || c.category === cabFilter);
-  const floors = Array.from(new Set(cabins.items.map(c => c.floor)));
-  const cabOccupied = cabins.items.filter(c => c.status === "Occupied").length;
-  const cabAvailable = cabins.items.filter(c => c.status === "Available").length;
-  const cabRevenue = cabins.items.filter(c => c.status === "Occupied").reduce((s, c) => s + c.rate, 0);
-  const cabOccupancyRate = cabins.items.length ? Math.round((cabOccupied / cabins.items.length) * 100) : 0;
-
-  const openEditCab = (c: CabinRow) => { setEditCab(c); setAmenityDraft(c.amenities); };
-  const openAddCab = () => { setAddCab(true); setAmenityDraft([]); };
-  const toggleAmenity = (a: string) => setAmenityDraft(d => d.includes(a) ? d.filter(x => x !== a) : [...d, a]);
-
-  const occupancyPct = crud.items.length ? Math.round((occupied / crud.items.length) * 100) : 0;
-  const wardCategoryTone: Record<string, string> = {
-    General: "bg-primary text-primary-foreground",
-    "Semi-Private": "bg-primary-glow text-primary-foreground",
-    ICU: "bg-destructive text-destructive-foreground",
-    Maternity: "bg-accent text-accent-foreground",
-    Pediatric: "bg-secondary text-secondary-foreground",
+  const saveWard = async (fd: FormData) => {
+    const data = {
+      name: String(fd.get("name")),
+      category: fd.get("category") as WardRow["category"],
+      daily_rate: Number(fd.get("daily_rate")) || 0,
+      nursing_charge: Number(fd.get("nursing_charge")) || 0,
+      facilities: facDraft,
+      notes: String(fd.get("notes") || "") || null,
+    };
+    if (editWard) {
+      const ok = await wardsCrud.update(editWard.id, data);
+      if (ok) setEditWard(null);
+    } else {
+      // useResourceCrud.create() types its argument as Omit<Row, "id">, but
+      // the server fills tenant_id/created_at/updated_at (and, for beds, the
+      // embedded wards relation) — matching ResourcePage.tsx's own `as never`
+      // at the same spot for the same reason.
+      const created = await wardsCrud.create(data as never);
+      if (created) setAddWard(false);
+    }
   };
 
+  // ---- beds: floor map + metadata ----
+  const [bedFilter, setBedFilter] = useState<string>("all");
+  const [addBed, setAddBed] = useState(false);
+  const [editBedMeta, setEditBedMeta] = useState<BedRow | null>(null);
+  const [bedDetail, setBedDetail] = useState<BedRow | null>(null);
+  const [delBed, setDelBed] = useState<string | null>(null);
+
+  const saveBedMeta = async (fd: FormData) => {
+    const data = {
+      ward_id: String(fd.get("ward_id")),
+      number: String(fd.get("number")),
+      type: fd.get("type") as BedRow["type"],
+    };
+    if (editBedMeta) {
+      const ok = await bedsCrud.update(editBedMeta.id, data);
+      if (ok) setEditBedMeta(null);
+    } else {
+      const created = await bedsCrud.create(data as never);
+      if (created) setAddBed(false);
+    }
+  };
+
+  const markBedAvailable = async (bed: BedRow) => {
+    const ok = await bedsCrud.update(bed.id, { status: "available" });
+    if (ok) setBedDetail(null);
+  };
+
+  // ---- cabins: floor cards + metadata ----
+  const [cabFilter, setCabFilter] = useState<string>("all");
+  const [addCabin, setAddCabin] = useState(false);
+  const [editCabinMeta, setEditCabinMeta] = useState<CabinRow | null>(null);
+  const [cabinDetail, setCabinDetail] = useState<CabinRow | null>(null);
+  const [delCabin, setDelCabin] = useState<string | null>(null);
+  const [amenityDraft, setAmenityDraft] = useState<string[]>([]);
+  const openEditCabinMeta = (c: CabinRow) => { setEditCabinMeta(c); setAmenityDraft(c.amenities); };
+  const openAddCabin = () => { setAddCabin(true); setAmenityDraft([]); };
+  const toggleAmenity = (a: string) => setAmenityDraft(d => d.includes(a) ? d.filter(x => x !== a) : [...d, a]);
+
+  const saveCabinMeta = async (fd: FormData) => {
+    const data = {
+      number: String(fd.get("number")),
+      category: fd.get("category") as CabinRow["category"],
+      floor: String(fd.get("floor")),
+      capacity: Number(fd.get("capacity")) || 1,
+      daily_rate: Number(fd.get("daily_rate")) || 0,
+      amenities: amenityDraft,
+    };
+    if (editCabinMeta) {
+      const ok = await cabinsCrud.update(editCabinMeta.id, data);
+      if (ok) setEditCabinMeta(null);
+    } else {
+      const created = await cabinsCrud.create(data as never);
+      if (created) setAddCabin(false);
+    }
+  };
+
+  const setCabinManualStatus = async (cabin: CabinRow, status: string) => {
+    const ok = await cabinsCrud.update(cabin.id, { status: status as CabinRow["status"] });
+    if (ok) setCabinDetail(null);
+  };
+
+  // ---- admit / transfer / discharge — shared between beds and cabins ----
+  const [admitTarget, setAdmitTarget] = useState<AdmitTarget | null>(null);
+  const [admitDraft, setAdmitDraft] = useState<AdmitDraft>(emptyAdmitDraft);
+  const openAdmit = (target: AdmitTarget) => {
+    setBedDetail(null); setCabinDetail(null);
+    setAdmitTarget(target); setAdmitDraft(emptyAdmitDraft);
+  };
+  const submitAdmit = async () => {
+    if (!admitTarget || !admitDraft.patient_id) return;
+    const ok = await admit({
+      patient_id: admitDraft.patient_id,
+      doctor_id: admitDraft.doctor_id || undefined,
+      diagnosis: admitDraft.diagnosis || undefined,
+      priority: admitDraft.priority as AdmissionRow["priority"],
+      notes: admitDraft.notes || undefined,
+      bed_id: admitTarget.bed_id,
+      cabin_id: admitTarget.cabin_id,
+    });
+    if (ok) setAdmitTarget(null);
+  };
+
+  const [transferTarget, setTransferTarget] = useState<AdmissionRow | null>(null);
+  const [transferChoice, setTransferChoice] = useState({ bed_id: "", cabin_id: "" });
+  const openTransfer = (a: AdmissionRow) => {
+    setBedDetail(null); setCabinDetail(null);
+    setTransferTarget(a); setTransferChoice({ bed_id: "", cabin_id: "" });
+  };
+  const submitTransfer = async () => {
+    if (!transferTarget || (!transferChoice.bed_id && !transferChoice.cabin_id)) return;
+    try {
+      await transferBed({
+        admission_id: transferTarget.id,
+        bed_id: transferChoice.bed_id || null,
+        cabin_id: transferChoice.cabin_id || null,
+      }).unwrap();
+      push({ title: "Transferred", body: `${transferTarget.patients?.full_name ?? "Patient"} moved`, tone: "ok" });
+      setTransferTarget(null);
+    } catch {
+      push({ title: "Transfer failed", body: "The bed/cabin may already be occupied", tone: "bad" });
+    }
+  };
+
+  const [dischargeTarget, setDischargeTarget] = useState<AdmissionRow | null>(null);
+  const openDischarge = (a: AdmissionRow) => { setBedDetail(null); setCabinDetail(null); setDischargeTarget(a); };
+  /**
+   * Release the bed FIRST, then flip the status — same order and same reason
+   * as Admissions.tsx's confirmDischarge: transfer_admission() rejects an
+   * admission that already carries a discharged_at (HF003), so the other way
+   * round leaves the patient discharged and the bed still occupied.
+   */
+  const confirmDischarge = async () => {
+    if (!dischargeTarget) return;
+    try {
+      await transferBed({ admission_id: dischargeTarget.id, bed_id: null, cabin_id: null }).unwrap();
+    } catch {
+      push({ title: "Could not release the bed", body: "Nothing was changed — try again", tone: "bad" });
+      setDischargeTarget(null);
+      return;
+    }
+    try {
+      await updateAdmission(dischargeTarget.id, { status: "discharged", discharged_at: new Date().toISOString() }).unwrap();
+      push({ title: "Discharged", body: `${dischargeTarget.patients?.full_name ?? "Patient"} discharged`, tone: "ok" });
+    } catch {
+      push({ title: "Bed released, but the discharge did not save", body: "Set the status to Discharged from the Admissions page", tone: "warn" });
+    }
+    setDischargeTarget(null);
+  };
+
+  const availableBedsForTransfer = bedsCrud.items.filter(b => b.status === "available");
+  const availableCabins = cabinsCrud.items.filter(c => c.status === "available");
+
+  // ---- derived / filtered ----
+  const bedList = bedFilter === "all" ? bedsCrud.items : bedsCrud.items.filter(b => b.status === bedFilter);
+  const occupiedBeds = bedsCrud.items.filter(b => b.status === "occupied").length;
+  const availableBeds = bedsCrud.items.filter(b => b.status === "available").length;
+  const occupancyPct = bedsCrud.items.length ? Math.round((occupiedBeds / bedsCrud.items.length) * 100) : 0;
+
+  const cabinList = cabFilter === "all" ? cabinsCrud.items
+    : cabinsCrud.items.filter(c => c.status === cabFilter || c.category === cabFilter);
+  const floors = Array.from(new Set(cabinsCrud.items.map(c => c.floor)));
+  const cabOccupied = cabinsCrud.items.filter(c => c.status === "occupied").length;
+  const cabAvailable = cabinsCrud.items.filter(c => c.status === "available").length;
+  const cabRevenue = cabinsCrud.items.filter(c => c.status === "occupied").reduce((s, c) => s + c.daily_rate, 0);
+  const cabOccupancyRate = cabinsCrud.items.length ? Math.round((cabOccupied / cabinsCrud.items.length) * 100) : 0;
+
+  const bedOccupant = bedDetail ? occupantByBed.get(bedDetail.id) ?? null : null;
+  const cabinOccupant = cabinDetail ? occupantByCabin.get(cabinDetail.id) ?? null : null;
+
   return (
-    <AdminLayout title="Ward / Bed / Cabin Management" subtitle="Live bed status with admit/discharge workflows">
+    <AdminLayout title="Ward / Bed / Cabin Management" subtitle="Live bed status with admit/transfer/discharge workflows">
       {/* ===== Bed KPI Strip ===== */}
       <div className="grid sm:grid-cols-3 gap-4 mb-8">
         <Card className="p-5 border-border/60">
           <p className="text-[10px] tracking-widest font-bold text-muted-foreground">TOTAL BEDS</p>
           <div className="flex items-baseline justify-between mt-2">
-            <p className="font-display text-4xl text-primary">{crud.items.length}</p>
-            <span className="text-[11px] font-semibold text-muted-foreground">across {wards.length} units</span>
+            <p className="font-display text-4xl text-primary">{bedsCrud.items.length}</p>
+            <span className="text-[11px] font-semibold text-muted-foreground">across {wardsCrud.items.length} wards</span>
           </div>
           <div className="mt-3 h-1.5 rounded-full bg-muted overflow-hidden">
             <div className="h-full bg-primary transition-all" style={{ width: `${occupancyPct}%` }} />
@@ -131,7 +354,7 @@ const Wards = () => {
         <Card className="p-5 border-destructive/20">
           <p className="text-[10px] tracking-widest font-bold text-destructive">OCCUPIED</p>
           <div className="flex items-baseline gap-2 mt-2">
-            <p className="font-display text-4xl text-destructive">{occupied}</p>
+            <p className="font-display text-4xl text-destructive">{occupiedBeds}</p>
             <span className="text-xs font-semibold text-destructive/70">{occupancyPct}% capacity</span>
           </div>
           <p className="text-[11px] text-muted-foreground mt-3">Live patient count</p>
@@ -139,7 +362,7 @@ const Wards = () => {
         <Card className="p-5 border-accent/40">
           <p className="text-[10px] tracking-widest font-bold text-primary-glow">AVAILABLE</p>
           <div className="flex items-baseline gap-2 mt-2">
-            <p className="font-display text-4xl text-primary-glow">{available}</p>
+            <p className="font-display text-4xl text-primary-glow">{availableBeds}</p>
             <span className="text-xs font-semibold text-primary-glow/80">Ready for admission</span>
           </div>
           <p className="text-[11px] text-muted-foreground mt-3">Updated just now</p>
@@ -149,83 +372,90 @@ const Wards = () => {
       {/* ===== Floor Map ===== */}
       <Card className="p-6 mb-8 shadow-soft">
         <SectionTitle title="Floor Map" action={<div className="flex items-center gap-2 flex-wrap">
-          <Chips value={filter} onChange={(v) => setFilter(v as never)} options={[{ value: "all", label: "All" }, { value: "Available", label: "Available" }, { value: "Occupied", label: "Occupied" }, { value: "Cleaning", label: "Cleaning" }]} />
-          <Btn onClick={() => setAdd(true)}>+ Add Bed</Btn>
+          <Chips value={bedFilter} onChange={setBedFilter} options={BED_STATUS_FILTERS as unknown as { value: string; label: string }[]} />
+          <Btn onClick={() => setAddBed(true)}>+ Add Bed</Btn>
         </div>} />
 
-        <div className="space-y-6 mt-2">
-          {wards.map(w => {
-            const wc = wardConfigFor(w);
-            const wardBeds = list.filter(b => b.ward === w);
-            const wardOcc = crud.items.filter(b => b.ward === w && b.status === "Occupied").length;
-            const wardTotal = crud.items.filter(b => b.ward === w).length;
-            return (
-              <div key={w} className="rounded-2xl border border-border bg-muted/30 p-5">
-                <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <h3 className="font-display text-xl text-primary">{w}</h3>
-                    {wc && <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${wardCategoryTone[wc.category] ?? "bg-primary text-primary-foreground"}`}>{wc.category}</span>}
-                    {wc && <span className="text-sm font-bold text-foreground">₹{wc.rate.toLocaleString()}<span className="text-[11px] font-medium text-muted-foreground">/day</span></span>}
-                    <span className="text-[11px] font-semibold text-muted-foreground bg-card border border-border rounded-full px-2 py-0.5">
-                      {wardOcc}/{wardTotal} occupied
-                    </span>
-                    <div className="flex flex-wrap gap-1">
-                      {wc?.facilities.slice(0, 3).map(f => (
-                        <span key={f} className="text-[10px] px-2 py-0.5 rounded-md bg-card border border-border text-muted-foreground">{f}</span>
-                      ))}
-                      {wc && wc.facilities.length > 3 && <span className="text-[10px] px-2 py-0.5 text-muted-foreground font-bold">+{wc.facilities.length - 3}</span>}
+        {bedsCrud.error ? (
+          <p className="text-sm text-destructive py-6 text-center">Could not load beds.</p>
+        ) : bedsCrud.isLoading ? (
+          <p className="text-sm text-muted-foreground py-6 text-center">Loading…</p>
+        ) : (
+          <div className="space-y-6 mt-2">
+            {wardsCrud.items.map(w => {
+              const wardBeds = bedList.filter(b => b.ward_id === w.id);
+              const wardOcc = bedsCrud.items.filter(b => b.ward_id === w.id && b.status === "occupied").length;
+              const wardTotal = bedsCrud.items.filter(b => b.ward_id === w.id).length;
+              return (
+                <div key={w.id} className="rounded-2xl border border-border bg-muted/30 p-5">
+                  <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <h3 className="font-display text-xl text-primary">{w.name}</h3>
+                      <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${wardCategoryTone[w.category] ?? "bg-primary text-primary-foreground"}`}>{wardCategoryLabel(w.category)}</span>
+                      <span className="text-sm font-bold text-foreground">₹{w.daily_rate.toLocaleString()}<span className="text-[11px] font-medium text-muted-foreground">/day</span></span>
+                      <span className="text-[11px] font-semibold text-muted-foreground bg-card border border-border rounded-full px-2 py-0.5">
+                        {wardOcc}/{wardTotal} occupied
+                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {w.facilities.slice(0, 3).map(f => (
+                          <span key={f} className="text-[10px] px-2 py-0.5 rounded-md bg-card border border-border text-muted-foreground">{f}</span>
+                        ))}
+                        {w.facilities.length > 3 && <span className="text-[10px] px-2 py-0.5 text-muted-foreground font-bold">+{w.facilities.length - 3}</span>}
+                      </div>
                     </div>
-                  </div>
-                  <button onClick={() => wc ? openEditWc(wc) : openAddWc()} className="text-[11px] text-primary font-bold underline underline-offset-4 hover:text-primary-glow">
-                    {wc ? "Edit pricing & facilities" : "+ Set pricing"}
-                  </button>
-                </div>
-                <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-10 gap-2">
-                  {wardBeds.map(b => (
-                    <button key={b.id} onClick={() => setEdit(b)} title={b.patient || b.status}
-                      className={`aspect-square rounded-xl border-2 grid place-items-center text-[10px] font-bold p-1 transition hover:shadow-md hover:-translate-y-0.5
-                        ${b.status === "Occupied" ? "bg-destructive/10 border-destructive/40 text-destructive" :
-                          b.status === "Available" ? "bg-accent/30 border-accent text-accent-foreground" :
-                          "bg-yellow-100 border-yellow-300 text-yellow-800"}`}>
-                      <Bed className="h-4 w-4" />
-                      <span className="mt-0.5">{b.number}</span>
+                    <button onClick={() => openEditWard(w)} className="text-[11px] text-primary font-bold underline underline-offset-4 hover:text-primary-glow">
+                      Edit pricing & facilities
                     </button>
-                  ))}
-                  {!wardBeds.length && <p className="col-span-full text-xs text-muted-foreground py-2">No beds match the filter in this ward.</p>}
+                  </div>
+                  <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-10 gap-2">
+                    {wardBeds.map(b => {
+                      const occ = occupantByBed.get(b.id);
+                      return (
+                        <button key={b.id} onClick={() => setBedDetail(b)} title={occ?.patients?.full_name || b.status}
+                          className={`aspect-square rounded-xl border-2 grid place-items-center text-[10px] font-bold p-1 transition hover:shadow-md hover:-translate-y-0.5
+                            ${b.status === "occupied" ? "bg-destructive/10 border-destructive/40 text-destructive" :
+                              b.status === "available" ? "bg-accent/30 border-accent text-accent-foreground" :
+                              "bg-yellow-100 border-yellow-300 text-yellow-800"}`}>
+                          <Bed className="h-4 w-4" />
+                          <span className="mt-0.5">{b.number}</span>
+                        </button>
+                      );
+                    })}
+                    {!wardBeds.length && <p className="col-span-full text-xs text-muted-foreground py-2">No beds match the filter in this ward.</p>}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+            {!wardsCrud.items.length && <p className="text-sm text-muted-foreground py-6 text-center">No wards configured yet — add one below.</p>}
+          </div>
+        )}
 
         {/* Legend */}
         <div className="mt-6 flex flex-wrap gap-5 text-[11px] font-semibold text-muted-foreground border-t border-border pt-4">
           <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-destructive" /> Occupied</div>
           <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-accent" /> Available</div>
           <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-yellow-400" /> Cleaning</div>
-          <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-blue-500" /> Reserved</div>
-          <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-orange-500" /> Maintenance</div>
         </div>
       </Card>
 
       {/* ===== Ward Pricing & Facilities ===== */}
       <Card className="p-6 mb-8 shadow-soft">
-        <SectionTitle title="Ward Pricing & Facilities" action={<Btn onClick={openAddWc}>+ Add Ward Config</Btn>} />
+        <SectionTitle title="Ward Pricing & Facilities" action={<Btn onClick={openAddWard}>+ Add Ward</Btn>} />
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
-          {wardConfigs.items.map(w => (
-            <button key={w.id} onClick={() => openEditWc(w)} className="text-left rounded-2xl border border-border bg-card p-5 hover:shadow-card hover:border-primary/50 hover:-translate-y-0.5 transition group">
+          {wardsCrud.items.map(w => (
+            <button key={w.id} onClick={() => openEditWard(w)} className="text-left rounded-2xl border border-border bg-card p-5 hover:shadow-card hover:border-primary/50 hover:-translate-y-0.5 transition group">
               <div className="flex items-start justify-between mb-4">
                 <div className="p-2.5 rounded-xl bg-accent/30 group-hover:bg-accent/50 transition">
                   <Bed className="h-5 w-5 text-primary" />
                 </div>
-                <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider ${wardCategoryTone[w.category] ?? "bg-primary text-primary-foreground"}`}>{w.category}</span>
+                <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider ${wardCategoryTone[w.category] ?? "bg-primary text-primary-foreground"}`}>{wardCategoryLabel(w.category)}</span>
               </div>
-              <h4 className="font-display text-lg text-primary">{w.ward}</h4>
+              <h4 className="font-display text-lg text-primary">{w.name}</h4>
               <div className="flex items-baseline gap-1 mt-1">
-                <span className="font-display text-3xl text-foreground">₹{w.rate.toLocaleString()}</span>
+                <span className="font-display text-3xl text-foreground">₹{w.daily_rate.toLocaleString()}</span>
                 <span className="text-xs text-muted-foreground">/ day</span>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">+ ₹{w.nursingCharge.toLocaleString()} nursing charge</p>
+              <p className="text-[11px] text-muted-foreground mt-1">+ ₹{w.nursing_charge.toLocaleString()} nursing charge</p>
               <div className="flex flex-wrap gap-1.5 mt-4">
                 {w.facilities.map(f => (
                   <span key={f} className="text-[10px] px-2 py-0.5 rounded-md bg-muted border border-border text-foreground/80 font-medium">{f}</span>
@@ -234,7 +464,7 @@ const Wards = () => {
               {w.notes && <p className="text-[11px] text-muted-foreground italic mt-4 pt-3 border-t border-border">{w.notes}</p>}
             </button>
           ))}
-          {!wardConfigs.items.length && <p className="text-sm text-muted-foreground py-6 col-span-full text-center">No ward pricing configured yet.</p>}
+          {!wardsCrud.items.length && <p className="text-sm text-muted-foreground py-6 col-span-full text-center">No ward pricing configured yet.</p>}
         </div>
       </Card>
 
@@ -242,7 +472,7 @@ const Wards = () => {
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <Card className="p-5 bg-primary text-primary-foreground border-primary">
           <p className="text-[10px] tracking-widest font-bold opacity-80">TOTAL CABINS</p>
-          <p className="font-display text-4xl mt-2">{cabins.items.length}</p>
+          <p className="font-display text-4xl mt-2">{cabinsCrud.items.length}</p>
           <p className="text-[11px] opacity-70 mt-3">Across {floors.length} floors</p>
         </Card>
         <Card className="p-5 border-destructive/20">
@@ -268,165 +498,284 @@ const Wards = () => {
       {/* ===== Private Cabin Management ===== */}
       <Card className="p-6 mb-8 shadow-soft">
         <SectionTitle title="Private Cabin Management" action={<div className="flex items-center gap-2 flex-wrap">
-          <Chips value={cabFilter} onChange={(v) => setCabFilter(v)} options={[
-            { value: "all", label: "All" },
-            { value: "Available", label: "Available" },
-            { value: "Occupied", label: "Occupied" },
-            { value: "Reserved", label: "Reserved" },
-            { value: "Cleaning", label: "Cleaning" },
-            { value: "Maintenance", label: "Maintenance" },
-          ]} />
-          <Btn onClick={openAddCab}>+ Add Cabin</Btn>
+          <Chips value={cabFilter} onChange={setCabFilter} options={CABIN_STATUS_FILTERS as unknown as { value: string; label: string }[]} />
+          <Btn onClick={openAddCabin}>+ Add Cabin</Btn>
         </div>} />
 
-        <div className="space-y-8 mt-2">
-          {floors.map(f => {
-            const items = cabinList.filter(c => c.floor === f);
-            if (!items.length) return null;
-            return (
-              <div key={f}>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="h-px w-8 bg-primary" />
-                  <span className="text-xs font-bold text-primary uppercase tracking-widest">{f}</span>
-                  <span className="text-[11px] text-muted-foreground">({items.length})</span>
-                  <div className="flex-1 h-px bg-border" />
-                </div>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {items.map(c => {
-                    const borderColor = c.status === "Occupied" ? "border-l-destructive" :
-                      c.status === "Available" ? "border-l-primary-glow" :
-                      c.status === "Reserved" ? "border-l-blue-500" :
-                      c.status === "Cleaning" ? "border-l-yellow-400" :
-                      "border-l-orange-500";
-                    const statusBg = c.status === "Occupied" ? "bg-destructive/10 text-destructive" :
-                      c.status === "Available" ? "bg-accent/40 text-accent-foreground" :
-                      c.status === "Reserved" ? "bg-blue-50 text-blue-700" :
-                      c.status === "Cleaning" ? "bg-yellow-50 text-yellow-800" :
-                      "bg-orange-50 text-orange-700";
-                    return (
-                      <button key={c.id} onClick={() => openEditCab(c)}
-                        className={`text-left rounded-2xl bg-card border border-border border-l-[6px] ${borderColor} p-5 hover:shadow-card hover:-translate-y-0.5 transition group`}>
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <Home className="h-4 w-4 text-primary" />
-                              <h5 className="font-display text-lg text-primary">{c.number}</h5>
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted border border-border font-bold uppercase tracking-tight text-muted-foreground">{c.category}</span>
+        {cabinsCrud.error ? (
+          <p className="text-sm text-destructive py-6 text-center">Could not load cabins.</p>
+        ) : cabinsCrud.isLoading ? (
+          <p className="text-sm text-muted-foreground py-6 text-center">Loading…</p>
+        ) : (
+          <div className="space-y-8 mt-2">
+            {floors.map(f => {
+              const items = cabinList.filter(c => c.floor === f);
+              if (!items.length) return null;
+              return (
+                <div key={f}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-px w-8 bg-primary" />
+                    <span className="text-xs font-bold text-primary uppercase tracking-widest">{f}</span>
+                    <span className="text-[11px] text-muted-foreground">({items.length})</span>
+                    <div className="flex-1 h-px bg-border" />
+                  </div>
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {items.map(c => {
+                      const occ = occupantByCabin.get(c.id);
+                      return (
+                        <button key={c.id} onClick={() => setCabinDetail(c)}
+                          className={`text-left rounded-2xl bg-card border border-border border-l-[6px] ${cabinBorder[c.status] ?? "border-l-border"} p-5 hover:shadow-card hover:-translate-y-0.5 transition group`}>
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <Home className="h-4 w-4 text-primary" />
+                                <h5 className="font-display text-lg text-primary">{c.number}</h5>
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted border border-border font-bold uppercase tracking-tight text-muted-foreground">{cabinCategoryLabel(c.category)}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-1.5">
+                                <Users className="h-3 w-3" /> Cap: {c.capacity}
+                                <span>•</span>
+                                <span className="font-bold text-foreground">₹{c.daily_rate.toLocaleString()}/day</span>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-1.5">
-                              <Users className="h-3 w-3" /> Cap: {c.capacity}
-                              <span>•</span>
-                              <span className="font-bold text-foreground">₹{c.rate.toLocaleString()}/day</span>
+                            <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full ${cabinStatusBg[c.status] ?? ""}`}>{cabinStatusLabel(c.status)}</span>
+                          </div>
+                          {occ ? (
+                            <div className="mt-3 p-2.5 rounded-lg bg-muted/60">
+                              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Patient</p>
+                              <p className="text-sm font-bold text-foreground">{occ.patients?.full_name ?? "Unknown"}</p>
+                              {occ.doctors?.name && <p className="text-[11px] text-muted-foreground mt-0.5">Doctor: {occ.doctors.name}</p>}
                             </div>
+                          ) : (
+                            <div className="mt-3 p-2.5 rounded-lg bg-muted/40">
+                              <p className="text-[11px] text-muted-foreground italic">
+                                {c.status === "available" ? "Ready for check-in" : c.status === "reserved" ? (c.admitted_on ? `Reserved for ${c.admitted_on}` : "Reserved") : c.status === "cleaning" ? "Sanitization in progress" : "Out of service"}
+                              </p>
+                            </div>
+                          )}
+                          <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-border">
+                            {c.amenities.map(a => {
+                              const Icon = AMENITY_ICON[a];
+                              return (
+                                <span key={a} className="text-[10px] flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted border border-border text-muted-foreground font-medium">
+                                  {Icon && <Icon className="h-2.5 w-2.5" />} {a}
+                                </span>
+                              );
+                            })}
                           </div>
-                          <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full ${statusBg}`}>{c.status}</span>
-                        </div>
-                        {c.patient ? (
-                          <div className="mt-3 p-2.5 rounded-lg bg-muted/60">
-                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Patient</p>
-                            <p className="text-sm font-bold text-foreground">{c.patient}</p>
-                            {c.attendant && <p className="text-[11px] text-muted-foreground mt-0.5">Attendant: {c.attendant}</p>}
-                          </div>
-                        ) : (
-                          <div className="mt-3 p-2.5 rounded-lg bg-muted/40">
-                            <p className="text-[11px] text-muted-foreground italic">
-                              {c.status === "Available" ? "Ready for check-in" : c.status === "Reserved" ? `Reserved for ${c.admittedOn || "upcoming"}` : c.status === "Cleaning" ? "Sanitization in progress" : "Out of service"}
-                            </p>
-                          </div>
-                        )}
-                        <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-border">
-                          {c.amenities.map(a => {
-                            const Icon = AMENITY_ICON[a];
-                            return (
-                              <span key={a} className="text-[10px] flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted border border-border text-muted-foreground font-medium">
-                                {Icon && <Icon className="h-2.5 w-2.5" />} {a}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      </button>
-                    );
-                  })}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-          {!cabinList.length && <p className="text-sm text-muted-foreground text-center py-6">No cabins match the selected filter.</p>}
-        </div>
+              );
+            })}
+            {!cabinList.length && <p className="text-sm text-muted-foreground text-center py-6">No cabins match the selected filter.</p>}
+          </div>
+        )}
       </Card>
 
-
-      {/* Bed modal */}
-      <Modal open={!!edit || add} onClose={() => { setEdit(null); setAdd(false); }}
-        title={edit ? `Bed ${edit.number}` : "Add bed"}
+      {/* ===== Bed detail / actions ===== */}
+      <Modal open={!!bedDetail} onClose={() => setBedDetail(null)}
+        title={bedDetail ? `Bed ${bedDetail.number}` : ""}
         footer={<>
-          {edit && <button onClick={() => { setDel(edit.id); }} className="mr-auto px-4 py-2 rounded-full text-sm font-semibold text-destructive">Delete</button>}
-          <Btn variant="outline" onClick={() => { setEdit(null); setAdd(false); }}>Cancel</Btn>
-          <Btn onClick={() => {}} className="hidden">.</Btn>
+          {bedDetail && bedDetail.status !== "occupied" && (
+            <button onClick={() => setDelBed(bedDetail.id)} className="mr-auto px-4 py-2 rounded-full text-sm font-semibold text-destructive">Delete</button>
+          )}
+          <Btn variant="outline" onClick={() => setBedDetail(null)}>Close</Btn>
+        </>}>
+        {bedDetail && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{bedDetail.wards?.name ?? "Ward"} · {bedDetail.type.toUpperCase()}</p>
+                <Pill tone={bedDetail.status === "occupied" ? "bad" : bedDetail.status === "available" ? "ok" : "warn"}>{bedDetail.status}</Pill>
+              </div>
+              <button onClick={() => { setEditBedMeta(bedDetail); setBedDetail(null); }} className="text-xs font-semibold text-primary inline-flex items-center gap-1 hover:underline">
+                <Pencil className="h-3.5 w-3.5" /> Edit details
+              </button>
+            </div>
+
+            {bedDetail.status === "occupied" && bedOccupant ? (
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-4 space-y-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Patient</p>
+                  <p className="font-semibold text-primary">{bedOccupant.patients?.full_name ?? "Unknown"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {ageFromDob(bedOccupant.patients?.date_of_birth) !== null ? `${ageFromDob(bedOccupant.patients?.date_of_birth)}y · ` : ""}
+                    {bedOccupant.patients?.gender ?? ""}{bedOccupant.doctors?.name ? ` · ${bedOccupant.doctors.name}` : ""}
+                  </p>
+                  {bedOccupant.diagnosis && <p className="text-xs text-muted-foreground mt-1">Diagnosis: {bedOccupant.diagnosis}</p>}
+                </div>
+                <div className="flex gap-2">
+                  <Btn variant="outline" onClick={() => openTransfer(bedOccupant)}><ArrowRightLeft className="h-4 w-4 mr-1.5" /> Transfer</Btn>
+                  <Btn variant="outline" onClick={() => openDischarge(bedOccupant)}><LogOut className="h-4 w-4 mr-1.5" /> Discharge</Btn>
+                </div>
+              </div>
+            ) : bedDetail.status === "available" ? (
+              <Btn onClick={() => openAdmit({ bed_id: bedDetail.id, label: `${bedDetail.wards?.name ?? "Ward"} · Bed ${bedDetail.number}` })} className="w-full justify-center">
+                Admit Patient Here
+              </Btn>
+            ) : (
+              <div className="rounded-xl border border-border/60 bg-yellow-50 p-4 text-center">
+                <p className="text-sm text-yellow-800 mb-3">Sanitization in progress.</p>
+                <Btn variant="outline" onClick={() => markBedAvailable(bedDetail)}>Mark Available</Btn>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+      <ConfirmDialog open={!!delBed} onClose={() => setDelBed(null)} onConfirm={() => { if (delBed) bedsCrud.remove(delBed); }} title="Remove bed?" description="This permanently removes the bed from inventory." />
+
+      {/* ===== Cabin detail / actions ===== */}
+      <Modal open={!!cabinDetail} onClose={() => setCabinDetail(null)}
+        title={cabinDetail ? `Cabin ${cabinDetail.number}` : ""}
+        footer={<>
+          {cabinDetail && cabinDetail.status !== "occupied" && (
+            <button onClick={() => setDelCabin(cabinDetail.id)} className="mr-auto px-4 py-2 rounded-full text-sm font-semibold text-destructive">Delete</button>
+          )}
+          <Btn variant="outline" onClick={() => setCabinDetail(null)}>Close</Btn>
+        </>}>
+        {cabinDetail && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{cabinCategoryLabel(cabinDetail.category)} · {cabinDetail.floor} · Cap {cabinDetail.capacity}</p>
+                <Pill tone={cabinDetail.status === "occupied" ? "bad" : cabinDetail.status === "available" ? "ok" : "warn"}>{cabinStatusLabel(cabinDetail.status)}</Pill>
+              </div>
+              <button onClick={() => { openEditCabinMeta(cabinDetail); setCabinDetail(null); }} className="text-xs font-semibold text-primary inline-flex items-center gap-1 hover:underline">
+                <Pencil className="h-3.5 w-3.5" /> Edit details
+              </button>
+            </div>
+
+            {cabinDetail.status === "occupied" && cabinOccupant ? (
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-4 space-y-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Patient</p>
+                  <p className="font-semibold text-primary">{cabinOccupant.patients?.full_name ?? "Unknown"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {ageFromDob(cabinOccupant.patients?.date_of_birth) !== null ? `${ageFromDob(cabinOccupant.patients?.date_of_birth)}y · ` : ""}
+                    {cabinOccupant.patients?.gender ?? ""}{cabinOccupant.doctors?.name ? ` · ${cabinOccupant.doctors.name}` : ""}
+                  </p>
+                  {cabinOccupant.diagnosis && <p className="text-xs text-muted-foreground mt-1">Diagnosis: {cabinOccupant.diagnosis}</p>}
+                </div>
+                <div className="flex gap-2">
+                  <Btn variant="outline" onClick={() => openTransfer(cabinOccupant)}><ArrowRightLeft className="h-4 w-4 mr-1.5" /> Transfer</Btn>
+                  <Btn variant="outline" onClick={() => openDischarge(cabinOccupant)}><LogOut className="h-4 w-4 mr-1.5" /> Discharge</Btn>
+                </div>
+              </div>
+            ) : cabinDetail.status === "available" ? (
+              <>
+                <Btn onClick={() => openAdmit({ cabin_id: cabinDetail.id, label: `Cabin ${cabinDetail.number}` })} className="w-full justify-center">
+                  Admit Patient Here
+                </Btn>
+                <Field label="Or set status">
+                  <Select value={cabinDetail.status} onChange={e => setCabinManualStatus(cabinDetail, e.target.value)}>
+                    {CABIN_MANUAL_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                  </Select>
+                </Field>
+              </>
+            ) : (
+              <Field label="Status">
+                <Select value={cabinDetail.status} onChange={e => setCabinManualStatus(cabinDetail, e.target.value)}>
+                  {CABIN_MANUAL_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </Select>
+              </Field>
+            )}
+          </div>
+        )}
+      </Modal>
+      <ConfirmDialog open={!!delCabin} onClose={() => setDelCabin(null)} onConfirm={() => { if (delCabin) cabinsCrud.remove(delCabin); }} title="Remove cabin?" description="This permanently removes the cabin." />
+
+      {/* ===== Admit modal (shared: bed or cabin) ===== */}
+      <Modal open={!!admitTarget} onClose={() => setAdmitTarget(null)} title={`Admit to ${admitTarget?.label ?? ""}`} size="lg"
+        footer={<>
+          <Btn variant="outline" onClick={() => setAdmitTarget(null)}>Cancel</Btn>
+          <Btn onClick={submitAdmit}>Admit Patient</Btn>
+        </>}>
+        <div className="grid sm:grid-cols-2 gap-x-5">
+          <Field label="Patient" required>
+            <Select value={admitDraft.patient_id} onChange={e => setAdmitDraft(d => ({ ...d, patient_id: e.target.value }))}>
+              {patientOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </Select>
+          </Field>
+          <Field label="Attending doctor">
+            <Select value={admitDraft.doctor_id} onChange={e => setAdmitDraft(d => ({ ...d, doctor_id: e.target.value }))}>
+              {doctorOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </Select>
+          </Field>
+          <Field label="Diagnosis"><Input value={admitDraft.diagnosis} onChange={e => setAdmitDraft(d => ({ ...d, diagnosis: e.target.value }))} placeholder="Reason for admission" /></Field>
+          <Field label="Priority">
+            <Select value={admitDraft.priority} onChange={e => setAdmitDraft(d => ({ ...d, priority: e.target.value }))}>
+              <option value="routine">Routine</option><option value="urgent">Urgent</option><option value="critical">Critical</option>
+            </Select>
+          </Field>
+        </div>
+      </Modal>
+
+      {/* ===== Transfer modal (shared) ===== */}
+      <Modal open={!!transferTarget} onClose={() => setTransferTarget(null)} title={`Transfer ${transferTarget?.patients?.full_name ?? ""}`}
+        footer={<>
+          <Btn variant="outline" onClick={() => setTransferTarget(null)}>Cancel</Btn>
+          <Btn onClick={submitTransfer} disabled={!transferChoice.bed_id && !transferChoice.cabin_id}>Move patient</Btn>
+        </>}>
+        <Field label="Move to bed">
+          <Select value={transferChoice.bed_id} onChange={e => setTransferChoice({ bed_id: e.target.value, cabin_id: e.target.value ? "" : transferChoice.cabin_id })}>
+            <option value="">— No bed —</option>
+            {availableBedsForTransfer.map(b => <option key={b.id} value={b.id}>{b.wards?.name ?? "Ward"} · Bed {b.number}</option>)}
+          </Select>
+        </Field>
+        <Field label="Move to cabin">
+          <Select value={transferChoice.cabin_id} onChange={e => setTransferChoice({ cabin_id: e.target.value, bed_id: e.target.value ? "" : transferChoice.bed_id })}>
+            <option value="">— No cabin —</option>
+            {availableCabins.map(c => <option key={c.id} value={c.id}>Cabin {c.number} ({cabinCategoryLabel(c.category)})</option>)}
+          </Select>
+        </Field>
+      </Modal>
+      <ConfirmDialog open={!!dischargeTarget} onClose={() => setDischargeTarget(null)} onConfirm={confirmDischarge}
+        title={`Discharge ${dischargeTarget?.patients?.full_name ?? "this patient"}?`}
+        description="The bed/cabin will be released and marked for cleaning." />
+
+      {/* ===== Add/Edit bed metadata ===== */}
+      <Modal open={addBed || !!editBedMeta} onClose={() => { setAddBed(false); setEditBedMeta(null); }}
+        title={editBedMeta ? `Bed ${editBedMeta.number}` : "Add bed"}
+        footer={<>
+          <Btn variant="outline" onClick={() => { setAddBed(false); setEditBedMeta(null); }}>Cancel</Btn>
           <button form="bed-form" type="submit" className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground">Save</button>
         </>}>
-        <form id="bed-form" onSubmit={e => {
-          e.preventDefault();
-          const fd = new FormData(e.currentTarget);
-          const data = { ward: String(fd.get("ward")), number: String(fd.get("number")), type: String(fd.get("type")), patient: String(fd.get("patient")), status: String(fd.get("status")) };
-          if (edit) {
-            crud.update(edit.id, data);
-            if (data.status === "Occupied" && edit.status !== "Occupied") push({ title: `Patient admitted to ${data.ward} bed ${data.number}`, tone: "info" });
-            if (data.status === "Available" && edit.status === "Occupied") push({ title: `Discharge from ${data.ward} bed ${data.number}`, tone: "ok" });
-          } else crud.create(data);
-          setEdit(null); setAdd(false);
-        }}>
-          <Field label="Ward"><Select name="ward" defaultValue={edit?.ward}>{wards.concat(["ICU", "Ward 3B", "Maternity"]).filter((v, i, a) => a.indexOf(v) === i).map(w => <option key={w}>{w}</option>)}</Select></Field>
-          <Field label="Bed Number" required><Input name="number" defaultValue={edit?.number} required /></Field>
-          <Field label="Type"><Select name="type" defaultValue={edit?.type}><option>General</option><option>ICU</option><option>Cabin</option></Select></Field>
-          <Field label="Patient (if occupied)"><Input name="patient" defaultValue={edit?.patient} /></Field>
-          <Field label="Status"><Select name="status" defaultValue={edit?.status}><option>Available</option><option>Occupied</option><option>Cleaning</option></Select></Field>
+        <form id="bed-form" onSubmit={e => { e.preventDefault(); saveBedMeta(new FormData(e.currentTarget)); }}>
+          <Field label="Ward" required>
+            <Select name="ward_id" defaultValue={editBedMeta?.ward_id}>
+              {wardsCrud.items.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </Select>
+          </Field>
+          <Field label="Bed Number" required><Input name="number" defaultValue={editBedMeta?.number} required /></Field>
+          <Field label="Type">
+            <Select name="type" defaultValue={editBedMeta?.type ?? "general"}>
+              {BED_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </Select>
+          </Field>
         </form>
       </Modal>
 
-      <ConfirmDialog open={!!del} onClose={() => setDel(null)} onConfirm={() => { if (del) crud.remove(del); setEdit(null); }} />
-
-      {/* Cabin modal */}
-      <Modal open={!!editCab || addCab} onClose={() => { setEditCab(null); setAddCab(false); }}
-        title={editCab ? `Cabin ${editCab.number}` : "Add cabin"}
+      {/* ===== Add/Edit cabin metadata ===== */}
+      <Modal open={addCabin || !!editCabinMeta} onClose={() => { setAddCabin(false); setEditCabinMeta(null); }}
+        title={editCabinMeta ? `Cabin ${editCabinMeta.number}` : "Add cabin"}
         footer={<>
-          {editCab && <button onClick={() => setDelCab(editCab.id)} className="mr-auto px-4 py-2 rounded-full text-sm font-semibold text-destructive">Delete</button>}
-          <Btn variant="outline" onClick={() => { setEditCab(null); setAddCab(false); }}>Cancel</Btn>
+          <Btn variant="outline" onClick={() => { setAddCabin(false); setEditCabinMeta(null); }}>Cancel</Btn>
           <button form="cabin-form" type="submit" className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground">Save</button>
         </>}>
-        <form id="cabin-form" onSubmit={e => {
-          e.preventDefault();
-          const fd = new FormData(e.currentTarget);
-          const data: Omit<CabinRow, "id"> = {
-            number: String(fd.get("number")),
-            category: fd.get("category") as CabinRow["category"],
-            floor: String(fd.get("floor")),
-            capacity: Number(fd.get("capacity")) || 1,
-            rate: Number(fd.get("rate")) || 0,
-            amenities: amenityDraft,
-            patient: String(fd.get("patient") || ""),
-            attendant: String(fd.get("attendant") || ""),
-            admittedOn: String(fd.get("admittedOn") || ""),
-            status: fd.get("status") as CabinRow["status"],
-          };
-          if (editCab) {
-            cabins.update(editCab.id, data);
-            if (data.status === "Occupied" && editCab.status !== "Occupied") push({ title: `Patient admitted to cabin ${data.number}`, tone: "info" });
-            if (data.status === "Available" && editCab.status === "Occupied") push({ title: `Discharge from cabin ${data.number}`, tone: "ok" });
-            if (data.status === "Reserved" && editCab.status !== "Reserved") push({ title: `Cabin ${data.number} reserved`, tone: "info" });
-          } else {
-            cabins.create(data);
-            push({ title: `Cabin ${data.number} added`, tone: "ok" });
-          }
-          setEditCab(null); setAddCab(false);
-        }}>
+        <form id="cabin-form" onSubmit={e => { e.preventDefault(); saveCabinMeta(new FormData(e.currentTarget)); }}>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Cabin Number" required><Input name="number" defaultValue={editCab?.number} required /></Field>
-            <Field label="Floor" required><Input name="floor" defaultValue={editCab?.floor || "1st Floor"} required /></Field>
-            <Field label="Category"><Select name="category" defaultValue={editCab?.category || "Standard"}><option>Standard</option><option>Deluxe</option><option>Premium</option><option>Suite</option></Select></Field>
-            <Field label="Status"><Select name="status" defaultValue={editCab?.status || "Available"}><option>Available</option><option>Occupied</option><option>Reserved</option><option>Cleaning</option><option>Maintenance</option></Select></Field>
-            <Field label="Capacity"><Input name="capacity" type="number" min="1" defaultValue={editCab?.capacity || 1} /></Field>
-            <Field label="Daily Rate (₹)"><Input name="rate" type="number" min="0" defaultValue={editCab?.rate || 0} /></Field>
+            <Field label="Cabin Number" required><Input name="number" defaultValue={editCabinMeta?.number} required /></Field>
+            <Field label="Floor" required><Input name="floor" defaultValue={editCabinMeta?.floor || "1st Floor"} required /></Field>
+            <Field label="Category">
+              <Select name="category" defaultValue={editCabinMeta?.category ?? "standard"}>
+                {CABIN_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </Select>
+            </Field>
+            <Field label="Capacity"><Input name="capacity" type="number" min="1" defaultValue={editCabinMeta?.capacity || 1} /></Field>
+            <Field label="Daily Rate (₹)"><Input name="daily_rate" type="number" min="0" defaultValue={editCabinMeta?.daily_rate || 0} /></Field>
           </div>
           <Field label="Amenities">
             <div className="flex flex-wrap gap-2">
@@ -442,49 +791,27 @@ const Wards = () => {
               })}
             </div>
           </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Patient"><Input name="patient" defaultValue={editCab?.patient} /></Field>
-            <Field label="Attendant"><Input name="attendant" defaultValue={editCab?.attendant} /></Field>
-          </div>
-          <Field label="Admitted / Reserved On"><Input name="admittedOn" type="date" defaultValue={editCab?.admittedOn} /></Field>
         </form>
       </Modal>
 
-      <ConfirmDialog open={!!delCab} onClose={() => setDelCab(null)} onConfirm={() => { if (delCab) cabins.remove(delCab); setEditCab(null); setDelCab(null); }} />
-
-      {/* Ward Config modal */}
-      <Modal open={!!editWc || addWc} onClose={() => { setEditWc(null); setAddWc(false); }}
-        title={editWc ? `${editWc.ward} — Pricing & Facilities` : "Add ward pricing"}
+      {/* ===== Add/Edit ward pricing ===== */}
+      <Modal open={addWard || !!editWard} onClose={() => { setAddWard(false); setEditWard(null); }}
+        title={editWard ? `${editWard.name} — Pricing & Facilities` : "Add ward"}
         footer={<>
-          {editWc && <button onClick={() => setDelWc(editWc.id)} className="mr-auto px-4 py-2 rounded-full text-sm font-semibold text-destructive">Delete</button>}
-          <Btn variant="outline" onClick={() => { setEditWc(null); setAddWc(false); }}>Cancel</Btn>
-          <button form="wc-form" type="submit" className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground">Save</button>
+          {editWard && <button onClick={() => setDelWard(editWard.id)} className="mr-auto px-4 py-2 rounded-full text-sm font-semibold text-destructive">Delete</button>}
+          <Btn variant="outline" onClick={() => { setAddWard(false); setEditWard(null); }}>Cancel</Btn>
+          <button form="ward-form" type="submit" className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground">Save</button>
         </>}>
-        <form id="wc-form" onSubmit={e => {
-          e.preventDefault();
-          const fd = new FormData(e.currentTarget);
-          const data: Omit<WardConfigRow, "id"> = {
-            ward: String(fd.get("ward")),
-            category: fd.get("category") as WardConfigRow["category"],
-            rate: Number(fd.get("rate")) || 0,
-            nursingCharge: Number(fd.get("nursingCharge")) || 0,
-            facilities: facDraft,
-            notes: String(fd.get("notes") || ""),
-          };
-          if (editWc) {
-            wardConfigs.update(editWc.id, data);
-            push({ title: `Updated pricing for ${data.ward}`, tone: "ok" });
-          } else {
-            wardConfigs.create(data);
-            push({ title: `Added pricing for ${data.ward}`, tone: "ok" });
-          }
-          setEditWc(null); setAddWc(false);
-        }}>
+        <form id="ward-form" onSubmit={e => { e.preventDefault(); saveWard(new FormData(e.currentTarget)); }}>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Ward Name" required><Input name="ward" defaultValue={editWc?.ward} required placeholder="e.g. Ward 3B / ICU / Maternity" /></Field>
-            <Field label="Category"><Select name="category" defaultValue={editWc?.category || "General"}><option>General</option><option>Semi-Private</option><option>ICU</option><option>Maternity</option><option>Pediatric</option></Select></Field>
-            <Field label="Daily Rate (₹)" required><Input name="rate" type="number" min="0" defaultValue={editWc?.rate || 0} required /></Field>
-            <Field label="Nursing Charge (₹/day)"><Input name="nursingCharge" type="number" min="0" defaultValue={editWc?.nursingCharge || 0} /></Field>
+            <Field label="Ward Name" required><Input name="name" defaultValue={editWard?.name} required placeholder="e.g. Ward 3B / ICU / Maternity" /></Field>
+            <Field label="Category">
+              <Select name="category" defaultValue={editWard?.category ?? "general"}>
+                {WARD_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </Select>
+            </Field>
+            <Field label="Daily Rate (₹)" required><Input name="daily_rate" type="number" min="0" defaultValue={editWard?.daily_rate || 0} required /></Field>
+            <Field label="Nursing Charge (₹/day)"><Input name="nursing_charge" type="number" min="0" defaultValue={editWard?.nursing_charge || 0} /></Field>
           </div>
           <Field label="Facilities">
             <div className="flex flex-wrap gap-2">
@@ -499,14 +826,11 @@ const Wards = () => {
               })}
             </div>
           </Field>
-          <Field label="Notes"><Input name="notes" defaultValue={editWc?.notes} placeholder="Optional notes" /></Field>
+          <Field label="Notes"><Input name="notes" defaultValue={editWard?.notes ?? ""} placeholder="Optional notes" /></Field>
         </form>
       </Modal>
-
-      <ConfirmDialog open={!!delWc} onClose={() => setDelWc(null)} onConfirm={() => { if (delWc) wardConfigs.remove(delWc); setEditWc(null); setDelWc(null); }} />
+      <ConfirmDialog open={!!delWard} onClose={() => setDelWard(null)} onConfirm={() => { if (delWard) wardsCrud.remove(delWard); setEditWard(null); }} title="Remove ward?" description="Beds in this ward must be reassigned or removed first." />
     </AdminLayout>
-
   );
 };
 export default Wards;
-
