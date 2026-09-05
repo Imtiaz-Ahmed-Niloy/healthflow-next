@@ -8,7 +8,7 @@ comes from `superNav` in `src/components/super/SuperLayout.tsx`, `adminNav` in
 **✅** = on real data, saves, survives a refresh, isolated per hospital
 **❌** = still on demo data, or only half wired
 
-Last checked: 3 Sep 2026
+Last checked: 5 Sep 2026
 
 ---
 
@@ -52,8 +52,8 @@ panel look one page further behind than it is.
 | ✅ | Support Staff | HF-43 |
 | ✅ | Patients | HF-45 |
 | ✅ | Appointments | HF-46 |
-| ❌ | Wards & Beds | HF-47 |
-| ❌ | Admissions — the backend is built (HF-37); the page still reads localStorage | HF-37 |
+| ✅ | Wards & Beds — floor map, ward pricing and cabins, all on real rows | HF-47 |
+| ✅ | Admissions — admit, transfer and discharge, every one through bed-transfers | HF-47, HF-37 |
 | ✅ | Laboratory — catalogue and requests | HF-66 |
 | ✅ | Pharmacy | HF-63 |
 | ✅ | Hospital Profile | HF-85 |
@@ -66,18 +66,23 @@ panel look one page further behind than it is.
 | ✅ | Invoices & AR/AP | HF-70 |
 | ✅ | Financial Reports — six reports counted from real rows, with CSV | — |
 | ✅ | Assets | HF-62 |
-| ✅ | Procurement | HF-71 |
+| ✅ | Procurement — requisitions, and the work orders raised from them | HF-71 |
 | ✅ | Vendors | HF-61 |
 | ✅ | Reports — the same page as Financial Reports, listed twice in the menu | — |
-| ❌ | Notifications | — |
-| ✅ | Administration | HF-72 |
+| ✅ | Notifications — a hospital-wide feed; the unread mark is each person's own | — |
+| ✅ | Administration — ten certificate types, each with its own fields and wording | HF-72 |
 | ❌ | Settings | — |
 
-**22 of 26 done.**
+**25 of 26 done.**
 
 27 menu entries, 26 pages: `adminNav` points both **Financial Reports** and
-**Reports** at `/admin/reports`. **Admissions** was missing from this file
-entirely until now — it is a menu item, and it is not built.
+**Reports** at `/admin/reports`.
+
+**Wards & Beds** and **Admissions** were the last two rewiring jobs on this
+panel, and they landed together (HF-47) because they are one screen split in
+two: what a bed costs and who is in it.
+
+**Settings** is the only page left, and it is not a rewiring job — see below.
 
 ---
 
@@ -178,25 +183,31 @@ make real.
 
 ## What is still local
 
-Four hospital-admin pages are not on the API. They divide into two kinds, and
-the difference matters when picking one up:
+One hospital-admin page is not on the API: **`/admin/settings`**. It is not a
+rewiring job — it holds static demo arrays and saves nothing at all, and it
+needs a decision about what the page is *for* before it needs a table, which is
+why it has outlasted every page that only needed wiring.
 
-- **`/admin/wards` and `/admin/admissions`** call `useCrud` directly, so what
-  you type is saved — to that browser's localStorage. The tables behind both
-  already exist (HF-37); these two are a rewiring job, not a schema job.
-- **`/admin/notifications` and `/admin/settings`** hold static demo arrays and
-  save nothing at all. Both need a decision about what the page is for before
-  they need a table.
+**Notifications** was the other one, and it is done. It needed the same
+decision first: the page was a toast history in one browser's localStorage,
+seeded with three invented rows. It is now a hospital-wide feed (0073) where
+the event belongs to the hospital and the unread mark belongs to a person, so
+clearing yours leaves your colleague's alone. The transient "Saved"
+acknowledgements the admin pages raise are still local to the tab and are
+labelled as such — they were never news.
 
-**13 menu items have no ticket at all** — mostly Super Admin settings screens
-and the finance and system pages above. Nobody is working on those.
+**10 menu items are unbuilt and have no ticket at all** — three Super Admin
+screens (Whitelisting, Integrations, Preferences), Settings above, and the six
+unwritten public pages. Nobody is working on those.
 
 ---
 
 ## The short answer
 
-**54 of 67 pages are on real data.** The public site is nearly finished; the
-hospital admin panel is the bulk of what is left.
+**57 of 67 pages are on real data.** The public site is nearly finished, and
+the hospital admin panel is down to a single page, which needs a product
+decision rather than a table. What is left is mostly the public site's
+unwritten pages and the Super Admin settings screens.
 
 Everything marked ❌ still works when you click it — it shows demo data that
 does not save. Nothing is broken, it just is not real yet.
