@@ -36,6 +36,18 @@ export const certificateCreateSchema = z.object({
    */
   issued_on: z.preprocess(blankToUndefined, z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional()),
   details: optionalText,
+  /**
+   * The per-type content (0072) — a birth's time and weight, a death's
+   * sequence of causes, a salary's period and figure. Keyed by the field names
+   * in src/data/certificateFormats.ts, which is what builds the form and lays
+   * out the printed page.
+   *
+   * Validated as a flat record of strings rather than per type: the shape is a
+   * property of `type`, which the form already enforces, and a schema that
+   * branched here would be a second copy of the format table to keep in step.
+   * The database checks it is an object; this checks nothing odd is inside it.
+   */
+  fields: z.record(z.string(), z.string().max(4000)).optional(),
   status: z.enum(CERTIFICATE_STATUSES).optional(),
   // tenant_id is deliberately absent: the route stamps it from the JWT.
 });

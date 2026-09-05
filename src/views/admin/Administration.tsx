@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, Btn, Pill } from "@/components/admin/ui";
-import { Modal, Field, Input, Select, statusTone } from "@/components/admin/crud";
+import { Modal, Field, Input, TextArea, Select, statusTone } from "@/components/admin/crud";
 import { useResourceCrud } from "@/components/admin/useResourceCrud";
 import { useNotifications } from "@/components/admin/NotificationProvider";
 import {
@@ -12,8 +12,15 @@ import {
 } from "lucide-react";
 import type { Tables } from "@/lib/supabase/types";
 import { BRAND_INFO } from "@/constants/brand";
+import { CERTIFICATE_FORMATS, fieldsOf, type CertField } from "@/data/certificateFormats";
 
-type Certificate = Tables<"certificates">;
+/**
+ * `fields` is spelled out rather than coming from `Tables<"certificates">`
+ * because types.ts is generated from the live database and 0072 has not been
+ * applied yet. Delete this intersection once it has been and the types are
+ * regenerated — the generated column is `Json`, which this matches.
+ */
+type Certificate = Tables<"certificates"> & { fields?: unknown };
 type CertType = Certificate["type"];
 type CertStatus = Certificate["status"];
 
@@ -49,6 +56,45 @@ const TYPES: {
 ];
 
 const metaFor = (type: CertType) => TYPES.find(t => t.type === type)!;
+
+/**
+ * One value out of a saved certificate's `fields` (0072).
+ *
+ * jsonb arrives as `unknown`, and rows written before this column existed have
+ * `{}` in it, so anything not a string reads as absent rather than being
+ * printed as "[object Object]" on a document.
+ */
+const savedField = (c: Certificate | null, name: string): string => {
+  const bag = c?.fields;
+  if (!bag || typeof bag !== "object" || Array.isArray(bag)) return "";
+  const value = (bag as Record<string, unknown>)[name];
+  return typeof value === "string" ? value : "";
+};
+
+/** The input a field asks for. Names are prefixed so they cannot collide with
+ *  the common fields on the same form. */
+const CertFieldInput = ({ field, defaultValue }: { field: CertField; defaultValue: string }) => {
+  const name = `f_${field.name}`;
+  if (field.type === "textarea") {
+    return <TextArea name={name} rows={3} defaultValue={defaultValue} />;
+  }
+  if (field.type === "select") {
+    return (
+      <Select name={name} defaultValue={defaultValue}>
+        <option value="">—</option>
+        {(field.options ?? []).map(o => <option key={o} value={o}>{o}</option>)}
+      </Select>
+    );
+  }
+  return (
+    <Input
+      name={name}
+      defaultValue={defaultValue}
+      type={field.type === "number" ? "number" : field.type === "date" ? "date" : field.type === "time" ? "time" : "text"}
+      step={field.type === "number" ? "any" : undefined}
+    />
+  );
+};
 
 /** Statuses are stored lowercase across every module; capitalised only here. */
 const STATUS_LABELS: Record<CertStatus, string> = {
@@ -141,6 +187,15 @@ export default function Administration() {
       issued_by: String(fd.get("issued_by") || "") || null,
       issued_on: issuedOn || null,
       details: String(fd.get("details") || "") || null,
+      // The per-type content (0072). Read straight off the form by the names
+      // the format table declares, and only what was filled — an untouched
+      // field is absent rather than an empty string, so the printed page can
+      // leave the line out instead of printing a label with nothing after it.
+      fields: Object.fromEntries(
+        fieldsOf(activeType)
+          .map(f => [f.name, String(fd.get(`f_${f.name}`) || "").trim()] as const)
+          .filter(([, value]) => value !== ""),
+      ),
       status,
     };
 
@@ -314,8 +369,28 @@ export default function Administration() {
                 </Select>
               </Field>
             </div>
-            <Field label="Details / Remarks">
-              <textarea name="details" defaultValue={editing?.details ?? ""} rows={4}
+            {/* What this particular certificate says, from the format table.
+                Everything above is common to all ten; everything here belongs
+                to this one type. */}
+            {CERTIFICATE_FORMATS[activeMeta.type].sections.map(section => (
+              <div key={section.title} className="mt-5">
+                <p className="text-[10px] tracking-widest font-bold text-muted-foreground">
+                  {section.title.toUpperCase()}
+                </p>
+                <div className="grid md:grid-cols-2 gap-3 mt-2">
+                  {section.fields.map(f => (
+                    <div key={f.name} className={f.wide ? "md:col-span-2" : undefined}>
+                      <Field label={f.label} hint={f.hint}>
+                        <CertFieldInput field={f} defaultValue={savedField(editing, f.name)} />
+                      </Field>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            <Field label="Details / Remarks" hint="Anything the fields above do not cover">
+              <textarea name="details" defaultValue={editing?.details ?? ""} rows={3}
                 className="w-full bg-muted/40 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary text-sm" />
             </Field>
           </form>
@@ -332,6 +407,7 @@ export default function Administration() {
 
 function CertPrintable({ c }: { c: Certificate }) {
   const meta = metaFor(c.type);
+  const format = CERTIFICATE_FORMATS[c.type];
   return (
     <div id="cert-printable" className="bg-white text-slate-900 p-10 rounded-lg border-[3px] border-double border-primary/60">
       <div className="flex items-center justify-between border-b border-slate-300 pb-4">
@@ -348,13 +424,42 @@ function CertPrintable({ c }: { c: Certificate }) {
       </div>
 
       <div className="text-center my-8">
-        <div className="text-xs uppercase tracking-[0.3em] text-slate-500">This is to certify that</div>
-        <div className="font-display text-3xl text-primary mt-3">{c.recipient_name}</div>
+        <div className="font-display text-3xl text-primary">{c.recipient_name}</div>
+        {/* Wording belongs to the type. All ten used to open "This is to
+            certify that", which reads as a form letter on a death. */}
+        <p className="text-sm text-slate-600 mt-3 max-w-xl mx-auto">{format.attestation}</p>
       </div>
 
-      <div className="text-sm leading-relaxed text-slate-700 whitespace-pre-wrap min-h-[80px]">
-        {c.details || "—"}
-      </div>
+      {/* The body of this particular certificate. Sections and their order come
+          from the same table that built the form, so the page cannot show a
+          field the form never asked for. An empty section is left out rather
+          than printed as a heading over nothing. */}
+      {format.sections.map(section => {
+        const filled = section.fields.filter(f => savedField(c, f.name));
+        if (!filled.length) return null;
+        return (
+          <div key={section.title} className="mt-6">
+            <div className="text-[10px] tracking-widest text-slate-500 border-b border-slate-200 pb-1">
+              {section.title.toUpperCase()}
+            </div>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-3 mt-3 text-sm">
+              {filled.map(f => (
+                <div key={f.name} className={f.wide ? "col-span-2" : undefined}>
+                  <div className="text-[10px] tracking-widest text-slate-500">{f.label.toUpperCase()}</div>
+                  <div className="font-semibold whitespace-pre-wrap">{savedField(c, f.name)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      {c.details && (
+        <div className="mt-6">
+          <div className="text-[10px] tracking-widest text-slate-500 border-b border-slate-200 pb-1">REMARKS</div>
+          <div className="text-sm leading-relaxed text-slate-700 whitespace-pre-wrap mt-2">{c.details}</div>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-6 mt-10 pt-6 border-t border-slate-300 text-sm">
         <div>
@@ -379,7 +484,10 @@ function CertPrintable({ c }: { c: Certificate }) {
         <div className="text-center">
           <div className="h-12 border-b border-slate-400 w-56" />
           <div className="text-[10px] tracking-widest text-slate-500 mt-1">{(c.issued_by || "").toUpperCase()}</div>
-          <div className="text-[10px] text-slate-500">Authorized Signatory</div>
+          {/* Who signs it is part of the document: a cause-of-death
+              certificate is signed by the certifying physician, a salary
+              letter by finance. "Authorized Signatory" for both said nothing. */}
+          <div className="text-[10px] text-slate-500">{format.signatory}</div>
         </div>
       </div>
     </div>
