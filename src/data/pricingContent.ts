@@ -7,7 +7,9 @@ export type PricingPlan = {
   featured: boolean;
   features: PricingFeature[];
 };
-export type CompareRow = { label: string; basic: string; pro: string; enterprise: string; bold?: number[] };
+// One cell per plan: values[i] lines up with plans[i]. Adding a plan in the CMS
+// grows every row by one cell, so the compare table always mirrors the plan list.
+export type CompareRow = { label: string; values: string[]; bold?: number[] };
 export type Faq = { q: string; a: string };
 
 export type PricingContent = {
@@ -74,15 +76,15 @@ export const defaultPricingContent: PricingContent = {
     },
   ],
   compareRows: [
-    { label: "Consultations per Month", basic: "2 Sessions", pro: "Unlimited", enterprise: "Unlimited" },
-    { label: "Health Record Storage", basic: "5 GB", pro: "20 GB", enterprise: "Unlimited", bold: [3] },
-    { label: "AI Insights Level", basic: "Standard Baseline", pro: "Predictive Patterns", enterprise: "Custom Trained Models", bold: [2] },
-    { label: "Support Priority", basic: "Standard (Email)", pro: "Priority 24/7", enterprise: "Dedicated Concierge", bold: [2] },
-    { label: "Team Management", basic: "—", pro: "—", enterprise: "Up to 10 Seats", bold: [3] },
-    { label: "API & Webhooks", basic: "—", pro: "Read-only", enterprise: "Full Access", bold: [3] },
-    { label: "HIPAA Security", basic: "Standard", pro: "Enhanced Encryption", enterprise: "Enterprise Audited", bold: [2] },
-    { label: "Virtual Visits", basic: "2 per month", pro: "Unlimited", enterprise: "Unlimited", bold: [2] },
-    { label: "Lab Integrations", basic: "✓", pro: "✓", enterprise: "✓" },
+    { label: "Consultations per Month", values: ["2 Sessions", "Unlimited", "Unlimited"] },
+    { label: "Health Record Storage", values: ["5 GB", "20 GB", "Unlimited"], bold: [3] },
+    { label: "AI Insights Level", values: ["Standard Baseline", "Predictive Patterns", "Custom Trained Models"], bold: [2] },
+    { label: "Support Priority", values: ["Standard (Email)", "Priority 24/7", "Dedicated Concierge"], bold: [2] },
+    { label: "Team Management", values: ["—", "—", "Up to 10 Seats"], bold: [3] },
+    { label: "API & Webhooks", values: ["—", "Read-only", "Full Access"], bold: [3] },
+    { label: "HIPAA Security", values: ["Standard", "Enhanced Encryption", "Enterprise Audited"], bold: [2] },
+    { label: "Virtual Visits", values: ["2 per month", "Unlimited", "Unlimited"], bold: [2] },
+    { label: "Lab Integrations", values: ["✓", "✓", "✓"] },
   ],
   faqs: [
     { q: "Can I switch plans later?", a: "Yes, you can upgrade or downgrade your plan at any time through your dashboard. Price adjustments will be applied to your next billing cycle." },
@@ -111,12 +113,37 @@ const normalizePlan = (p: unknown): PricingPlan => {
   };
 };
 
+const asText = (v: unknown): string => (typeof v === "string" ? v : v == null ? "" : String(v));
+
+// Accepts both the current shape ({ values: [...] }) and the legacy fixed shape
+// ({ basic, pro, enterprise }) so rows saved before the compare table went
+// plan-driven still map cleanly.
+const normalizeCompareRow = (r: unknown): CompareRow => {
+  const row = (r ?? {}) as Partial<CompareRow> & { basic?: unknown; pro?: unknown; enterprise?: unknown; label?: unknown };
+  const values = Array.isArray(row.values)
+    ? row.values.map(asText)
+    : [row.basic, row.pro, row.enterprise].filter(v => v !== undefined).map(asText);
+  const bold = Array.isArray(row.bold) ? row.bold.filter((n): n is number => typeof n === "number") : undefined;
+  return { label: asText(row.label), values, ...(bold && bold.length ? { bold } : {}) };
+};
+
+// Keep every row's cell count in step with the plan list. A plan added after the
+// rows were last saved gets a placeholder cell; a removed plan drops its column.
+const fitRowToPlans = (row: CompareRow, planCount: number): CompareRow =>
+  row.values.length === planCount
+    ? row
+    : { ...row, values: Array.from({ length: planCount }, (_, i) => row.values[i] ?? "—") };
+
 export const blocksToPricingContent = (blocks: unknown): PricingContent => {
   const b = (blocks ?? {}) as PricingBlocks;
+  const plans = Array.isArray(b.plans) ? b.plans.map(normalizePlan) : defaultPricingContent.plans;
+  const rawRows = Array.isArray(b.compareRows)
+    ? b.compareRows.map(normalizeCompareRow)
+    : defaultPricingContent.compareRows;
   return {
     hero: { ...defaultPricingContent.hero, ...(b.hero ?? {}) },
-    plans: Array.isArray(b.plans) ? b.plans.map(normalizePlan) : defaultPricingContent.plans,
-    compareRows: Array.isArray(b.compareRows) ? b.compareRows : defaultPricingContent.compareRows,
+    plans,
+    compareRows: rawRows.map(row => fitRowToPlans(row, plans.length)),
     faqs: Array.isArray(b.faqs) ? b.faqs : defaultPricingContent.faqs,
   };
 };
