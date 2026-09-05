@@ -119,6 +119,52 @@ export type AppointmentRow = Tables["appointments"]["Row"] & {
   doctors: DoctorSummary | null;
 };
 
+/* ------------------------------------------- wards / beds / cabins --- */
+
+export type WardRow = Tables["wards"]["Row"];
+
+/** Ward summary embedded on beds — the floor map's ward name/rate/category. */
+type WardSummary = Pick<WardRow, "id" | "name" | "category" | "daily_rate">;
+
+export type BedRow = Tables["beds"]["Row"] & {
+  wards: WardSummary | null;
+};
+
+/** Cabins carry no relations — they are not a child of any ward. */
+export type CabinRow = Tables["cabins"]["Row"];
+
+/* ------------------------------------------------------- admissions --- */
+
+/** Patient summary embedded on admissions — more than appointments' PatientSummary needs (gender/DOB for the bedside view). */
+type AdmissionPatientSummary = Pick<
+  PatientRow,
+  "id" | "full_name" | "mrn" | "gender" | "date_of_birth" | "phone"
+>;
+
+/**
+ * One placement inside an admission's history. Narrower than the bed_stays
+ * table itself — only what the admissions list/detail view renders (current
+ * location, or where a discharged stay last was).
+ */
+export type AdmissionBedStay = Pick<
+  Tables["bed_stays"]["Row"],
+  "id" | "bed_id" | "cabin_id" | "started_at" | "ended_at"
+> & {
+  beds: Pick<BedRow, "number"> | null;
+  cabins: Pick<CabinRow, "number"> | null;
+};
+
+/**
+ * bed_stays comes back as every placement the admission has ever had, not
+ * just the open one — PostgREST embeds can't carry an "ended_at is null"
+ * filter. Screens pick the open row (or the most recent one) themselves.
+ */
+export type AdmissionRow = Tables["admissions"]["Row"] & {
+  patients: AdmissionPatientSummary | null;
+  doctors: DoctorSummary | null;
+  bed_stays: AdmissionBedStay[];
+};
+
 export type OfferRow = Tables["offers"]["Row"] & {
   packages: Pick<PackageRow, "id" | "name" | "slug"> | null;
 };
@@ -320,6 +366,11 @@ export const nursesApi = createResourceApi<NurseRow>("nurses");
 export const patientsApi = createResourceApi<PatientRow>("patients");
 
 export const appointmentsApi = createResourceApi<AppointmentRow>("appointments");
+
+export const wardsApi = createResourceApi<WardRow>("wards");
+export const bedsApi = createResourceApi<BedRow>("beds");
+export const cabinsApi = createResourceApi<CabinRow>("cabins");
+export const admissionsApi = createResourceApi<AdmissionRow>("admissions");
 
 export const nurseShiftsApi = createResourceApi<
   NurseShiftRow,
