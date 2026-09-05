@@ -45,10 +45,29 @@ const CmsPricing = () => {
       // Give the new plan a column in every compare row.
       compareRows: data.compareRows.map(r => ({ ...r, values: [...r.values, "—"] })),
     });
+  /**
+   * `bold` indexes the rendered row, which is `[label, ...values]` — so plan
+   * `i` is cell `i + 1`. Dropping a column therefore has to move the emphasis
+   * with it: forget an index that pointed at the removed plan, and shift down
+   * every index to its right. Without this, removing a plan leaves the bold
+   * marks one column off — on seven of the nine rows currently stored, the
+   * emphasis is on a cell it was never meant to be on.
+   */
   const removePlan = (i: number) =>
     update({
       plans: data.plans.filter((_, idx) => idx !== i),
-      compareRows: data.compareRows.map(r => ({ ...r, values: r.values.filter((_, idx) => idx !== i) })),
+      compareRows: data.compareRows.map(r => {
+        const bold = (r.bold ?? [])
+          .filter(n => n !== i + 1)
+          .map(n => (n > i + 1 ? n - 1 : n));
+        // Set rather than spread-merge: a row whose only bold mark was on the
+        // removed plan has to lose the key, not keep the stale one.
+        return {
+          ...r,
+          values: r.values.filter((_, idx) => idx !== i),
+          bold: bold.length ? bold : undefined,
+        };
+      }),
     });
 
   const updateFeature = (pi: number, fi: number, patch: Partial<{ text: string; on: boolean }>) => {
