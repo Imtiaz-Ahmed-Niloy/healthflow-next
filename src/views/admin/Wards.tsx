@@ -117,7 +117,7 @@ const Wards = () => {
   const wardsCrud = useResourceCrud<WardRow>("wards");
   const bedsCrud = useResourceCrud<BedRow>("beds");
   const cabinsCrud = useResourceCrud<CabinRow>("cabins");
-  const { push } = useNotifications();
+  const { push, notify } = useNotifications();
   const { admit } = useAdmitPatient();
   const [transferBed] = useTransferBedMutation();
   const [updateAdmission] = admissionsApi.useUpdate();
@@ -264,6 +264,8 @@ const Wards = () => {
       diagnosis: admitDraft.diagnosis || undefined,
       priority: admitDraft.priority as AdmissionRow["priority"],
       notes: admitDraft.notes || undefined,
+      // Name only for the notice-board line — see AdmitInput.patientName.
+      patientName: patients.find(p => p.id === admitDraft.patient_id)?.full_name,
       bed_id: admitTarget.bed_id,
       cabin_id: admitTarget.cabin_id,
     });
@@ -285,6 +287,13 @@ const Wards = () => {
         cabin_id: transferChoice.cabin_id || null,
       }).unwrap();
       push({ title: "Transferred", body: `${transferTarget.patients?.full_name ?? "Patient"} moved`, tone: "ok" });
+      void notify({
+        kind: "patient.transferred",
+        title: `${transferTarget.patients?.full_name ?? "A patient"} moved to a new bed`,
+        tone: "info",
+        entity_type: "admissions",
+        entity_id: transferTarget.id,
+      });
       setTransferTarget(null);
     } catch {
       push({ title: "Transfer failed", body: "The bed/cabin may already be occupied", tone: "bad" });
@@ -311,6 +320,13 @@ const Wards = () => {
     try {
       await updateAdmission(dischargeTarget.id, { status: "discharged", discharged_at: new Date().toISOString() }).unwrap();
       push({ title: "Discharged", body: `${dischargeTarget.patients?.full_name ?? "Patient"} discharged`, tone: "ok" });
+      void notify({
+        kind: "patient.discharged",
+        title: `${dischargeTarget.patients?.full_name ?? "A patient"} discharged`,
+        tone: "ok",
+        entity_type: "admissions",
+        entity_id: dischargeTarget.id,
+      });
     } catch {
       push({ title: "Bed released, but the discharge did not save", body: "Set the status to Discharged from the Admissions page", tone: "warn" });
     }

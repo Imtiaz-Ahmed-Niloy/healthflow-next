@@ -67,7 +67,7 @@ const Procurement = () => {
   const vendors = useResourceCrud<VendorOption>("vendors");
   // The orders raised from these requisitions (0071).
   const workOrders = useResourceCrud<WorkOrderRow>("work-orders");
-  const { push } = useNotifications();
+  const { push, notify } = useNotifications();
 
   const [add, setAdd] = useState(false);
   const [workOrder, setWorkOrder] = useState(false);
@@ -244,6 +244,16 @@ const Procurement = () => {
           const created = await workOrders.create(values as never);
           if (!created) return false; // useResourceCrud has surfaced the error
           push({ title: `Work order ${values.reference} created`, tone: "info" });
+          // An order commits the hospital to money, so finance hears about it
+          // whether or not they were the desk that raised it.
+          void notify({
+            kind: "work_order.created",
+            title: `Work order ${values.reference} issued`,
+            body: values.bill_to_name ? `To ${values.bill_to_name}` : undefined,
+            tone: "info",
+            entity_type: "work_orders",
+            entity_id: created.id,
+          });
           return true;
         }}
       />

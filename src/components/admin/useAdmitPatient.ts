@@ -3,6 +3,7 @@
 import { toast } from "sonner";
 import { admissionsApi, type AdmissionRow } from "@/redux/api/resources";
 import { useTransferBedMutation } from "@/redux/api/bedTransfers";
+import { useNotifications } from "@/components/admin/NotificationProvider";
 
 export type AdmitInput = {
   patient_id: string;
@@ -15,6 +16,12 @@ export type AdmitInput = {
   /** At most one — see bed-transfers' own "choose a bed or a cabin" rule. */
   bed_id?: string;
   cabin_id?: string;
+  /**
+   * For the notice-board line only, never sent to the API — the admission
+   * carries patient_id, and the feed carries the name because "a patient was
+   * admitted" is not something a colleague can act on.
+   */
+  patientName?: string;
 };
 
 const errorMessage = (error: unknown, fallback: string) => {
@@ -44,9 +51,10 @@ const errorMessage = (error: unknown, fallback: string) => {
 export const useAdmitPatient = () => {
   const [createAdmission, createState] = admissionsApi.useCreate();
   const [transferBed, transferState] = useTransferBedMutation();
+  const { notify } = useNotifications();
 
   const admit = async (input: AdmitInput): Promise<boolean> => {
-    const { bed_id, cabin_id, ...fields } = input;
+    const { bed_id, cabin_id, patientName, ...fields } = input;
 
     let admission: AdmissionRow;
     try {
@@ -69,6 +77,16 @@ export const useAdmitPatient = () => {
     }
 
     toast.success("Patient admitted");
+    // News, not an acknowledgement: a bed changed hands, and the ward desk on
+    // the next shift needs that whether or not they were watching this screen.
+    void notify({
+      kind: "patient.admitted",
+      title: patientName ? `${patientName} admitted` : "A patient was admitted",
+      body: input.diagnosis || undefined,
+      tone: "info",
+      entity_type: "admissions",
+      entity_id: admission.id,
+    });
     return true;
   };
 

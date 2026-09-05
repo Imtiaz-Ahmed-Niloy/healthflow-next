@@ -367,6 +367,57 @@ export const patientsApi = createResourceApi<PatientRow>("patients");
 
 export const appointmentsApi = createResourceApi<AppointmentRow>("appointments");
 
+/* ---------------------------------------------------- notifications --- */
+
+/**
+ * The hospital's notice board (0073). Written out by hand rather than taken
+ * from `Tables` because types.ts is generated from the live database and has
+ * not been regenerated since the migration; the shapes below are the columns.
+ *
+ * `notification_reads` comes back embedded, and RLS narrows it to the caller's
+ * own receipts — so a non-empty array means "I have read this", and the same
+ * row is unread for a colleague who has not.
+ */
+export type NotificationReadRow = {
+  id: string;
+  profile_id: string;
+  read_at: string;
+};
+
+export type NotificationRow = {
+  id: string;
+  tenant_id: string;
+  kind: string;
+  title: string;
+  body: string | null;
+  tone: "info" | "ok" | "warn" | "bad";
+  entity_type: string | null;
+  entity_id: string | null;
+  created_at: string;
+  updated_at: string;
+  notification_reads: NotificationReadRow[];
+};
+
+export type NotificationWrite = {
+  kind: string;
+  title: string;
+  body?: string | null;
+  tone?: NotificationRow["tone"];
+  entity_type?: string | null;
+  entity_id?: string | null;
+};
+
+export const notificationsApi = createResourceApi<
+  NotificationRow,
+  NotificationWrite,
+  Partial<NotificationWrite>
+>("notifications");
+
+export const notificationReadsApi = createResourceApi<
+  { id: string; notification_id: string; profile_id: string; read_at: string },
+  { notification_id: string }
+>("notification-reads");
+
 export const wardsApi = createResourceApi<WardRow>("wards");
 export const bedsApi = createResourceApi<BedRow>("beds");
 export const cabinsApi = createResourceApi<CabinRow>("cabins");

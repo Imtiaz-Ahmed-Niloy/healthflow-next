@@ -98,7 +98,7 @@ const Admissions = () => {
   const crud = useResourceCrud<AdmissionRow>("admissions");
   const { admit } = useAdmitPatient();
   const [transferBed] = useTransferBedMutation();
-  const { push } = useNotifications();
+  const { push, notify } = useNotifications();
 
   // Small enough lists to load whole — same pattern as Appointments.tsx.
   const { data: patientsData, isLoading: patientsLoading } = patientsApi.useList({ limit: 100 });
@@ -185,6 +185,8 @@ const Admissions = () => {
         // silently overrode a backdated admission with the row's now()
         // default, and the desk had no way to tell.
         admitted_at: draft.admitted_at || undefined,
+        // Name only for the notice-board line — see AdmitInput.patientName.
+        patientName: patients.find(p => p.id === draft.patient_id)?.full_name,
         bed_id: draft.bed_id || undefined,
         cabin_id: draft.cabin_id || undefined,
       });
@@ -218,6 +220,15 @@ const Admissions = () => {
     const ok = await crud.update(discharge.id, { status: "discharged", discharged_at: now() });
     if (ok) {
       push({ title: "Discharged", body: `${discharge.patients?.full_name ?? "Patient"} discharged`, tone: "ok" });
+      // A freed bed is the thing the next shift needs to know about.
+      void notify({
+        kind: "patient.discharged",
+        title: `${discharge.patients?.full_name ?? "A patient"} discharged`,
+        body: locationLabel(discharge) === "Unassigned" ? undefined : `${locationLabel(discharge)} is now free`,
+        tone: "ok",
+        entity_type: "admissions",
+        entity_id: discharge.id,
+      });
     } else {
       push({ title: "Bed released, but the discharge did not save", body: "Set the status to Discharged from the row's edit form", tone: "warn" });
     }
@@ -234,6 +245,14 @@ const Admissions = () => {
         cabin_id: transferTarget.cabin_id || null,
       }).unwrap();
       push({ title: "Transferred", body: `${transferring.patients?.full_name ?? "Patient"} moved to a new bed`, tone: "ok" });
+      void notify({
+        kind: "patient.transferred",
+        title: `${transferring.patients?.full_name ?? "A patient"} moved to a new bed`,
+        body: `From ${locationLabel(transferring)}`,
+        tone: "info",
+        entity_type: "admissions",
+        entity_id: transferring.id,
+      });
       setTransferring(null);
     } catch {
       push({ title: "Transfer failed", body: "The bed/cabin may already be occupied", tone: "bad" });
