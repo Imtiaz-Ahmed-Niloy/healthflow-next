@@ -15,7 +15,7 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
         <section className="container mx-auto pt-16 pb-12 text-center">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
             <h1 className="font-display text-4xl md:text-6xl text-primary">{hero.title}</h1>
-            <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">{hero.subtitle}</p>
+            <p className="text-muted-foreground mt-4 max-w-2xl mx-auto whitespace-pre-line">{hero.subtitle}</p>
           </motion.div>
         </section>
 
@@ -109,7 +109,7 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
                     <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent/40 text-primary text-xs font-bold">{i + 1}</span>
                     <div>
                       <h3 className="font-semibold text-primary leading-snug">{f.q}</h3>
-                      <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{f.a}</p>
+                      <p className="text-sm text-muted-foreground mt-2 leading-relaxed whitespace-pre-line">{f.a}</p>
                     </div>
                   </div>
                 </motion.div>

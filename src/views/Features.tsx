@@ -31,7 +31,7 @@ const Features = ({ hero, content }: { hero: CmsHeroFields; content: FeaturesCon
           <div className="grid lg:grid-cols-2 gap-10 items-center">
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
               <h1 className="mt-6 font-display text-4xl md:text-6xl text-primary leading-[1.05]">{hero.title}</h1>
-              <p className="mt-5 text-muted-foreground max-w-lg">{hero.description}</p>
+              <p className="mt-5 text-muted-foreground max-w-lg whitespace-pre-line">{hero.description}</p>
               <div className="mt-7 flex gap-3">
                 {hero.primaryCta && <button className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors">{hero.primaryCta}</button>}
                 {hero.secondaryCta && <button className="rounded-full border border-border bg-card px-6 py-3 text-sm font-semibold text-primary hover:bg-muted transition-colors">{hero.secondaryCta}</button>}
@@ -47,7 +47,7 @@ const Features = ({ hero, content }: { hero: CmsHeroFields; content: FeaturesCon
         <section className="container mx-auto py-16">
           <div className="text-center max-w-2xl mx-auto">
             <h2 className="font-display text-3xl md:text-4xl text-primary">{architecture.title}</h2>
-            <p className="text-muted-foreground mt-3">{architecture.subtitle}</p>
+            <p className="text-muted-foreground mt-3 whitespace-pre-line">{architecture.subtitle}</p>
           </div>
           {architecture.tabs.length > 0 && (
             <div className="flex justify-center mt-8 overflow-x-auto">
@@ -69,7 +69,7 @@ const Features = ({ hero, content }: { hero: CmsHeroFields; content: FeaturesCon
                   <Ico name={f.icon} className="h-5 w-5" />
                 </div>
                 <h3 className="font-display text-xl text-primary">{f.title}</h3>
-                <p className="text-sm text-muted-foreground mt-2">{f.desc}</p>
+                <p className="text-sm text-muted-foreground mt-2 whitespace-pre-line">{f.desc}</p>
                 <ul className="mt-4 space-y-1.5 text-xs text-foreground/70">
                   {f.bullets.map(b => <li key={b} className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-primary-glow" />{b}</li>)}
                 </ul>
@@ -91,7 +91,7 @@ const Features = ({ hero, content }: { hero: CmsHeroFields; content: FeaturesCon
             <div>
               <h2 className="font-display text-3xl md:text-4xl">{logic.title}</h2>
               <p className="font-display text-2xl md:text-3xl text-accent mt-1">{logic.accentTitle}</p>
-              <p className="opacity-70 mt-4 text-sm leading-relaxed max-w-md">{logic.description}</p>
+              <p className="opacity-70 mt-4 text-sm leading-relaxed max-w-md whitespace-pre-line">{logic.description}</p>
               <div className="mt-8 space-y-5">
                 {logic.points.map(p => (
                   <div key={p.title} className="flex gap-4">
@@ -100,7 +100,7 @@ const Features = ({ hero, content }: { hero: CmsHeroFields; content: FeaturesCon
                     </div>
                     <div>
                       <div className="font-semibold">{p.title}</div>
-                      <p className="text-xs opacity-70 mt-1 max-w-md">{p.desc}</p>
+                      <p className="text-xs opacity-70 mt-1 max-w-md whitespace-pre-line">{p.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -117,7 +117,7 @@ const Features = ({ hero, content }: { hero: CmsHeroFields; content: FeaturesCon
           <div className="grid lg:grid-cols-2 gap-12">
             <div>
               <h2 className="font-display text-3xl md:text-4xl text-primary">{core.title}</h2>
-              <p className="text-muted-foreground mt-3 max-w-sm">{core.subtitle}</p>
+              <p className="text-muted-foreground mt-3 max-w-sm whitespace-pre-line">{core.subtitle}</p>
             </div>
             <div className="space-y-3">
               {core.items.map((f, i) => (
@@ -129,7 +129,7 @@ const Features = ({ hero, content }: { hero: CmsHeroFields; content: FeaturesCon
                   </div>
                   <div>
                     <h3 className="font-semibold text-primary">{f.title}</h3>
-                    <p className="text-xs text-muted-foreground mt-1">{f.desc}</p>
+                    <p className="text-xs text-muted-foreground mt-1 whitespace-pre-line">{f.desc}</p>
                     {f.chips && f.chips.length > 0 && (
                       <div className="flex gap-2 mt-3">
                         {f.chips.map(c => <span key={c} className="rounded-full bg-chip text-chip-foreground px-2.5 py-0.5 text-[10px] font-bold">{c}</span>)}

@@ -103,7 +103,7 @@ const JourneyTimeline = ({ steps }: { steps: JourneyStep[] }) => {
 const SectionHeader = ({ title, subtitle, centered = true, light = false }: { title: string; subtitle?: string; centered?: boolean; light?: boolean }) => (
   <div className={`${centered ? "text-center" : ""} max-w-2xl ${centered ? "mx-auto" : ""}`}>
     <h2 className={`font-display text-3xl md:text-5xl ${light ? "text-white" : "text-primary"} leading-tight`}>{title}</h2>
-    {subtitle && <p className={`mt-4 ${light ? "text-white/70" : "text-muted-foreground"} max-w-lg ${centered ? "mx-auto" : ""}`}>{subtitle}</p>}
+    {subtitle && <p className={`mt-4 ${light ? "text-white/70" : "text-muted-foreground"} max-w-lg whitespace-pre-line ${centered ? "mx-auto" : ""}`}>{subtitle}</p>}
   </div>
 );
 
@@ -122,7 +122,7 @@ const About = ({ hero, content }: { hero: CmsHeroFields; content: AboutContent }
             <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/70 to-background/10" />
             <div className="absolute inset-0 p-8 md:p-14 flex flex-col justify-center max-w-2xl">
               <h1 className="font-display text-4xl md:text-6xl text-primary mt-4 leading-tight">{hero.title}</h1>
-              <p className="mt-5 text-muted-foreground max-w-md">{hero.description}</p>
+              <p className="mt-5 text-muted-foreground max-w-md whitespace-pre-line">{hero.description}</p>
             </div>
           </motion.div>
         </section>
@@ -136,7 +136,7 @@ const About = ({ hero, content }: { hero: CmsHeroFields; content: AboutContent }
               <div className="absolute top-0 right-0 w-40 h-40 bg-accent/10 rounded-full -translate-y-1/2 translate-x-1/2" />
               <span className="relative text-xs font-bold tracking-[0.2em] text-accent">{vision.eyebrow}</span>
               <h3 className="font-display text-2xl md:text-3xl mt-3">{vision.title}</h3>
-              <p className="mt-4 text-sm leading-relaxed text-white/80">{vision.statement}</p>
+              <p className="mt-4 text-sm leading-relaxed text-white/80 whitespace-pre-line">{vision.statement}</p>
               <div className="mt-auto pt-6 flex items-center gap-2 text-accent/80">
                 <Icons.Eye className="h-5 w-5" />
                 <span className="text-xs font-semibold tracking-wide">LOOKING AHEAD</span>
@@ -147,7 +147,7 @@ const About = ({ hero, content }: { hero: CmsHeroFields; content: AboutContent }
               <div className="absolute top-0 right-0 w-40 h-40 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2" />
               <span className="relative text-xs font-bold tracking-[0.2em] text-primary-glow">{mission.eyebrow}</span>
               <h3 className="font-display text-2xl md:text-3xl text-primary mt-3">{mission.title}</h3>
-              <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{mission.statement}</p>
+              <p className="mt-4 text-sm leading-relaxed text-muted-foreground whitespace-pre-line">{mission.statement}</p>
               <div className="mt-auto pt-6 flex items-center gap-2 text-primary-glow/80">
                 <Icons.Target className="h-5 w-5" />
                 <span className="text-xs font-semibold tracking-wide">DRIVEN BY PURPOSE</span>
@@ -173,7 +173,7 @@ const About = ({ hero, content }: { hero: CmsHeroFields; content: AboutContent }
               className="relative rounded-3xl bg-card border border-border/60 p-8 md:p-14 text-center shadow-soft transition-shadow duration-300 hover:shadow-card"
             >
               <Quote className="h-10 w-10 text-primary/20 mx-auto mb-6" />
-              <blockquote className="font-display text-xl md:text-2xl text-primary leading-relaxed max-w-2xl mx-auto">
+              <blockquote className="font-display text-xl md:text-2xl text-primary leading-relaxed max-w-2xl mx-auto whitespace-pre-line">
                 {ceoMessage.quote}
               </blockquote>
               <div className="mt-8 flex flex-col items-center">
@@ -200,7 +200,7 @@ const About = ({ hero, content }: { hero: CmsHeroFields; content: AboutContent }
                     <Ico name={obj.icon} className="h-5 w-5" />
                   </div>
                   <h3 className={`font-display text-xl ${i === 0 || i === 5 ? "text-white" : "text-primary"}`}>{obj.title}</h3>
-                  <p className={`text-sm mt-2 leading-relaxed ${i === 0 || i === 5 ? "text-white/70" : "text-muted-foreground"}`}>{obj.desc}</p>
+                  <p className={`text-sm mt-2 leading-relaxed whitespace-pre-line ${i === 0 || i === 5 ? "text-white/70" : "text-muted-foreground"}`}>{obj.desc}</p>
                 </TiltCard>
               ))}
             </div>
@@ -220,7 +220,7 @@ const About = ({ hero, content }: { hero: CmsHeroFields; content: AboutContent }
               <TiltCard key={`${p.title}-${i}`} delay={i * 0.1} maxTilt={5} lift={0} className="p-8">
                 <div className="h-11 w-11 rounded-xl bg-accent/40 grid place-items-center transition-all duration-300 group-hover:bg-accent group-hover:scale-110"><Ico name={p.icon} className="h-5 w-5 text-primary" /></div>
                 <h3 className="font-display text-xl text-primary mt-5">{p.title}</h3>
-                <p className="text-sm text-muted-foreground mt-3 leading-relaxed">{p.desc}</p>
+                <p className="text-sm text-muted-foreground mt-3 leading-relaxed whitespace-pre-line">{p.desc}</p>
               </TiltCard>
             ))}
           </div>

@@ -71,7 +71,7 @@ const Contact = ({ hero, content }: { hero: CmsHeroFields; content: ContactConte
           <div className="relative container mx-auto py-16 md:py-20">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
               <h1 className="font-display text-4xl md:text-6xl text-primary leading-[1.05]">{hero.title}</h1>
-              <p className="text-muted-foreground mt-5 text-lg">{hero.description}</p>
+              <p className="text-muted-foreground mt-5 text-lg whitespace-pre-line">{hero.description}</p>
             </motion.div>
           </div>
         </section>
@@ -155,7 +155,7 @@ const Contact = ({ hero, content }: { hero: CmsHeroFields; content: ContactConte
 
             <div>
               <h2 className="font-display text-2xl text-primary">{sanctuary.title}</h2>
-              <p className="text-sm text-muted-foreground mt-2">{sanctuary.description}</p>
+              <p className="text-sm text-muted-foreground mt-2 whitespace-pre-line">{sanctuary.description}</p>
 
               <TiltCard maxTilt={6} lift={4}
                 className="mt-5 flex gap-4 items-center rounded-2xl bg-card border border-border/60 p-5 shadow-soft transition-shadow duration-300 hover:shadow-card">
@@ -164,7 +164,7 @@ const Contact = ({ hero, content }: { hero: CmsHeroFields; content: ContactConte
                 </div>
                 <div>
                   <div className="font-semibold text-primary">{sanctuary.noteTitle}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">{sanctuary.noteDescription}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5 whitespace-pre-line">{sanctuary.noteDescription}</div>
                 </div>
               </TiltCard>
             </div>
