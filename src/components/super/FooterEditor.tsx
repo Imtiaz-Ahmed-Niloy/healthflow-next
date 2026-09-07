@@ -133,6 +133,14 @@ const FooterEditor = () => {
             onChange={e => update({ tagline: e.target.value })}
           />
         </div>
+        <div className="md:col-span-2 space-y-1.5">
+          <Label>Description</Label>
+          <Textarea
+            rows={3}
+            value={draft.description}
+            onChange={e => update({ description: e.target.value })}
+          />
+        </div>
       </div>
 
       <div className="mt-6">
@@ -190,7 +198,14 @@ const FooterEditor = () => {
 
       <div className="mt-6">
         <h4 className="text-sm font-semibold text-primary mb-2">Social Links</h4>
-        <div className="grid md:grid-cols-3 gap-3">
+        <div className="grid md:grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label>LinkedIn URL</Label>
+            <Input
+              value={draft.social.linkedin}
+              onChange={e => update({ social: { ...draft.social, linkedin: e.target.value } })}
+            />
+          </div>
           <div className="space-y-1.5">
             <Label>Twitter URL</Label>
             <Input

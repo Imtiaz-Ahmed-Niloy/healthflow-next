@@ -1,6 +1,6 @@
 "use client";
 
-import { Facebook, Instagram, Mail, Twitter } from "lucide-react";
+import { Facebook, Instagram, Linkedin, Mail, Phone, Twitter } from "lucide-react";
 import Link from "next/link";
 import { BRAND_INFO } from "@/constants/brand";
 import { useFooterContent } from "@/data/footerContent";
@@ -28,14 +28,23 @@ const Footer = () => {
   // worse than one fewer icon, so those are dropped — and if that leaves none,
   // the accounts the company actually has stand in.
   const configured = [
-    { href: content.social.twitter, label: "Twitter", Icon: Twitter },
     { href: content.social.facebook, label: "Facebook", Icon: Facebook },
+    { href: content.social.linkedin, label: "LinkedIn", Icon: Linkedin },
+    { href: content.social.twitter, label: "Twitter", Icon: Twitter },
     { href: content.social.instagram, label: "Instagram", Icon: Instagram },
   ].filter(s => s.href && s.href !== "#");
 
+  // Tailwind reads class names literally, so the track count is picked from
+  // written-out classes rather than built into a string it would never see.
+  const columnTracks =
+    ["md:grid-cols-1", "md:grid-cols-1", "md:grid-cols-2", "md:grid-cols-3"][Math.min(columns.length, 3)];
+
   const socials = configured.length > 0
     ? configured
-    : [{ href: BRAND_INFO.facebook, label: "Facebook", Icon: Facebook }];
+    : [
+        { href: BRAND_INFO.facebook, label: "Facebook", Icon: Facebook },
+        { href: BRAND_INFO.linkedin, label: "LinkedIn", Icon: Linkedin },
+      ];
 
   return (
     <footer id="cta" className="relative overflow-hidden bg-gradient-dark text-surface-dark-foreground">
@@ -50,8 +59,9 @@ const Footer = () => {
 
       <div className="relative container mx-auto py-16 md:py-20">
         <div className="grid gap-10 md:grid-cols-12">
-          {/* Who this is, and how to reach them. */}
-          <div className="md:col-span-5 lg:col-span-4">
+          {/* Who this is, what it does, and how to reach them. This column
+              carries the description, so it gets the wider half of the row. */}
+          <div className="md:col-span-8 lg:col-span-9">
             <Link href="/" className="inline-flex items-center gap-2.5">
               {/* The mark is dark teal on transparent — unreadable on this band.
                   brightness-0 flattens it to black, invert takes that to white,
@@ -59,15 +69,33 @@ const Footer = () => {
               <img src={BRAND_INFO.logoMark} alt="" width={44} height={44} className="h-11 w-11 object-contain brightness-0 invert" />
               <span className="font-display text-2xl">{content.brand}</span>
             </Link>
-            <p className="opacity-70 mt-4 max-w-xs text-sm leading-relaxed">{content.tagline}</p>
+            <p className="mt-4 max-w-md text-base leading-relaxed opacity-90">{content.tagline}</p>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed opacity-70">{content.description}</p>
 
-            <a
-              href={`mailto:${BRAND_INFO.email}`}
-              className="mt-5 inline-flex items-center gap-2 text-sm opacity-80 hover:opacity-100 transition-opacity"
-            >
-              <Mail className="h-4 w-4" />
-              {BRAND_INFO.email}
-            </a>
+            {/* Email and phone as chips, sharing the social buttons' border and
+                tile so the whole block below the description reads as one set
+                rather than two loose lines of text. */}
+            <div className="mt-6 flex flex-wrap gap-3">
+              {[
+                { href: `mailto:${BRAND_INFO.email}`, label: "Email", value: BRAND_INFO.email, Icon: Mail },
+                // tel: wants the number without the spaces it is printed with.
+                { href: `tel:${BRAND_INFO.phone.replace(/\s+/g, "")}`, label: "Phone", value: BRAND_INFO.phone, Icon: Phone },
+              ].map(({ href, label, value, Icon }) => (
+                <a
+                  key={label}
+                  href={href}
+                  className="group inline-flex items-center gap-3 rounded-full border border-surface-dark-foreground/15 bg-surface-dark-foreground/5 py-2 pl-2 pr-5 transition-all hover:border-accent/50 hover:bg-surface-dark-foreground/10"
+                >
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-surface-dark-foreground/10 transition-colors group-hover:bg-accent group-hover:text-primary">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <span className="leading-tight">
+                    <span className="block text-[0.7rem] uppercase tracking-wider opacity-50">{label}</span>
+                    <span className="block text-sm opacity-90">{value}</span>
+                  </span>
+                </a>
+              ))}
+            </div>
 
             <div className="mt-6 flex gap-2.5">
               {socials.map(({ href, label, Icon }) => (
@@ -85,9 +113,12 @@ const Footer = () => {
             </div>
           </div>
 
-          {/* The link columns take the rest of the row and share it evenly,
-              however many of them survive the published-pages filter. */}
-          <div className="md:col-span-7 lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-8">
+          {/* The description takes three quarters of the row, so the links
+              share the last quarter. The track count follows how many columns
+              survived the published-pages filter, rather than being fixed at
+              two — otherwise a column that drops out leaves a hole where it
+              used to be. */}
+          <div className={`md:col-span-4 lg:col-span-3 grid grid-cols-2 ${columnTracks} gap-8 lg:gap-10`}>
             {columns.map(c => (
               <div key={c.title}>
                 <h4 className="text-xs font-bold tracking-widest opacity-60">{c.title}</h4>
@@ -110,9 +141,8 @@ const Footer = () => {
       </div>
 
       <div className="relative border-t border-surface-dark-foreground/10">
-        <div className="container mx-auto flex flex-wrap items-center justify-between gap-3 py-5 text-xs opacity-60">
+        <div className="container mx-auto py-5 text-xs opacity-60">
           <span>{content.rights}</span>
-          <a href="https://healthflowbd.com" className="hover:opacity-100 transition-opacity">healthflowbd.com</a>
         </div>
       </div>
     </footer>

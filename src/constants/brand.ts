@@ -3,6 +3,7 @@ export const BRAND_INFO = {
   nameUppercase: "HEALTHFLOW",
   tagline: "Connecting Healthcare, Empowering Lives",
   email: "care@healthflowbd.com",
+  phone: "+880 0000000000",
   logo: "/Healthflow-01.png",
   logoMark: "/assets/healthflow-mark.png",
   copyright: "© 2026 HealthFlow. All rights reserved.",

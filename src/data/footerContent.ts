@@ -3,11 +3,12 @@ import { BRAND_INFO } from "@/constants/brand";
 
 export type FooterLink = { label: string; to: string };
 export type FooterColumn = { title: string; links: FooterLink[] };
-export type FooterSocial = { twitter: string; facebook: string; instagram: string };
+export type FooterSocial = { linkedin: string; twitter: string; facebook: string; instagram: string };
 
 export type FooterContent = {
   brand: string;
   tagline: string;
+  description: string;
   rights: string;
   columns: FooterColumn[];
   social: FooterSocial;
@@ -19,6 +20,12 @@ const EVENT = "hf:footer-content:changed";
 export const defaultFooterContent: FooterContent = {
   brand: BRAND_INFO.name,
   tagline: BRAND_INFO.tagline,
+  description:
+    `${BRAND_INFO.name} gives a hospital one system where six used to be: appointments ` +
+    "and patient records, wards, beds and admissions, the laboratory and the pharmacy, " +
+    "staff, roles, and the billing that follows all of it. Doctors work a live patient " +
+    "queue and write prescriptions on the same screen, and patients get a portal of " +
+    "their own for appointments, medical records and invoices.",
   rights: `© ${BRAND_INFO.name}. All rights reserved.`,
   columns: [
     {
@@ -40,8 +47,9 @@ export const defaultFooterContent: FooterContent = {
     },
   ],
   social: {
+    linkedin: BRAND_INFO.linkedin,
     twitter: "#",
-    facebook: "#",
+    facebook: BRAND_INFO.facebook,
     instagram: "#",
   },
 };
