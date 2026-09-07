@@ -24,12 +24,6 @@ export type ContactContent = {
     channels: ContactChannel[];
     helpline: { label: string; href: string };
   };
-  sanctuary: {
-    title: string;
-    description: string;
-    noteTitle: string;
-    noteDescription: string;
-  };
 };
 
 export const defaultContactContent: ContactContent = {
@@ -50,12 +44,6 @@ export const defaultContactContent: ContactContent = {
     ],
     helpline: { label: "Call Help Center: 00000", href: "tel:00000" },
   },
-  sanctuary: {
-    title: "Our Sanctuary",
-    description: "Located in the heart of the regenerative district, our primary clinic is designed for tranquility.",
-    noteTitle: "Eco-Certified Clinic",
-    noteDescription: "Our facilities operate on 100% renewable energy and utilize restorative biophilic design.",
-  },
 };
 
 type ContactBlocks = Partial<ContactContent>;
@@ -75,12 +63,10 @@ export const blocksToContactContent = (blocks: unknown): ContactContent => {
       ...support,
       channels: Array.isArray(support.channels) ? support.channels : defaultContactContent.support.channels,
     },
-    sanctuary: { ...defaultContactContent.sanctuary, ...(b.sanctuary ?? {}) },
   };
 };
 
 export const contactContentToBlocks = (content: ContactContent) => ({
   form: content.form,
   support: content.support,
-  sanctuary: content.sanctuary,
 });

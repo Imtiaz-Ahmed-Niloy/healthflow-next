@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Card, SectionTitle, Btn } from "@/components/admin/ui";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -68,7 +67,6 @@ const ContactPageEditor = () => {
   const setSupport = (patch: Partial<ContactContent["support"]>) => upd({ ...draft, support: { ...draft.support, ...patch } });
   const setChannel = (i: number, p: Partial<ContactChannel>) =>
     setSupport({ channels: draft.support.channels.map((c, ix) => ix === i ? { ...c, ...p } : c) });
-  const setSanctuary = (patch: Partial<ContactContent["sanctuary"]>) => upd({ ...draft, sanctuary: { ...draft.sanctuary, ...patch } });
 
   return (
     <Tabs defaultValue="hero" className="space-y-4">
@@ -76,7 +74,6 @@ const ContactPageEditor = () => {
         <TabsTrigger value="hero">Hero</TabsTrigger>
         <TabsTrigger value="form">Contact Form</TabsTrigger>
         <TabsTrigger value="support">Direct Support</TabsTrigger>
-        <TabsTrigger value="sanctuary">Our Sanctuary</TabsTrigger>
       </TabsList>
 
       <TabsContent value="hero">
@@ -138,20 +135,6 @@ const ContactPageEditor = () => {
         </Card>
       </TabsContent>
 
-      <TabsContent value="sanctuary">
-        <Card className="p-5">
-          <SectionTitle title="Our Sanctuary" action={bar} />
-          <div className="grid md:grid-cols-2 gap-3">
-            <div className="space-y-1.5"><Label>Title</Label><Input value={draft.sanctuary.title} onChange={e => setSanctuary({ title: e.target.value })} /></div>
-            <div className="space-y-1.5 md:col-span-2"><Label>Description</Label>
-              <Textarea rows={2} value={draft.sanctuary.description} onChange={e => setSanctuary({ description: e.target.value })} /></div>
-            <div className="space-y-1.5"><Label>Eco note title</Label>
-              <Input value={draft.sanctuary.noteTitle} onChange={e => setSanctuary({ noteTitle: e.target.value })} /></div>
-            <div className="space-y-1.5"><Label>Eco note description</Label>
-              <Textarea rows={2} value={draft.sanctuary.noteDescription} onChange={e => setSanctuary({ noteDescription: e.target.value })} /></div>
-          </div>
-        </Card>
-      </TabsContent>
     </Tabs>
   );
 };

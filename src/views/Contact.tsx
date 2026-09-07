@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import * as Icons from "lucide-react";
-import { Leaf, ChevronDown, Linkedin, Facebook } from "lucide-react";
+import { ChevronDown, Linkedin, Facebook } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import Navbar from "@/components/site/Navbar";
@@ -23,7 +23,7 @@ const inputClass =
   "mt-2 w-full rounded-xl bg-muted/60 border border-border/60 px-4 py-3 text-sm outline-none transition-shadow placeholder:text-muted-foreground/70 focus:border-primary/40 focus:ring-2 focus:ring-primary/25";
 
 const Contact = ({ hero, content }: { hero: CmsHeroFields; content: ContactContent }) => {
-  const { form: f, support, sanctuary } = content;
+  const { form: f, support } = content;
 
   const [form, setForm] = useState({ name: "", email: "", subject: f.subjects[0] ?? "", message: "" });
   const [sending, setSending] = useState(false);
@@ -151,22 +151,6 @@ const Contact = ({ hero, content }: { hero: CmsHeroFields; content: ContactConte
                   </TiltCard>
                 ))}
               </div>
-            </div>
-
-            <div>
-              <h2 className="font-display text-2xl text-primary">{sanctuary.title}</h2>
-              <p className="text-sm text-muted-foreground mt-2 whitespace-pre-line">{sanctuary.description}</p>
-
-              <TiltCard maxTilt={6} lift={4}
-                className="mt-5 flex gap-4 items-center rounded-2xl bg-card border border-border/60 p-5 shadow-soft transition-shadow duration-300 hover:shadow-card">
-                <div className="h-12 w-12 rounded-xl bg-accent/25 grid place-items-center shrink-0 ring-2 ring-transparent transition-all duration-300 group-hover:bg-accent/35 group-hover:ring-accent">
-                  <Leaf className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <div className="font-semibold text-primary">{sanctuary.noteTitle}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5 whitespace-pre-line">{sanctuary.noteDescription}</div>
-                </div>
-              </TiltCard>
             </div>
 
             <div>
