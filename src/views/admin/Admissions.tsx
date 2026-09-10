@@ -36,11 +36,14 @@ const STATUSES = [
 ] as const;
 
 /**
- * Discharging isn't just a status flip anymore — it also has to release the
- * bed (a second API call, see confirmDischarge). Leaving "discharged"
- * selectable in the ordinary edit form would let someone set the status
- * without freeing the bed, silently reintroducing the bug this ticket exists
- * to close. Discharge is reachable only through the dedicated action.
+ * The clinical statuses — the strip above the table counts these. Discharged
+ * is not one of them: it is the end of the stay, not a state within it.
+ *
+ * The edit form offers all four. Discharging isn't a plain status flip — it
+ * also has to release the bed — so choosing Discharged there runs the same
+ * dischargeAdmission() as the row's discharge button, never a bare update.
+ * (It used to be left out of the form entirely, which meant editing a
+ * discharged admission showed "Admitted" and saving it un-discharged them.)
  */
 const EDITABLE_STATUSES = STATUSES.filter(s => s.value !== "discharged");
 
@@ -84,6 +87,8 @@ type Draft = {
   notes: string;
   status: string;
   admitted_at: string;
+  /** When they left. Shown, and required, only while the status is Discharged. */
+  discharged_at: string;
   /** Admit-only — a fresh admission is placed in the same step it's created. */
   bed_id: string;
   cabin_id: string;
@@ -91,7 +96,7 @@ type Draft = {
 
 const emptyDraft: Draft = {
   patient_id: "", doctor_id: "", diagnosis: "", priority: "routine",
-  notes: "", status: "admitted", admitted_at: now(), bed_id: "", cabin_id: "",
+  notes: "", status: "admitted", admitted_at: now(), discharged_at: "", bed_id: "", cabin_id: "",
 };
 
 const Admissions = () => {
@@ -131,6 +136,8 @@ const Admissions = () => {
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [del, setDel] = useState<string | null>(null);
   const [discharge, setDischarge] = useState<AdmissionRow | null>(null);
+  const [dischargeAt, setDischargeAt] = useState(now());
+  const [discharging, setDischarging] = useState(false);
   const [transferring, setTransferring] = useState<AdmissionRow | null>(null);
   const [transferTarget, setTransferTarget] = useState({ bed_id: "", cabin_id: "" });
   const [invoice, setInvoice] = useState<AdmissionRow | null>(null);
@@ -157,21 +164,50 @@ const Admissions = () => {
       patient_id: a.patient_id, doctor_id: a.doctor_id ?? "",
       diagnosis: a.diagnosis ?? "", priority: a.priority, notes: a.notes ?? "",
       status: a.status, admitted_at: a.admitted_at.slice(0, 16),
+      discharged_at: a.discharged_at ? a.discharged_at.slice(0, 16) : "",
       bed_id: "", cabin_id: "",
     });
   };
 
+  /** A discharge must come after the admission — the database refuses otherwise. */
+  const dischargeTooEarly = (admittedAt: string, dischargedAt: string) =>
+    !!dischargedAt && !!admittedAt && dischargedAt < admittedAt.slice(0, 16);
+
   const save = async () => {
     if (!draft.patient_id) return;
     if (edit) {
-      const ok = await crud.update(edit.id, {
+      const toDischarged = draft.status === "discharged";
+      if (toDischarged && !draft.discharged_at) {
+        push({ title: "Discharge date needed", body: "Enter when the patient was discharged", tone: "warn" });
+        return;
+      }
+      if (toDischarged && dischargeTooEarly(draft.admitted_at, draft.discharged_at)) {
+        push({ title: "Check the dates", body: "The discharge can't be before the admission", tone: "warn" });
+        return;
+      }
+
+      const fields = {
         patient_id: draft.patient_id,
         doctor_id: draft.doctor_id || null,
         diagnosis: draft.diagnosis || null,
         priority: draft.priority as AdmissionRow["priority"],
         notes: draft.notes || null,
-        status: draft.status as AdmissionRow["status"],
         admitted_at: draft.admitted_at,
+      };
+
+      // Discharging from the form: same path as the discharge button, so the
+      // bed is released first. The rest of the edit rides along with it.
+      if (toDischarged && edit.status !== "discharged") {
+        const ok = await dischargeAdmission(edit, draft.discharged_at, fields);
+        if (ok) setEdit(null);
+        return;
+      }
+
+      const ok = await crud.update(edit.id, {
+        ...fields,
+        status: draft.status as AdmissionRow["status"],
+        // Only a discharged admission carries a discharge date.
+        discharged_at: toDischarged ? draft.discharged_at : null,
       });
       if (ok) setEdit(null);
     } else {
@@ -208,30 +244,54 @@ const Admissions = () => {
    * patient still holding a bed is consistent, and the desk can retry. The
    * half-state to avoid is the other one.
    */
-  const confirmDischarge = async () => {
-    if (!discharge) return;
-    try {
-      await transferBed({ admission_id: discharge.id, bed_id: null, cabin_id: null }).unwrap();
-    } catch {
-      push({ title: "Could not release the bed", body: "Nothing was changed — try again, or release it from the Wards floor map", tone: "bad" });
-      setDischarge(null);
-      return;
+  const dischargeAdmission = async (
+    a: AdmissionRow,
+    dischargedAt: string,
+    extra: Partial<AdmissionRow> = {},
+  ) => {
+    // Only an admission still holding a bed or cabin has one to release; an
+    // unassigned one would make transfer_admission refuse an empty move.
+    if (currentStay(a)) {
+      try {
+        await transferBed({ admission_id: a.id, bed_id: null, cabin_id: null }).unwrap();
+      } catch {
+        push({ title: "Could not release the bed", body: "Nothing was changed — try again, or release it from the Wards floor map", tone: "bad" });
+        return false;
+      }
     }
-    const ok = await crud.update(discharge.id, { status: "discharged", discharged_at: now() });
+    const ok = await crud.update(a.id, { ...extra, status: "discharged", discharged_at: dischargedAt });
     if (ok) {
-      push({ title: "Discharged", body: `${discharge.patients?.full_name ?? "Patient"} discharged`, tone: "ok" });
+      push({ title: "Discharged", body: `${a.patients?.full_name ?? "Patient"} discharged`, tone: "ok" });
       // A freed bed is the thing the next shift needs to know about.
       void notify({
         kind: "patient.discharged",
-        title: `${discharge.patients?.full_name ?? "A patient"} discharged`,
-        body: locationLabel(discharge) === "Unassigned" ? undefined : `${locationLabel(discharge)} is now free`,
+        title: `${a.patients?.full_name ?? "A patient"} discharged`,
+        body: locationLabel(a) === "Unassigned" ? undefined : `${locationLabel(a)} is now free`,
         tone: "ok",
         entity_type: "admissions",
-        entity_id: discharge.id,
+        entity_id: a.id,
       });
     } else {
       push({ title: "Bed released, but the discharge did not save", body: "Set the status to Discharged from the row's edit form", tone: "warn" });
     }
+    return ok;
+  };
+
+  const openDischarge = (a: AdmissionRow) => { setDischarge(a); setDischargeAt(now()); };
+
+  const confirmDischarge = async () => {
+    if (!discharge) return;
+    if (!dischargeAt) {
+      push({ title: "Discharge date needed", body: "Enter when the patient was discharged", tone: "warn" });
+      return;
+    }
+    if (dischargeTooEarly(discharge.admitted_at, dischargeAt)) {
+      push({ title: "Check the date", body: "The discharge can't be before the admission", tone: "warn" });
+      return;
+    }
+    setDischarging(true);
+    await dischargeAdmission(discharge, dischargeAt);
+    setDischarging(false);
     setDischarge(null);
   };
 
@@ -363,7 +423,7 @@ const Admissions = () => {
                     <button onClick={() => openTransfer(row)} className="p-1.5 rounded-lg hover:bg-muted text-primary" title="Transfer">
                       <ArrowRightLeft className="h-4 w-4" />
                     </button>
-                    <button onClick={() => setDischarge(row)} className="p-1.5 rounded-lg hover:bg-muted text-primary" title="Discharge">
+                    <button onClick={() => openDischarge(row)} className="p-1.5 rounded-lg hover:bg-muted text-primary" title="Discharge">
                       <LogOut className="h-4 w-4" />
                     </button>
                   </>
@@ -422,13 +482,36 @@ const Admissions = () => {
               </Field>
             </>
           ) : (
-            <Field label="Status">
-              <Select value={draft.status} onChange={e => setDraft(d => ({ ...d, status: e.target.value }))}>
-                {EDITABLE_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            <Field
+              label="Status"
+              hint={edit.status !== "discharged" && draft.status === "discharged"
+                ? `Saving releases ${locationLabel(edit) === "Unassigned" ? "the patient" : locationLabel(edit)} and marks it for cleaning.`
+                : undefined}
+            >
+              <Select
+                value={draft.status}
+                onChange={e => setDraft(d => ({
+                  ...d,
+                  status: e.target.value,
+                  // Choosing Discharged starts the date at now; leaving it clears it.
+                  discharged_at: e.target.value === "discharged" ? (d.discharged_at || now()) : "",
+                }))}
+              >
+                {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
               </Select>
             </Field>
           )}
           <Field label="Admitted at"><Input type="datetime-local" value={draft.admitted_at} onChange={e => setDraft(d => ({ ...d, admitted_at: e.target.value }))} /></Field>
+          {edit && draft.status === "discharged" && (
+            <Field label="Discharged at" required>
+              <Input
+                type="datetime-local"
+                value={draft.discharged_at}
+                min={draft.admitted_at}
+                onChange={e => setDraft(d => ({ ...d, discharged_at: e.target.value }))}
+              />
+            </Field>
+          )}
         </div>
         <Field label="Clinical notes"><TextArea rows={3} value={draft.notes} onChange={e => setDraft(d => ({ ...d, notes: e.target.value }))} placeholder="Allergies, vitals, special instructions…" /></Field>
       </Modal>
@@ -441,13 +524,36 @@ const Admissions = () => {
         description="This permanently removes the admission record."
       />
 
-      <ConfirmDialog
+      <Modal
         open={!!discharge}
-        onClose={() => setDischarge(null)}
-        onConfirm={confirmDischarge}
+        onClose={() => !discharging && setDischarge(null)}
         title={`Discharge ${discharge?.patients?.full_name ?? "this patient"}?`}
-        description={`${locationLabel(discharge ?? ({ bed_stays: [] } as unknown as AdmissionRow))} will be released and marked for cleaning.`}
-      />
+        size="sm"
+        footer={<>
+          <Btn variant="outline" onClick={() => setDischarge(null)} disabled={discharging}>Cancel</Btn>
+          <Btn onClick={confirmDischarge} disabled={discharging || !dischargeAt}>
+            {discharging ? "Discharging…" : "Confirm"}
+          </Btn>
+        </>}
+      >
+        {discharge && (
+          <>
+            <Field label="Discharge date & time" required>
+              <Input
+                type="datetime-local"
+                value={dischargeAt}
+                min={discharge.admitted_at.slice(0, 16)}
+                onChange={e => setDischargeAt(e.target.value)}
+              />
+            </Field>
+            <p className="text-sm text-muted-foreground">
+              {locationLabel(discharge) === "Unassigned"
+                ? "The patient has no bed or cabin to release."
+                : `${locationLabel(discharge)} will be released and marked for cleaning.`}
+            </p>
+          </>
+        )}
+      </Modal>
 
       {/* Transfer modal */}
       <Modal

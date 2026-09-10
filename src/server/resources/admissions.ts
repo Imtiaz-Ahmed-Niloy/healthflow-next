@@ -16,18 +16,24 @@ import type { ResourceDefinition } from "./types";
 const admissionStatus = z.enum(["admitted", "under_observation", "in_surgery", "discharged"]);
 const admissionPriority = z.enum(["routine", "urgent", "critical"]);
 
-/** Treats "" from a form/JSON body the same as omitted. */
-const optionalText = z.string().trim().max(4000).optional().or(z.literal("")).transform(
+/**
+ * Treats "" from a form/JSON body the same as omitted, and passes null
+ * through as null — "clear this", which the edit form sends for an emptied
+ * diagnosis or an unassigned doctor. Rejecting null made every edit that
+ * left one of these blank fail with a 422.
+ */
+const optionalText = z.string().trim().max(4000).nullable().optional().or(z.literal("")).transform(
   (value) => (value === "" ? undefined : value),
 );
 
-const optionalTimestamp = z.string().trim().optional().or(z.literal("")).transform(
+/** Same, for timestamps: null clears discharged_at when a discharge is undone. */
+const optionalTimestamp = z.string().trim().nullable().optional().or(z.literal("")).transform(
   (value) => (value === "" ? undefined : value),
 );
 
 export const admissionCreateSchema = z.object({
   patient_id: z.string().uuid("A patient is required"),
-  doctor_id: z.string().uuid().optional(),
+  doctor_id: z.string().uuid().nullable().optional(),
   admitted_at: optionalTimestamp,
   discharged_at: optionalTimestamp,
   status: admissionStatus.optional(),
