@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from "react";
 import i18n from "@/i18n";
+import { nowTimeIn, pastSlotReason, todayIn } from "@/lib/timezone";
 
 export type AppSettings = {
   timezone: string;
@@ -103,6 +104,28 @@ export const setPlatformDefaults = (patch: Partial<AppSettings>) => {
 
 export const useAppSettings = () =>
   useSyncExternalStore(subscribe, () => current, () => current);
+
+/**
+ * The clock appointments are booked on: the platform timezone from global
+ * settings, not the viewer's own override. A patient who set their panel to
+ * London still books a Dhaka hospital on Dhaka's calendar. Falls back to the
+ * merged setting only until the platform's has loaded.
+ *
+ * Re-renders when the platform settings arrive, through useAppSettings.
+ */
+export const useBookingClock = () => {
+  const s = useAppSettings();
+  const timezone = platform.timezone ?? s.timezone;
+  return {
+    timezone,
+    /** YYYY-MM-DD, for a date input's `min`. */
+    today: todayIn(timezone),
+    /** HH:MM now, for a time input's `min` when the date is today. */
+    nowTime: nowTimeIn(timezone),
+    /** Null when the slot is bookable; otherwise a sentence to show. */
+    pastSlotReason: (date: string, time: string) => pastSlotReason(date, time, timezone),
+  };
+};
 
 // Sync i18n language with stored setting on load
 if (typeof window !== "undefined" && current.language && i18n.language !== current.language) {

@@ -7,6 +7,8 @@ import Link from "next/link";
 
 import { toast } from "sonner";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
+import { useBookingClock } from "@/lib/appSettings";
+import { outsideAvailabilityReason, parseAvailability } from "@/lib/availability";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -21,7 +23,7 @@ type ApiAppointment = {
   status: "scheduled" | "completed" | "cancelled";
   department: string | null;
   notes: string | null;
-  doctor: { name: string; specialty: string | null } | null;
+  doctor: { name: string; specialty: string | null; availability: string | null } | null;
   hospital: { name: string | null } | null;
 };
 
@@ -58,6 +60,9 @@ const formatTime = (t: string) => {
 const days = ["M", "T", "W", "T", "F", "S", "S"];
 
 const Appointments = () => {
+  // The hospital's calendar (global settings timezone), for the reschedule
+  // form's earliest date and time.
+  const clock = useBookingClock();
   const [tab, setTab] = useState(0);
   const [appointments, setAppointments] = useState<ApiAppointment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,6 +71,21 @@ const Appointments = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [rescheduling, setRescheduling] = useState<ApiAppointment | null>(null);
   const [rescheduleForm, setRescheduleForm] = useState({ date: "", time: "" });
+  // The doctor's days and hours for the appointment being moved — null when
+  // their availability can't be read, which then refuses nothing.
+  const rescheduleSchedule = useMemo(
+    () => parseAvailability(rescheduling?.doctor?.availability),
+    [rescheduling],
+  );
+  const rescheduleProblem = (() => {
+    if (!rescheduling || !rescheduleForm.date) return null;
+    if (rescheduleForm.date < clock.today) return "That date has already passed. Pick today or a later date.";
+    const dayOrHours = outsideAvailabilityReason(
+      rescheduleSchedule, rescheduleForm.date, rescheduleForm.time || (rescheduleSchedule?.start ?? "00:00"), rescheduling.doctor?.name,
+    );
+    if (dayOrHours) return dayOrHours;
+    return rescheduleForm.time ? clock.pastSlotReason(rescheduleForm.date, rescheduleForm.time) : null;
+  })();
   const [savingReschedule, setSavingReschedule] = useState(false);
 
   const load = async () => {
@@ -120,6 +140,12 @@ const Appointments = () => {
     if (!rescheduling) return;
     if (!rescheduleForm.date || !rescheduleForm.time) {
       toast.error("Please pick a date and time.");
+      return;
+    }
+    const problem = clock.pastSlotReason(rescheduleForm.date, rescheduleForm.time)
+      ?? outsideAvailabilityReason(rescheduleSchedule, rescheduleForm.date, rescheduleForm.time, rescheduling.doctor?.name);
+    if (problem) {
+      toast.error(problem);
       return;
     }
 
@@ -257,7 +283,9 @@ const Appointments = () => {
                 ...Array(offset).fill(null),
                 ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
               ];
-              const today = new Date();
+              // The hospital's today, built as a local date so isSameDay's
+              // local getters compare the right calendar day.
+              const today = new Date(`${clock.today}T00:00:00`);
               const isSameDay = (a: Date, b: Date) =>
                 a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
               const apptDays = new Set(
@@ -343,17 +371,26 @@ const Appointments = () => {
                   <Label required>Date</Label>
                   <Input type="date" value={rescheduleForm.date}
                     onChange={e => setRescheduleForm(f => ({ ...f, date: e.target.value }))}
-                    min={new Date().toISOString().split("T")[0]} required />
+                    min={clock.today} required />
                 </div>
                 <div className="space-y-1.5">
                   <Label required>Time</Label>
                   <Input type="time" value={rescheduleForm.time}
-                    onChange={e => setRescheduleForm(f => ({ ...f, time: e.target.value }))} required />
+                    onChange={e => setRescheduleForm(f => ({ ...f, time: e.target.value }))}
+                    min={[rescheduleSchedule?.start, rescheduleForm.date === clock.today ? clock.nowTime : undefined].filter(Boolean).sort().pop()}
+                    max={rescheduleSchedule?.end}
+                    required />
                 </div>
               </div>
+              {rescheduling.doctor?.availability && !rescheduleProblem && (
+                <p className="text-xs text-muted-foreground -mt-2">
+                  {rescheduling.doctor.name} is available {rescheduling.doctor.availability}.
+                </p>
+              )}
+              {rescheduleProblem && <p className="text-xs font-semibold text-destructive -mt-2">{rescheduleProblem}</p>}
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setRescheduling(null)} disabled={savingReschedule}>Cancel</Button>
-                <Button type="submit" disabled={savingReschedule}>{savingReschedule ? "Saving..." : "Save New Time"}</Button>
+                <Button type="submit" disabled={savingReschedule || !!rescheduleProblem}>{savingReschedule ? "Saving..." : "Save New Time"}</Button>
               </DialogFooter>
             </form>
           )}

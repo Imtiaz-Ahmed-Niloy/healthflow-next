@@ -48,6 +48,12 @@ export type UIDoctor = {
   experience: number;
   fee: number;
   available: string;
+  /**
+   * doctors.availability as typed, with no fallback. `available` above says
+   * "Mon-Fri" for a doctor with nothing entered — fine as a label, wrong as a
+   * rule. Booking checks this one (see src/lib/availability.ts).
+   */
+  availability: string | null;
   photo: string | null;
   education: string;
   languages: string[];
@@ -106,6 +112,7 @@ export const mapDBDoctorToUI = (d: DBDoctor): UIDoctor => {
     experience: d.experience_years || 1,
     fee: Number(d.consultation_fee) || 500,
     available: d.availability || "Mon-Fri",
+    availability: d.availability,
     photo,
     education: d.education || "MBBS",
     languages: d.languages ? d.languages.split(",").map(s => s.trim()).filter(Boolean) : ["English", "Bengali"],

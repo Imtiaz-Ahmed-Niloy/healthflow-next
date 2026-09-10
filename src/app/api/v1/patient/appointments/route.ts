@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerSupabase, createAdminSupabase, getAuthContext } from "@/lib/supabase/server";
+import { pastSlotReason } from "@/lib/timezone";
+import { outsideAvailabilityReason, parseAvailability } from "@/lib/availability";
 
 /**
  * POST /api/v1/patient/appointments (HF-50)
@@ -49,6 +51,16 @@ import { createServerSupabase, createAdminSupabase, getAuthContext } from "@/lib
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status });
 const fail = (message: string, status: number) => json({ error: { message } }, status);
 
+/**
+ * The timezone appointments are booked on — the platform's, from global
+ * settings (0057), which is readable by everyone. The form already stops a
+ * past date, but a form is a suggestion; this is the check that holds.
+ */
+const platformTimezone = async (client: Awaited<ReturnType<typeof createServerSupabase>> | ReturnType<typeof createAdminSupabase>) => {
+  const { data } = await client.from("global_settings").select("timezone").limit(1).maybeSingle();
+  return data?.timezone || "Asia/Dhaka";
+};
+
 /** Every patients.id this login is linked to, across every hospital. */
 const patientIdsForUser = async (
   admin: ReturnType<typeof createAdminSupabase>,
@@ -87,9 +99,12 @@ export const POST = async (request: Request) => {
   // this doubles as existence + "currently bookable" check (active doctor,
   // approved hospital) in one read, same shape as HF-49's doctor list.
   const supabase = await createServerSupabase();
+
+  const past = pastSlotReason(scheduled_date, scheduled_time, await platformTimezone(supabase));
+  if (past) return fail(past, 422);
   const { data: doctor, error: doctorError } = await supabase
     .from("doctors_public")
-    .select("id, tenant_id, name, specialty, hospital_name")
+    .select("id, tenant_id, name, specialty, hospital_name, availability")
     .eq("id", doctor_id)
     .maybeSingle();
 
@@ -97,6 +112,13 @@ export const POST = async (request: Request) => {
   if (!doctor || !doctor.tenant_id) {
     return fail("This doctor isn't available for booking right now.", 404);
   }
+
+  // Within the doctor's days and hours, as their availability reads. The
+  // form says the same thing first; this is the check that holds.
+  const offHours = outsideAvailabilityReason(
+    parseAvailability(doctor.availability), scheduled_date, scheduled_time, doctor.name ?? undefined,
+  );
+  if (offHours) return fail(offHours, 422);
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
@@ -233,7 +255,7 @@ export const GET = async () => {
 
   const { data, error } = await admin
     .from("appointments")
-    .select("id, scheduled_date, scheduled_time, status, department, notes, doctors(name, specialty), tenants(name)")
+    .select("id, scheduled_date, scheduled_time, status, department, notes, doctors(name, specialty, availability), tenants(name)")
     .in("patient_id", patientIds)
     .order("scheduled_date", { ascending: false })
     .order("scheduled_time", { ascending: false });
@@ -248,7 +270,11 @@ export const GET = async () => {
       status: row.status,
       department: row.department,
       notes: row.notes,
-      doctor: row.doctors ? { name: row.doctors.name, specialty: row.doctors.specialty } : null,
+      // availability rides along so the reschedule form can hold the new
+      // slot to the doctor's days and hours, as booking does.
+      doctor: row.doctors
+        ? { name: row.doctors.name, specialty: row.doctors.specialty, availability: row.doctors.availability }
+        : null,
       hospital: row.tenants ? { name: row.tenants.name } : null,
     })),
   });
@@ -326,6 +352,23 @@ export const PATCH = async (request: Request) => {
 
     return json({ data });
   }
+
+  // Not into the past, on the hospital's calendar — same rule as booking.
+  const past = pastSlotReason(scheduled_date!, scheduled_time!, await platformTimezone(admin));
+  if (past) return fail(past, 422);
+
+  // And inside the doctor's days and hours, the same as a new booking.
+  const { data: current } = await admin
+    .from("appointments")
+    .select("doctors ( name, availability )")
+    .eq("id", id)
+    .in("patient_id", patientIds)
+    .maybeSingle();
+  const doctorRow = (current as { doctors: { name: string | null; availability: string | null } | null } | null)?.doctors;
+  const offHours = outsideAvailabilityReason(
+    parseAvailability(doctorRow?.availability), scheduled_date!, scheduled_time!, doctorRow?.name ?? undefined,
+  );
+  if (offHours) return fail(offHours, 422);
 
   // Reschedule: only a still-scheduled appointment can move — a cancelled
   // one is done, and completed is history.

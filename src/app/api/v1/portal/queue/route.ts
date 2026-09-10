@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerSupabase, getAuthContext } from "@/lib/supabase/server";
+import { nowTimeIn, todayIn } from "@/lib/timezone";
 
 /**
  * /api/v1/portal/queue — the doctor's live "today's patients" (the screen
@@ -20,7 +21,8 @@ import { createServerSupabase, getAuthContext } from "@/lib/supabase/server";
  * see or touch another's queue. Every query below filters explicitly on
  * doctor_id = the caller's own doctors.id on top of RLS for that reason.
  *
- * "Today" is computed in JS, same convention as /api/v1/dashboard.
+ * "Today" is the hospital's today, in the global-settings timezone — see
+ * hospitalClock below.
  *
  * Priority and consultation_started_at are 0025_appointments_queue.sql —
  * see that file for why consultation state is a separate nullable timestamp
@@ -31,19 +33,20 @@ import { createServerSupabase, getAuthContext } from "@/lib/supabase/server";
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status });
 const fail = (message: string, status: number) => json({ error: { message } }, status);
 
-// Local calendar date, not UTC. toISOString() is always UTC -- for roughly
-// 6 hours every night (midnight-6am Bangladesh time), that's still
-// "yesterday" in UTC, so a doctor's queue would silently show nothing (or a
-// walk-in booked "now" would file itself under the wrong day) even though
-// every screen's own clock, and every human in the building, already call
-// it today. getFullYear/getMonth/getDate read the server's local time,
-// which is what "today" actually means here.
-const today = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+/**
+ * Today and now on the hospital's clock: the platform timezone from global
+ * settings (0057).
+ *
+ * Not toISOString(), which is UTC — midnight to 6am in Dhaka that is still
+ * yesterday, so the queue showed nothing and a walk-in filed itself under the
+ * wrong day. And not the server's own local time either, which is what this
+ * used before: right on a laptop in Bangladesh, and UTC again on the droplet.
+ */
+const hospitalClock = async (supabase: Awaited<ReturnType<typeof createServerSupabase>>) => {
+  const { data } = await supabase.from("global_settings").select("timezone").limit(1).maybeSingle();
+  const timeZone = data?.timezone || "Asia/Dhaka";
+  return { today: todayIn(timeZone), nowTime: `${nowTimeIn(timeZone)}:00` };
 };
-
-const nowTime = () => new Date().toTimeString().slice(0, 8); // "HH:MM:SS" -- already local, unaffected
 
 /** The caller's own doctors.id, or a 403/404 Response if there isn't one. */
 const myDoctor = async (supabase: Awaited<ReturnType<typeof createServerSupabase>>, userId: string) => {
@@ -73,7 +76,7 @@ export const GET = async () => {
   }
   if (!doctor) return fail("No doctor profile is linked to this login.", 404);
 
-  const date = today();
+  const date = (await hospitalClock(supabase)).today;
 
   // Everything today except cancelled, for the stats — a cancelled slot was
   // never really "on the schedule" from the patient's point of view.
@@ -220,6 +223,7 @@ export const POST = async (request: Request) => {
     patientId = data.id;
   }
 
+  const clock = await hospitalClock(supabase);
   const { data: appointment, error: appointmentError } = await supabase
     .from("appointments")
     .insert({
@@ -227,8 +231,8 @@ export const POST = async (request: Request) => {
       patient_id: patientId,
       doctor_id: doctor.id,
       department: doctor.specialty,
-      scheduled_date: today(),
-      scheduled_time: nowTime(),
+      scheduled_date: clock.today,
+      scheduled_time: clock.nowTime,
       status: "scheduled",
       priority,
       notes: reasonValue,

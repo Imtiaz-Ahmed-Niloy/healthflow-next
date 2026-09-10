@@ -863,7 +863,7 @@ export type FieldDef = (
    * `numberStep` rather than `step` because `step` below is the wizard page
    * this field belongs to.
    */
-  | { name: string; label: string; type: "text" | "email" | "tel" | "number" | "date" | "time"; required?: boolean; fullWidth?: boolean; min?: number; max?: number; numberStep?: number | "any" }
+  | { name: string; label: string; type: "text" | "email" | "tel" | "number" | "date" | "time"; required?: boolean; fullWidth?: boolean; min?: number | string; max?: number | string; numberStep?: number | "any" }
   /**
    * Options are plain strings when the stored value is what a human should
    * read. Pass { value, label } when it is not — a database enum like
@@ -885,6 +885,24 @@ export type FieldDef = (
 ) & { step?: number };
 
 export type FormStep = { id: number; label: string };
+
+/**
+ * The `min` to put on a field's input.
+ *
+ * A date minimum (no booking in the past) is right for a new record but would
+ * lock an old one: the browser refuses to submit a form whose date is below
+ * `min`, so editing last month's appointment could never be saved. When the
+ * record being edited already holds an earlier date, that date becomes the
+ * floor instead.
+ */
+const minFor = (f: FieldDef, editing: Record<string, unknown> | null) => {
+  if (!("min" in f) || f.min === undefined) return undefined;
+  const existing = editing?.[f.name];
+  if (f.type === "date" && typeof f.min === "string" && typeof existing === "string" && existing && existing < f.min) {
+    return existing;
+  }
+  return f.min;
+};
 
 export function RecordFormFields({
   fields, editing, activeStepId, stepIds,
@@ -930,7 +948,7 @@ export function RecordFormFields({
                 <PeopleField name={f.name} defaultValue={(editing as never)?.[f.name]} roleOptions={f.roleOptions} addLabel={f.addLabel} />
               ) : (
                 <Input name={f.name} type={f.type} required={f.required}
-                        min={f.min} max={f.max} step={f.numberStep}
+                        min={minFor(f, editing as Record<string, unknown> | null)} max={f.max} step={f.numberStep}
                         defaultValue={(editing as never)?.[f.name] ?? ""} />
               )}
             </Field>
@@ -1279,7 +1297,7 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
                       <PeopleField name={f.name} defaultValue={(editing as never)?.[f.name]} roleOptions={f.roleOptions} addLabel={f.addLabel} />
                     ) : (
                       <Input name={f.name} type={f.type} required={f.required}
-                        min={f.min} max={f.max} step={f.numberStep}
+                        min={minFor(f, editing as Record<string, unknown> | null)} max={f.max} step={f.numberStep}
                         defaultValue={(editing as never)?.[f.name] ?? ""} />
                     )}
                   </Field>

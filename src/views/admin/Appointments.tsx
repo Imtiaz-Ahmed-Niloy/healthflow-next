@@ -8,6 +8,7 @@ import { ResourcePage } from "@/components/admin/ResourcePage";
 import { Pill } from "@/components/admin/ui";
 import { statusTone } from "@/components/admin/crud";
 import { doctorsApi, patientsApi, type AppointmentRow } from "@/redux/api/resources";
+import { useBookingClock } from "@/lib/appSettings";
 
 /**
  * Mirrors appointment_status (0020_appointments.sql) exactly — the mock this
@@ -27,6 +28,7 @@ const UNASSIGNED = "unassigned";
 
 const Page = () => {
   const [doctorFilter, setDoctorFilter] = useState<string>("all");
+  const clock = useBookingClock();
 
   // Both lists are small enough to load whole; patients feeds the form's
   // picker, doctors feeds both the form's picker and the filter above the
@@ -115,7 +117,9 @@ const Page = () => {
           { name: "patient_id", label: "Patient", type: "select", options: patientOptions, required: true },
           { name: "doctor_id", label: "Doctor", type: "select", options: doctorOptions },
           { name: "department", label: "Department", type: "text" },
-          { name: "scheduled_date", label: "Date", type: "date", required: true },
+          // Not before today on the hospital's calendar (global settings). An
+          // existing appointment keeps its own date as the floor — see minFor.
+          { name: "scheduled_date", label: "Date", type: "date", required: true, min: clock.today },
           { name: "scheduled_time", label: "Time", type: "time", required: true },
           { name: "status", label: "Status", type: "select", options: STATUSES },
           { name: "notes", label: "Notes", type: "textarea", fullWidth: true },
