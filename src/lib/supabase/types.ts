@@ -1919,42 +1919,55 @@ export type Database = {
       }
       journal_entries: {
         Row: {
+          cost_center_id: string | null
           created_at: string
           entry_date: string
           entry_no: string
           id: string
           narration: string | null
           party: string | null
+          reconciled_on: string | null
           status: Database["public"]["Enums"]["journal_status"]
           tenant_id: string
           type: Database["public"]["Enums"]["voucher_type"]
           updated_at: string
         }
         Insert: {
+          cost_center_id?: string | null
           created_at?: string
           entry_date?: string
           entry_no: string
           id?: string
           narration?: string | null
           party?: string | null
+          reconciled_on?: string | null
           status?: Database["public"]["Enums"]["journal_status"]
           tenant_id: string
           type?: Database["public"]["Enums"]["voucher_type"]
           updated_at?: string
         }
         Update: {
+          cost_center_id?: string | null
           created_at?: string
           entry_date?: string
           entry_no?: string
           id?: string
           narration?: string | null
           party?: string | null
+          reconciled_on?: string | null
           status?: Database["public"]["Enums"]["journal_status"]
           tenant_id?: string
           type?: Database["public"]["Enums"]["voucher_type"]
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "journal_entries_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "journal_entries_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -2244,6 +2257,7 @@ export type Database = {
           id: string
           name: string
           opening_balance: number
+          subgroup: string
           tenant_id: string
           updated_at: string
         }
@@ -2255,6 +2269,7 @@ export type Database = {
           id?: string
           name: string
           opening_balance?: number
+          subgroup: string
           tenant_id: string
           updated_at?: string
         }
@@ -2266,12 +2281,148 @@ export type Database = {
           id?: string
           name?: string
           opening_balance?: number
+          subgroup?: string
           tenant_id?: string
           updated_at?: string
         }
         Relationships: [
           {
             foreignKeyName: "ledger_accounts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budgets: {
+        Row: {
+          account_id: string
+          created_at: string
+          id: string
+          period: string
+          planned: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          id?: string
+          period: string
+          planned?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          id?: string
+          period?: string
+          planned?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budgets_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budgets_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_balances"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "budgets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cost_centers: {
+        Row: {
+          active: boolean
+          budget: number
+          created_at: string
+          id: string
+          name: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          budget?: number
+          created_at?: string
+          id?: string
+          name: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          budget?: number
+          created_at?: string
+          id?: string
+          name?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_centers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_items: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          qty: number
+          rate: number
+          reorder: number
+          tenant_id: string
+          unit: string
+          updated_at: string
+          value: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          qty?: number
+          rate?: number
+          reorder?: number
+          tenant_id: string
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          qty?: number
+          rate?: number
+          reorder?: number
+          tenant_id?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_items_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -3806,11 +3957,52 @@ export type Database = {
           group: Database["public"]["Enums"]["ledger_group"] | null
           name: string | null
           opening_balance: number | null
+          subgroup: string | null
           tenant_id: string | null
         }
         Relationships: [
           {
             foreignKeyName: "ledger_accounts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ledger_movements: {
+        Row: {
+          account_id: string | null
+          cost_center_id: string | null
+          credit: number | null
+          debit: number | null
+          month: string | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_entries_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_balances"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "journal_lines_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -3987,6 +4179,7 @@ export type Database = {
       }
       record_voucher: {
         Args: {
+          p_cost_center_id?: string | null
           p_entry_date: string
           p_entry_no: string
           p_lines: Json

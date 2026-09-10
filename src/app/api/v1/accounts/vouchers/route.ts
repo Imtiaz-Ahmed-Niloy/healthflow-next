@@ -44,6 +44,8 @@ const voucherSchema = z
     party: z.string().trim().max(200).optional().or(z.literal("")),
     narration: z.string().trim().max(2000).optional().or(z.literal("")),
     lines: z.array(lineSchema).min(2, "A voucher needs at least one debit and one credit"),
+    /** The department it is booked to (0074). Optional — most vouchers have none. */
+    cost_center_id: z.string().uuid("Pick a cost center").optional().or(z.literal("")),
     /** A draft can be finished later; the balance check waits until posting. */
     post: z.boolean().optional().default(true),
   })
@@ -74,7 +76,7 @@ export const POST = async (request: Request) => {
     );
   }
 
-  const { entry_no, entry_date, type, party, narration, lines, post } = parsed.data;
+  const { entry_no, entry_date, type, party, narration, lines, post, cost_center_id } = parsed.data;
 
   const supabase = await createServerSupabase();
   const { data, error } = await supabase.rpc("record_voucher", {
@@ -85,6 +87,7 @@ export const POST = async (request: Request) => {
     p_narration: narration || null,
     p_lines: lines,
     p_post: post,
+    p_cost_center_id: cost_center_id || null,
   });
 
   if (error) {
