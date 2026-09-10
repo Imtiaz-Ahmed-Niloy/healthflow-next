@@ -36,7 +36,9 @@ const identitySchema = z.object({
   full_name: z.string().trim().min(1, "Name is required").max(200).optional(),
   /** An R2 object key from /api/v1/uploads, never a URL — see src/lib/media.ts. */
   avatar_url: z.preprocess(blankToNull, z.string().trim().max(300).nullable().optional()),
-  email: z.preprocess(blankToNull, z.string().trim().email("That email does not look right").nullable().optional()),
+  // No `email`: it is the address the account signs in with, and a patient
+  // may not change it here. zod strips unknown keys, so one sent anyway is
+  // dropped rather than written.
   phone: optionalText,
 });
 

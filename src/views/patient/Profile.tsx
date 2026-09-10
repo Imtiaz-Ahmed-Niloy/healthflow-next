@@ -453,8 +453,11 @@ const Profile = () => {
                   </select></label>
                 <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">NID / PASSPORT</span>
                   <input className={inputClass} value={draft.national_id ?? ""} onChange={e => upd({ national_id: e.target.value })} /></label>
+                {/* Read-only: it is the address this account signs in with, and
+                    the API ignores it. Shown here so the form is complete. */}
                 <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">EMAIL</span>
-                  <input type="email" className={inputClass} value={draft.email ?? ""} onChange={e => upd({ email: e.target.value })} /></label>
+                  <input type="email" className={`${inputClass} opacity-60 cursor-not-allowed`} value={profile.email ?? ""} readOnly disabled
+                    title="Your sign-in email can't be changed here" /></label>
                 <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">PHONE</span>
                   <input className={inputClass} value={draft.phone ?? ""} onChange={e => upd({ phone: e.target.value })} /></label>
                 <label className="space-y-1.5 md:col-span-2"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">ADDRESS</span>
