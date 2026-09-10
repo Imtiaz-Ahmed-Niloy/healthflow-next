@@ -1587,7 +1587,9 @@ export type Database = {
       finance_invoices: {
         Row: {
           amount: number
+          appointment_id: string | null
           created_at: string
+          description: string | null
           due_date: string
           id: string
           kind: Database["public"]["Enums"]["finance_invoice_kind"]
@@ -1600,7 +1602,9 @@ export type Database = {
         }
         Insert: {
           amount: number
+          appointment_id?: string | null
           created_at?: string
+          description?: string | null
           due_date: string
           id?: string
           kind: Database["public"]["Enums"]["finance_invoice_kind"]
@@ -1613,7 +1617,9 @@ export type Database = {
         }
         Update: {
           amount?: number
+          appointment_id?: string | null
           created_at?: string
+          description?: string | null
           due_date?: string
           id?: string
           kind?: Database["public"]["Enums"]["finance_invoice_kind"]
@@ -1625,6 +1631,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "finance_invoices_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "finance_invoices_patient_id_fkey"
             columns: ["patient_id"]

@@ -5,10 +5,12 @@ import { motion } from "framer-motion";
 import { Building2, ShieldCheck, Eye, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
+import { useFormatters } from "@/lib/appSettings";
 
 type Invoice = {
   id: string;
   reference: string;
+  description: string | null;
   amount: number;
   due_date: string;
   paid_at: string | null;
@@ -20,9 +22,6 @@ type Summary = {
   last_payment: { amount: number; paid_at: string } | null;
   upcoming_due: { amount: number; due_date: string } | null;
 };
-
-/** Taka, like every other money figure in the app. This page used dollars. */
-const fmt = (n: number) => `৳${n.toLocaleString()}`;
 
 const dateLabel = (iso: string) => {
   const date = new Date(iso.length > 10 ? iso : `${iso}T00:00:00`);
@@ -41,6 +40,9 @@ const STATUS_CLASS: Record<string, string> = {
 };
 
 const Billing = () => {
+  // The platform currency from global settings, like every money figure in
+  // the app. This page had ৳ typed in, and before that dollars.
+  const { formatCurrency: fmt } = useFormatters();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [summary, setSummary] = useState<Summary>({ outstanding: 0, last_payment: null, upcoming_due: null });
   const [loading, setLoading] = useState(true);
@@ -171,7 +173,10 @@ const Billing = () => {
                 return (
                   <motion.div key={inv.id} initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
                     className={`grid grid-cols-[1fr_1fr_1fr_1fr_80px] gap-4 items-center px-3 py-3 rounded-xl ${status === "PAID" ? "hover:bg-muted/30" : "bg-chip/40"}`}>
-                    <p className="font-semibold text-primary text-sm">{inv.reference}</p>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-primary text-sm">{inv.reference}</p>
+                      {inv.description && <p className="text-xs text-muted-foreground truncate">{inv.description}</p>}
+                    </div>
                     <p className="text-sm text-foreground/70">{dateLabel(inv.due_date)}</p>
                     <p className="font-semibold text-primary text-sm">{fmt(inv.amount)}</p>
                     <span className={`justify-self-start rounded-full px-3 py-1 text-[10px] font-bold tracking-wider ${STATUS_CLASS[status]}`}>
@@ -179,7 +184,7 @@ const Billing = () => {
                     </span>
                     <div className="flex items-center justify-end">
                       <button
-                        onClick={() => toast.info(`${inv.reference} · ${fmt(inv.amount)} · due ${dateLabel(inv.due_date)}`)}
+                        onClick={() => toast.info(`${inv.description ?? inv.reference} · ${fmt(inv.amount)} · due ${dateLabel(inv.due_date)}`)}
                         className="text-foreground/60 hover:text-primary"
                         aria-label={`View ${inv.reference}`}
                       >

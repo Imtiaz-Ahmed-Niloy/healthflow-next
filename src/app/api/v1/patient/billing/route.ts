@@ -35,7 +35,7 @@ export const GET = async () => {
   // beginning of trusting one.
   const { data, error } = await supabase
     .from("finance_invoices")
-    .select("id, reference, amount, due_date, paid_at, created_at")
+    .select("id, reference, description, amount, due_date, paid_at, created_at")
     .not("patient_id", "is", null)
     .order("due_date", { ascending: false });
 
@@ -63,6 +63,9 @@ export const GET = async () => {
       invoices: invoices.map(i => ({
         id: i.id,
         reference: i.reference,
+        // What the charge is for — "Consultation with Dr. … on …" for a bill a
+        // completed visit raised (0075). Null for one typed in by the desk.
+        description: i.description,
         amount: amountOf(i.amount),
         due_date: i.due_date,
         paid_at: i.paid_at,
