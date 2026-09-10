@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import TiltCard from "@/components/site/TiltCard";
 import { Check, X } from "lucide-react";
+import Link from "next/link";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import type { PricingContent } from "@/data/pricingContent";
@@ -44,9 +45,11 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
                     </li>
                   ))}
                 </ul>
-                <button className={`mt-7 w-full rounded-full py-3 text-sm font-semibold transition-all ${p.featured ? "bg-primary text-primary-foreground hover:bg-primary-glow" : "bg-accent/40 text-primary hover:bg-accent/60"}`}>
+                {/* To the contact page: a hospital is onboarded by us, not by a
+                    public sign-up form, which only ever creates a patient. */}
+                <Link href="/contact" className={`mt-7 block w-full text-center rounded-full py-3 text-sm font-semibold transition-all ${p.featured ? "bg-primary text-primary-foreground hover:bg-primary-glow" : "bg-accent/40 text-primary hover:bg-accent/60"}`}>
                   {p.cta}
-                </button>
+                </Link>
               </TiltCard>
             ))}
           </div>
@@ -54,14 +57,14 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
 
         <section className="container mx-auto py-12">
           <div className="text-center max-w-2xl mx-auto mb-10">
-            <h2 className="font-display text-3xl md:text-4xl text-primary">Compare every feature</h2>
-            <p className="text-muted-foreground mt-2 text-sm">Get a side-by-side look at the technical capabilities of each plan.</p>
+            <h2 className="font-display text-3xl md:text-4xl text-primary">Compare the plans</h2>
+            <p className="text-muted-foreground mt-2 text-sm">What each plan includes, side by side.</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm border-collapse min-w-[700px]">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="py-4 font-display text-lg text-primary">Technical Specs</th>
+                  <th className="py-4 font-display text-lg text-primary">Included</th>
                   {plans.map((p, i) => (
                     <th key={i} className="py-4 font-display text-lg text-primary">{p.name}</th>
                   ))}
@@ -97,7 +100,7 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
 
             <div className="relative text-center max-w-2xl mx-auto">
               <h2 className="font-display text-3xl md:text-4xl text-primary">Frequently Asked Questions</h2>
-              <p className="text-muted-foreground mt-3 text-sm">Everything you need to know about our restorative care subscriptions.</p>
+              <p className="text-muted-foreground mt-3 text-sm">How billing works, and what you are paying for.</p>
             </div>
 
             <div className="relative grid md:grid-cols-2 gap-5 mt-10">

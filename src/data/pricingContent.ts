@@ -19,78 +19,116 @@ export type PricingContent = {
   faqs: Faq[];
 };
 
+/**
+ * What the pricing page says when the CMS has nothing stored — and, since
+ * 2026-09-11, what the stored row says too.
+ *
+ * Written from what the product does, not from the template it started as:
+ * the per-prescription billing is `generate_platform_invoices` (0056), the
+ * staff and storage limits are the `packages` catalogue (0010), and every
+ * module named below is a page in the admin, doctor or patient panel.
+ *
+ * Nothing in the app switches modules on or off by plan yet. The split below
+ * is the commercial offer — which departments each size of hospital is sold —
+ * and onboarding is what holds a hospital to it.
+ */
 export const defaultPricingContent: PricingContent = {
   hero: {
-    title: "Invest in Restorative Care",
+    title: "Pay for the prescriptions you write",
     subtitle:
-      "Transparent pricing designed for individuals, growing clinics, and established health institutions. Choose the flow that fits your lifestyle.",
+      "HealthFlow runs your appointments, patient records and prescriptions on one system, and the bigger plans add the rest of the hospital. You pay only for the prescriptions your doctors write. A month with none costs nothing.",
   },
   plans: [
     {
       name: "Basic",
       price: "10",
-      tag: "Essential care for individuals.",
-      cta: "Start Basic",
+      tag: "For clinics and doctors' chambers.",
+      cta: "Talk to us",
       featured: false,
       features: [
-        { text: "Unlimited Prescription", on: true },
-        { text: "Basic Health Analytics", on: true },
-        { text: "Email Support (48h response)", on: true },
-        { text: "5GB Secure Health Storage", on: true },
-        { text: "Wearable Device Sync", on: true },
-        { text: "Priority Appointment", on: false },
-        { text: "AI Health Predictive Insights", on: false },
+        { text: "Doctor portal with a live patient queue", on: true },
+        { text: "Digital prescriptions", on: true },
+        { text: "Appointments and patient records", on: true },
+        { text: "Patient portal for your patients", on: true },
+        { text: "Your hospital listed on HealthFlow", on: true },
+        { text: "Wards, beds and admissions", on: false },
+        { text: "Laboratory and pharmacy", on: false },
       ],
     },
     {
       name: "Professional",
       price: "30",
-      tag: "Complete restorative solution.",
-      cta: "Get Pro Now",
+      tag: "For hospitals with wards, a lab and a pharmacy.",
+      cta: "Talk to us",
       featured: true,
       features: [
-        { text: "Unlimited Prescription", on: true },
-        { text: "Advanced Bio-Analytics", on: true },
-        { text: "24/7 Priority Support", on: true },
-        { text: "Dedicated Wellness Coach", on: true },
-        { text: "20GB Secure Health Storage", on: true },
-        { text: "AI Health Predictive Insights", on: true },
-        { text: "Mental Health Modules", on: true },
+        { text: "Everything in Basic", on: true },
+        { text: "Wards, beds and admissions", on: true },
+        { text: "Laboratory orders and results", on: true },
+        { text: "Pharmacy stock with reorder alerts", on: true },
+        { text: "Patient billing and invoices", on: true },
+        { text: "Staff, attendance and leave", on: true },
+        { text: "Payroll and accounts", on: false },
       ],
     },
     {
       name: "Enterprise",
       price: "50",
-      tag: "Scaleable care for teams.",
-      cta: "Contact Sales",
+      tag: "For hospitals that run the back office here too.",
+      cta: "Talk to us",
       featured: false,
       features: [
-        { text: "Unlimited Prescription", on: true },
-        { text: "Health Compliance Reports", on: true },
-        { text: "API Access & Integration", on: true },
-        { text: "Custom Onboarding", on: true },
-        { text: "Unlimited Secure Storage", on: true },
-        { text: "Custom AI Models for Clinic", on: true },
-        { text: "Dedicated Account Manager", on: true },
+        { text: "Everything in Professional", on: true },
+        { text: "Payroll and payslips", on: true },
+        { text: "Tally-style accounts, budgets and cost centers", on: true },
+        { text: "Procurement, vendors and assets", on: true },
+        { text: "Financial reports", on: true },
+        { text: "Unlimited staff accounts", on: true },
+        { text: "A dedicated account manager", on: true },
       ],
     },
   ],
   compareRows: [
-    { label: "Consultations per Month", values: ["2 Sessions", "Unlimited", "Unlimited"] },
-    { label: "Health Record Storage", values: ["5 GB", "20 GB", "Unlimited"], bold: [3] },
-    { label: "AI Insights Level", values: ["Standard Baseline", "Predictive Patterns", "Custom Trained Models"], bold: [2] },
-    { label: "Support Priority", values: ["Standard (Email)", "Priority 24/7", "Dedicated Concierge"], bold: [2] },
-    { label: "Team Management", values: ["—", "—", "Up to 10 Seats"], bold: [3] },
-    { label: "API & Webhooks", values: ["—", "Read-only", "Full Access"], bold: [3] },
-    { label: "HIPAA Security", values: ["Standard", "Enhanced Encryption", "Enterprise Audited"], bold: [2] },
-    { label: "Virtual Visits", values: ["2 per month", "Unlimited", "Unlimited"], bold: [2] },
-    { label: "Lab Integrations", values: ["✓", "✓", "✓"] },
+    { label: "Staff accounts", values: ["Up to 5", "Up to 25", "Unlimited"], bold: [3] },
+    { label: "Document storage", values: ["5 GB", "20 GB", "Unlimited"], bold: [3] },
+    { label: "Doctor portal and prescriptions", values: ["✓", "✓", "✓"] },
+    { label: "Appointments and patient records", values: ["✓", "✓", "✓"] },
+    { label: "Patient portal", values: ["✓", "✓", "✓"] },
+    { label: "Wards, beds and admissions", values: ["—", "✓", "✓"] },
+    { label: "Laboratory and pharmacy", values: ["—", "✓", "✓"] },
+    { label: "Patient billing and invoices", values: ["—", "✓", "✓"] },
+    { label: "Staff, attendance and leave", values: ["—", "✓", "✓"] },
+    { label: "Payroll", values: ["—", "—", "✓"] },
+    { label: "Accounts and financial reports", values: ["—", "—", "✓"] },
+    { label: "Procurement, vendors and assets", values: ["—", "—", "✓"] },
+    { label: "Role-based access and audit log", values: ["✓", "✓", "✓"] },
+    { label: "Support", values: ["Email", "Priority", "Dedicated account manager"], bold: [3] },
   ],
   faqs: [
-    { q: "Can I switch plans later?", a: "Yes, you can upgrade or downgrade your plan at any time through your dashboard. Price adjustments will be applied to your next billing cycle." },
-    { q: "Is there a free trial available?", a: "We offer a 14-day restorative trial for our Pro plan, allowing you to experience our full suite of bio-analytics and coaching features." },
-    { q: "What is HIPAA Compliance?", a: "We adhere to strict federal standards for protecting sensitive patient health information from being disclosed without the patient's consent or knowledge." },
-    { q: "How do I cancel my subscription?", a: "You can cancel your subscription at any time with a single click in your account settings. No hidden fees, no long-term contracts." },
+    {
+      q: "What counts as a prescription?",
+      a: "A consultation a doctor completes in HealthFlow with at least one medicine on it. Cancelled appointments, no-shows and visits that end without a medicine are not counted.",
+    },
+    {
+      q: "How are we billed?",
+      a: "Once a month. The invoice counts the prescriptions your doctors wrote that month and multiplies them by your plan's rate, less any discount you have. It is due 14 days after it is issued.",
+    },
+    {
+      q: "What if we write no prescriptions in a month?",
+      a: "Then there is no invoice for that month. You pay nothing.",
+    },
+    {
+      q: "Can we change plans later?",
+      a: "Yes. Tell us and we will move you, and the new rate applies from your next invoice.",
+    },
+    {
+      q: "Is our hospital's data kept separate?",
+      a: "Yes. Each hospital's records are walled off from every other hospital's in the database itself. Inside your hospital, each role sees only what it needs, so a doctor does not see payroll, and every change is written to an audit log.",
+    },
+    {
+      q: "How do we get started?",
+      a: "Contact us. We verify your hospital's licence, set up your account and create logins for your staff. Your patients sign up on their own.",
+    },
   ],
 };
 
