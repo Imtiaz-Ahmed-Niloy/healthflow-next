@@ -7,6 +7,7 @@ import { Modal, Field, Input, Select, Chips, ConfirmDialog } from "@/components/
 import { useResourceCrud } from "@/components/admin/useResourceCrud";
 import { useAdmitPatient } from "@/components/admin/useAdmitPatient";
 import { useNotifications } from "@/components/admin/NotificationProvider";
+import { useFormatters } from "@/lib/appSettings";
 import { useTransferBedMutation } from "@/redux/api/bedTransfers";
 import {
   admissionsApi, doctorsApi, patientsApi,
@@ -114,6 +115,9 @@ type AdmitDraft = { patient_id: string; doctor_id: string; diagnosis: string; pr
 const emptyAdmitDraft: AdmitDraft = { patient_id: "", doctor_id: "", diagnosis: "", priority: "routine", notes: "" };
 
 const Wards = () => {
+  // Money in the currency set in global settings — this page had ₹ typed
+  // into it, whatever the platform was configured to use.
+  const { formatCurrency, currencySymbol } = useFormatters();
   const wardsCrud = useResourceCrud<WardRow>("wards");
   const bedsCrud = useResourceCrud<BedRow>("beds");
   const cabinsCrud = useResourceCrud<CabinRow>("cabins");
@@ -408,7 +412,7 @@ const Wards = () => {
                     <div className="flex items-center gap-3 flex-wrap">
                       <h3 className="font-display text-xl text-primary">{w.name}</h3>
                       <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${wardCategoryTone[w.category] ?? "bg-primary text-primary-foreground"}`}>{wardCategoryLabel(w.category)}</span>
-                      <span className="text-sm font-bold text-foreground">₹{w.daily_rate.toLocaleString()}<span className="text-[11px] font-medium text-muted-foreground">/day</span></span>
+                      <span className="text-sm font-bold text-foreground">{formatCurrency(w.daily_rate)}<span className="text-[11px] font-medium text-muted-foreground">/day</span></span>
                       <span className="text-[11px] font-semibold text-muted-foreground bg-card border border-border rounded-full px-2 py-0.5">
                         {wardOcc}/{wardTotal} occupied
                       </span>
@@ -468,10 +472,10 @@ const Wards = () => {
               </div>
               <h4 className="font-display text-lg text-primary">{w.name}</h4>
               <div className="flex items-baseline gap-1 mt-1">
-                <span className="font-display text-3xl text-foreground">₹{w.daily_rate.toLocaleString()}</span>
+                <span className="font-display text-3xl text-foreground">{formatCurrency(w.daily_rate)}</span>
                 <span className="text-xs text-muted-foreground">/ day</span>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">+ ₹{w.nursing_charge.toLocaleString()} nursing charge</p>
+              <p className="text-[11px] text-muted-foreground mt-1">+ {formatCurrency(w.nursing_charge)} nursing charge</p>
               <div className="flex flex-wrap gap-1.5 mt-4">
                 {w.facilities.map(f => (
                   <span key={f} className="text-[10px] px-2 py-0.5 rounded-md bg-muted border border-border text-foreground/80 font-medium">{f}</span>
@@ -506,7 +510,7 @@ const Wards = () => {
         </Card>
         <Card className="p-5 bg-primary-glow text-primary-foreground border-primary-glow">
           <p className="text-[10px] tracking-widest font-bold opacity-80">DAILY REVENUE</p>
-          <p className="font-display text-4xl mt-2">₹{cabRevenue.toLocaleString()}</p>
+          <p className="font-display text-4xl mt-2">{formatCurrency(cabRevenue)}</p>
           <p className="text-[11px] opacity-70 mt-3">From occupied cabins</p>
         </Card>
       </div>
@@ -551,7 +555,7 @@ const Wards = () => {
                               <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-1.5">
                                 <Users className="h-3 w-3" /> Cap: {c.capacity}
                                 <span>•</span>
-                                <span className="font-bold text-foreground">₹{c.daily_rate.toLocaleString()}/day</span>
+                                <span className="font-bold text-foreground">{formatCurrency(c.daily_rate)}/day</span>
                               </div>
                             </div>
                             <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full ${cabinStatusBg[c.status] ?? ""}`}>{cabinStatusLabel(c.status)}</span>
@@ -791,7 +795,7 @@ const Wards = () => {
               </Select>
             </Field>
             <Field label="Capacity"><Input name="capacity" type="number" min="1" defaultValue={editCabinMeta?.capacity || 1} /></Field>
-            <Field label="Daily Rate (₹)"><Input name="daily_rate" type="number" min="0" defaultValue={editCabinMeta?.daily_rate || 0} /></Field>
+            <Field label={`Daily Rate (${currencySymbol()})`}><Input name="daily_rate" type="number" min="0" defaultValue={editCabinMeta?.daily_rate || 0} /></Field>
           </div>
           <Field label="Amenities">
             <div className="flex flex-wrap gap-2">
@@ -826,8 +830,8 @@ const Wards = () => {
                 {WARD_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
               </Select>
             </Field>
-            <Field label="Daily Rate (₹)" required><Input name="daily_rate" type="number" min="0" defaultValue={editWard?.daily_rate || 0} required /></Field>
-            <Field label="Nursing Charge (₹/day)"><Input name="nursing_charge" type="number" min="0" defaultValue={editWard?.nursing_charge || 0} /></Field>
+            <Field label={`Daily Rate (${currencySymbol()})`} required><Input name="daily_rate" type="number" min="0" defaultValue={editWard?.daily_rate || 0} required /></Field>
+            <Field label={`Nursing Charge (${currencySymbol()}/day)`}><Input name="nursing_charge" type="number" min="0" defaultValue={editWard?.nursing_charge || 0} /></Field>
           </div>
           <Field label="Facilities">
             <div className="flex flex-wrap gap-2">
