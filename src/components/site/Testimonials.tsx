@@ -112,12 +112,9 @@ const Testimonials = () => {
                     <p className="mt-3 text-foreground/80 leading-relaxed italic text-xs text-justify">
                       &quot;{r.text}&quot;
                     </p>
-                    <div className="mt-5 flex items-center gap-3 border-t border-border/50 pt-4">
-                      <img src={r.img} alt={r.name} width={48} height={48} loading="lazy" className="h-12 w-12 rounded-full object-cover" />
-                      <div>
-                        <div className="font-semibold text-primary">{r.name}</div>
-                        <div className="text-xs text-muted-foreground">{r.role}</div>
-                      </div>
+                    <div className="mt-5 border-t border-border/50 pt-4">
+                      <div className="font-semibold text-primary">{r.name}</div>
+                      <div className="text-xs text-muted-foreground">{r.role}</div>
                     </div>
                   </TiltCard>
                 </div>
