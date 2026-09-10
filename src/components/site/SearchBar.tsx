@@ -129,9 +129,9 @@ const SearchBar = ({
   };
 
   return (
-    // No container of its own any more: it renders inside the dark band on the
-    // home page, which already sets the column and the padding.
-    <form onSubmit={handleSubmit}>
+    // Its own column and top padding: it sits on the light surface under the
+    // dark band, and the specialists' section below supplies the gap after it.
+    <form onSubmit={handleSubmit} className="container mx-auto pt-12 md:pt-16">
       <div className="mx-auto max-w-4xl">
         {/* Pill search bar */}
         <div className="relative flex items-center rounded-full bg-card border border-white/80 shadow-card pl-6 pr-2 py-2">
@@ -158,15 +158,11 @@ const SearchBar = ({
           <button
             type="button"
             onClick={() => setFilterOpen((v) => !v)}
-            // Both states have to read on the dark band this renders in.
-            // bg-primary did not: at 18% lightness on a 16%-to-11% ground it
-            // was a button-shaped hole. Glass when idle, accent when it is
-            // holding something, which is how the plans band marks a choice.
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full px-4 py-1 text-sm font-medium transition-colors",
               filterOpen || hasFilters
-                ? "bg-accent text-primary"
-                : "bg-white/10 border border-white/20 text-surface-dark-foreground hover:bg-white/20",
+                ? "bg-primary text-primary-foreground"
+                : "bg-primary/90 text-primary-foreground hover:bg-primary",
             )}
             aria-expanded={filterOpen}
           >
@@ -207,7 +203,7 @@ const SearchBar = ({
                 <button
                   type="button"
                   onClick={clearFilters}
-                  className="inline-flex items-center gap-1 text-xs text-surface-dark-foreground/70 hover:text-surface-dark-foreground"
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                 >
                   <X className="h-3 w-3" />
                   Clear

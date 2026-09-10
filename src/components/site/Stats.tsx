@@ -16,7 +16,7 @@ import type { HomeContent } from "@/data/homeContent";
  * band on their own; a card here only puts a rectangle between them and the
  * surface they are meant to sit on. The rules between them separate instead.
  */
-const Stats = ({ content, children }: { content: HomeContent; children?: React.ReactNode }) => {
+const Stats = ({ content }: { content: HomeContent }) => {
   return (
     // Full bleed: the band runs the width of the window, so no container and no
     // corners. Only what is inside it is held to the page's column.
@@ -58,11 +58,6 @@ const Stats = ({ content, children }: { content: HomeContent; children?: React.R
             </motion.div>
           ))}
         </div>
-
-        {/* Whatever the page puts in this band alongside the numbers — the
-            search, today. Same column as the figures, well clear of them: it
-            is the thing people came to use, not a footnote to the count. */}
-        {children && <div className="mt-14 md:mt-20">{children}</div>}
       </div>
     </section>
   );
