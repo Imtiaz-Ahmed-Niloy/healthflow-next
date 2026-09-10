@@ -19,24 +19,40 @@ import { homePathForRole, type AppRole } from "@/lib/auth/permissions";
  * account already exists and this only signs them in.
  */
 
-const errorRedirect = (origin: string, message: string) =>
-  NextResponse.redirect(`${origin}/signin?error=${encodeURIComponent(message)}`);
+/**
+ * A redirect to a path on this site, with a RELATIVE Location header.
+ *
+ * Not NextResponse.redirect(`${origin}${path}`): behind nginx, `next start`
+ * builds `request.url` from its own host and port, so `origin` came out as
+ * http://localhost:3002 and a Google sign-up on healthflowbd.com landed on
+ * localhost. A relative Location is resolved by the browser against the
+ * address it is actually on — right in production, locally and behind any
+ * proxy, with no site-URL setting to keep in step.
+ *
+ * The session cookies exchangeCodeForSession wrote through next/headers are
+ * attached to this response the same as to any other.
+ */
+const redirectTo = (path: string) =>
+  new NextResponse(null, { status: 307, headers: { Location: path } });
+
+const errorRedirect = (message: string) =>
+  redirectTo(`/signin?error=${encodeURIComponent(message)}`);
 
 export const GET = async (request: Request) => {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
 
   const code = searchParams.get("code");
   // Google's own refusal — the user closed the consent screen, or the app is
   // misconfigured. `error_description` is the readable half.
   const providerError = searchParams.get("error_description") ?? searchParams.get("error");
-  if (providerError) return errorRedirect(origin, providerError);
-  if (!code) return errorRedirect(origin, "That sign-in link was incomplete. Try again.");
+  if (providerError) return errorRedirect(providerError);
+  if (!code) return errorRedirect("That sign-in link was incomplete. Try again.");
 
   const supabase = await createServerSupabase();
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error || !data.user) {
-    return errorRedirect(origin, error?.message ?? "Could not complete that sign-in.");
+    return errorRedirect(error?.message ?? "Could not complete that sign-in.");
   }
 
   /**
@@ -45,8 +61,8 @@ export const GET = async (request: Request) => {
    * which is worth more to an attacker than it sounds.
    */
   const next = searchParams.get("next");
-  if (next && next.startsWith("/") && !next.startsWith("//")) {
-    return NextResponse.redirect(`${origin}${next}`);
+  if (next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\")) {
+    return redirectTo(next);
   }
 
   // Otherwise the panel this person belongs in. Read from `profiles` rather
@@ -59,5 +75,5 @@ export const GET = async (request: Request) => {
     .eq("id", data.user.id)
     .maybeSingle();
 
-  return NextResponse.redirect(`${origin}${homePathForRole(profile?.role as AppRole | null)}`);
+  return redirectTo(homePathForRole(profile?.role as AppRole | null));
 };
