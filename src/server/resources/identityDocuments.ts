@@ -67,8 +67,16 @@ export const identityDocumentsResource: ResourceDefinition<
   createSchema: identityDocumentCreateSchema,
   updateSchema: identityDocumentUpdateSchema,
 
-  /** The reviewer needs to know whose document this is. */
-  select: "*, profiles ( id, full_name, email, phone, avatar_url )",
+  /**
+   * The reviewer needs to know whose document this is.
+   *
+   * Named by foreign key because the table reaches `profiles` twice — the
+   * owner (profile_id) and the super admin who reviewed it (reviewed_by) — and
+   * a bare `profiles ( … )` is ambiguous to PostgREST, which then refuses
+   * every read and every write that returns the row, uploads included. The
+   * result is still keyed `profiles`, so nothing reading it changes.
+   */
+  select: "*, profiles!identity_documents_profile_id_fkey ( id, full_name, email, phone, avatar_url )",
 
   searchFields: ["file_name", "document_number"],
   filterFields: ["status", "kind", "holder", "profile_id"],
