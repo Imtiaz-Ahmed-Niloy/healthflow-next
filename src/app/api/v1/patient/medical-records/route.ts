@@ -65,7 +65,7 @@ export const GET = async () => {
     .from("appointments")
     // One string literal, not a concatenation: supabase-js infers the row type
     // from the select text, and a concatenated one collapses to an error type.
-    .select("id, scheduled_date, scheduled_time, department, notes, bp_systolic, bp_diastolic, complaints, examination, investigation, diagnosis, medicines, advice, doctors ( name, specialty ), tenants ( name )")
+    .select("id, scheduled_date, scheduled_time, department, notes, bp_systolic, bp_diastolic, complaints, examination, investigation, diagnosis, medicines, advice, doctors ( name, specialty, education ), tenants ( name, address, contact_phone ), patients ( full_name, gender, date_of_birth, mrn, weight_kg, height_feet, height_inches )")
     .in("patient_id", patientIds)
     .eq("status", "completed")
     .order("scheduled_date", { ascending: false });
@@ -73,8 +73,12 @@ export const GET = async () => {
   if (error) return fail(error.message, 400);
 
   const visits = (data ?? []).map(row => {
-    const doctor = row.doctors as { name?: string; specialty?: string } | null;
-    const hospital = row.tenants as { name?: string } | null;
+    const doctor = row.doctors as { name?: string; specialty?: string; education?: string | null } | null;
+    const hospital = row.tenants as { name?: string; address?: string | null; contact_phone?: string | null } | null;
+    const patient = row.patients as {
+      full_name?: string; gender?: string | null; date_of_birth?: string | null; mrn?: string;
+      weight_kg?: number | null; height_feet?: number | null; height_inches?: number | null;
+    } | null;
     return {
       id: row.id,
       date: row.scheduled_date,
@@ -92,6 +96,32 @@ export const GET = async () => {
       diagnosis: strings(row.diagnosis),
       advice: strings(row.advice),
       medicines: medicines(row.medicines),
+      /**
+       * What the printed prescription's letterhead and patient bar need —
+       * the same sheet the doctor printed (PrescriptionPreview), so the
+       * patient's copy carries the same hospital, doctor and details.
+       */
+      sheet: {
+        hospital: {
+          name: hospital?.name ?? "Hospital",
+          address: hospital?.address ?? null,
+          contact_phone: hospital?.contact_phone ?? null,
+        },
+        doctor: {
+          name: doctor?.name ?? "Doctor",
+          specialty: doctor?.specialty ?? null,
+          education: doctor?.education ?? null,
+        },
+        patient: {
+          full_name: patient?.full_name ?? "",
+          gender: patient?.gender ?? null,
+          date_of_birth: patient?.date_of_birth ?? null,
+          mrn: patient?.mrn ?? "—",
+          weight_kg: patient?.weight_kg ?? null,
+          height_feet: patient?.height_feet ?? null,
+          height_inches: patient?.height_inches ?? null,
+        },
+      },
     };
   });
 

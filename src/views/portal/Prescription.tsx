@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Plus, ClipboardList, ClipboardCheck, FlaskConical, Stethoscope, Lightbulb, History, AlertTriangle, Users, Printer, X, Search, Check } from "lucide-react";
+import { PrescriptionPreview } from "@/components/common/PrescriptionPreview";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -624,12 +625,9 @@ type SidebarQueueEntry = {
     }
   }, [appointmentId, draftReady, complaints, examination, investigation, diagnosis, medicines, advice]);
 
-  // Prints #rx-print-area straight out of this page (see globals.css's
-  // @media print block) instead of the old popup-window-plus-Tailwind-CDN
-  // approach -- that raced window.print() against the CDN script still
-  // loading, so classes routinely hadn't applied yet and the PDF came out
-  // unstyled. This way the PDF is exactly what's already on screen.
-  const handlePrint = () => window.print();
+  // Printing lives in PrescriptionPreview now, the sheet shared with the
+  // patient's medical records — see that component for why it prints the
+  // page directly rather than a popup.
 
   const closeMedDialog = () => {
     setMedOpen(false);
@@ -1427,170 +1425,24 @@ type SidebarQueueEntry = {
       </div>
 
       {previewOpen && (
-        <div
-          className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto p-4 md:p-8 print:static print:block print:overflow-visible print:bg-transparent print:backdrop-blur-none print:p-0"
-          onClick={() => setPreviewOpen(false)}
-        >
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-4xl bg-white text-slate-900 rounded-2xl shadow-2xl my-4 print:static print:w-full print:max-w-none print:my-0 print:shadow-none print:rounded-none"
-          >
-            {/* Not part of the printed page -- hidden outright (not just via
-                the global print visibility rule) so it doesn't leave a blank
-                gap at the top of the PDF where it used to sit. */}
-            <div className="sticky top-0 z-10 flex items-center justify-between bg-white/95 backdrop-blur border-b border-slate-200 px-6 py-3 rounded-t-2xl print:hidden">
-              <p className="text-sm font-semibold text-slate-700">Prescription Preview</p>
-              <div className="flex items-center gap-2">
-                <button onClick={handlePrint} className="flex items-center gap-2 rounded-full bg-slate-900 text-white px-4 py-2 text-xs font-semibold hover:opacity-90">
-                  <Printer className="h-3.5 w-3.5" /> Print
-                </button>
-                <button onClick={() => setPreviewOpen(false)} className="rounded-full border border-slate-300 p-2 hover:bg-slate-100" aria-label="Close">
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            <div id="rx-print-area" className="px-10 py-8 font-serif text-slate-900 bg-[linear-gradient(to_bottom,#ffffff,#fbfbf6)]">
-              {/* Letterhead */}
-              <div className="flex items-start justify-between pb-4 border-b-2 border-slate-800">
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-full border-2 border-emerald-700 text-emerald-700 flex items-center justify-center font-bold text-xl">{hospital.name[0] ?? "H"}</div>
-                  <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-emerald-800">{hospital.name}</h1>
-                    <p className="text-[11px] text-slate-500 italic">
-                      {[hospital.address, hospital.contact_phone].filter(Boolean).join(" • ") || "Address not on file"}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <h2 className="text-lg font-bold text-slate-900">{doctor.name}</h2>
-                  <p className="text-[11px] text-slate-600 italic">{doctor.education || doctor.specialty || "—"}</p>
-                </div>
-              </div>
-
-              {/* Patient bar */}
-              <div className="grid grid-cols-2 md:grid-cols-4 print:grid-cols-4 gap-x-6 gap-y-2 py-3 border-b border-dashed border-slate-300 text-[12px]">
-                {[
-                  ["Name", patient.full_name],
-                  ["Age / Sex", `${ageLong(patient.age)} / ${genderLabel(patient.gender)}`],
-                  ["Patient ID", patient.mrn],
-                  ["Date", formatDate(appointment.scheduled_date)],
-                  ["Weight", patient.weight_kg != null ? `${patient.weight_kg} kg` : "—"],
-                  ["Height", heightLabel(patient.height_feet, patient.height_inches)],
-                  ["BP", bpLabel(appointment.bp_systolic, appointment.bp_diastolic)],
-                ].map(([l, v]) => (
-                  <div key={l} className="flex gap-1.5">
-                    <span className="text-slate-500">{l}:</span>
-                    <span className="font-semibold text-slate-900 truncate">{v}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Body: left clinical / right Rx */}
-              {/* md: only kicks in above 768px -- fine on screen (the modal
-                  is always that wide), but a printed page's content width
-                  (page size minus @page margins) is usually narrower than
-                  that, so md: never matched and this silently collapsed to
-                  one column in the PDF. print: isn't a width query, so it
-                  forces two columns for print regardless of paper size. */}
-              <div className="grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] print:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-0 min-h-[460px]">
-                {/* LEFT */}
-                <div className="md:pr-6 md:border-r print:pr-6 print:border-r border-slate-300 py-5 space-y-5">
-                  {[
-                    ["C/O", "Chief Complaints", complaints],
-                    ["O/E", "On Examination", examination],
-                    ["Inv", "Investigation", investigation],
-                    ["Dx", "Diagnosis", diagnosis],
-                  ].map(([abbr, title, items]) => (
-                    <div key={title as string}>
-                      <div className="flex items-baseline gap-2 mb-1.5">
-                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">{abbr as string}</span>
-                        <p className="text-[11px] tracking-widest font-semibold text-slate-500 uppercase">{title as string}</p>
-                      </div>
-                      {(items as string[]).length === 0 ? (
-                        <p className="text-xs italic text-slate-400 pl-1">—</p>
-                      ) : (
-                        <ul className="text-[13px] text-slate-800 leading-relaxed pl-1 space-y-0.5">
-                          {(items as string[]).map((it, i) => (
-                            <li key={i} className="flex gap-2"><span className="text-slate-400">›</span><span>{it}</span></li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* RIGHT */}
-                <div className="md:pl-6 print:pl-6 py-5 flex flex-col">
-                  <div className="flex items-end gap-2 -mb-1">
-                    <span className="text-6xl italic font-bold text-emerald-800 leading-none">℞</span>
-                    <span className="text-[10px] tracking-widest font-semibold text-slate-500 uppercase pb-2">Prescription</span>
-                  </div>
-
-                  <div className="mt-4 flex-1">
-                    {medicines.length === 0 ? (
-                      <p className="text-xs italic text-slate-400">No medicines prescribed.</p>
-                    ) : (
-                      <ol className="space-y-3">
-                        {medicines.map((m, i) => (
-                          <li key={i} className="grid grid-cols-[auto_1fr] gap-3">
-                            <span className="font-bold text-slate-900 text-sm pt-0.5">{i + 1}.</span>
-                            <div>
-                              <div className="flex items-baseline gap-2 flex-wrap">
-                                <span className="font-bold text-slate-900 text-[15px]">
-                                  {m.dosage_form && <span className="font-semibold text-slate-600">{m.dosage_form} </span>}
-                                  {m.name}
-                                </span>
-                                <span className="text-[11px] text-slate-600 italic">({m.dose})</span>
-                              </div>
-                              <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-[12px] text-slate-700 pl-1">
-                                <span><span className="text-slate-400">Sig:</span> <span className="font-semibold tracking-wider">{m.frequency}</span></span>
-                                <span><span className="text-slate-400">Duration:</span> <span className="font-semibold">{m.days}</span></span>
-                                <span className="italic text-slate-600">— {m.meal}</span>
-                              </div>
-                            </div>
-                          </li>
-                        ))}
-                      </ol>
-                    )}
-                  </div>
-
-                  {/* Advice */}
-                  <div className="mt-6 pt-4 border-t border-dashed border-slate-300">
-                    <p className="text-[11px] tracking-widest font-semibold text-slate-500 uppercase mb-2">Advice & Follow-up</p>
-                    {advice.length === 0 ? (
-                      <p className="text-xs italic text-slate-400">—</p>
-                    ) : (
-                      <ul className="text-[12.5px] text-slate-700 space-y-1 leading-relaxed">
-                        {advice.map((a, i) => (
-                          <li key={i} className="flex gap-2"><span className="text-emerald-700">•</span><span>{a}</span></li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer / signature */}
-              <div className="mt-6 pt-4 border-t-2 border-slate-800 flex items-end justify-between">
-                <div className="text-[10px] text-slate-500 italic max-w-xs">
-                  This prescription is digitally signed and valid without a physical signature. Please consult before any dose changes.
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl italic font-bold text-emerald-800 leading-none">HealthFlow</div>
-                  <div className="border-t border-slate-400 w-52 mt-1 pt-1 text-[11px] text-slate-600">
-                    <span className="font-semibold text-slate-900">{doctor.name}</span>
-                    <div className="text-[10px] text-slate-500">Digitally Signed</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </div>
+        <PrescriptionPreview
+          onClose={() => setPreviewOpen(false)}
+          sheet={{
+            hospital,
+            doctor,
+            patientBar: [
+              ["Name", patient.full_name],
+              ["Age / Sex", `${ageLong(patient.age)} / ${genderLabel(patient.gender)}`],
+              ["Patient ID", patient.mrn],
+              ["Date", formatDate(appointment.scheduled_date)],
+              ["Weight", patient.weight_kg != null ? `${patient.weight_kg} kg` : "—"],
+              ["Height", heightLabel(patient.height_feet, patient.height_inches)],
+              ["BP", bpLabel(appointment.bp_systolic, appointment.bp_diastolic)],
+            ],
+            complaints, examination, investigation, diagnosis, medicines, advice,
+          }}
+        />
       )}
-
       <Dialog open={vitalsOpen} onOpenChange={(o) => !savingVitals && setVitalsOpen(o)}>
         <DialogContent className="sm:max-w-[380px]">
           <DialogHeader>
