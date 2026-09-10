@@ -2705,6 +2705,59 @@ export type Database = {
         }
         Relationships: []
       }
+      patient_documents: {
+        Row: {
+          content_type: string | null
+          created_at: string
+          document_date: string | null
+          file_key: string
+          file_name: string | null
+          id: string
+          kind: Database["public"]["Enums"]["patient_document_kind"]
+          notes: string | null
+          profile_id: string
+          size_bytes: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content_type?: string | null
+          created_at?: string
+          document_date?: string | null
+          file_key: string
+          file_name?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["patient_document_kind"]
+          notes?: string | null
+          profile_id: string
+          size_bytes?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content_type?: string | null
+          created_at?: string
+          document_date?: string | null
+          file_key?: string
+          file_name?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["patient_document_kind"]
+          notes?: string | null
+          profile_id?: string
+          size_bytes?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_documents_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patient_history: {
         Row: {
           created_at: string
@@ -4304,6 +4357,14 @@ export type Database = {
       id_document_kind: "birth_certificate" | "nid" | "passport"
       id_verification_status: "pending" | "verified" | "rejected"
       journal_status: "draft" | "posted"
+      patient_document_kind:
+        | "prescription"
+        | "lab_report"
+        | "imaging"
+        | "discharge_summary"
+        | "vaccination"
+        | "insurance"
+        | "other"
       lab_order_status:
         | "pending"
         | "sample_collected"

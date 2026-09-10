@@ -60,12 +60,15 @@ const FOLDER_ROLES: Record<MediaFolder, AppRole[]> = {
   // A patient proving who they are (0068). Only they upload it; only a super
   // admin reviews it, and super_admin passes every folder anyway.
   identity: ["patient"],
+  // Their own medical paperwork (0076). Only the patient writes it, and only
+  // the patient ever reads it back.
+  records: ["patient"],
 };
 
 const uploadRequestSchema = z.object({
   folder: z.enum([
     "hospitals", "doctors", "announcements", "blog", "avatars", "community", "documents", "ads",
-    "identity",
+    "identity", "records",
   ]),
   contentType: z.enum([...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOCUMENT_TYPES]),
   size: z.number().int().positive(),
@@ -81,7 +84,8 @@ const folderRules = (folder: MediaFolder) => {
   if (folder === "documents") {
     return { types: ALLOWED_DOCUMENT_TYPES as readonly string[], maxBytes: MAX_DOCUMENT_BYTES, noun: "document" };
   }
-  if (folder === "identity") {
+  // Identity papers and medical records alike: a phone photo or a scanned PDF.
+  if (folder === "identity" || folder === "records") {
     return { types: ALLOWED_IDENTITY_TYPES as readonly string[], maxBytes: MAX_DOCUMENT_BYTES, noun: "document" };
   }
   return { types: ALLOWED_IMAGE_TYPES as readonly string[], maxBytes: MAX_IMAGE_BYTES, noun: "image" };
@@ -116,7 +120,7 @@ export const POST = async (request: Request) => {
     return fail(
       folder === "documents"
         ? "Licence documents must be PDFs."
-        : folder === "identity"
+        : folder === "identity" || folder === "records"
           ? "Upload a photo or a PDF of the document."
           : "That file type is not accepted here.",
       422,

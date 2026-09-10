@@ -75,7 +75,11 @@ export type MediaFolder =
   // A patient's own identity papers (0068): an NID photographed on a phone, a
   // passport page, a scanned birth certificate. Images as well as PDFs, since
   // this is the one thing people photograph rather than scan.
-  | "identity";
+  | "identity"
+  // A patient's own medical paperwork (0076): prescriptions, lab reports,
+  // scans. Photos or PDFs, private to the patient, served only through
+  // /api/v1/documents.
+  | "records";
 
 /**
  * Where an uploaded file lands.

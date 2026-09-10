@@ -40,6 +40,9 @@ import { r2Config, createR2Client, R2_BUCKET } from "@/lib/r2";
  *   - A patient's identity papers (0068), where the same trick works: the row
  *     is visible to the person it belongs to and to a super admin reviewing
  *     it, and to nobody else — not even the hospital treating them.
+ *
+ *   - A patient's own medical records (0076), under records/: visible to the
+ *     patient who uploaded them and to nobody else at all.
  */
 
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status });
@@ -63,7 +66,7 @@ const keySchema = z
   .string()
   .trim()
   .regex(
-    /^(documents|identity)\/\d{4}\/\d{2}\/[a-f0-9]{16}\.(pdf|png|jpg|webp|avif|svg)$/,
+    /^(documents|identity|records)\/\d{4}\/\d{2}\/[a-f0-9]{16}\.(pdf|png|jpg|webp|avif|svg)$/,
     "That is not a document key",
   );
 
@@ -79,6 +82,24 @@ export const GET = async (request: Request) => {
   if (!config) return fail("Uploads are not configured on this environment yet.", 503);
 
   const supabase = await createServerSupabase();
+
+  // A patient's own medical paperwork (0076). RLS shows the row to its owner
+  // and to nobody else, so seeing it at all is the answer. Only records/ keys
+  // live there; anything else falls through to the checks below.
+  if (key.startsWith("records/")) {
+    const { data: record, error: recordError } = await supabase
+      .from("patient_documents")
+      .select("id")
+      .eq("file_key", key)
+      .limit(1)
+      .maybeSingle();
+    if (recordError) return fail(recordError.message, 500);
+    if (!record) return fail("Document not found", 404);
+
+    const client = createR2Client(config);
+    const url = await getSignedUrl(client, new GetObjectCommand({ Bucket: R2_BUCKET, Key: key }), { expiresIn: 60 });
+    return NextResponse.redirect(url, { status: 307, headers: { "Cache-Control": "no-store" } });
+  }
 
   // A patient's identity paper. RLS shows the row to its owner and to a super
   // admin; anyone else sees nothing and gets the 404 below.

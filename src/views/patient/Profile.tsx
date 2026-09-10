@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  User, UserSquare2, HeartPulse, ShieldCheck, FolderOpen, Users, Plus, Trash2, Pencil, Save, X, Lock,
+  User, UserSquare2, HeartPulse, ShieldCheck, Users, Plus, Trash2, Pencil, Save, X, Lock,
   BadgeCheck,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -37,8 +37,10 @@ type HistoryEntry = {
   ongoing: boolean;
 };
 
-type Tab = "General" | "Clinical" | "Insurance" | "Documents" | "Family";
-const TABS: Tab[] = ["General", "Clinical", "Insurance", "Documents", "Family"];
+// No Documents tab: a patient's medical paperwork lives with their records on
+// /patient/medical-records (0076), beside the visits it belongs with.
+type Tab = "General" | "Clinical" | "Insurance" | "Family";
+const TABS: Tab[] = ["General", "Clinical", "Insurance", "Family"];
 
 const GENDERS = [
   { value: "female", label: "Female" },
@@ -652,12 +654,6 @@ const Profile = () => {
             icon={ShieldCheck}
             title="Insurance"
             reason="This tab showed a plan that did not exist. Recording a real one needs a decision first: whether a patient has one insurer or a history of them, since people change provider. Until that is settled, nothing here would be true."
-          />
-        ) : tab === "Documents" ? (
-          <NotYet
-            icon={FolderOpen}
-            title="Documents"
-            reason="Uploading and storing files is not built yet — the same blocker as staff documents. This tab used to list files that were never there."
           />
         ) : (
           <NotYet

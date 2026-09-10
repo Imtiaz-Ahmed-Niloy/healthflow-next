@@ -6,6 +6,9 @@ import { Activity, Share2, FileText, Stethoscope, Pill, ClipboardList } from "lu
 import { toast } from "sonner";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { PrescriptionPreview, type PrescriptionSheetData } from "@/components/common/PrescriptionPreview";
+import { useFormatters } from "@/lib/appSettings";
+import { PatientDocuments } from "@/components/patient/PatientDocuments";
 
 type Medicine = { name?: string; dosage_form?: string; dose?: string; frequency?: string; days?: string; meal?: string };
 
@@ -25,6 +28,15 @@ type Visit = {
   diagnosis: string[];
   advice: string[];
   medicines: Medicine[];
+  /** The printed prescription's letterhead and patient details. */
+  sheet: {
+    hospital: { name: string; address: string | null; contact_phone: string | null };
+    doctor: { name: string; specialty: string | null; education: string | null };
+    patient: {
+      full_name: string; gender: string | null; date_of_birth: string | null; mrn: string;
+      weight_kg: number | null; height_feet: number | null; height_inches: number | null;
+    };
+  };
 };
 
 type MedicineRow = {
@@ -54,6 +66,45 @@ const headline = (visit: Visit) =>
 
 type Filter = "all" | "prescriptions" | "diagnoses";
 
+/**
+ * Age on the day of the visit, the way the doctor's sheet printed it:
+ * days under two months, months under two years, years after that.
+ */
+const ageAt = (dob: string | null, on: string) => {
+  if (!dob) return "—";
+  const days = Math.floor((new Date(`${on}T00:00:00`).getTime() - new Date(`${dob}T00:00:00`).getTime()) / 86_400_000);
+  if (Number.isNaN(days) || days < 0) return "—";
+  if (days < 60) return `${days} Days`;
+  if (days < 730) return `${Math.floor(days / 30.44)} Months`;
+  return `${Math.floor(days / 365.25)} Years`;
+};
+
+const genderLabel = (g: string | null) => (g ? g[0].toUpperCase() + g.slice(1) : "—");
+
+/** A visit, as the sheet PrescriptionPreview prints — the same one the doctor printed. */
+const sheetFor = (v: Visit, formatDate: (d: string) => string): PrescriptionSheetData => {
+  const p = v.sheet.patient;
+  return {
+    hospital: v.sheet.hospital,
+    doctor: v.sheet.doctor,
+    patientBar: [
+      ["Name", p.full_name || "—"],
+      ["Age / Sex", `${ageAt(p.date_of_birth, v.date)} / ${genderLabel(p.gender)}`],
+      ["Patient ID", p.mrn],
+      ["Date", formatDate(v.date)],
+      ["Weight", p.weight_kg != null ? `${p.weight_kg} kg` : "—"],
+      ["Height", p.height_feet != null ? `${p.height_feet} ft ${p.height_inches ?? 0} in` : "—"],
+      ["BP", v.blood_pressure ?? "—"],
+    ],
+    complaints: v.complaints,
+    examination: v.examination,
+    investigation: v.investigation,
+    diagnosis: v.diagnosis,
+    medicines: v.medicines,
+    advice: v.advice,
+  };
+};
+
 const MedicalRecords = () => {
   const [visits, setVisits] = useState<Visit[]>([]);
   const [medicines, setMedicines] = useState<MedicineRow[]>([]);
@@ -64,6 +115,11 @@ const MedicalRecords = () => {
   const [filter, setFilter] = useState<Filter>("all");
   const [openVisit, setOpenVisit] = useState<Visit | null>(null);
   const [medOpen, setMedOpen] = useState(false);
+  // The visit whose printed prescription is open.
+  const [rxVisit, setRxVisit] = useState<Visit | null>(null);
+  const { formatDate } = useFormatters();
+
+  const openPrescription = (v: Visit) => { setOpenVisit(null); setRxVisit(v); };
 
   useEffect(() => {
     const load = async () => {
@@ -167,9 +223,13 @@ const MedicalRecords = () => {
                       {latest.doctor_specialty ?? latest.hospital_name ?? ""}
                     </p>
                     <div className="mt-auto pt-6 flex gap-2">
-                      <button onClick={() => setOpenVisit(latest)}
+                      <button onClick={() => openPrescription(latest)}
                         className="flex-1 flex items-center justify-center gap-2 rounded-full bg-gradient-dark text-surface-dark-foreground px-4 py-2.5 text-xs font-semibold shadow-glow">
-                        <FileText className="h-3.5 w-3.5" /> Full Report
+                        <FileText className="h-3.5 w-3.5" /> Prescription
+                      </button>
+                      <button onClick={() => setOpenVisit(latest)}
+                        className="flex items-center justify-center gap-2 rounded-full border border-border px-4 py-2.5 text-xs font-semibold text-primary hover:bg-chip">
+                        Full Report
                       </button>
                       <button
                         onClick={() => { navigator.clipboard?.writeText(window.location.href); toast.success("Link copied"); }}
@@ -263,17 +323,25 @@ const MedicalRecords = () => {
             ) : (
               <div className="mt-5 space-y-2">
                 {filtered.map(v => (
-                  <button
-                    key={v.id}
-                    onClick={() => setOpenVisit(v)}
-                    className="w-full text-left flex flex-wrap items-baseline gap-x-4 gap-y-1 px-4 py-3 rounded-xl hover:bg-muted/30 transition-colors"
-                  >
-                    <p className="font-semibold text-primary">{headline(v)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {[v.doctor_name, v.hospital_name].filter(Boolean).join(" · ")}
-                    </p>
-                    <p className="text-sm text-foreground/70 ml-auto">{dateLabel(v.date)}</p>
-                  </button>
+                  <div key={v.id} className="flex items-center gap-2 rounded-xl hover:bg-muted/30 transition-colors">
+                    <button
+                      onClick={() => setOpenVisit(v)}
+                      className="flex-1 min-w-0 text-left flex flex-wrap items-baseline gap-x-4 gap-y-1 px-4 py-3"
+                    >
+                      <p className="font-semibold text-primary">{headline(v)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {[v.doctor_name, v.hospital_name].filter(Boolean).join(" · ")}
+                      </p>
+                      <p className="text-sm text-foreground/70 ml-auto">{dateLabel(v.date)}</p>
+                    </button>
+                    <button
+                      onClick={() => openPrescription(v)}
+                      className="mr-2 shrink-0 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-primary hover:bg-chip"
+                      aria-label={`Prescription from ${dateLabel(v.date)}`}
+                    >
+                      <FileText className="h-3.5 w-3.5" /> Prescription
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
@@ -289,6 +357,11 @@ const MedicalRecords = () => {
           */}
         </>
       )}
+
+      {/* The patient's own paperwork. Outside the visits branch on purpose:
+          someone new to HealthFlow has no visits yet, and is exactly the person
+          arriving with a folder of old prescriptions and reports. */}
+      {!loading && !failed && <PatientDocuments />}
 
       {/* One visit, in full */}
       <Dialog open={!!openVisit} onOpenChange={o => !o && setOpenVisit(null)}>
@@ -306,6 +379,12 @@ const MedicalRecords = () => {
 
           {openVisit && (
             <div className="space-y-5 text-sm">
+              <button
+                onClick={() => openPrescription(openVisit)}
+                className="inline-flex items-center gap-2 rounded-full bg-gradient-dark text-surface-dark-foreground px-4 py-2 text-xs font-semibold shadow-glow"
+              >
+                <FileText className="h-3.5 w-3.5" /> View prescription
+              </button>
               {openVisit.blood_pressure && (
                 <section>
                   <p className="text-[10px] tracking-widest font-bold text-muted-foreground">VITALS</p>
@@ -367,6 +446,11 @@ const MedicalRecords = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* The printed prescription — the same sheet the doctor printed. */}
+      {rxVisit && (
+        <PrescriptionPreview sheet={sheetFor(rxVisit, formatDate)} onClose={() => setRxVisit(null)} />
+      )}
 
       {/* Every medicine, across every visit */}
       <Dialog open={medOpen} onOpenChange={setMedOpen}>
