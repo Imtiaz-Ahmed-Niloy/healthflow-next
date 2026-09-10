@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { NavLink } from "@/components/NavLink";
 import { useRouter } from "next/navigation";
@@ -55,6 +56,25 @@ export const PortalSidebar = () => (
 export const PortalTopbar = () => {
   const router = useRouter();
   const { user, signOut } = useSession();
+  const [doctorPhoto, setDoctorPhoto] = useState<string | null>(null);
+
+  // A doctor's photo lives on `doctors`, not on their profile, so the session
+  // alone only ever had initials to draw. /portal/me answers null for anyone
+  // who is not a doctor, and they keep their profile picture.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/v1/portal/me");
+        const body = await res.json();
+        if (!cancelled && res.ok) setDoctorPhoto(body.data?.photo_url ?? null);
+      } catch {
+        // No photo is not worth an error in the header; initials still draw.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <header className="bg-card border-b border-border/50">
       <div className="flex items-center justify-between px-8 py-4">
@@ -69,7 +89,7 @@ export const PortalTopbar = () => {
               <p className="font-semibold text-sm text-primary leading-tight">{displayName(user)}</p>
               <p className="text-[10px] tracking-widest font-bold text-primary-glow">{roleLabel(user?.role).toUpperCase()}</p>
             </div>
-            <Avatar src={user?.avatarUrl} name={displayName(user)} />
+            <Avatar src={doctorPhoto ?? user?.avatarUrl} name={displayName(user)} />
           </div>
           <button onClick={async () => { await signOut(); toast.success("Signed out"); router.replace("/signin"); router.refresh(); }}
             className="flex items-center gap-2 text-sm font-semibold text-foreground/70 hover:text-destructive">

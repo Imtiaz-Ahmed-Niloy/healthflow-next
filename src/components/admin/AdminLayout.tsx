@@ -99,8 +99,28 @@ const TopbarInner = ({ title, subtitle, onMenu, menuOpen, hospital }: { title: s
   const [palette, setPalette] = useState(false);
   const [drawer, setDrawer] = useState(false);
   const { user, signOut } = useSession();
+  const [hospitalLogo, setHospitalLogo] = useState<{ src: string; name: string } | null>(null);
+
+  // The admin's own hospital logo, in place of their initials. Only a
+  // hospital_admin gets an answer; everyone else sees 403 here and keeps
+  // their own picture.
   useEffect(() => {
-    const f = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setPalette(true); } };
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/v1/hospital/profile");
+        const body = await res.json();
+        const logo = res.ok ? body.data?.logo_url : null;
+        if (!cancelled && logo) setHospitalLogo({ src: logo, name: body.data?.name ?? "Hospital" });
+      } catch {
+        // No logo is not worth an error in the header.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    const f =(e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setPalette(true); } };
     window.addEventListener("keydown", f);
     return () => window.removeEventListener("keydown", f);
   }, []);
@@ -132,8 +152,12 @@ const TopbarInner = ({ title, subtitle, onMenu, menuOpen, hospital }: { title: s
                 <p className="font-semibold text-sm text-primary leading-tight truncate max-w-[180px]">{displayName(user)}</p>
                 <p className="text-[10px] tracking-widest font-bold text-primary-glow">{roleLabel(user?.role).toUpperCase()}</p>
               </div>
-              {/* Initials until there is a picture — Avatar decides. */}
-              <Avatar src={user?.avatarUrl} name={displayName(user)} />
+              {/* The hospital logo when there is one, contained rather than
+                  cropped. Otherwise the person: initials until there is a
+                  picture — Avatar decides. */}
+              {hospitalLogo
+                ? <Avatar src={hospitalLogo.src} name={hospitalLogo.name} className="h-10 w-10 object-contain bg-white border border-border/60 p-0.5" />
+                : <Avatar src={user?.avatarUrl} name={displayName(user)} />}
             </div>
             <button onClick={async () => { await signOut(); toast.success("Signed out"); router.replace("/signin"); router.refresh(); }}
               className="hidden md:flex items-center gap-2 text-sm font-semibold text-foreground/70 hover:text-destructive">

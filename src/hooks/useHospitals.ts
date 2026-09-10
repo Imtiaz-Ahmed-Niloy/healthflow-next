@@ -5,7 +5,6 @@ import { mediaUrl } from "@/lib/media";
 import { parseWeek, summariseWeek } from "@/lib/hours";
 import { supabase } from "@/lib/supabase/client";
 const atriumFallback = "/assets/hub-atrium.jpg";
-const doctorFallback = "/assets/doctors/doc-1.jpg";
 
 const DOCTORS_KEY = "hf:doctors";
 const LAB_CATALOG_KEY = "hf:lab-catalog";
@@ -67,7 +66,7 @@ export const mapAdminDoctor = (d: AdminDoctor): Doctor => ({
   rating: Number(d.rating) || 4.7,
   fee: Number(d.fee) || 100,
   available: d.available || "Mon-Fri",
-  photo: d.photo || doctorFallback,
+  photo: mediaUrl(d.photo),
   education: d.education || "MBBS",
   languages: (d.languages || "English").split(",").map(s => s.trim()).filter(Boolean),
   patients: Number(d.patients) || 100,
@@ -152,31 +151,6 @@ const socialLinks = (value: unknown): { platform: string; url: string }[] => {
   });
 };
 
-const maleAvatars = ["/assets/doctors/male-1.jpg", "/assets/doctors/male-2.jpg", "/assets/doctors/male-3.jpg"];
-const femaleAvatars = ["/assets/doctors/female-1.jpg", "/assets/doctors/female-2.jpg", "/assets/doctors/female-3.jpg"];
-
-/**
- * Placeholder headshot for a doctor with no photo_url of their own.
- *
- * Only ever a placeholder — a real uploaded photo always wins, and this is
- * never shown as though it were the actual person.
- *
- * The face is picked from a hash of the name, not at random: a random pick
- * would hand the same doctor a different face on every render and disagree
- * between the server and client passes, which React reports as a hydration
- * mismatch. Hashing keeps it stable and spreads the six images out so a
- * roster does not read as one person repeated.
- *
- * `other` and an unset gender fall through to the neutral image rather than
- * being assigned one of the two gendered sets.
- */
-const avatarFor = (name: string, gender: string | null): string => {
-  const pool = gender === "male" ? maleAvatars : gender === "female" ? femaleAvatars : null;
-  if (!pool) return doctorFallback;
-  let hash = 0;
-  for (let i = 0; i < name.length; i += 1) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-  return pool[hash % pool.length];
-};
 
 /** One row of `public.doctors_public` (0022, gender added in 0023). */
 type PublicDoctor = {
@@ -213,7 +187,7 @@ const mapPublicToDoctor = (r: PublicDoctor): Doctor => ({
   rating: Number(r.rating) || 0,
   fee: Number(r.consultation_fee) || 0,
   available: r.availability || "By appointment",
-  photo: r.photo_url || avatarFor(r.name || "", r.gender),
+  photo: mediaUrl(r.photo_url),
   education: r.education || "",
   languages: splitList(r.languages),
   patients: Number(r.patients_treated) || 0,

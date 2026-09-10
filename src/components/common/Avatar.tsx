@@ -1,6 +1,7 @@
 "use client";
 
 import { mediaUrl } from "@/lib/media";
+import { cn } from "@/lib/utils";
 
 /**
  * Somebody's picture, or their initials.
@@ -24,9 +25,12 @@ export const Avatar = ({
 }) => {
   const url = mediaUrl(src);
 
-  const initials = name
-    .trim()
-    .split(/\s+/)
+  // "Dr. Rahim Uddin" is RU, not DR: a part ending in a dot is a title or an
+  // abbreviation (Dr., Prof., Md.), not a name.
+  const parts = name.trim().split(/\s+/);
+  const nameParts = parts.filter(part => !part.endsWith("."));
+
+  const initials = (nameParts.length ? nameParts : parts)
     .map(part => part[0] ?? "")
     .slice(0, 2)
     .join("")
@@ -38,7 +42,7 @@ export const Avatar = ({
         src={url}
         alt={name}
         loading="lazy"
-        className={`${className} rounded-full object-cover bg-muted`}
+        className={cn("rounded-full object-cover bg-muted", className)}
       />
     );
   }
@@ -46,7 +50,7 @@ export const Avatar = ({
   return (
     <div
       aria-label={name}
-      className={`${className} rounded-full bg-gradient-dark grid place-items-center text-surface-dark-foreground text-xs font-bold shrink-0`}
+      className={cn("rounded-full bg-gradient-dark grid place-items-center text-surface-dark-foreground text-xs font-bold shrink-0", className)}
     >
       {initials}
     </div>

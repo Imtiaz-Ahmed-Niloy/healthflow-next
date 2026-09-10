@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Star, Calendar, Video, ArrowLeft, Search, MapPin, SlidersHorizontal, X, Stethoscope } from "lucide-react";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
+import { Avatar } from "@/components/common/Avatar";
 import { specialtyTabs as tabs } from "@/data/doctors";
 import { useDoctors } from "@/hooks/useDoctors";
 import { BD_DIVISIONS, BD_LOCATIONS } from "@/data/bdLocations";
@@ -219,7 +220,7 @@ const Doctors = () => {
                 >
                   <Link href={`/doctors/${d.slug}`} className="block group">
                     <div className="flex items-start gap-3">
-                      <img src={d.img} alt={d.name} width={64} height={64} loading="lazy" className="h-16 w-16 rounded-full object-cover" />
+                      <Avatar src={d.img} name={d.name} className="h-16 w-16 text-lg" />
                       <div>
                         <h3 className="font-display text-lg leading-tight text-primary group-hover:text-primary-glow transition-colors">{d.name}</h3>
                         <p className="text-xs font-semibold text-primary-glow mt-0.5">{d.specialty}</p>

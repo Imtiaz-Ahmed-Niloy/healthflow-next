@@ -20,7 +20,8 @@ export type Doctor = {
   rating: number;
   fee: number;
   available: string;
-  photo: string;
+  /** Null when the doctor has no photo: the card draws their initials. */
+  photo: string | null;
   education: string;
   languages: string[];
   patients: number;

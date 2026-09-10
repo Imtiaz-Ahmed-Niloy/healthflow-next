@@ -3,6 +3,7 @@
 import { forwardRef, useMemo } from "react";
 import Link from "next/link";
 import TiltCard from "@/components/site/TiltCard";
+import { Avatar } from "@/components/common/Avatar";
 import { Star, CalendarClock, Video, ArrowRight, MapPin, FilterX } from "lucide-react";
 import { useDoctors, type UIDoctor } from "@/hooks/useDoctors";
 
@@ -30,7 +31,7 @@ const SpecialistCard = ({ d, i }: { d: UIDoctor; i: number }) => (
           {/* The photo pushes in slightly and picks up a ring: enough to say the
               card is live, not enough to jump. */}
           <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full ring-2 ring-transparent transition-all duration-300 group-hover:ring-accent">
-            <img src={d.img} alt={d.name} width={64} height={64} loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110 motion-reduce:group-hover:scale-100" />
+            <Avatar src={d.img} name={d.name} className="h-full w-full text-lg transition-transform duration-500 group-hover:scale-110 motion-reduce:group-hover:scale-100" />
           </div>
           <div>
             <h3 className="font-display text-lg leading-tight text-primary group-hover:text-primary-glow transition-colors">{d.name}</h3>

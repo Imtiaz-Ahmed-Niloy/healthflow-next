@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
+import { Avatar } from "@/components/common/Avatar";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useHospital } from "@/hooks/useHospitals";
@@ -385,14 +386,21 @@ const HospitalDetail = () => {
                 className="group relative rounded-3xl bg-card border border-border/60 overflow-hidden hover:shadow-card hover:-translate-y-1.5 transition-all duration-500"
               >
                 <div className="relative h-56 overflow-hidden bg-gradient-to-br from-accent/40 to-primary/10">
-                  <img
-                    src={d.photo}
-                    alt={d.name}
-                    loading="lazy"
-                    width={512}
-                    height={512}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  />
+                  {d.photo ? (
+                    <img
+                      src={d.photo}
+                      alt={d.name}
+                      loading="lazy"
+                      width={512}
+                      height={512}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
+                  ) : (
+                    // No photo: initials, lifted clear of the name along the bottom.
+                    <div className="grid h-full w-full place-items-center pb-12">
+                      <Avatar src={null} name={d.name} className="h-20 w-20 text-2xl" />
+                    </div>
+                  )}
                   <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-primary/10 to-transparent opacity-90" />
                   <div className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-card/95 backdrop-blur px-2.5 py-1 text-[11px] font-semibold text-primary">
                     <Star className="h-3 w-3 fill-accent text-accent" />{d.rating}

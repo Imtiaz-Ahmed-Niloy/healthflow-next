@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
+import { Avatar } from "@/components/common/Avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -134,7 +135,7 @@ const FindDoctors = () => {
               <motion.div key={d.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.06, 0.4) }}
                 whileHover={{ y: -3 }} className="rounded-2xl bg-card border border-border/60 p-5 shadow-soft">
                 <Link href={`/doctors/${d.slug}`} className="flex gap-4">
-                  <img src={d.img} alt={d.name} loading="lazy" width={64} height={64} className="h-16 w-16 rounded-full object-cover" />
+                  <Avatar src={d.img} name={d.name} className="h-16 w-16 text-lg" />
                   <div>
                     <p className="font-semibold text-primary">{d.name}</p>
                     <p className="text-xs text-primary-glow font-semibold">{d.specialty}</p>
@@ -164,7 +165,7 @@ const FindDoctors = () => {
           {booking && (
             <form onSubmit={handleConfirm} className="space-y-4 mt-2">
               <div className="flex items-center gap-3 rounded-xl bg-chip/40 p-3">
-                <img src={booking.img} alt={booking.name} className="h-12 w-12 rounded-full object-cover" />
+                <Avatar src={booking.img} name={booking.name} className="h-12 w-12 text-base" />
                 <div>
                   <p className="font-semibold text-primary text-sm">{booking.name}</p>
                   <p className="text-xs text-primary-glow">{booking.specialty} · {booking.hospital.name}</p>

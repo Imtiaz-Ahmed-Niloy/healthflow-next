@@ -7,6 +7,7 @@ import { ArrowLeft, Star, Calendar, Languages, GraduationCap, Award, Heart, Mail
 import { toast } from "sonner";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
+import { Avatar } from "@/components/common/Avatar";
 import { useDoctors } from "@/hooks/useDoctors";
 import { useHospitals } from "@/hooks/useHospitals";
 import { useMemo } from "react";
@@ -102,7 +103,13 @@ const DoctorDetail = () => {
           className="grid lg:grid-cols-[360px_1fr] gap-8">
           <div className="rounded-3xl bg-card border border-border/60 overflow-hidden shadow-card sticky top-24 self-start">
             <div className="relative aspect-[4/5] bg-gradient-to-br from-accent/40 to-primary/10">
-              <img src={d.photo} alt={d.name} className="absolute inset-0 w-full h-full object-cover" />
+              {d.photo ? (
+                <img src={d.photo} alt={d.name} className="absolute inset-0 w-full h-full object-cover" />
+              ) : (
+                <div className="absolute inset-0 grid place-items-center">
+                  <Avatar src={null} name={d.name} className="h-36 w-36 text-5xl" />
+                </div>
+              )}
               <span className="absolute top-4 left-4 inline-flex items-center gap-1 rounded-full bg-card/95 backdrop-blur px-3 py-1 text-xs font-semibold text-primary">
                 <Star className="h-3 w-3 fill-accent text-accent" />{d.rating}
               </span>
@@ -184,7 +191,13 @@ const DoctorDetail = () => {
                 <div className="grid sm:grid-cols-3 gap-4">
                   {peers.map(({ d: p }) => (
                     <Link key={p.slug} href={`/doctors/${p.slug}`} className="group rounded-2xl bg-card border border-border/60 p-4 hover:shadow-soft transition-all">
-                      <img src={p.photo} alt={p.name} className="w-full h-32 rounded-xl object-cover" />
+                      {p.photo ? (
+                        <img src={p.photo} alt={p.name} className="w-full h-32 rounded-xl object-cover" />
+                      ) : (
+                        <div className="grid h-32 w-full place-items-center rounded-xl bg-gradient-to-br from-accent/40 to-primary/10">
+                          <Avatar src={null} name={p.name} className="h-16 w-16 text-lg" />
+                        </div>
+                      )}
                       <p className="font-semibold text-primary text-sm mt-3 group-hover:underline">{p.name}</p>
                       <p className="text-[11px] text-muted-foreground">{p.specialty}</p>
                     </Link>

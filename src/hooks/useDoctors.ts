@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { mediaUrl } from "@/lib/media";
 
 export type DBDoctor = {
   id: string;
@@ -42,12 +43,12 @@ export type UIDoctor = {
   time: string;
   mode: "Telehealth" | "In-Person";
   gender: "male" | "female" | "other" | null;
-  img: string;
+  img: string | null;
   slug: string;
   experience: number;
   fee: number;
   available: string;
-  photo: string;
+  photo: string | null;
   education: string;
   languages: string[];
   patients: number;
@@ -77,23 +78,12 @@ const getCategoryFromSpecialty = (spec: string): string => {
   return "General Medicine";
 };
 
-const doctorFallback = "/assets/doctors/doc-1.jpg";
-const maleFallbacks = ["/assets/doctors/male-1.jpg", "/assets/doctors/male-2.jpg", "/assets/doctors/male-3.jpg"];
-const femaleFallbacks = ["/assets/doctors/female-1.jpg", "/assets/doctors/female-2.jpg", "/assets/doctors/female-3.jpg"];
-
-/** Picks deterministically from a doctor's own id, so the same doctor always
- * gets the same fallback face instead of one that changes on every render. */
-const fallbackPhotoFor = (d: DBDoctor): string => {
-  const pool = d.gender === "male" ? maleFallbacks : d.gender === "female" ? femaleFallbacks : null;
-  if (!pool) return doctorFallback;
-  const index = d.id.charCodeAt(0) % pool.length;
-  return pool[index];
-};
-
 export const mapDBDoctorToUI = (d: DBDoctor): UIDoctor => {
   const rating = Number(d.rating) || 4.5;
   const reviews = Math.floor(rating * 20);
-  const photo = d.photo_url || fallbackPhotoFor(d);
+  // The uploaded photo or nothing. A stock face would pass for the actual
+  // doctor; with no photo the cards draw initials instead (see Avatar).
+  const photo = mediaUrl(d.photo_url);
 
   const locationParts = [d.location, d.district, d.division].filter(Boolean);
   const locationStr = locationParts.join(", ") || "Bangladesh";
