@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { NavLink } from "@/components/NavLink";
 import { useRouter } from "next/navigation";
-import { LayoutGrid, Users, BookUser, Calendar, LogOut, Bell, Settings, BookOpen, MessagesSquare } from "lucide-react";
+import { LayoutGrid, Users, BookUser, Calendar, LogOut, Bell, Settings, BookOpen, MessagesSquare, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import LanguageSwitcher from "@/components/site/LanguageSwitcher";
 import { HeaderClock } from "@/components/common/HeaderClock";
@@ -27,6 +27,7 @@ const links = [
   { to: "/portal/directory", icon: BookUser, label: "Patient Directory" },
   { to: "/portal/schedule", icon: Calendar, label: "Schedule" },
   { to: "/portal/community", icon: MessagesSquare, label: "Community" },
+  { to: "/portal/profile", icon: UserRound, label: "My Profile" },
   { to: "/portal/user-guide", icon: BookOpen, label: "User Guide" },
 ];
 

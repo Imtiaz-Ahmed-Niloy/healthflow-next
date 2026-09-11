@@ -35,6 +35,11 @@ export const doctorCreateSchema = z.object({
     (value) => (value === "" ? undefined : value),
   ),
   phone: optionalText,
+  // Bangladesh Medical & Dental Council registration — the one number that
+  // identifies a doctor across hospitals.
+  bmdc_number: z.string().trim().max(40).optional().or(z.literal("")).transform(
+    (value) => (value === "" ? undefined : value),
+  ),
   gender: doctorGender.optional(),
   photo_url: optionalText,
   experience_years: optionalNumber,
@@ -59,7 +64,7 @@ export const doctorsResource: ResourceDefinition<DoctorCreate, DoctorUpdate> = {
   tenantScoped: true,
   createSchema: doctorCreateSchema,
   updateSchema: doctorUpdateSchema,
-  searchFields: ["name", "specialty", "email"],
+  searchFields: ["name", "specialty", "email", "bmdc_number"],
   filterFields: ["status", "specialty", "gender"],
   defaultSort: { column: "created_at", ascending: false },
   roles: {
@@ -75,9 +80,11 @@ export const doctorsResource: ResourceDefinition<DoctorCreate, DoctorUpdate> = {
    * JWT, so the account kept reading the hospital's patients, appointments and
    * wards long after the doctor was gone.
    *
-   * The account itself is left alive on purpose: a doctor may work at more
-   * than one hospital, so this severs the employment, not the person. See
-   * 0038_revoke_staff_access.sql.
+   * A doctor may work at more than one hospital (0077), so this severs the
+   * employment, not the person: release_doctor_affiliation revokes the login
+   * only when this was their last hospital, and otherwise just moves their
+   * main hospital elsewhere and signs them out so the next token drops this
+   * one. See 0038_revoke_staff_access.sql and 0077_multi_hospital_doctors.sql.
    */
   beforeDelete: async ({ id }) => {
     // The caller's own client, so a hospital_admin from another tenant sees
@@ -93,8 +100,8 @@ export const doctorsResource: ResourceDefinition<DoctorCreate, DoctorUpdate> = {
     // would turn every delete of an already-gone row into a confusing 409.
     if (error || !doctor?.profile_id) return;
 
-    const { error: revokeError } = await createAdminSupabase().rpc("revoke_staff_access", {
-      p_profile_id: doctor.profile_id,
+    const { error: revokeError } = await createAdminSupabase().rpc("release_doctor_affiliation", {
+      p_doctor_id: id,
     });
 
     // Refuse the delete rather than complete it. A doctor still on the list is

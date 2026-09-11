@@ -8,7 +8,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Building2, ShieldCheck, FileBarChart, Package, Globe2, ListChecks,
   FileCode2, Receipt, Settings, LogOut, Bell, Menu, X, Network, Megaphone, LifeBuoy, ScrollText, Mail,
-  ChevronDown,
+  ChevronDown, Stethoscope, Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { NotificationProvider, useNotifications } from "@/components/admin/NotificationProvider";
@@ -28,6 +28,10 @@ export const superNav = [
   // No separate onboarding queue: Hospital Management lists every hospital and
   // `pending` is the queue. /super/onboarding redirects there.
   { to: "/super/hospitals", icon: Building2, label: "Hospital Management", group: "Tenants" },
+  // People, not hospital rows: one entry per doctor or patient however many
+  // hospitals they're at (0077).
+  { to: "/super/doctors", icon: Stethoscope, label: "Doctors", group: "Tenants" },
+  { to: "/super/patients", icon: Users, label: "Patients", group: "Tenants" },
   { to: "/super/roles", icon: ShieldCheck, label: "User Role Management", group: "Tenants" },
   { to: "/super/package-management", icon: Package, label: "Package Management", group: "Tenants" },
   { to: "/super/logs", icon: FileBarChart, label: "Log Reports", group: "Monitoring" },

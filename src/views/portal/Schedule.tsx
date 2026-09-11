@@ -15,6 +15,7 @@ type Appointment = {
   reason: string | null;
   status: "scheduled" | "completed" | "cancelled";
   in_consultation: boolean;
+  hospital: { id: string; name: string };
   patient: {
     id: string;
     full_name: string;
@@ -81,6 +82,10 @@ const Schedule = () => {
     };
     loadAppointments();
   }, []);
+
+  // Only a doctor whose appointments span hospitals needs to be told which
+  // one each is at.
+  const multiHospital = useMemo(() => new Set(appointments.map(a => a.hospital?.id)).size > 1, [appointments]);
 
   const appointmentsByDate = useMemo(() => {
     const map: Record<string, Appointment[]> = {};
@@ -188,6 +193,7 @@ const Schedule = () => {
                     </div>
                     <p className="font-semibold text-primary mt-3">{a.patient?.full_name || "Unknown Patient"}</p>
                     <p className="text-xs text-muted-foreground mt-1">{a.reason || "No reason specified"}</p>
+                    {multiHospital && <p className="text-xs font-semibold text-primary-glow mt-1">{a.hospital.name}</p>}
                     <div className="flex items-center gap-2 mt-3">
                       <div className="h-5 w-5 rounded-full bg-chip flex items-center justify-center font-display text-[9px] text-primary">
                         {initials(a.patient?.full_name ?? "?")}
@@ -304,7 +310,7 @@ const Schedule = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-primary">{a.patient?.full_name || "Unknown Patient"}</p>
-                    <p className="text-xs text-muted-foreground">{a.reason || "No reason specified"}</p>
+                    <p className="text-xs text-muted-foreground">{a.reason || "No reason specified"}{multiHospital && ` · ${a.hospital.name}`}</p>
                   </div>
                   <span className="hidden md:inline text-[11px] text-foreground/70 bg-muted/50 px-2 py-1 rounded-md capitalize">{a.priority} Priority</span>
                   <span className={`text-xs px-2 py-1 rounded-full font-bold uppercase ${a.status === "completed" ? "bg-emerald-500/10 text-emerald-500" : a.status === "cancelled" ? "bg-destructive/15 text-destructive" : "bg-chip text-primary"}`}>

@@ -40,6 +40,7 @@ type Doctor = {
   specialty: string;
   email: string;
   phone: string;
+  bmdc_number?: string;
   gender: string;
   status: string;
   education: string;
@@ -119,6 +120,15 @@ const DirectoryTab = () => {
         toast.error("Could not create login", { description: body?.error?.message ?? "Please try again." });
         return;
       }
+      if (body.data?.linked) {
+        // Already a HealthFlow doctor at another hospital: no new account and
+        // no password to hand over — they sign in the way they always have.
+        dispatch(invalidateResource("doctors", doctor.id));
+        toast.success(`Linked to ${body.data.name}'s existing account`, {
+          description: "They sign in with their own login and will see your hospital in their portal.",
+        });
+        return;
+      }
       setCreds({ doctor: doctor.name, ...body.data });
       // Bypassed doctorsApi's own mutations (this isn't CRUD on the doctor
       // row itself), so the cache doesn't know profile_id changed — without
@@ -144,6 +154,10 @@ const DirectoryTab = () => {
         // which is how three demo doctors ended up unusable.
         if (body?.error?.code === "no_saved_password") {
           setPendingReset(doctor);
+          return;
+        }
+        if (body?.error?.code === "shared_login") {
+          toast.info("This doctor has their own account", { description: body.error.message });
           return;
         }
         toast.error("Could not load login", { description: body?.error?.message ?? "Please try again." });
@@ -180,7 +194,7 @@ const DirectoryTab = () => {
       <ResourcePage<Doctor> config={{
     storeKey: "doctors",
     resource: "doctors",
-    searchFields: ["name", "specialty", "email"],
+    searchFields: ["name", "specialty", "email", "bmdc_number"],
     statuses: ["active", "on_leave", "suspended"],
     rowActions: r => (
       <button
@@ -224,6 +238,7 @@ const DirectoryTab = () => {
       { name: "languages", label: "Languages (comma separated)", type: "text" },
       { name: "availability", label: "Availability (e.g. Mon–Fri 09:00–17:00)", type: "text" },
       { name: "email", label: "Email", type: "email", required: true },
+      { name: "bmdc_number", label: "BMDC registration no.", type: "text" },
       { name: "phone", label: "Phone", type: "tel" },
       { name: "status", label: "Status", type: "select", options: ["active", "on_leave", "suspended"] },
       { name: "expertise", label: "Areas of Expertise (comma separated)", type: "textarea" },
@@ -238,7 +253,7 @@ const DirectoryTab = () => {
         title="Create doctor login?"
         description={
           pendingCreate
-            ? `This creates a real login for ${pendingCreate.name} at ${pendingCreate.email || "their email on file"} — they'll be able to sign in and use their own dashboard.`
+            ? `If ${pendingCreate.email || "this email"} or this BMDC number already belongs to a doctor on HealthFlow, this row is linked to their existing account and they keep their own details. Otherwise a new login is created for ${pendingCreate.name}.`
             : undefined
         }
       />

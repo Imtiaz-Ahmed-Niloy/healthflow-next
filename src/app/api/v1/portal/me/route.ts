@@ -22,15 +22,34 @@ export const GET = async () => {
   if (!auth) return fail("Not signed in", 401);
 
   const supabase = await createServerSupabase();
-  const { data, error } = await supabase
+  const { data: rows, error } = await supabase
     .from("doctors")
-    .select("id, tenant_id, name, specialty, photo_url")
+    .select("id, tenant_id, name, specialty, photo_url, tenants ( name )")
     .eq("profile_id", auth.userId)
-    .maybeSingle();
+    .order("created_at", { ascending: true });
 
   if (error) return fail(error.message, 400);
 
   // Not an error: a hospital admin opening a portal page is signed in and is
   // simply not a doctor. The caller decides what that means for them.
-  return json({ data });
+  if (!rows || rows.length === 0) return json({ data: null });
+
+  // A doctor at several hospitals (0077) is still one person. "Which doctor
+  // am I" is the row at their main hospital — the same one the community's
+  // auth_doctor_id() resolves to — and the hospitals ride along for the UI.
+  const main = rows.find(r => r.tenant_id === auth.tenantId) ?? rows[0];
+  return json({
+    data: {
+      id: main.id,
+      tenant_id: main.tenant_id,
+      name: main.name,
+      specialty: main.specialty,
+      photo_url: main.photo_url,
+      hospitals: rows.map(r => ({
+        doctor_id: r.id,
+        id: r.tenant_id,
+        name: (r.tenants as { name?: string } | null)?.name ?? "Hospital",
+      })),
+    },
+  });
 };

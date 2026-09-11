@@ -84,8 +84,18 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   // This tab's toasts. Still localStorage, still capped — but no seed, because
   // three invented rows in an empty hospital is a lie a new admin has to learn
   // to ignore.
-  const [toasts, setToasts] = useState<Notif[]>(() => load<Notif[]>("notifications", []));
-  useEffect(() => { save("notifications", toasts); }, [toasts]);
+  //
+  // Read after mount, not in the initialiser: the server has no localStorage,
+  // so reading it during the first render made the bell's unread badge differ
+  // between server and client — a hydration error on every admin page. Saving
+  // waits for the read, or the empty first render would wipe what was stored.
+  const [toasts, setToasts] = useState<Notif[]>([]);
+  const [restored, setRestored] = useState(false);
+  useEffect(() => {
+    setToasts(load<Notif[]>("notifications", []));
+    setRestored(true);
+  }, []);
+  useEffect(() => { if (restored) save("notifications", toasts); }, [toasts, restored]);
 
   const server = useMemo(() => (data?.data ?? []).map(toNotif), [data]);
 

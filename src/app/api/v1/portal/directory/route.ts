@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase, getAuthContext } from "@/lib/supabase/server";
+import { myDoctorRows } from "@/server/portal/myDoctors";
 
 /**
  * GET /api/v1/portal/directory
@@ -53,14 +54,10 @@ const asStringArray = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x)
 type Medicine = { name: string; dosage_form?: string; dose: string; frequency: string; days: string; meal?: string };
 const asMedicines = (v: unknown): Medicine[] => (Array.isArray(v) ? (v as Medicine[]) : []);
 
+/** This doctor at every hospital they work at (0077) — the ids their appointments carry. */
 const myDoctor = async (supabase: Awaited<ReturnType<typeof createServerSupabase>>, userId: string) => {
-  const { data, error } = await supabase
-    .from("doctors")
-    .select("id, tenant_id")
-    .eq("profile_id", userId)
-    .maybeSingle();
-  if (error) throw error;
-  return data;
+  const rows = await myDoctorRows(supabase, userId);
+  return rows.length ? { ids: rows.map(r => r.id) } : null;
 };
 
 type PatientRow = {
@@ -115,7 +112,7 @@ export const GET = async () => {
     .select(
       "id, patient_id, scheduled_date, scheduled_time, status, priority, department, notes, bp_systolic, bp_diastolic, complaints, diagnosis, medicines, advice, patients(id, full_name, mrn, gender, date_of_birth, phone, email, blood_group, weight_kg, height_feet, height_inches)",
     )
-    .eq("doctor_id", doctor.id)
+    .in("doctor_id", doctor.ids)
     .order("scheduled_date", { ascending: false })
     .order("scheduled_time", { ascending: false });
 

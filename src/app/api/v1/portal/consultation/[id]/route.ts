@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerSupabase, getAuthContext } from "@/lib/supabase/server";
+import { myDoctorRows } from "@/server/portal/myDoctors";
 
 /**
  * /api/v1/portal/consultation/:id — real data behind /portal/prescription
@@ -100,14 +101,15 @@ const normalizeMedicine = (m: Partial<PrescribedMedicine>): PrescribedMedicine =
   meal: m.meal ?? "After Meal",
 });
 
+/**
+ * This doctor at every hospital they work at (0077): the ids an appointment
+ * may carry to be theirs, and the person's own details, which are the same on
+ * every row.
+ */
 const myDoctor = async (supabase: Awaited<ReturnType<typeof createServerSupabase>>, userId: string) => {
-  const { data, error } = await supabase
-    .from("doctors")
-    .select("id, tenant_id, name, specialty, education")
-    .eq("profile_id", userId)
-    .maybeSingle();
-  if (error) throw error;
-  return data;
+  const rows = await myDoctorRows(supabase, userId);
+  if (rows.length === 0) return null;
+  return { ids: rows.map(r => r.id), name: rows[0].name, specialty: rows[0].specialty, education: rows[0].education };
 };
 
 export const GET = async (_request: Request, context: RouteContext) => {
@@ -132,7 +134,7 @@ export const GET = async (_request: Request, context: RouteContext) => {
       "id, patient_id, scheduled_date, department, notes, status, tenant_id, bp_systolic, bp_diastolic, complaints, examination, investigation, diagnosis, medicines, advice"
     )
     .eq("id", id)
-    .eq("doctor_id", doctor.id) // never lets a doctor open another doctor's patient
+    .in("doctor_id", doctor.ids) // never lets a doctor open another doctor's patient
     .maybeSingle();
   if (apptError) return fail(apptError.message, 500);
   if (!appointment) return fail("Consultation not found, or it isn't yours.", 404);
@@ -263,7 +265,7 @@ export const PATCH = async (request: Request, context: RouteContext) => {
     .from("appointments")
     .select("id, patient_id")
     .eq("id", id)
-    .eq("doctor_id", doctor.id)
+    .in("doctor_id", doctor.ids)
     .maybeSingle();
   if (apptError) return fail(apptError.message, 500);
   if (!appointment) return fail("Consultation not found, or it isn't yours.", 404);
@@ -328,7 +330,7 @@ export const PATCH = async (request: Request, context: RouteContext) => {
         ...(parsed.data.bp_diastolic !== undefined ? { bp_diastolic: parsed.data.bp_diastolic } : {}),
       })
       .eq("id", id)
-      .eq("doctor_id", doctor.id)
+      .in("doctor_id", doctor.ids)
       .select("id, bp_systolic, bp_diastolic")
       .maybeSingle();
 

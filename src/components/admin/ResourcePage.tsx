@@ -26,7 +26,7 @@ import {
  *
  * See docs/image-uploads-r2.md and src/lib/media.ts.
  */
-function ImageUploadField({ name, required, defaultValue, folder = "hospitals" }: { name: string; required?: boolean; defaultValue?: string; folder?: MediaFolder }) {
+export function ImageUploadField({ name, required, defaultValue, folder = "hospitals" }: { name: string; required?: boolean; defaultValue?: string; folder?: MediaFolder }) {
   // What goes in the column: a key for anything uploaded here, or whatever was
   // already stored (an Unsplash link, an /assets path) left untouched.
   const [stored, setStored] = useState<string>(defaultValue || "");

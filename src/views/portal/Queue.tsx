@@ -15,6 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 type Priority = "high" | "standard" | "routine";
 
+type Hospital = { id: string; name: string };
+
 type ApiQueueEntry = {
   id: string;
   scheduled_time: string; // "10:30:00"
@@ -22,6 +24,7 @@ type ApiQueueEntry = {
   reason: string | null;
   in_consultation: boolean;
   waited_minutes: number;
+  hospital: Hospital;
   patient: { id: string; full_name: string; date_of_birth: string | null; phone: string | null } | null;
 };
 
@@ -29,12 +32,14 @@ type ApiCompletedEntry = {
   id: string;
   scheduled_time: string;
   reason: string | null;
+  hospital: Hospital;
   patient: { id: string; full_name: string; date_of_birth: string | null; phone: string | null } | null;
 };
 
 type ApiQueueResponse = {
   queue: ApiQueueEntry[];
   completed: ApiCompletedEntry[];
+  hospitals: Hospital[];
   stats: { seen: number; remaining: number; total: number; avg_wait_minutes: number };
 };
 
@@ -77,7 +82,11 @@ const Queue = () => {
   const [walkInOpen, setWalkInOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [startingId, setStartingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", dob: "", phone: "", reason: "", priority: "standard" as Priority });
+  const [form, setForm] = useState({ name: "", dob: "", phone: "", reason: "", priority: "standard" as Priority, hospital_id: "" });
+  // A doctor at several hospitals sees one queue; each patient then says
+  // which hospital they're at. With one hospital nothing changes.
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const multiHospital = hospitals.length > 1;
 
   const load = async () => {
     try {
@@ -89,6 +98,7 @@ const Queue = () => {
       }
       setQueue(body.data.queue ?? []);
       setCompleted(body.data.completed ?? []);
+      setHospitals(body.data.hospitals ?? []);
       setStats(body.data.stats ?? { seen: 0, remaining: 0, total: 0, avg_wait_minutes: 0 });
     } catch {
       toast.error("Couldn't reach the server.");
@@ -111,6 +121,7 @@ const Queue = () => {
       toast.error("Please enter the patient's name");
       return;
     }
+    const hospitalId = form.hospital_id || hospitals[0]?.id;
     setSubmitting(true);
     try {
       const res = await fetch("/api/v1/portal/queue", {
@@ -122,6 +133,7 @@ const Queue = () => {
           phone: form.phone.trim() || undefined,
           reason: form.reason.trim() || undefined,
           priority: form.priority,
+          hospital_id: hospitalId || undefined,
         }),
       });
       const body = await res.json().catch(() => null);
@@ -130,7 +142,7 @@ const Queue = () => {
         return;
       }
       toast.success(`${form.name.trim()} added to the queue`);
-      setForm({ name: "", dob: "", phone: "", reason: "", priority: "standard" });
+      setForm({ name: "", dob: "", phone: "", reason: "", priority: "standard", hospital_id: form.hospital_id });
       setWalkInOpen(false);
       void load();
     } catch {
@@ -225,6 +237,19 @@ const Queue = () => {
                 <DialogTitle className="font-display text-2xl text-primary">Add Walk-in Patient</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-2">
+                {multiHospital && (
+                  <div className="space-y-1.5">
+                    <Label>Hospital</Label>
+                    <Select value={form.hospital_id || hospitals[0]?.id} onValueChange={(v) => setForm({ ...form, hospital_id: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {hospitals.map((h) => (
+                          <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <Label htmlFor="phone">Phone Number</Label>
                   <Input id="phone" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+1 (555) 000-0000" />
@@ -314,6 +339,7 @@ const Queue = () => {
                   <div className="min-w-[180px]">
                     <p className="font-semibold text-primary">{p.patient?.full_name ?? "Patient"}</p>
                     <p className="text-xs text-muted-foreground">DOB: {dobLabel(p.patient?.date_of_birth ?? null)}</p>
+                    {multiHospital && <p className="text-xs font-semibold text-primary-glow mt-0.5">{p.hospital.name}</p>}
                   </div>
                   <div className="hidden md:block min-w-[120px]">
                     <p className="text-[10px] tracking-widest font-bold text-muted-foreground">TIME</p>
@@ -360,6 +386,7 @@ const Queue = () => {
                 <div className="min-w-[180px]">
                   <p className="font-semibold text-primary">{p.patient?.full_name ?? "Patient"}</p>
                   <p className="text-xs text-muted-foreground">DOB: {dobLabel(p.patient?.date_of_birth ?? null)}</p>
+                  {multiHospital && <p className="text-xs font-semibold text-muted-foreground mt-0.5">{p.hospital.name}</p>}
                 </div>
                 <div className="hidden md:block min-w-[120px]">
                   <p className="text-[10px] tracking-widest font-bold text-muted-foreground">TIME</p>

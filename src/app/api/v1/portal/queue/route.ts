@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerSupabase, getAuthContext } from "@/lib/supabase/server";
 import { nowTimeIn, todayIn } from "@/lib/timezone";
+import { myDoctorRows } from "@/server/portal/myDoctors";
 
 /**
  * /api/v1/portal/queue — the doctor's live "today's patients" (the screen
@@ -48,17 +49,6 @@ const hospitalClock = async (supabase: Awaited<ReturnType<typeof createServerSup
   return { today: todayIn(timeZone), nowTime: `${nowTimeIn(timeZone)}:00` };
 };
 
-/** The caller's own doctors.id, or a 403/404 Response if there isn't one. */
-const myDoctor = async (supabase: Awaited<ReturnType<typeof createServerSupabase>>, userId: string) => {
-  const { data, error } = await supabase
-    .from("doctors")
-    .select("id, tenant_id, specialty")
-    .eq("profile_id", userId)
-    .maybeSingle();
-  if (error) throw error;
-  return data;
-};
-
 const minutesBetween = (a: Date, b: Date) => Math.round((a.getTime() - b.getTime()) / 60000);
 
 export const GET = async () => {
@@ -68,13 +58,18 @@ export const GET = async () => {
 
   const supabase = await createServerSupabase();
 
-  let doctor;
+  let doctors;
   try {
-    doctor = await myDoctor(supabase, auth.userId);
+    doctors = await myDoctorRows(supabase, auth.userId);
   } catch (error) {
     return fail(error instanceof Error ? error.message : "Failed to load your doctor profile", 500);
   }
-  if (!doctor) return fail("No doctor profile is linked to this login.", 404);
+  if (doctors.length === 0) return fail("No doctor profile is linked to this login.", 404);
+
+  // Every hospital this doctor works at, in one queue (0077). Each row says
+  // which hospital it belongs to.
+  const doctorIds = doctors.map(d => d.id);
+  const hospitalOf = new Map(doctors.map(d => [d.tenant_id, d.hospital_name]));
 
   const date = (await hospitalClock(supabase)).today;
 
@@ -83,7 +78,7 @@ export const GET = async () => {
   const { data: todayRows, error: statsError } = await supabase
     .from("appointments")
     .select("status, scheduled_time, consultation_started_at")
-    .eq("doctor_id", doctor.id)
+    .in("doctor_id", doctorIds)
     .eq("scheduled_date", date)
     .neq("status", "cancelled");
   if (statsError) return fail(statsError.message, 500);
@@ -105,8 +100,8 @@ export const GET = async () => {
   // attached.
   const { data: queueRows, error: queueError } = await supabase
     .from("appointments")
-    .select("id, scheduled_time, priority, consultation_started_at, notes, patients(id, full_name, date_of_birth, phone)")
-    .eq("doctor_id", doctor.id)
+    .select("id, tenant_id, scheduled_time, priority, consultation_started_at, notes, patients(id, full_name, date_of_birth, phone)")
+    .in("doctor_id", doctorIds)
     .eq("scheduled_date", date)
     .eq("status", "scheduled")
     .order("scheduled_time", { ascending: true });
@@ -123,6 +118,7 @@ export const GET = async () => {
       reason: r.notes,
       in_consultation: !!r.consultation_started_at,
       waited_minutes: waitedMinutesFor(r.scheduled_time),
+      hospital: { id: r.tenant_id, name: hospitalOf.get(r.tenant_id) ?? "Hospital" },
       patient: r.patients
         ? { id: r.patients.id, full_name: r.patients.full_name, date_of_birth: r.patients.date_of_birth, phone: r.patients.phone }
         : null,
@@ -133,8 +129,8 @@ export const GET = async () => {
   // at the bottom rather than mixed into the live queue.
   const { data: completedRows, error: completedError } = await supabase
     .from("appointments")
-    .select("id, scheduled_time, consultation_started_at, notes, patients(id, full_name, date_of_birth, phone)")
-    .eq("doctor_id", doctor.id)
+    .select("id, tenant_id, scheduled_time, consultation_started_at, notes, patients(id, full_name, date_of_birth, phone)")
+    .in("doctor_id", doctorIds)
     .eq("scheduled_date", date)
     .eq("status", "completed")
     .order("consultation_started_at", { ascending: false, nullsFirst: false });
@@ -144,6 +140,7 @@ export const GET = async () => {
     id: r.id,
     scheduled_time: r.scheduled_time,
     reason: r.notes,
+    hospital: { id: r.tenant_id, name: hospitalOf.get(r.tenant_id) ?? "Hospital" },
     patient: r.patients
       ? { id: r.patients.id, full_name: r.patients.full_name, date_of_birth: r.patients.date_of_birth, phone: r.patients.phone }
       : null,
@@ -154,6 +151,9 @@ export const GET = async () => {
       queue,
       completed,
       stats: { seen, remaining, total: rows.length, avg_wait_minutes: avgWait },
+      // For the walk-in form: which hospital is this patient here at? One
+      // entry for most doctors, and then the question is never asked.
+      hospitals: doctors.map(d => ({ id: d.tenant_id, name: d.hospital_name })),
     },
   });
 };
@@ -166,6 +166,12 @@ const walkInSchema = z.object({
   // as "" from the dialog and is stored as null, not an empty note.
   reason: z.string().trim().max(500).optional().or(z.literal("")),
   priority: z.enum(["high", "standard", "routine"]).default("standard"),
+  /**
+   * Which of the doctor's hospitals the walk-in is at. Checked against the
+   * doctor's own rows below — never trusted as sent — and only needed when
+   * they work at more than one.
+   */
+  hospital_id: z.string().uuid().optional(),
 });
 
 export const POST = async (request: Request) => {
@@ -184,13 +190,22 @@ export const POST = async (request: Request) => {
 
   const supabase = await createServerSupabase();
 
-  let doctor;
+  let doctors;
   try {
-    doctor = await myDoctor(supabase, auth.userId);
+    doctors = await myDoctorRows(supabase, auth.userId);
   } catch (error) {
     return fail(error instanceof Error ? error.message : "Failed to load your doctor profile", 500);
   }
-  if (!doctor) return fail("No doctor profile is linked to this login.", 404);
+  if (doctors.length === 0) return fail("No doctor profile is linked to this login.", 404);
+
+  // The doctor row at the hospital this walk-in is at: the one asked for, if
+  // it is one of theirs, or their only one.
+  const doctor = parsed.data.hospital_id
+    ? doctors.find(d => d.tenant_id === parsed.data.hospital_id)
+    : doctors.length === 1 ? doctors[0] : undefined;
+  if (!doctor) {
+    return fail(doctors.length > 1 ? "Pick the hospital this patient is at." : "That isn't one of your hospitals.", 400);
+  }
 
   // A returning walk-in with a phone already on file at this hospital reuses
   // that record rather than forking a second one with a new MRN.
@@ -266,19 +281,19 @@ export const PATCH = async (request: Request) => {
 
   const supabase = await createServerSupabase();
 
-  let doctor;
+  let doctors;
   try {
-    doctor = await myDoctor(supabase, auth.userId);
+    doctors = await myDoctorRows(supabase, auth.userId);
   } catch (error) {
     return fail(error instanceof Error ? error.message : "Failed to load your doctor profile", 500);
   }
-  if (!doctor) return fail("No doctor profile is linked to this login.", 404);
+  if (doctors.length === 0) return fail("No doctor profile is linked to this login.", 404);
 
   const { data, error } = await supabase
     .from("appointments")
     .update({ consultation_started_at: new Date().toISOString() })
     .eq("id", parsed.data.id)
-    .eq("doctor_id", doctor.id) // never lets a doctor start another doctor's consult
+    .in("doctor_id", doctors.map(d => d.id)) // never lets a doctor start another doctor's consult
     .eq("status", "scheduled")
     .select("id, consultation_started_at")
     .maybeSingle();

@@ -53,10 +53,66 @@ const loadDoctor = async (id: string) => {
   const supabase = await createServerSupabase();
   return supabase
     .from("doctors")
-    .select("id, tenant_id, name, email, phone, profile_id")
+    .select("id, tenant_id, name, email, phone, profile_id, bmdc_number")
     .eq("id", id)
     .maybeSingle();
 };
+
+type Admin = ReturnType<typeof createAdminSupabase>;
+
+/** ilike without its wildcards — `john_doe@` must not match `johnXdoe@`. */
+const likeLiteral = (value: string) => value.trim().replace(/[\\%_]/g, "\\$&");
+
+/**
+ * A doctor is one person across hospitals (0077). Before minting a second
+ * account, look for the one they already have: a doctor login under this
+ * email, or a linked doctor row carrying the same BMDC number. Only an active
+ * doctor account qualifies — an email that belongs to a patient or an admin
+ * falls through to provisionUser, which refuses it as before.
+ */
+const findExistingDoctorLogin = async (
+  admin: Admin,
+  doctor: { email: string | null; bmdc_number: string | null },
+) => {
+  if (doctor.email) {
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("id, role, is_active")
+      .ilike("email", likeLiteral(doctor.email))
+      .maybeSingle();
+    if (profile?.role === "doctor" && profile.is_active) return profile.id;
+  }
+
+  const bmdc = doctor.bmdc_number?.trim();
+  if (bmdc) {
+    const { data: rows } = await admin
+      .from("doctors")
+      .select("profile_id, profiles!doctors_profile_id_fkey ( role, is_active )")
+      .ilike("bmdc_number", likeLiteral(bmdc))
+      .not("profile_id", "is", null)
+      .limit(5);
+    const match = (rows ?? []).find(r => {
+      const p = r.profiles as { role?: string; is_active?: boolean } | null;
+      return p?.role === "doctor" && p.is_active;
+    });
+    if (match?.profile_id) return match.profile_id;
+  }
+
+  return null;
+};
+
+/** How many other hospitals this login is a doctor at, besides this row. */
+const otherAffiliations = async (admin: Admin, profileId: string, doctorId: string) => {
+  const { count } = await admin
+    .from("doctors")
+    .select("id", { count: "exact", head: true })
+    .eq("profile_id", profileId)
+    .neq("id", doctorId);
+  return count ?? 0;
+};
+
+const sharedLoginMessage = (name: string) =>
+  `${name} signs in with their own HealthFlow account, shared across every hospital they work at. The password is theirs — they can change it themselves, or use "Forgot password" on the sign-in page.`;
 
 export const POST = async (_request: Request, context: RouteContext) => {
   const auth = await getAuthContext();
@@ -74,6 +130,35 @@ export const POST = async (_request: Request, context: RouteContext) => {
 
   if (doctor.profile_id) {
     return fail("This doctor already has a login. Use the view button instead.", 409);
+  }
+
+  const admin = createAdminSupabase();
+
+  // Already a HealthFlow doctor somewhere? Link this row to them instead of
+  // creating a duplicate person. The 0077 pull trigger copies their own name,
+  // specialty, photo and the rest onto this row; the fee, availability and
+  // status stay this hospital's.
+  const existingProfileId = await findExistingDoctorLogin(admin, doctor);
+  if (existingProfileId) {
+    const { data: already } = await admin
+      .from("doctors")
+      .select("id, name")
+      .eq("tenant_id", doctor.tenant_id)
+      .eq("profile_id", existingProfileId)
+      .maybeSingle();
+    if (already) {
+      return fail(`This login already belongs to ${already.name} on your doctor list. Remove this duplicate row instead.`, 409);
+    }
+
+    const { data: linked, error: linkError } = await admin
+      .from("doctors")
+      .update({ profile_id: existingProfileId })
+      .eq("id", id)
+      .select("name, email")
+      .single();
+    if (linkError) return fail(`Could not link this doctor's existing account: ${linkError.message}`, 400);
+
+    return json({ data: { linked: true, name: linked.name, email: linked.email } });
   }
 
   if (!doctor.email) {
@@ -95,8 +180,6 @@ export const POST = async (_request: Request, context: RouteContext) => {
   if (!provisioned.ok) {
     return fail(provisioned.message, provisioned.code === "email_taken" ? 409 : 400);
   }
-
-  const admin = createAdminSupabase();
 
   // Encrypted before the profile is linked, on purpose. encryptSecret throws
   // when DOCTOR_LOGIN_ENCRYPTION_KEY is missing or the wrong length, and doing
@@ -159,6 +242,11 @@ export const GET = async (_request: Request, context: RouteContext) => {
     .maybeSingle();
 
   if (secretError) return fail(secretError.message, 400);
+  // Linked from another hospital: this hospital never had the password, and
+  // offering a reset would change the doctor's password everywhere.
+  if (!secret && (await otherAffiliations(admin, doctor.profile_id, id)) > 0) {
+    return fail(sharedLoginMessage(doctor.name), 409, "shared_login");
+  }
   if (!secret) {
     // Has a login (profile_id set) but no stored secret — provisioned before
     // this table existed, or the POST below failed after linking the profile.
@@ -208,13 +296,19 @@ export const PUT = async (_request: Request, context: RouteContext) => {
     return fail("This doctor has no login yet. Use the create button instead.", 404);
   }
 
+  const admin = createAdminSupabase();
+
+  // One hospital resetting the password would lock the doctor out of the
+  // account they use at every other one.
+  if ((await otherAffiliations(admin, doctor.profile_id, id)) > 0) {
+    return fail(sharedLoginMessage(doctor.name), 409, "shared_login");
+  }
+
   const password = generatePassword(12);
 
   // Encrypt first: if the key is missing or wrong this throws, and it is much
   // better to throw before changing the live password than after.
   const passwordEnc = encryptSecret(password);
-
-  const admin = createAdminSupabase();
 
   const { error: authError } = await admin.auth.admin.updateUserById(doctor.profile_id, {
     password,

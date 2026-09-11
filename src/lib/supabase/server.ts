@@ -17,7 +17,14 @@ export type AppRole = Database["public"]["Enums"]["app_role"];
 export type AuthContext = {
   userId: string;
   role: AppRole | null;
+  /** The main hospital — where a new record is filed when nothing says otherwise. */
   tenantId: string | null;
+  /**
+   * Every hospital this login may act in (0077). One entry for everyone but a
+   * doctor who works at several. A token issued before 0077 has no list, so
+   * it falls back to the one hospital.
+   */
+  tenantIds: string[];
 };
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -106,12 +113,17 @@ export const getAuthContext = async (): Promise<AuthContext | null> => {
 
   if (error || !data?.claims?.sub) return null;
 
-  const { sub, user_role: userRole, tenant_id: tenantId } = data.claims;
+  const { sub, user_role: userRole, tenant_id: tenantId, tenant_ids: tenantIdsClaim } = data.claims;
+  const main = typeof tenantId === "string" ? tenantId : null;
+  const listed = Array.isArray(tenantIdsClaim)
+    ? tenantIdsClaim.filter((t): t is string => typeof t === "string")
+    : [];
 
   return {
     userId: sub,
     role: typeof userRole === "string" ? (userRole as AppRole) : null,
-    tenantId: typeof tenantId === "string" ? tenantId : null,
+    tenantId: main,
+    tenantIds: listed.length ? listed : main ? [main] : [],
   };
 };
 

@@ -1,18 +1,9 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase, getAuthContext } from "@/lib/supabase/server";
+import { myDoctorRows } from "@/server/portal/myDoctors";
 
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status });
 const fail = (message: string, status: number) => json({ error: { message } }, status);
-
-const myDoctor = async (supabase: Awaited<ReturnType<typeof createServerSupabase>>, userId: string) => {
-  const { data, error } = await supabase
-    .from("doctors")
-    .select("id, tenant_id, specialty")
-    .eq("profile_id", userId)
-    .maybeSingle();
-  if (error) throw error;
-  return data;
-};
 
 export const GET = async () => {
   const auth = await getAuthContext();
@@ -21,18 +12,22 @@ export const GET = async () => {
 
   const supabase = await createServerSupabase();
 
-  let doctor;
+  let doctors;
   try {
-    doctor = await myDoctor(supabase, auth.userId);
+    doctors = await myDoctorRows(supabase, auth.userId);
   } catch (error) {
     return fail(error instanceof Error ? error.message : "Failed to load your doctor profile", 500);
   }
-  if (!doctor) return fail("No doctor profile is linked to this login.", 404);
+  if (doctors.length === 0) return fail("No doctor profile is linked to this login.", 404);
+
+  // One schedule across every hospital this doctor works at (0077).
+  const doctorIds = doctors.map(d => d.id);
+  const hospitalOf = new Map(doctors.map(d => [d.tenant_id, d.hospital_name]));
 
   const { data: appointments, error: appointmentsError } = await supabase
     .from("appointments")
-    .select("id, scheduled_date, scheduled_time, priority, consultation_started_at, notes, status, patients(id, full_name, date_of_birth, phone)")
-    .eq("doctor_id", doctor.id)
+    .select("id, tenant_id, scheduled_date, scheduled_time, priority, consultation_started_at, notes, status, patients(id, full_name, date_of_birth, phone)")
+    .in("doctor_id", doctorIds)
     .order("scheduled_date", { ascending: true })
     .order("scheduled_time", { ascending: true });
 
@@ -57,11 +52,16 @@ export const GET = async () => {
   // on /admin/doctors — entered by the hospital admin, not derived, but a
   // real stored value rather than a hardcoded one. Best-effort: a missing
   // row just means no feedback has been entered yet.
-  const { data: performance } = await supabase
+  // A doctor at several hospitals has a score from each; the average is
+  // theirs.
+  const { data: performanceRows } = await supabase
     .from("doctor_performance")
     .select("feedback")
-    .eq("doctor_id", doctor.id)
-    .maybeSingle();
+    .in("doctor_id", doctorIds);
+  const scores = (performanceRows ?? []).map(p => Number(p.feedback)).filter(n => n > 0);
+  const performance = scores.length
+    ? { feedback: Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10 }
+    : null;
 
   return json({
     data: appointments.map((r) => ({
@@ -72,6 +72,7 @@ export const GET = async () => {
       reason: r.notes,
       status: r.status,
       in_consultation: !!r.consultation_started_at,
+      hospital: { id: r.tenant_id, name: hospitalOf.get(r.tenant_id) ?? "Hospital" },
       patient: r.patients
         ? { id: r.patients.id, full_name: r.patients.full_name, date_of_birth: r.patients.date_of_birth, phone: r.patients.phone }
         : null,

@@ -1386,6 +1386,7 @@ export type Database = {
         Row: {
           availability: string | null
           bio: string | null
+          bmdc_number: string | null
           consultation_duration_minutes: number | null
           consultation_fee: number | null
           created_at: string
@@ -1411,6 +1412,7 @@ export type Database = {
         Insert: {
           availability?: string | null
           bio?: string | null
+          bmdc_number?: string | null
           consultation_duration_minutes?: number | null
           consultation_fee?: number | null
           created_at?: string
@@ -1436,6 +1438,7 @@ export type Database = {
         Update: {
           availability?: string | null
           bio?: string | null
+          bmdc_number?: string | null
           consultation_duration_minutes?: number | null
           consultation_fee?: number | null
           created_at?: string
@@ -4276,6 +4279,9 @@ export type Database = {
         Returns: boolean
       }
       revoke_staff_access: { Args: { p_profile_id: string }; Returns: boolean }
+      release_doctor_affiliation: { Args: { p_doctor_id: string }; Returns: string }
+      auth_tenant_ids: { Args: never; Returns: string[] }
+      set_account_active: { Args: { p_profile_id: string; p_active: boolean }; Returns: boolean }
       transfer_admission: {
         Args: { p_admission_id: string; p_bed_id?: string; p_cabin_id?: string }
         Returns: {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerSupabase, getAuthContext } from "@/lib/supabase/server";
+import { myDoctorRows } from "@/server/portal/myDoctors";
 
 /**
  * GET /api/v1/portal/medicines?q=... — search behind the Add Medicine
@@ -104,22 +105,36 @@ export const GET = async (request: Request) => {
 
   if (url.searchParams.get("recent") === "1") {
     const supabase = await createServerSupabase();
-    const { data: doctor, error: doctorError } = await supabase
-      .from("doctors")
-      .select("id")
-      .eq("profile_id", auth.userId)
-      .maybeSingle();
-    if (doctorError) return fail(doctorError.message, 500);
-    if (!doctor) return fail("No doctor profile is linked to this login.", 404);
+    let doctors;
+    try {
+      doctors = await myDoctorRows(supabase, auth.userId);
+    } catch (err) {
+      return fail(err instanceof Error ? err.message : "Failed to load your doctor profile", 500);
+    }
+    if (doctors.length === 0) return fail("No doctor profile is linked to this login.", 404);
 
-    const { data, error } = await supabase
+    // What this doctor prescribes is a habit of the person, not of one
+    // hospital: counts from every hospital they work at are added together.
+    const { data: usageRows, error } = await supabase
       .from("doctor_medicine_usage")
-      .select("name, dosage_form, dose, use_count")
-      .eq("doctor_id", doctor.id)
-      .order("use_count", { ascending: false })
-      .order("last_used_at", { ascending: false })
-      .limit(15);
+      .select("name, dosage_form, dose, use_count, last_used_at")
+      .in("doctor_id", doctors.map(d => d.id));
     if (error) return fail(error.message, 500);
+
+    const merged = new Map<string, { name: string; dosage_form: string | null; dose: string | null; use_count: number; last_used_at: string }>();
+    for (const m of usageRows ?? []) {
+      const key = `${m.name}|${m.dosage_form ?? ""}|${m.dose ?? ""}`.toLowerCase();
+      const seen = merged.get(key);
+      if (seen) {
+        seen.use_count += m.use_count;
+        if (m.last_used_at > seen.last_used_at) seen.last_used_at = m.last_used_at;
+      } else {
+        merged.set(key, { name: m.name, dosage_form: m.dosage_form, dose: m.dose, use_count: m.use_count, last_used_at: m.last_used_at });
+      }
+    }
+    const data = [...merged.values()]
+      .sort((a, b) => b.use_count - a.use_count || b.last_used_at.localeCompare(a.last_used_at))
+      .slice(0, 15);
 
     // Same MedexHit shape the client already renders -- icon_url isn't
     // tracked here (no per-brand image without fetching MedEx's own detail
@@ -130,7 +145,7 @@ export const GET = async (request: Request) => {
     // Napa 20mg and Napa 40mg are two separate rows here on purpose (see the
     // migration) -- each shows up, and picks, with its own real dose.
     return json({
-      data: (data ?? []).map((m) => ({
+      data: data.map((m) => ({
         brand_name: m.name,
         dosage_form: m.dosage_form || null,
         strength: m.dose || null,
@@ -180,12 +195,15 @@ export const POST = async (request: Request) => {
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Invalid request", 400);
 
   const supabase = await createServerSupabase();
-  const { data: doctor, error: doctorError } = await supabase
-    .from("doctors")
-    .select("id, tenant_id")
-    .eq("profile_id", auth.userId)
-    .maybeSingle();
-  if (doctorError) return fail(doctorError.message, 500);
+  let doctors;
+  try {
+    doctors = await myDoctorRows(supabase, auth.userId);
+  } catch (err) {
+    return fail(err instanceof Error ? err.message : "Failed to load your doctor profile", 500);
+  }
+  // Counted under the doctor at their main hospital; the list above adds up
+  // every hospital's counts anyway.
+  const doctor = doctors.find(d => d.tenant_id === auth.tenantId) ?? doctors[0];
   if (!doctor) return fail("No doctor profile is linked to this login.", 404);
 
   const { error } = await supabase.rpc("record_medicine_usage", {

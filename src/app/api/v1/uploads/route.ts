@@ -44,7 +44,8 @@ const fail = (message: string, status: number) => json({ error: { message } }, s
  */
 const FOLDER_ROLES: Record<MediaFolder, AppRole[]> = {
   hospitals: ["hospital_admin"],
-  doctors: ["hospital_admin"],
+  // A doctor keeps their own photo (0077: they own their profile).
+  doctors: ["hospital_admin", "doctor"],
   announcements: [],
   blog: [],
   avatars: ["hospital_admin", "hr_admin", "finance_admin", "doctor", "patient"],
