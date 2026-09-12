@@ -1,10 +1,9 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Star, Calendar, MapPin, Search, X } from "lucide-react";
+import { ArrowRight, Calendar, Search, X } from "lucide-react";
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { DoctorCard, DoctorCardNotBookable, DOCTOR_CARD_BUTTON } from "@/components/site/DoctorCard";
 import { toast } from "sonner";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
 import { Avatar } from "@/components/common/Avatar";
@@ -161,23 +160,20 @@ const FindDoctors = () => {
         ) : (
           <div className="grid md:grid-cols-3 gap-5">
             {visible.map((d, i) => (
-              <motion.div key={d.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.06, 0.4) }}
-                whileHover={{ y: -3 }} className="rounded-2xl bg-card border border-border/60 p-5 shadow-soft">
-                <Link href={`/doctors/${d.slug}`} className="flex gap-4">
-                  <Avatar src={d.img} name={d.name} className="h-16 w-16 text-lg" />
-                  <div>
-                    <p className="font-semibold text-primary">{d.name}</p>
-                    <p className="text-xs text-primary-glow font-semibold">{d.specialty}</p>
-                    <p className="text-xs text-foreground/70 mt-1 flex items-center gap-1"><Star className="h-3 w-3 fill-accent text-accent" /> {d.rating} <span className="text-muted-foreground">({d.reviews} reviews)</span></p>
-                  </div>
-                </Link>
-                <p className="text-xs text-foreground/70 mt-4 line-clamp-2">{d.blurb}</p>
-                <div className="flex gap-2 mt-4 flex-wrap">
-                  <span className="flex items-center gap-1 text-xs bg-chip rounded-full px-3 py-1.5 text-primary"><Calendar className="h-3 w-3" /> {d.available}</span>
-                  <span className="flex items-center gap-1 text-xs bg-chip rounded-full px-3 py-1.5 text-primary"><MapPin className="h-3 w-3" /> {d.hospital.name}</span>
-                </div>
-                <button onClick={() => openBooking(d)} className="mt-5 block text-center w-full rounded-full bg-gradient-dark text-surface-dark-foreground py-2.5 text-sm font-semibold shadow-glow hover:opacity-90">Book Appointment</button>
-              </motion.div>
+              <DoctorCard
+                key={d.id}
+                d={d}
+                i={i}
+                action={d.independent ? (
+                  // An appointment belongs to a hospital; this doctor has none yet.
+                  <DoctorCardNotBookable />
+                ) : (
+                  <button type="button" onClick={() => openBooking(d)} className={DOCTOR_CARD_BUTTON}>
+                    Book Appointment
+                    <ArrowRight className="h-4 w-0 opacity-0 transition-all duration-300 group-hover:w-4 group-hover:opacity-100" />
+                  </button>
+                )}
+              />
             ))}
           </div>
         )}

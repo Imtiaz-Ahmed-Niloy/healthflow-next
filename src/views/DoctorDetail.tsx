@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import { Avatar } from "@/components/common/Avatar";
-import { useDoctors } from "@/hooks/useDoctors";
+import { useDoctors, INDEPENDENT_LABEL } from "@/hooks/useDoctors";
 import { useHospitals } from "@/hooks/useHospitals";
 import { useMemo } from "react";
 import type { Hospital } from "@/data/hospitals";
@@ -118,9 +118,16 @@ const DoctorDetail = () => {
               <span className="text-[10px] uppercase tracking-widest font-bold text-primary-glow">{d.specialty}</span>
               <h1 className="font-display text-3xl text-primary mt-2">{d.name}</h1>
               <p className="text-xs text-muted-foreground inline-flex items-center gap-1 mt-2"><GraduationCap className="h-3 w-3" />{d.education}</p>
-              <Link href={`/patient/find-doctors?q=${encodeURIComponent(d.name)}`} className="mt-5 block text-center w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors">
-                Book Appointment
-              </Link>
+              {d.independent ? (
+                // An appointment belongs to a hospital; this doctor has none yet.
+                <p className="mt-5 text-center w-full rounded-full border border-border py-3 text-xs font-semibold text-muted-foreground">
+                  Bookings open once a hospital adds them
+                </p>
+              ) : (
+                <Link href={`/patient/find-doctors?q=${encodeURIComponent(d.name)}`} className="mt-5 block text-center w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors">
+                  Book Appointment
+                </Link>
+              )}
               <button onClick={() => toast.success(`${d.name} saved to favorites`)} className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-full border border-primary/30 py-2.5 text-sm font-semibold text-primary hover:bg-primary/5">
                 <Heart className="h-4 w-4" /> Save
               </button>
@@ -145,8 +152,11 @@ const DoctorDetail = () => {
 
             <section className="rounded-3xl bg-card border border-border/60 p-7">
               <h2 className="font-display text-2xl text-primary">About Dr. {d.name.split(" ").slice(-1)[0]}</h2>
-              <p className="text-foreground/75 leading-relaxed mt-3">
-                {d.name} is a board-certified {d.specialty.toLowerCase()} specialist with {d.experience}+ years of experience treating over {d.patients.toLocaleString()} patients. Practicing at {hospital.name}, {d.name.split(" ")[0]} blends evidence-based medicine with a deeply human, patient-first approach to care.
+              {/* Their own About, as written on their profile. This used to be a
+                  template — "a board-certified … specialist … patient-first
+                  approach" — printed for every doctor whatever they had saved. */}
+              <p className="text-foreground/75 leading-relaxed mt-3 whitespace-pre-line">
+                {d.bio ?? `${d.name} is a ${d.specialty.toLowerCase()} specialist${d.independent ? " in independent practice" : ` at ${hospital.name}`}.`}
               </p>
               <div className="grid sm:grid-cols-2 gap-4 mt-5 text-sm">
                 <div className="flex items-center gap-2 text-foreground/70"><Languages className="h-4 w-4 text-primary-glow" />{d.languages.join(" · ")}</div>
@@ -162,7 +172,8 @@ const DoctorDetail = () => {
             <section className="rounded-3xl bg-card border border-border/60 p-7">
               <h2 className="font-display text-2xl text-primary mb-4">Areas of Expertise</h2>
               <div className="flex flex-wrap gap-2">
-                {[d.specialty, "Preventive Care", "Patient Education", "Diagnostics", "Long-term Management", "Second Opinions"].map((t) => (
+                {/* What they listed on their profile; their specialty when they listed none. */}
+                {(d.expertise.length ? d.expertise : [d.specialty]).map((t) => (
                   <span key={t} className="rounded-full bg-accent/40 text-primary text-xs font-medium px-3 py-1.5">{t}</span>
                 ))}
               </div>
@@ -170,6 +181,14 @@ const DoctorDetail = () => {
 
             <section className="rounded-3xl bg-card border border-border/60 p-7">
               <h2 className="font-display text-2xl text-primary mb-4">Practicing At</h2>
+              {d.independent ? (
+                <div className="rounded-2xl bg-accent/20 p-4">
+                  <p className="font-display text-lg text-primary">{INDEPENDENT_LABEL}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Not at a HealthFlow hospital yet. Bookings open once a hospital adds them.
+                  </p>
+                </div>
+              ) : (
               <div className="flex items-center gap-4 rounded-2xl bg-accent/20 p-4 hover:bg-accent/30 transition-colors">
                 <Link href={`/hospitals/${hospital.slug}`} className="flex items-center gap-4 flex-1">
                   <img src={hospital.image} alt={hospital.name} className="h-16 w-16 rounded-xl object-cover" />
@@ -183,6 +202,7 @@ const DoctorDetail = () => {
                   <a href={`mailto:${hospital.email}`} className="inline-flex items-center gap-1 hover:text-primary"><Mail className="h-3 w-3" /></a>
                 </div>
               </div>
+              )}
             </section>
 
             {peers.length > 0 && (

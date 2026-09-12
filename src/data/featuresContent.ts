@@ -65,7 +65,7 @@ export const defaultFeaturesContent: FeaturesContent = {
       { tab: "Features for Doctors", icon: "Stethoscope", title: "Clinical Workbench", desc: "A unified cockpit for charts, orders, and decision support.", bullets: ["Smart Templates", "Order Sets", "Decision Support"], dark: true },
       { tab: "Features for Doctors", icon: "Video", title: "HD Telemedicine Hub", desc: "Crystal-clear video conferencing integrated with real-time patient vitals.", bullets: ["4K Low-Latency Streaming", "Instant EHR Overlay", "Multi-Provider Consultations"] },
       { tab: "Features for Doctors", icon: "FileText", title: "E-Prescriptions", desc: "Issue compliant prescriptions in seconds with built-in drug intelligence.", bullets: ["Drug Interaction Checks", "Digital Signature", "Pharmacy Direct"] },
-      { tab: "Features for Doctors", icon: "Clock", title: "Smart Scheduling", desc: "Automated calendars that respect breaks, OT, and emergency slots.", bullets: ["Conflict-Free", "Tele + In-Person", "Auto Reminders"] },
+      { tab: "Features for Doctors", icon: "Clock", title: "Smart Scheduling", desc: "Automated calendars that respect breaks, OT, and emergency slots.", bullets: ["Conflict-Free", "Hours per Hospital", "Auto Reminders"] },
       { tab: "Features for Doctors", icon: "FolderKanban", title: "Unified Patient Chart", desc: "Longitudinal records with timeline, labs, and imaging in one view.", bullets: ["FHIR Native", "Cross-Hospital", "Voice Search"] },
       { tab: "Features for Doctors", icon: "HeartHandshake", title: "Care Team Collaboration", desc: "Secure messaging, referrals, and case discussions across specialties.", bullets: ["HIPAA Chat", "Referral Loop", "Tumor Boards"] },
 

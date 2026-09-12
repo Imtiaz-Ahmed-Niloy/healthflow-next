@@ -5,7 +5,8 @@ import { availabilityLabel } from "@/lib/availability";
 
 export type DBDoctor = {
   id: string;
-  tenant_id: string;
+  /** Null for a doctor at no hospital yet (0081, listed since 0086). */
+  tenant_id: string | null;
   name: string;
   slug: string;
   specialty: string | null;
@@ -40,9 +41,10 @@ export type UIDoctor = {
   rating: number;
   reviews: number;
   blurb: string;
-  date: string;
-  time: string;
-  mode: "Telehealth" | "In-Person";
+  /** Their own About, as saved — null when none was written. `blurb` falls back; this doesn't. */
+  bio: string | null;
+  /** Their areas of expertise, from the comma-separated column. */
+  expertise: string[];
   gender: "male" | "female" | "other" | null;
   img: string | null;
   slug: string;
@@ -59,12 +61,20 @@ export type UIDoctor = {
   education: string;
   languages: string[];
   patients: number;
+  /**
+   * At no hospital yet (0081): listed, but not bookable — an appointment
+   * belongs to a hospital, and the booking API refuses one without it.
+   */
+  independent: boolean;
   hospital: {
     name: string;
     slug: string;
     location: string;
   };
 };
+
+/** What a doctor at no hospital shows where a hospital's name would go. */
+export const INDEPENDENT_LABEL = "Independent practice";
 
 const getCategoryFromSpecialty = (spec: string): string => {
   const s = spec.toLowerCase();
@@ -103,24 +113,26 @@ export const mapDBDoctorToUI = (d: DBDoctor): UIDoctor => {
     location: locationStr,
     rating,
     reviews,
-    blurb: d.bio || `Experienced specialist practicing at ${d.hospital_name || "our partner hospital"}.`,
-    date: "Available",
-    // Described, not raw: a week from the editor is JSON (src/lib/availability.ts).
-    time: availabilityLabel(d.availability) || "Mon-Fri",
-    mode: "In-Person",
+    blurb: d.bio || (d.tenant_id
+      ? `Experienced specialist practicing at ${d.hospital_name || "our partner hospital"}.`
+      : "Experienced specialist in independent practice."),
+    bio: d.bio?.trim() || null,
+    expertise: d.expertise ? d.expertise.split(",").map(s => s.trim()).filter(Boolean) : [],
     gender: d.gender,
     img: photo,
     slug: d.slug,
     experience: d.experience_years || 1,
     fee: Number(d.consultation_fee) || 500,
+    // Described, not raw: a week from the editor is JSON (src/lib/availability.ts).
     available: availabilityLabel(d.availability) || "Mon-Fri",
     availability: d.availability,
     photo,
     education: d.education || "MBBS",
     languages: d.languages ? d.languages.split(",").map(s => s.trim()).filter(Boolean) : ["English", "Bengali"],
     patients: d.patients_treated || 100,
+    independent: !d.tenant_id,
     hospital: {
-      name: d.hospital_name || "Partner Hospital",
+      name: d.tenant_id ? d.hospital_name || "Partner Hospital" : INDEPENDENT_LABEL,
       slug: d.hospital_slug || "",
       location: locationStr,
     }
