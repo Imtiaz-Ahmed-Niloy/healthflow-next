@@ -245,6 +245,8 @@ const Doctors = () => {
   // their own hours (null until touched, so an untouched week is not rewritten).
   const [editExisting, setEditExisting] = useState<Record<string, HospitalEdit>>({});
   const [editAdds, setEditAdds] = useState<Assignment[]>([]);
+  // Hospital rows to remove on Save — marked, with an undo, rather than gone on the click.
+  const [editRemovals, setEditRemovals] = useState<string[]>([]);
   const [editHomeWeek, setEditHomeWeek] = useState<WeekHours | null>(null);
   // A login's email and password on screen — just created, viewed, or reset.
   // `person` offers a fresh password from the same window.
@@ -302,6 +304,7 @@ const Doctors = () => {
     setEditDraft(Object.fromEntries(EDIT_KEYS.map(k => [k, p[k] == null ? "" : String(p[k])])));
     setEditExisting(Object.fromEntries(p.hospitals.map(h => [h.doctor_id, { fee: feeText(h.consultation_fee), week: null }])));
     setEditAdds([]);
+    setEditRemovals([]);
     setEditHomeWeek(null);
     setEditing(p);
   };
@@ -310,7 +313,7 @@ const Doctors = () => {
     if (!editing) return;
     if (!editDraft.name?.trim()) { toast.error("Name is required"); return; }
     if (editAdds.some(a => !a.tenant_id)) { toast.error("Pick a hospital on each new card, or remove the card"); return; }
-    if (!editing.has_login && editing.hospitals.length + editAdds.length > 1) {
+    if (!editing.has_login && editing.hospitals.length - editRemovals.length + editAdds.length > 1) {
       toast.error("A doctor at more than one hospital needs a login", {
         description: "Give them a login from a hospital's Doctors page first — it makes them one person at every hospital.",
       });
@@ -319,6 +322,7 @@ const Doctors = () => {
 
     // Only what changed: an untouched fee or week stays exactly as stored.
     const hospitalChanges = editing.hospitals.flatMap(h => {
+      if (editRemovals.includes(h.doctor_id)) return [];
       const e = editExisting[h.doctor_id];
       if (!e || (e.fee === feeText(h.consultation_fee) && !e.week)) return [];
       return [{
@@ -348,11 +352,14 @@ const Doctors = () => {
           } : {}),
           ...(editHomeWeek && editing.hospitals.length === 0 && !editAdds.length
             ? { home_availability: serialiseWeek(editHomeWeek) } : {}),
+          ...(editRemovals.length ? { remove_hospitals: editRemovals } : {}),
         }),
       });
       if (!res.ok) { toast.error("Couldn't save", { description: await errorOf(res) }); return; }
+      const count = editing.hospitals.length - editRemovals.length + editAdds.length;
       toast.success(
-        editAdds.length ? `Saved — now at ${editing.hospitals.length + editAdds.length} hospital${editing.hospitals.length + editAdds.length === 1 ? "" : "s"}`
+        editAdds.length || editRemovals.length
+          ? count === 0 ? "Saved — now at no hospital" : `Saved — now at ${count} hospital${count === 1 ? "" : "s"}`
           : editing.hospitals.length > 1 ? `Saved at all ${editing.hospitals.length} hospitals` : "Doctor updated",
       );
       setEditing(null);
@@ -642,22 +649,21 @@ const Doctors = () => {
               <RowActions
                 onView={() => setViewKey(p.key)}
                 onEdit={() => openEdit(p)}
-                extra={
-                  <>
-                    <button type="button" onClick={() => onKey(p)} disabled={loginBusy === p.key}
-                      title={p.has_login ? "View this doctor's login" : "Create a login for this doctor"}
-                      className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 disabled:opacity-50">
-                      {loginBusy === p.key ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
-                    </button>
-                    {p.has_login && (
-                      <button type="button" onClick={() => setPendingActive({ person: p, active: !p.is_active })}
-                        title={p.is_active ? "Suspend login" : "Reactivate login"}
-                        className={`p-1.5 rounded-lg ${p.is_active ? "hover:bg-destructive/10 text-destructive" : "hover:bg-muted text-foreground/70"}`}>
-                        {p.is_active ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
-                      </button>
-                    )}
-                  </>
+                // The key leads, as on a hospital's Doctors page.
+                before={
+                  <button type="button" onClick={() => onKey(p)} disabled={loginBusy === p.key}
+                    title={p.has_login ? "View this doctor's login" : "Create a login for this doctor"}
+                    className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 disabled:opacity-50">
+                    {loginBusy === p.key ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+                  </button>
                 }
+                extra={p.has_login && (
+                  <button type="button" onClick={() => setPendingActive({ person: p, active: !p.is_active })}
+                    title={p.is_active ? "Suspend login" : "Reactivate login"}
+                    className={`p-1.5 rounded-lg ${p.is_active ? "hover:bg-destructive/10 text-destructive" : "hover:bg-muted text-foreground/70"}`}>
+                    {p.is_active ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+                  </button>
+                )}
               />
             )}
           />
@@ -770,18 +776,36 @@ const Doctors = () => {
             {/* Where they work, and when — each hospital's own fee and hours,
                 hospitals to add, or their own hours while at none. */}
             <HospitalsSection
-              note={editing.hospitals.length + editAdds.length === 0
+              note={editing.hospitals.length === 0 && editAdds.length === 0
                 ? "Not at any hospital yet. Add one, or set their own hours below — a hospital can add them later by email or BMDC number."
-                : !editing.has_login && editing.hospitals.length > 0
+                : !editing.has_login && editing.hospitals.length - editRemovals.length > 0
                   ? "Each hospital has its own fee and hours. To add another hospital, give them a login first — it makes them one doctor at every hospital."
                   : "Each hospital has its own fee and hours. Patients booking there are held to them."}
               onAdd={editCards.add}
               canAdd={
-                !(!editing.has_login && editing.hospitals.length + editAdds.length >= 1)
+                // Without a login, one hospital at a time — one being removed frees the place.
+                !(!editing.has_login && editing.hospitals.length - editRemovals.length + editAdds.length >= 1)
                 && editing.hospitals.length + editAdds.length < hospitalOptions.length
               }
             >
-              {editing.hospitals.map(h => (
+              {editing.hospitals.map(h => editRemovals.includes(h.doctor_id) ? (
+                // Marked, not gone: nothing happens until Save, and Undo puts it back.
+                <div key={`${editing.key}:${h.doctor_id}`}
+                  className="flex items-start justify-between gap-3 rounded-2xl border border-dashed border-destructive/40 bg-destructive/5 p-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-primary">{h.name} — removed on save</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Their appointments, admissions and lab orders there keep their history without them; their shifts and
+                      performance records there are deleted.
+                      {editing.hospitals.length - editRemovals.length + editAdds.length === 0
+                        && " With no hospital left, they stay on HealthFlow at none, and keep their login."}
+                    </p>
+                  </div>
+                  <Btn variant="outline" className="shrink-0" onClick={() => setEditRemovals(list => list.filter(id => id !== h.doctor_id))}>
+                    Undo
+                  </Btn>
+                </div>
+              ) : (
                 <HospitalCard
                   key={`${editing.key}:${h.doctor_id}`}
                   title="Hospital"
@@ -790,6 +814,7 @@ const Doctors = () => {
                   onFee={v => setEditExisting(m => ({ ...m, [h.doctor_id]: { ...m[h.doctor_id], fee: v } }))}
                   initialWeek={weekFromAvailability(h.availability)}
                   onWeek={week => setEditExisting(m => ({ ...m, [h.doctor_id]: { ...m[h.doctor_id], week } }))}
+                  onRemove={() => setEditRemovals(list => [...list, h.doctor_id])}
                 />
               ))}
 

@@ -185,10 +185,13 @@ export function DataTable<T extends { id: string }>({ rows, columns, onRow, sele
 }
 
 // ============ Row actions ============
-export const RowActions = ({ onView, onEdit, onDelete, extra }: {
+export const RowActions = ({ onView, onEdit, onDelete, extra, before }: {
   onView?: () => void; onEdit?: () => void; onDelete?: () => void; extra?: ReactNode;
+  /** Drawn first, left of View — where a module's own action leads, as ResourcePage's rowActions do. */
+  before?: ReactNode;
 }) => (
   <div className="inline-flex items-center gap-1">
+    {before}
     {onView && <button onClick={onView} className="p-1.5 rounded-lg hover:bg-muted text-foreground/70" title="View"><Eye className="h-4 w-4" /></button>}
     {onEdit && <button onClick={onEdit} className="p-1.5 rounded-lg hover:bg-muted text-foreground/70" title="Edit"><Pencil className="h-4 w-4" /></button>}
     {onDelete && <button onClick={onDelete} className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive" title="Delete"><Trash2 className="h-4 w-4" /></button>}

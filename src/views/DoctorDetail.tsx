@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Star, Calendar, Languages, GraduationCap, Award, Heart, Mail, Phone, MapPin, Clock, CheckCircle2, User } from "lucide-react";
+import { ArrowLeft, Star, Calendar, Languages, GraduationCap, Award, Heart, Mail, Phone, MapPin, Clock, CheckCircle2, User, BadgeCheck } from "lucide-react";
 import { toast } from "sonner";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
@@ -117,7 +117,15 @@ const DoctorDetail = () => {
             <div className="p-6">
               <span className="text-[10px] uppercase tracking-widest font-bold text-primary-glow">{d.specialty}</span>
               <h1 className="font-display text-3xl text-primary mt-2">{d.name}</h1>
-              <p className="text-xs text-muted-foreground inline-flex items-center gap-1 mt-2"><GraduationCap className="h-3 w-3" />{d.education}</p>
+              <p className="text-sm text-foreground/75 flex items-start gap-1.5 mt-2">
+                <GraduationCap className="h-4 w-4 mt-0.5 shrink-0 text-primary-glow" />{d.education}
+              </p>
+              {d.bmdc && (
+                <p className="text-sm text-foreground/75 flex items-center gap-1.5 mt-1.5">
+                  <BadgeCheck className="h-4 w-4 shrink-0 text-primary-glow" />
+                  BMDC Reg. No. <span className="font-semibold text-primary">{d.bmdc}</span>
+                </p>
+              )}
               {d.independent ? (
                 // An appointment belongs to a hospital; this doctor has none yet.
                 <p className="mt-5 text-center w-full rounded-full border border-border py-3 text-xs font-semibold text-muted-foreground">

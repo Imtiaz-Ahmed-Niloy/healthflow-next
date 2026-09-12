@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createServerSupabase, getAuthContext, isSuperAdmin } from "@/lib/supabase/server";
+import { createAdminSupabase, createServerSupabase, getAuthContext, isSuperAdmin } from "@/lib/supabase/server";
 import { parseWeek } from "@/lib/hours";
 import type { TablesInsert } from "@/lib/supabase/types";
 
@@ -235,6 +235,14 @@ export const POST = async (request: Request) => {
  *     their home row moves there; at a second, the rows would be two doctors.
  *   - `home_availability`: the hours on their home row (0081), for a doctor at
  *     no hospital.
+ *   - `remove_hospitals`: their rows at hospitals they no longer work at. As a
+ *     hospital's own removal does, this releases the hospital from their login
+ *     (release_doctor_affiliation, 0077/0081) and deletes the row — so that
+ *     hospital's appointments, admissions and lab orders keep their history
+ *     without the link, and its shifts and performance records for them go.
+ *     Unlike a hospital's, it never takes the doctor off HealthFlow: removing
+ *     their last hospital leaves them a home row with their details, and the
+ *     login stays. A saved password moves to a row that remains.
  */
 const editSchema = patchSchema.extend({
   hospitals: z.array(z.object({
@@ -245,7 +253,11 @@ const editSchema = patchSchema.extend({
   add_hospitals: z.array(hospitalSchema).max(20).optional()
     .refine(list => !list || new Set(list.map(h => h.tenant_id)).size === list.length, "Each hospital can be added once"),
   home_availability: availability.optional(),
+  remove_hospitals: z.array(z.string().uuid()).max(50).optional(),
 });
+
+/** The person's own details, copied onto a home row when their last hospital goes. */
+const PERSONAL = "name, specialty, education, bio, languages, expertise, experience_years, email, phone, photo_url, gender, bmdc_number";
 
 export const PATCH = async (request: Request) => {
   const auth = await getAuthContext();
@@ -255,8 +267,11 @@ export const PATCH = async (request: Request) => {
   const parsed = editSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Invalid request", 422);
 
-  const { doctor_id, hospitals = [], add_hospitals: adds = [], home_availability, ...fields } = parsed.data;
-  if (Object.keys(fields).length === 0 && !hospitals.length && !adds.length && home_availability === undefined) {
+  const {
+    doctor_id, hospitals = [], add_hospitals: adds = [], home_availability, remove_hospitals: removals = [], ...fields
+  } = parsed.data;
+  if (Object.keys(fields).length === 0 && !hospitals.length && !adds.length
+      && home_availability === undefined && !removals.length) {
     return fail("Nothing to update", 422);
   }
 
@@ -273,8 +288,12 @@ export const PATCH = async (request: Request) => {
     : await supabase.from("doctors").select("id, tenant_id").eq("id", head.id);
   if (rowsError) return fail(rowsError.message, 400);
   const rows = personRows ?? [];
-  const hospitalRows = rows.filter(r => r.tenant_id !== null);
-  const homeRow = rows.find(r => r.tenant_id === null) ?? null;
+  let hospitalRows = rows.filter(r => r.tenant_id !== null);
+  let homeRow = rows.find(r => r.tenant_id === null) ?? null;
+
+  if (removals.some(id => !hospitalRows.some(r => r.id === id))) {
+    return fail("That hospital isn't one of this doctor's", 422);
+  }
 
   if (Object.keys(fields).length) {
     // One row is enough: the sync trigger copies the person's details to the rest.
@@ -282,7 +301,48 @@ export const PATCH = async (request: Request) => {
     if (error) return fail(error.message, 400);
   }
 
+  // Before adding, so a doctor with no login can be moved from one hospital to another.
+  for (const rowId of removals) {
+    const remaining = hospitalRows.filter(r => r.id !== rowId);
+
+    // Their last hospital: keep them on HealthFlow, with their details, at none.
+    if (!homeRow && remaining.length === 0) {
+      const { data: person, error: readError } = await supabase.from("doctors").select(PERSONAL).eq("id", rowId).single();
+      if (readError) return fail(readError.message, 400);
+      const { data: made, error: homeError } = await supabase.from("doctors")
+        .insert({ ...person, tenant_id: null, profile_id: head.profile_id, slug: "" })
+        .select("id, tenant_id").single();
+      if (homeError) return fail(`Couldn't keep them on HealthFlow: ${homeError.message}`, 400);
+      homeRow = made;
+    }
+
+    // doctor_login_secrets has no policy for signed-in users at all (0021);
+    // the service role is the only way to it, as in /api/v1/doctors/:id/login.
+    const admin = createAdminSupabase();
+    const target = homeRow ?? remaining[0] ?? null;
+    if (target) {
+      const { data: kept } = await admin.from("doctor_login_secrets").select("doctor_id").eq("doctor_id", target.id).maybeSingle();
+      if (!kept) {
+        await admin.from("doctor_login_secrets")
+          .update({ doctor_id: target.id, tenant_id: target.tenant_id })
+          .eq("doctor_id", rowId);
+      }
+    }
+
+    // As a hospital's own removal: the login stops opening that hospital.
+    // With a home row or another hospital left, the account stays.
+    if (head.profile_id) {
+      const { error: releaseError } = await admin.rpc("release_doctor_affiliation", { p_doctor_id: rowId });
+      if (releaseError) return fail(releaseError.message, 400);
+    }
+
+    const { error: deleteError } = await supabase.from("doctors").delete().eq("id", rowId);
+    if (deleteError) return fail(deleteError.message, 400);
+    hospitalRows = remaining;
+  }
+
   for (const h of hospitals) {
+    if (removals.includes(h.doctor_id)) continue;
     if (!hospitalRows.some(r => r.id === h.doctor_id)) return fail("That hospital isn't one of this doctor's", 422);
     const change = {
       consultation_fee: h.consultation_fee,

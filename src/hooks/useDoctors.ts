@@ -30,6 +30,8 @@ export type DBDoctor = {
   hospital_name: string | null;
   hospital_slug: string | null;
   gender: "male" | "female" | "other" | null;
+  /** Public registration, published since 0087. */
+  bmdc_number: string | null;
 };
 
 export type UIDoctor = {
@@ -45,6 +47,8 @@ export type UIDoctor = {
   bio: string | null;
   /** Their areas of expertise, from the comma-separated column. */
   expertise: string[];
+  /** BMDC registration number — the public proof they are licensed. */
+  bmdc: string | null;
   gender: "male" | "female" | "other" | null;
   img: string | null;
   slug: string;
@@ -118,6 +122,7 @@ export const mapDBDoctorToUI = (d: DBDoctor): UIDoctor => {
       : "Experienced specialist in independent practice."),
     bio: d.bio?.trim() || null,
     expertise: d.expertise ? d.expertise.split(",").map(s => s.trim()).filter(Boolean) : [],
+    bmdc: d.bmdc_number?.trim() || null,
     gender: d.gender,
     img: photo,
     slug: d.slug,

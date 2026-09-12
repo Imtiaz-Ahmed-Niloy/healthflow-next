@@ -4096,6 +4096,7 @@ export type Database = {
         Row: {
           availability: string | null
           bio: string | null
+          bmdc_number: string | null
           consultation_duration_minutes: number | null
           consultation_fee: number | null
           created_at: string | null
