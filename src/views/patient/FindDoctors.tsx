@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useDoctors, type UIDoctor } from "@/hooks/useDoctors";
 import { useBookingClock } from "@/lib/appSettings";
-import { displayTime, outsideAvailabilityReason, parseAvailability } from "@/lib/availability";
+import { availabilityLabel, describeSchedule, hoursOn, outsideAvailabilityReason, parseAvailability } from "@/lib/availability";
 
 const cats = ["All Specialties", "Cardiology", "Neurology", "Dermatology", "Pediatrics", "Psychiatry", "Oncology", "General Medicine"];
 
@@ -46,10 +46,13 @@ const FindDoctors = () => {
   const slotProblem = (() => {
     if (!booking || !form.date) return null;
     if (form.date < clock.today) return "That date has already passed. Pick today or a later date.";
-    const dayOrHours = outsideAvailabilityReason(schedule, form.date, form.time || (schedule?.start ?? "00:00"), booking.name);
+    const dayOrHours = outsideAvailabilityReason(schedule, form.date, form.time, booking.name);
     if (dayOrHours) return dayOrHours;
     return form.time ? clock.pastSlotReason(form.date, form.time) : null;
   })();
+
+  // The picked date's own hours — a week can give each day different ones.
+  const dayHours = hoursOn(schedule, form.date);
 
   const openBooking = (d: UIDoctor) => {
     setForm({ date: "", time: "", reason: "" });
@@ -197,7 +200,7 @@ const FindDoctors = () => {
                   <p className="text-xs text-primary-glow">{booking.specialty} · {booking.hospital.name}</p>
                   {booking.availability && (
                     <p className="text-xs text-foreground/70 mt-1 flex items-center gap-1">
-                      <Calendar className="h-3 w-3" /> Available {booking.availability}
+                      <Calendar className="h-3 w-3" /> Available {availabilityLabel(booking.availability)}
                     </p>
                   )}
                 </div>
@@ -211,15 +214,14 @@ const FindDoctors = () => {
                   <Label required>Time</Label>
                   {/* Bounded by the doctor's hours, and by now when the date is today. */}
                   <Input type="time" value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))}
-                    min={[schedule?.start, form.date === clock.today ? clock.nowTime : undefined].filter(Boolean).sort().pop()}
-                    max={schedule?.end}
+                    min={[dayHours?.start, form.date === clock.today ? clock.nowTime : undefined].filter(Boolean).sort().pop()}
+                    max={dayHours && dayHours.end !== "24:00" ? dayHours.end : undefined}
                     required />
                 </div>
               </div>
               {schedule && !slotProblem && (
                 <p className="text-xs text-muted-foreground -mt-2">
-                  {booking.name} sees patients {schedule.days.length === 7 ? "every day" : `${schedule.days[0]}–${schedule.days[schedule.days.length - 1]}`},{" "}
-                  {displayTime(schedule.start)} to {displayTime(schedule.end)}.
+                  {booking.name} sees patients {describeSchedule(schedule)}.
                 </p>
               )}
               {slotProblem && <p className="text-xs font-semibold text-destructive -mt-2">{slotProblem}</p>}

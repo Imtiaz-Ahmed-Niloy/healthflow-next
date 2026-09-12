@@ -8,7 +8,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
 import { useBookingClock } from "@/lib/appSettings";
-import { outsideAvailabilityReason, parseAvailability } from "@/lib/availability";
+import { availabilityLabel, hoursOn, outsideAvailabilityReason, parseAvailability } from "@/lib/availability";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -81,11 +81,13 @@ const Appointments = () => {
     if (!rescheduling || !rescheduleForm.date) return null;
     if (rescheduleForm.date < clock.today) return "That date has already passed. Pick today or a later date.";
     const dayOrHours = outsideAvailabilityReason(
-      rescheduleSchedule, rescheduleForm.date, rescheduleForm.time || (rescheduleSchedule?.start ?? "00:00"), rescheduling.doctor?.name,
+      rescheduleSchedule, rescheduleForm.date, rescheduleForm.time, rescheduling.doctor?.name,
     );
     if (dayOrHours) return dayOrHours;
     return rescheduleForm.time ? clock.pastSlotReason(rescheduleForm.date, rescheduleForm.time) : null;
   })();
+  // The new date's own hours — a week can give each day different ones.
+  const rescheduleHours = hoursOn(rescheduleSchedule, rescheduleForm.date);
   const [savingReschedule, setSavingReschedule] = useState(false);
 
   const load = async () => {
@@ -377,14 +379,14 @@ const Appointments = () => {
                   <Label required>Time</Label>
                   <Input type="time" value={rescheduleForm.time}
                     onChange={e => setRescheduleForm(f => ({ ...f, time: e.target.value }))}
-                    min={[rescheduleSchedule?.start, rescheduleForm.date === clock.today ? clock.nowTime : undefined].filter(Boolean).sort().pop()}
-                    max={rescheduleSchedule?.end}
+                    min={[rescheduleHours?.start, rescheduleForm.date === clock.today ? clock.nowTime : undefined].filter(Boolean).sort().pop()}
+                    max={rescheduleHours && rescheduleHours.end !== "24:00" ? rescheduleHours.end : undefined}
                     required />
                 </div>
               </div>
               {rescheduling.doctor?.availability && !rescheduleProblem && (
                 <p className="text-xs text-muted-foreground -mt-2">
-                  {rescheduling.doctor.name} is available {rescheduling.doctor.availability}.
+                  {rescheduling.doctor.name} is available {availabilityLabel(rescheduling.doctor.availability)}.
                 </p>
               )}
               {rescheduleProblem && <p className="text-xs font-semibold text-destructive -mt-2">{rescheduleProblem}</p>}

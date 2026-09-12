@@ -1136,21 +1136,21 @@ export type Database = {
           created_at: string
           doctor_id: string
           password_enc: string
-          tenant_id: string
+          tenant_id: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           doctor_id: string
           password_enc: string
-          tenant_id: string
+          tenant_id?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           doctor_id?: string
           password_enc?: string
-          tenant_id?: string
+          tenant_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1406,7 +1406,7 @@ export type Database = {
           slug: string
           specialty: string | null
           status: Database["public"]["Enums"]["doctor_status"]
-          tenant_id: string
+          tenant_id: string | null
           updated_at: string
         }
         Insert: {
@@ -1432,7 +1432,7 @@ export type Database = {
           slug: string
           specialty?: string | null
           status?: Database["public"]["Enums"]["doctor_status"]
-          tenant_id: string
+          tenant_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -1458,7 +1458,7 @@ export type Database = {
           slug?: string
           specialty?: string | null
           status?: Database["public"]["Enums"]["doctor_status"]
-          tenant_id?: string
+          tenant_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1589,6 +1589,7 @@ export type Database = {
       }
       finance_invoices: {
         Row: {
+          admission_id: string | null
           amount: number
           appointment_id: string | null
           created_at: string
@@ -1596,6 +1597,7 @@ export type Database = {
           due_date: string
           id: string
           kind: Database["public"]["Enums"]["finance_invoice_kind"]
+          line_items: Json | null
           paid_at: string | null
           party: string
           patient_id: string | null
@@ -1604,6 +1606,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          admission_id?: string | null
           amount: number
           appointment_id?: string | null
           created_at?: string
@@ -1611,6 +1614,7 @@ export type Database = {
           due_date: string
           id?: string
           kind: Database["public"]["Enums"]["finance_invoice_kind"]
+          line_items?: Json | null
           paid_at?: string | null
           party: string
           patient_id?: string | null
@@ -1619,6 +1623,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          admission_id?: string | null
           amount?: number
           appointment_id?: string | null
           created_at?: string
@@ -1626,6 +1631,7 @@ export type Database = {
           due_date?: string
           id?: string
           kind?: Database["public"]["Enums"]["finance_invoice_kind"]
+          line_items?: Json | null
           paid_at?: string | null
           party?: string
           patient_id?: string | null
@@ -1634,6 +1640,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "finance_invoices_admission_id_fkey"
+            columns: ["admission_id"]
+            isOneToOne: false
+            referencedRelation: "admissions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "finance_invoices_appointment_id_fkey"
             columns: ["appointment_id"]
@@ -4282,6 +4295,7 @@ export type Database = {
       release_doctor_affiliation: { Args: { p_doctor_id: string }; Returns: string }
       auth_tenant_ids: { Args: never; Returns: string[] }
       set_account_active: { Args: { p_profile_id: string; p_active: boolean }; Returns: boolean }
+      admission_bill: { Args: { a: Database["public"]["Tables"]["admissions"]["Row"] }; Returns: Json }
       transfer_admission: {
         Args: { p_admission_id: string; p_bed_id?: string; p_cabin_id?: string }
         Returns: {

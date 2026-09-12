@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useFormatters } from "@/lib/appSettings";
+import { availabilityLabel } from "@/lib/availability";
 
 /**
  * The doctor's own profile (0077).
@@ -208,7 +209,7 @@ const Profile = () => {
                       {h.consultation_fee == null ? "—" : formatCurrency(Number(h.consultation_fee))}
                     </dd>
                     <dt className="text-muted-foreground">Hours</dt>
-                    <dd className="text-right font-semibold text-primary break-words">{h.availability || "—"}</dd>
+                    <dd className="text-right font-semibold text-primary break-words">{availabilityLabel(h.availability) || "—"}</dd>
                   </dl>
                 </div>
               ))}

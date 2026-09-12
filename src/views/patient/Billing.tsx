@@ -7,10 +7,14 @@ import { toast } from "sonner";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
 import { useFormatters } from "@/lib/appSettings";
 
+type Line = { description: string; quantity: number; rate: number; amount: number };
+
 type Invoice = {
   id: string;
   reference: string;
   description: string | null;
+  /** A hospital stay's charges, day by day. Null for a single-amount bill. */
+  lines: Line[] | null;
   amount: number;
   due_date: string;
   paid_at: string | null;
@@ -47,6 +51,7 @@ const Billing = () => {
   const [summary, setSummary] = useState<Summary>({ outstanding: 0, last_payment: null, upcoming_due: null });
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -170,9 +175,11 @@ const Billing = () => {
             <div className="mt-2 space-y-2">
               {invoices.map((inv, i) => {
                 const status = statusOf(inv);
+                const open = openId === inv.id;
                 return (
                   <motion.div key={inv.id} initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
-                    className={`grid grid-cols-[1fr_1fr_1fr_1fr_80px] gap-4 items-center px-3 py-3 rounded-xl ${status === "PAID" ? "hover:bg-muted/30" : "bg-chip/40"}`}>
+                    className={`rounded-xl ${status === "PAID" ? "hover:bg-muted/30" : "bg-chip/40"}`}>
+                  <div className="grid grid-cols-[1fr_1fr_1fr_1fr_80px] gap-4 items-center px-3 py-3">
                     <div className="min-w-0">
                       <p className="font-semibold text-primary text-sm">{inv.reference}</p>
                       {inv.description && <p className="text-xs text-muted-foreground truncate">{inv.description}</p>}
@@ -184,13 +191,47 @@ const Billing = () => {
                     </span>
                     <div className="flex items-center justify-end">
                       <button
-                        onClick={() => toast.info(`${inv.description ?? inv.reference} · ${fmt(inv.amount)} · due ${dateLabel(inv.due_date)}`)}
-                        className="text-foreground/60 hover:text-primary"
+                        onClick={() => inv.lines?.length
+                          ? setOpenId(open ? null : inv.id)
+                          : toast.info(`${inv.description ?? inv.reference} · ${fmt(inv.amount)} · due ${dateLabel(inv.due_date)}`)}
+                        className={open ? "text-primary" : "text-foreground/60 hover:text-primary"}
                         aria-label={`View ${inv.reference}`}
+                        aria-expanded={inv.lines?.length ? open : undefined}
                       >
                         <Eye className="h-4 w-4" />
                       </button>
                     </div>
+                  </div>
+                  {open && inv.lines && (
+                    <div className="px-3 pb-4">
+                      <div className="rounded-xl border border-border/50 bg-card overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="text-xs text-muted-foreground">
+                            <tr>
+                              <th className="text-left font-semibold px-3 py-2">Charge</th>
+                              <th className="text-right font-semibold px-3 py-2">Days</th>
+                              <th className="text-right font-semibold px-3 py-2">Rate</th>
+                              <th className="text-right font-semibold px-3 py-2">Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {inv.lines.map((l, n) => (
+                              <tr key={n} className="border-t border-border/50">
+                                <td className="px-3 py-2">{l.description}</td>
+                                <td className="px-3 py-2 text-right">{l.quantity}</td>
+                                <td className="px-3 py-2 text-right">{fmt(Number(l.rate))}</td>
+                                <td className="px-3 py-2 text-right font-medium">{fmt(Number(l.amount))}</td>
+                              </tr>
+                            ))}
+                            <tr className="border-t border-border/50 font-semibold text-primary">
+                              <td className="px-3 py-2" colSpan={3}>Total</td>
+                              <td className="px-3 py-2 text-right">{fmt(inv.amount)}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
                   </motion.div>
                 );
               })}

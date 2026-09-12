@@ -37,7 +37,10 @@ export const GET = async () => {
   // A doctor at several hospitals (0077) is still one person. "Which doctor
   // am I" is the row at their main hospital — the same one the community's
   // auth_doctor_id() resolves to — and the hospitals ride along for the UI.
-  const main = rows.find(r => r.tenant_id === auth.tenantId) ?? rows[0];
+  // A home row (0081) is no hospital — never listed, and "which doctor am I"
+  // only for a doctor with no hospital yet, as auth_doctor_id() decides.
+  const hospitalRows = rows.filter(r => r.tenant_id !== null);
+  const main = rows.find(r => r.tenant_id && r.tenant_id === auth.tenantId) ?? hospitalRows[0] ?? rows[0];
   return json({
     data: {
       id: main.id,
@@ -45,7 +48,7 @@ export const GET = async () => {
       name: main.name,
       specialty: main.specialty,
       photo_url: main.photo_url,
-      hospitals: rows.map(r => ({
+      hospitals: hospitalRows.map(r => ({
         doctor_id: r.id,
         id: r.tenant_id,
         name: (r.tenants as { name?: string } | null)?.name ?? "Hospital",

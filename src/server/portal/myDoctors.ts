@@ -12,6 +12,9 @@ import type { createServerSupabase } from "@/lib/supabase/server";
  *
  * Runs on the caller's own client. RLS already limits it to the hospitals in
  * their token, and the profile_id filter to themselves.
+ *
+ * Hospital rows only: a doctor's home row (0081) is the person, not a job —
+ * no queue, no consultations, nothing to label.
  */
 
 type Supabase = Awaited<ReturnType<typeof createServerSupabase>>;
@@ -30,15 +33,16 @@ export const myDoctorRows = async (supabase: Supabase, userId: string): Promise<
     .from("doctors")
     .select("id, tenant_id, name, specialty, education, tenants ( name )")
     .eq("profile_id", userId)
+    .not("tenant_id", "is", null)
     .order("created_at", { ascending: true });
   if (error) throw error;
 
-  return (data ?? []).map(row => ({
+  return (data ?? []).flatMap(row => row.tenant_id === null ? [] : [{
     id: row.id,
     tenant_id: row.tenant_id,
     name: row.name,
     specialty: row.specialty,
     education: row.education,
     hospital_name: (row.tenants as { name?: string } | null)?.name ?? "Hospital",
-  }));
+  }]);
 };

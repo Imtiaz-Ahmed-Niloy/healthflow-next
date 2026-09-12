@@ -76,7 +76,7 @@ export const PANELS: Panel[] = [
       { path: "/patient/medical-records", label: "Medical Records" },
       { path: "/patient/billing", label: "Billing" },
       { path: "/patient/profile", label: "Profile" },
-      { path: "/patient/tutorial", label: "Tutorial" },
+      { path: "/patient/tutorial", label: "User Guide" },
     ],
   },
 ];

@@ -254,7 +254,7 @@ const Patients = () => {
   const setCreate = set(setCreateDraft);
 
   return (
-    <SuperLayout title="Patients" subtitle="Every patient on HealthFlow, across all hospitals">
+    <SuperLayout title="Patient Management" subtitle="Every patient on HealthFlow, across all hospitals">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <Kpi icon={Users} label="Patients" value={loading ? "—" : String(counts.all)} tone="primary" />
         <Kpi icon={KeyRound} label="With a login" value={loading ? "—" : String(counts.login)} tone="accent" />

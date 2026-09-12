@@ -16,6 +16,7 @@ import {
   Plus, Trash2, TrendingUp, Activity, AlertCircle, Loader2, KeyRound, Copy,
 } from "lucide-react";
 import { toast } from "sonner";
+import { availabilityLabel } from "@/lib/availability";
 
 /**
  * Doctor Management: directory, performance and scheduling.
@@ -216,7 +217,7 @@ const DirectoryTab = () => {
       { key: "specialty", label: "Specialization", accessor: r => r.specialty, sortable: true },
       { key: "gender", label: "Gender", accessor: r => r.gender, render: r => GENDERS.find(g => g.value === r.gender)?.label ?? "—" },
       { key: "education", label: "Qualifications", accessor: r => r.education },
-      { key: "availability", label: "Availability", accessor: r => r.availability },
+      { key: "availability", label: "Availability", accessor: r => availabilityLabel(r.availability) ?? "" },
       { key: "experience_years", label: "Exp (yrs)", accessor: r => r.experience_years, sortable: true },
       { key: "consultation_fee", label: "Fee", accessor: r => r.consultation_fee },
       { key: "status", label: "Status", render: r => <Pill tone={statusTone(r.status)}>{r.status}</Pill> },
@@ -236,7 +237,7 @@ const DirectoryTab = () => {
       { name: "patients_treated", label: "Patients treated", type: "number", min: 0 },
       { name: "consultation_duration_minutes", label: "Consultation duration (minutes)", type: "number", min: 1 },
       { name: "languages", label: "Languages (comma separated)", type: "text" },
-      { name: "availability", label: "Availability (e.g. Mon–Fri 09:00–17:00)", type: "text" },
+      { name: "availability", label: "Availability", type: "availability" },
       { name: "email", label: "Email", type: "email", required: true },
       { name: "bmdc_number", label: "BMDC registration no.", type: "text" },
       { name: "phone", label: "Phone", type: "tel" },

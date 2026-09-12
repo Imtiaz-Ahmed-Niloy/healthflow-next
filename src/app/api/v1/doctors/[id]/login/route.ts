@@ -140,14 +140,20 @@ export const POST = async (_request: Request, context: RouteContext) => {
   // status stay this hospital's.
   const existingProfileId = await findExistingDoctorLogin(admin, doctor);
   if (existingProfileId) {
-    const { data: already } = await admin
-      .from("doctors")
-      .select("id, name")
-      .eq("tenant_id", doctor.tenant_id)
-      .eq("profile_id", existingProfileId)
-      .maybeSingle();
+    // Same hospital — or, for a row with no hospital (0081), a home row the
+    // person already has: one home each.
+    const sameScope = admin.from("doctors").select("id, name").eq("profile_id", existingProfileId);
+    const { data: already } = await (doctor.tenant_id
+      ? sameScope.eq("tenant_id", doctor.tenant_id)
+      : sameScope.is("tenant_id", null)
+    ).maybeSingle();
     if (already) {
-      return fail(`This login already belongs to ${already.name} on your doctor list. Remove this duplicate row instead.`, 409);
+      return fail(
+        doctor.tenant_id
+          ? `This login already belongs to ${already.name} on your doctor list. Remove this duplicate row instead.`
+          : `${already.name} is already on HealthFlow with this email or BMDC number.`,
+        409,
+      );
     }
 
     const { data: linked, error: linkError } = await admin
@@ -235,16 +241,34 @@ export const GET = async (_request: Request, context: RouteContext) => {
   }
 
   const admin = createAdminSupabase();
-  const { data: secret, error: secretError } = await admin
+  const { data: ownSecret, error: secretError } = await admin
     .from("doctor_login_secrets")
     .select("password_enc")
     .eq("doctor_id", id)
     .maybeSingle();
 
   if (secretError) return fail(secretError.message, 400);
+
+  // A super admin sees the doctor as one person (0077): the password may be
+  // filed against another hospital's row, or their home row (0081). A hospital
+  // admin only ever gets the one its own row holds.
+  let secret = ownSecret;
+  if (!secret && auth.role === "super_admin") {
+    const { data: siblings } = await admin.from("doctors").select("id").eq("profile_id", doctor.profile_id);
+    const { data: found } = await admin
+      .from("doctor_login_secrets")
+      .select("password_enc")
+      .in("doctor_id", (siblings ?? []).map(s => s.id))
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    secret = found;
+  }
+
   // Linked from another hospital: this hospital never had the password, and
-  // offering a reset would change the doctor's password everywhere.
-  if (!secret && (await otherAffiliations(admin, doctor.profile_id, id)) > 0) {
+  // offering a reset would change the doctor's password everywhere. A super
+  // admin may still reset it (see PUT), so they get the reset offer instead.
+  if (!secret && auth.role !== "super_admin" && (await otherAffiliations(admin, doctor.profile_id, id)) > 0) {
     return fail(sharedLoginMessage(doctor.name), 409, "shared_login");
   }
   if (!secret) {
@@ -297,10 +321,12 @@ export const PUT = async (_request: Request, context: RouteContext) => {
   }
 
   const admin = createAdminSupabase();
+  const isSuper = auth.role === "super_admin";
 
   // One hospital resetting the password would lock the doctor out of the
-  // account they use at every other one.
-  if ((await otherAffiliations(admin, doctor.profile_id, id)) > 0) {
+  // account they use at every other one. A super admin answers for the whole
+  // platform and may — and then nobody holds a stale copy (below).
+  if (!isSuper && (await otherAffiliations(admin, doctor.profile_id, id)) > 0) {
     return fail(sharedLoginMessage(doctor.name), 409, "shared_login");
   }
 
@@ -314,6 +340,14 @@ export const PUT = async (_request: Request, context: RouteContext) => {
     password,
   });
   if (authError) return fail(`Could not reset the password: ${authError.message}`, 400);
+
+  // The old password saved against the doctor's other rows is now wrong.
+  // Removed, so no hospital's key button shows a password that no longer works.
+  if (isSuper) {
+    const { data: siblings } = await admin.from("doctors").select("id").eq("profile_id", doctor.profile_id).neq("id", id);
+    const ids = (siblings ?? []).map(s => s.id);
+    if (ids.length) await admin.from("doctor_login_secrets").delete().in("doctor_id", ids);
+  }
 
   const { error: secretError } = await admin
     .from("doctor_login_secrets")

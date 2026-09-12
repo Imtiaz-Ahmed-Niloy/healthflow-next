@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createAdminSupabase, createServerSupabase } from "@/lib/supabase/server";
 import type { ResourceDefinition } from "./types";
+import { parseWeek } from "@/lib/hours";
 
 /**
  * The reference module. A new module is a file this size.
@@ -18,6 +19,16 @@ const optionalText = z.string().trim().max(2000).optional().or(z.literal("")).tr
   (value) => (value === "" ? undefined : value),
 );
 
+/**
+ * A week from the editor (JSON), or old free text. Something that looks like a
+ * week but isn't one would be read by booking as no hours at all, so it is
+ * refused rather than stored.
+ */
+const availabilityText = optionalText.refine(
+  (value) => !value || !value.startsWith("{") || parseWeek(value) !== null,
+  "Availability isn't a valid week",
+);
+
 /** Number fields arrive from forms as strings. */
 const optionalNumber = z.coerce.number().optional().or(z.literal("")).transform(
   (value) => (value === "" ? undefined : value),
@@ -30,7 +41,7 @@ export const doctorCreateSchema = z.object({
   bio: optionalText,
   languages: optionalText,
   expertise: optionalText,
-  availability: optionalText,
+  availability: availabilityText,
   email: z.string().trim().email().optional().or(z.literal("")).transform(
     (value) => (value === "" ? undefined : value),
   ),

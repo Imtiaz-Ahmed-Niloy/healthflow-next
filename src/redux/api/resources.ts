@@ -154,15 +154,33 @@ export type AdmissionBedStay = Pick<
   cabins: Pick<CabinRow, "number"> | null;
 };
 
+/** One charge on a stay's bill, as admission_bill() (0080) prices it. */
+export type BillLine = { description: string; quantity: number; rate: number; amount: number };
+
+/** The running bill: what the stay has cost so far, or what it cost in all once discharged. */
+export type AdmissionBill = { lines: BillLine[]; total: number };
+
+/** The invoice a discharge raised (0080). Only finance-capable roles can see it. */
+export type AdmissionInvoice = Pick<
+  Tables["finance_invoices"]["Row"],
+  "id" | "reference" | "amount" | "due_date" | "paid_at"
+> & { line_items: BillLine[] | null };
+
 /**
  * bed_stays comes back as every placement the admission has ever had, not
  * just the open one — PostgREST embeds can't carry an "ended_at is null"
  * filter. Screens pick the open row (or the most recent one) themselves.
+ *
+ * finance_invoices holds at most one row (one stay, one bill) and is empty
+ * until discharge — and always, for a doctor or HR admin, whom the invoice
+ * role gate does not let read it.
  */
 export type AdmissionRow = Tables["admissions"]["Row"] & {
   patients: AdmissionPatientSummary | null;
   doctors: DoctorSummary | null;
   bed_stays: AdmissionBedStay[];
+  admission_bill: AdmissionBill;
+  finance_invoices: AdmissionInvoice[];
 };
 
 export type OfferRow = Tables["offers"]["Row"] & {

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { NavLink } from "@/components/NavLink";
 import { useRouter } from "next/navigation";
-import { LayoutGrid, Calendar, Users, CreditCard, FileText, User, LogOut, Bell, Settings } from "lucide-react";
+import { LayoutGrid, Calendar, Users, CreditCard, FileText, User, LogOut, Bell, Settings, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/site/LanguageSwitcher";
@@ -22,6 +22,7 @@ export const PatientSidebar = () => {
     { to: "/patient/billing", icon: CreditCard, label: t("sidebar.billing") },
     { to: "/patient/medical-records", icon: FileText, label: t("sidebar.medicalRecords") },
     { to: "/patient/profile", icon: User, label: t("sidebar.myProfile") },
+    { to: "/patient/tutorial", icon: BookOpen, label: t("sidebar.userGuide") },
   ];
   return (
     <aside className="w-64 bg-chip/40 border-r border-border/50 flex flex-col py-6 sticky top-0 h-screen shrink-0">

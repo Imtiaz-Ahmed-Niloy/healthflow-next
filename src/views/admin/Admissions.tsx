@@ -13,6 +13,7 @@ import { useAdmitPatient } from "@/components/admin/useAdmitPatient";
 import { useNotifications } from "@/components/admin/NotificationProvider";
 import { useTransferBedMutation } from "@/redux/api/bedTransfers";
 import { doctorsApi, patientsApi, bedsApi, cabinsApi, type AdmissionRow } from "@/redux/api/resources";
+import { useFormatters } from "@/lib/appSettings";
 import { BedDouble, UserPlus, LogOut, Activity, Stethoscope, FileText, Printer, ArrowRightLeft } from "lucide-react";
 
 /**
@@ -62,7 +63,21 @@ const priorityTone: Record<string, "ok" | "warn" | "bad"> = {
 const statusLabel = (v: string) => STATUSES.find(s => s.value === v)?.label ?? v;
 const priorityLabel = (v: string) => PRIORITIES.find(p => p.value === v)?.label ?? v;
 
-const now = () => new Date().toISOString().slice(0, 16);
+/**
+ * A datetime-local input shows and returns wall-clock time with no zone.
+ * Filling it from toISOString() showed UTC — six hours behind in Dhaka, so a
+ * discharge at 12:22 AM read as 06:22 PM the day before — and sending its
+ * value back unconverted had the database read local time as UTC.
+ */
+const toLocalInput = (d: Date | string) => {
+  const date = new Date(d);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
+
+/** An input's local wall-clock value, as the instant the database stores. */
+const fromLocalInput = (value: string) => new Date(value).toISOString();
+
+const now = () => toLocalInput(new Date());
 
 const ageFromDob = (dob: string | null) => {
   if (!dob) return null;
@@ -77,6 +92,15 @@ const locationLabel = (a: AdmissionRow) => {
   if (stay?.beds) return `Bed ${stay.beds.number}`;
   if (stay?.cabins) return `Cabin ${stay.cabins.number}`;
   return "Unassigned";
+};
+
+/** The invoice the discharge raised — absent before discharge, and for roles that can't read invoices. */
+const invoiceOf = (a: AdmissionRow) => a.finance_invoices?.[0] ?? null;
+
+/** What the stay costs: the invoice once there is one, the running bill until then. */
+const billTotal = (a: AdmissionRow) => {
+  const invoice = invoiceOf(a);
+  return invoice ? Number(invoice.amount) : Number(a.admission_bill?.total ?? 0);
 };
 
 type Draft = {
@@ -104,6 +128,7 @@ const Admissions = () => {
   const { admit } = useAdmitPatient();
   const [transferBed] = useTransferBedMutation();
   const { push, notify } = useNotifications();
+  const { formatCurrency, formatDate, formatDateTime } = useFormatters();
 
   // Small enough lists to load whole — same pattern as Appointments.tsx.
   const { data: patientsData, isLoading: patientsLoading } = patientsApi.useList({ limit: 100 });
@@ -140,7 +165,9 @@ const Admissions = () => {
   const [discharging, setDischarging] = useState(false);
   const [transferring, setTransferring] = useState<AdmissionRow | null>(null);
   const [transferTarget, setTransferTarget] = useState({ bed_id: "", cabin_id: "" });
-  const [invoice, setInvoice] = useState<AdmissionRow | null>(null);
+  // An id, not the row: the bill should follow the list as it refetches.
+  const [billId, setBillId] = useState<string | null>(null);
+  const billFor = billId ? crud.items.find(a => a.id === billId) ?? null : null;
 
   const rows = useMemo(() => crud.items.filter(a => {
     if (statusFilter !== "all" && a.status !== statusFilter) return false;
@@ -155,7 +182,7 @@ const Admissions = () => {
   const active = crud.items.filter(a => a.status !== "discharged");
   const critical = active.filter(a => a.priority === "critical").length;
   const byStatus = (v: string) => active.filter(a => a.status === v).length;
-  const todaysAdmits = crud.items.filter(a => a.admitted_at.slice(0, 10) === new Date().toISOString().slice(0, 10)).length;
+  const todaysAdmits = crud.items.filter(a => toLocalInput(a.admitted_at).slice(0, 10) === now().slice(0, 10)).length;
 
   const openAdd = () => { setDraft({ ...emptyDraft, admitted_at: now() }); setAdd(true); };
   const openEdit = (a: AdmissionRow) => {
@@ -163,13 +190,13 @@ const Admissions = () => {
     setDraft({
       patient_id: a.patient_id, doctor_id: a.doctor_id ?? "",
       diagnosis: a.diagnosis ?? "", priority: a.priority, notes: a.notes ?? "",
-      status: a.status, admitted_at: a.admitted_at.slice(0, 16),
-      discharged_at: a.discharged_at ? a.discharged_at.slice(0, 16) : "",
+      status: a.status, admitted_at: toLocalInput(a.admitted_at),
+      discharged_at: a.discharged_at ? toLocalInput(a.discharged_at) : "",
       bed_id: "", cabin_id: "",
     });
   };
 
-  /** A discharge must come after the admission — the database refuses otherwise. */
+  /** A discharge must come after the admission — the database refuses otherwise. Both are local input values. */
   const dischargeTooEarly = (admittedAt: string, dischargedAt: string) =>
     !!dischargedAt && !!admittedAt && dischargedAt < admittedAt.slice(0, 16);
 
@@ -192,13 +219,13 @@ const Admissions = () => {
         diagnosis: draft.diagnosis || null,
         priority: draft.priority as AdmissionRow["priority"],
         notes: draft.notes || null,
-        admitted_at: draft.admitted_at,
+        admitted_at: fromLocalInput(draft.admitted_at),
       };
 
       // Discharging from the form: same path as the discharge button, so the
       // bed is released first. The rest of the edit rides along with it.
       if (toDischarged && edit.status !== "discharged") {
-        const ok = await dischargeAdmission(edit, draft.discharged_at, fields);
+        const ok = await dischargeAdmission(edit, fromLocalInput(draft.discharged_at), fields);
         if (ok) setEdit(null);
         return;
       }
@@ -207,7 +234,7 @@ const Admissions = () => {
         ...fields,
         status: draft.status as AdmissionRow["status"],
         // Only a discharged admission carries a discharge date.
-        discharged_at: toDischarged ? draft.discharged_at : null,
+        discharged_at: toDischarged ? fromLocalInput(draft.discharged_at) : null,
       });
       if (ok) setEdit(null);
     } else {
@@ -220,7 +247,7 @@ const Admissions = () => {
         // The form asks for this, so it has to be sent — dropping it here
         // silently overrode a backdated admission with the row's now()
         // default, and the desk had no way to tell.
-        admitted_at: draft.admitted_at || undefined,
+        admitted_at: draft.admitted_at ? fromLocalInput(draft.admitted_at) : undefined,
         // Name only for the notice-board line — see AdmitInput.patientName.
         patientName: patients.find(p => p.id === draft.patient_id)?.full_name,
         bed_id: draft.bed_id || undefined,
@@ -261,7 +288,12 @@ const Admissions = () => {
     }
     const ok = await crud.update(a.id, { ...extra, status: "discharged", discharged_at: dischargedAt });
     if (ok) {
-      push({ title: "Discharged", body: `${a.patients?.full_name ?? "Patient"} discharged`, tone: "ok" });
+      // The invoice is raised by the database as the status lands (0080).
+      push({
+        title: "Discharged",
+        body: `${a.patients?.full_name ?? "Patient"} discharged${billTotal(a) > 0 ? " — invoice raised" : ""}`,
+        tone: "ok",
+      });
       // A freed bed is the thing the next shift needs to know about.
       void notify({
         kind: "patient.discharged",
@@ -285,12 +317,12 @@ const Admissions = () => {
       push({ title: "Discharge date needed", body: "Enter when the patient was discharged", tone: "warn" });
       return;
     }
-    if (dischargeTooEarly(discharge.admitted_at, dischargeAt)) {
+    if (dischargeTooEarly(toLocalInput(discharge.admitted_at), dischargeAt)) {
       push({ title: "Check the date", body: "The discharge can't be before the admission", tone: "warn" });
       return;
     }
     setDischarging(true);
-    await dischargeAdmission(discharge, dischargeAt);
+    await dischargeAdmission(discharge, fromLocalInput(dischargeAt));
     setDischarging(false);
     setDischarge(null);
   };
@@ -350,7 +382,22 @@ const Admissions = () => {
     },
     {
       key: "admitted_at", label: "Admitted", sortable: true, accessor: a => a.admitted_at,
-      render: a => <span className="text-xs text-muted-foreground">{a.admitted_at.slice(0, 16).replace("T", " ")}</span>,
+      render: a => <span className="text-xs text-muted-foreground">{formatDateTime(a.admitted_at)}</span>,
+    },
+    {
+      key: "bill", label: "Bill", sortable: true, accessor: billTotal,
+      render: a => {
+        const invoice = invoiceOf(a);
+        const note = invoice
+          ? invoice.paid_at ? "Paid" : "Invoiced"
+          : a.status === "discharged" ? "Final" : "So far";
+        return (
+          <button type="button" onClick={e => { e.stopPropagation(); setBillId(a.id); }} className="text-left">
+            <p className="font-semibold text-primary">{formatCurrency(billTotal(a))}</p>
+            <p className="text-[11px] text-muted-foreground">{note}</p>
+          </button>
+        );
+      },
     },
   ];
 
@@ -418,20 +465,23 @@ const Admissions = () => {
               <RowActions
                 onEdit={() => openEdit(row)}
                 onDelete={() => setDel(row.id)}
-                extra={row.status !== "discharged" ? (
+                extra={
                   <>
-                    <button onClick={() => openTransfer(row)} className="p-1.5 rounded-lg hover:bg-muted text-primary" title="Transfer">
-                      <ArrowRightLeft className="h-4 w-4" />
+                    <button onClick={() => setBillId(row.id)} className="p-1.5 rounded-lg hover:bg-muted text-primary" title={invoiceOf(row) ? "Invoice" : "Bill"}>
+                      <FileText className="h-4 w-4" />
                     </button>
-                    <button onClick={() => openDischarge(row)} className="p-1.5 rounded-lg hover:bg-muted text-primary" title="Discharge">
-                      <LogOut className="h-4 w-4" />
-                    </button>
+                    {row.status !== "discharged" && (
+                      <>
+                        <button onClick={() => openTransfer(row)} className="p-1.5 rounded-lg hover:bg-muted text-primary" title="Transfer">
+                          <ArrowRightLeft className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => openDischarge(row)} className="p-1.5 rounded-lg hover:bg-muted text-primary" title="Discharge">
+                          <LogOut className="h-4 w-4" />
+                        </button>
+                      </>
+                    )}
                   </>
-                ) : (
-                  <button onClick={() => setInvoice(row)} className="p-1.5 rounded-lg hover:bg-muted text-primary" title="Invoice">
-                    <FileText className="h-4 w-4" />
-                  </button>
-                )}
+                }
               />
             )}
           />
@@ -542,7 +592,7 @@ const Admissions = () => {
               <Input
                 type="datetime-local"
                 value={dischargeAt}
-                min={discharge.admitted_at.slice(0, 16)}
+                min={toLocalInput(discharge.admitted_at)}
                 onChange={e => setDischargeAt(e.target.value)}
               />
             </Field>
@@ -550,6 +600,11 @@ const Admissions = () => {
               {locationLabel(discharge) === "Unassigned"
                 ? "The patient has no bed or cabin to release."
                 : `${locationLabel(discharge)} will be released and marked for cleaning.`}
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              {billTotal(discharge) > 0
+                ? <>An invoice for about <b className="text-foreground">{formatCurrency(billTotal(discharge))}</b> will be raised and shown on the patient&apos;s Billing page.</>
+                : "There are no bed or cabin charges, so no invoice will be raised."}
             </p>
           </>
         )}
@@ -580,89 +635,92 @@ const Admissions = () => {
         </Field>
       </Modal>
 
-      {/* Invoice modal */}
+      {/* Bill / invoice modal. Every figure comes from the database: the
+          running bill from admission_bill(), or — once discharged — the
+          invoice it raised, whose lines were frozen at that moment (0080).
+          This used to be a mock with made-up rates and a 5% VAT line. */}
       <Modal
-        open={!!invoice}
-        onClose={() => setInvoice(null)}
-        title="Discharge Invoice"
+        open={!!billFor}
+        onClose={() => setBillId(null)}
+        title={!billFor ? "" : invoiceOf(billFor)
+          ? `Invoice ${invoiceOf(billFor)!.reference}`
+          : billFor.status === "discharged" ? "Bill" : "Bill so far"}
         size="lg"
         footer={<>
-          <Btn variant="outline" onClick={() => setInvoice(null)}>Close</Btn>
+          <Btn variant="outline" onClick={() => setBillId(null)}>Close</Btn>
           <Btn onClick={() => window.print()}><Printer className="h-4 w-4 mr-1.5" /> Print</Btn>
         </>}
       >
-        {invoice && (() => {
-          const a = invoice;
-          const admitDate = new Date(a.admitted_at);
-          const dischargeDate = a.discharged_at ? new Date(a.discharged_at) : new Date();
-          const days = Math.max(1, Math.ceil((dischargeDate.getTime() - admitDate.getTime()) / 86400000));
-          const lastStay = a.bed_stays[a.bed_stays.length - 1];
-          const locationName = lastStay?.beds ? `Bed ${lastStay.beds.number}` : lastStay?.cabins ? `Cabin ${lastStay.cabins.number}` : "Unassigned";
-          const bedRate = a.priority === "critical" ? 8000 : lastStay?.cabin_id ? 5000 : 2500;
-          const lines = [
-            { d: `Bed charges — ${locationName} (${days} day${days > 1 ? "s" : ""})`, q: days, r: bedRate },
-            { d: `Doctor consultation — ${a.doctors?.name ?? "—"}`, q: days, r: 1200 },
-            { d: "Nursing & care services", q: days, r: 800 },
-            { d: "Diagnostics & lab", q: 1, r: 3500 },
-            { d: "Medicines & supplies", q: 1, r: 2200 },
-          ];
-          const subtotal = lines.reduce((s, l) => s + l.q * l.r, 0);
-          const vat = Math.round(subtotal * 0.05);
-          const total = subtotal + vat;
+        {billFor && (() => {
+          const a = billFor;
+          const inv = invoiceOf(a);
+          const lines = inv?.line_items ?? a.admission_bill?.lines ?? [];
+          const total = billTotal(a);
           const age = ageFromDob(a.patients?.date_of_birth ?? null);
+          const lastStay = a.bed_stays[a.bed_stays.length - 1];
+          const location = currentStay(a)
+            ? locationLabel(a)
+            : lastStay?.beds ? `Bed ${lastStay.beds.number}` : lastStay?.cabins ? `Cabin ${lastStay.cabins.number}` : "Unassigned";
+          const overdue = !!inv && !inv.paid_at && new Date(`${inv.due_date}T23:59:59`) < new Date();
           return (
             <div className="text-sm">
-              <div className="flex items-start justify-between mb-5 pb-4 border-b border-border/60">
+              <div className="grid sm:grid-cols-2 gap-4 mb-5 pb-4 border-b border-border/60">
                 <div>
-                  <p className="font-display text-2xl text-primary">HealthFlow Hospital</p>
-                  <p className="text-xs text-muted-foreground">Tax Invoice · INV-{a.id.slice(0, 8).toUpperCase()}-{dischargeDate.getFullYear()}</p>
+                  <p className="font-semibold text-primary text-base">{a.patients?.full_name ?? "—"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {a.patients?.mrn ? `${a.patients.mrn} · ` : ""}{age !== null ? `${age}y · ` : ""}{a.patients?.gender ?? ""}{a.patients?.phone ? ` · ${a.patients.phone}` : ""}
+                  </p>
+                  {a.diagnosis && <p className="text-xs text-muted-foreground mt-1">Diagnosis: {a.diagnosis}</p>}
                 </div>
-                <div className="text-right text-xs text-muted-foreground">
-                  <p>Issued: {dischargeDate.toLocaleDateString()}</p>
-                  <p>Status: <span className="font-semibold text-primary">DISCHARGED</span></p>
+                <div className="text-xs space-y-0.5 sm:text-right">
+                  <p>Admitted {formatDateTime(a.admitted_at)}</p>
+                  <p>{a.discharged_at ? `Discharged ${formatDateTime(a.discharged_at)}` : "Still admitted"}</p>
+                  <p className="text-muted-foreground">{location}{a.doctors?.name ? ` · ${a.doctors.name}` : ""}</p>
                 </div>
               </div>
-              <div className="grid sm:grid-cols-2 gap-4 mb-5">
-                <div>
-                  <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1">BILL TO</p>
-                  <p className="font-semibold text-primary">{a.patients?.full_name ?? "—"}</p>
-                  <p className="text-xs text-muted-foreground">{age !== null ? `${age}y · ` : ""}{a.patients?.gender ?? ""}{a.patients?.phone ? ` · ${a.patients.phone}` : ""}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1">STAY</p>
-                  <p className="text-xs">Admitted: {admitDate.toLocaleString()}</p>
-                  <p className="text-xs">Discharged: {dischargeDate.toLocaleString()}</p>
-                  <p className="text-xs">Location: {locationName}</p>
-                  <p className="text-xs">Diagnosis: {a.diagnosis || "—"}</p>
-                </div>
-              </div>
-              <div className="rounded-xl border border-border/60 overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50 text-[10px] tracking-widest font-bold text-muted-foreground">
-                    <tr>
-                      <th className="text-left px-3 py-2">DESCRIPTION</th>
-                      <th className="text-right px-3 py-2 w-16">QTY</th>
-                      <th className="text-right px-3 py-2 w-24">RATE</th>
-                      <th className="text-right px-3 py-2 w-28">AMOUNT</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {lines.map((l, i) => (
-                      <tr key={i} className="border-t border-border/60">
-                        <td className="px-3 py-2">{l.d}</td>
-                        <td className="px-3 py-2 text-right">{l.q}</td>
-                        <td className="px-3 py-2 text-right">৳{l.r.toLocaleString()}</td>
-                        <td className="px-3 py-2 text-right font-medium">৳{(l.q * l.r).toLocaleString()}</td>
+
+              {lines.length === 0 ? (
+                <p className="py-8 text-center text-muted-foreground">
+                  Nothing charged yet. Bed and cabin days are billed once the patient has one.
+                </p>
+              ) : (
+                <div className="rounded-xl border border-border/60 overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50 text-xs font-semibold text-muted-foreground">
+                      <tr>
+                        <th className="text-left px-3 py-2">Description</th>
+                        <th className="text-right px-3 py-2 w-16">Days</th>
+                        <th className="text-right px-3 py-2 w-28">Rate</th>
+                        <th className="text-right px-3 py-2 w-28">Amount</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="flex justify-end mt-4">
-                <div className="w-64 space-y-1.5 text-sm">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>৳{subtotal.toLocaleString()}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">VAT (5%)</span><span>৳{vat.toLocaleString()}</span></div>
-                  <div className="flex justify-between border-t border-border/60 pt-2 font-display text-lg text-primary"><span>Total</span><span>৳{total.toLocaleString()}</span></div>
+                    </thead>
+                    <tbody>
+                      {lines.map((l, i) => (
+                        <tr key={i} className="border-t border-border/60">
+                          <td className="px-3 py-2">{l.description}</td>
+                          <td className="px-3 py-2 text-right">{l.quantity}</td>
+                          <td className="px-3 py-2 text-right">{formatCurrency(Number(l.rate))}</td>
+                          <td className="px-3 py-2 text-right font-medium">{formatCurrency(Number(l.amount))}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              <div className="flex justify-between items-end gap-4 mt-4">
+                <p className="text-xs text-muted-foreground max-w-sm">
+                  {inv
+                    ? inv.paid_at
+                      ? `Paid on ${formatDateTime(inv.paid_at)}.`
+                      : `${overdue ? "Overdue" : "Unpaid"} · due ${formatDate(`${inv.due_date}T00:00:00`)}. It's on the patient's Billing page; mark it paid from Finance.`
+                    : a.status === "discharged"
+                      ? "No invoice on record for this stay."
+                      : "Charges keep running until discharge. Discharging raises the invoice."}
+                </p>
+                <div className="flex items-baseline gap-3 font-display text-lg text-primary">
+                  <span>{inv || a.status === "discharged" ? "Total" : "So far"}</span>
+                  <span>{formatCurrency(total)}</span>
                 </div>
               </div>
             </div>

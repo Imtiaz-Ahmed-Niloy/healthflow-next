@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode, useState, useMemo, useRef, useEffect } from "react";
-import { Upload, X, Plus, Copy, Facebook, Twitter, Instagram, Linkedin, Youtube, Globe, FileText, Paperclip, User, ChevronLeft, ChevronRight } from "lucide-react";
+import { Upload, X, Plus, Facebook, Twitter, Instagram, Linkedin, Youtube, Globe, FileText, Paperclip, User, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, Pill } from "./ui";
 import { DataTable, Toolbar, Modal, ConfirmDialog, RowActions, Drawer, exportCSV, useCrud, Field, Input, Select, Chips, statusTone, type Column } from "./crud";
 import { useResourceCrud } from "./useResourceCrud";
@@ -11,10 +11,9 @@ import {
   mediaUrl, MAX_IMAGE_BYTES, ALLOWED_IMAGE_TYPES,
   MAX_DOCUMENT_BYTES, ALLOWED_DOCUMENT_TYPES, type MediaFolder,
 } from "@/lib/media";
-import {
-  DAYS, defaultWeek, parseWeek, serialiseWeek, summariseWeek, formatDay,
-  type DayKey, type DayHours, type WeekHours,
-} from "@/lib/hours";
+import { parseWeek, summariseWeek } from "@/lib/hours";
+import { availabilityLabel, weekFromAvailability } from "@/lib/availability";
+import { WeeklyHoursField } from "./WeeklyHoursField";
 
 /**
  * Uploads to Cloudflare R2 and stores the object KEY, not a URL.
@@ -26,7 +25,13 @@ import {
  *
  * See docs/image-uploads-r2.md and src/lib/media.ts.
  */
-export function ImageUploadField({ name, required, defaultValue, folder = "hospitals" }: { name: string; required?: boolean; defaultValue?: string; folder?: MediaFolder }) {
+export function ImageUploadField({ name, required, defaultValue, folder = "hospitals", onChange, onUploadingChange }: {
+  name: string; required?: boolean; defaultValue?: string; folder?: MediaFolder;
+  /** For a controlled form: the stored key (or "" once removed), as it changes. FormData forms read the hidden input instead. */
+  onChange?: (value: string) => void;
+  /** True while a file is on its way to R2 — so a form can hold its submit until the key exists. */
+  onUploadingChange?: (uploading: boolean) => void;
+}) {
   // What goes in the column: a key for anything uploaded here, or whatever was
   // already stored (an Unsplash link, an /assets path) left untouched.
   const [stored, setStored] = useState<string>(defaultValue || "");
@@ -57,6 +62,7 @@ export function ImageUploadField({ name, required, defaultValue, folder = "hospi
     const localPreview = URL.createObjectURL(file);
     setPreview(localPreview);
     setBusy(true);
+    onUploadingChange?.(true);
 
     try {
       const permission = await fetch("/api/v1/uploads", {
@@ -78,6 +84,7 @@ export function ImageUploadField({ name, required, defaultValue, folder = "hospi
       if (!put.ok) throw new Error("Cloudflare refused the upload.");
 
       setStored(key);
+      onChange?.(key);
       setPreview(publicUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not upload that image.");
@@ -86,6 +93,7 @@ export function ImageUploadField({ name, required, defaultValue, folder = "hospi
       setPreview(mediaUrl(stored) || "");
     } finally {
       setBusy(false);
+      onUploadingChange?.(false);
       URL.revokeObjectURL(localPreview);
       if (inputRef.current) inputRef.current.value = "";
     }
@@ -120,7 +128,7 @@ export function ImageUploadField({ name, required, defaultValue, folder = "hospi
 
   const openPicker = () => { if (!busy) inputRef.current?.click(); };
 
-  const clear = () => { setStored(""); setPreview(""); setError(null); };
+  const clear = () => { setStored(""); onChange?.(""); setPreview(""); setError(null); };
 
   return (
     <div
@@ -166,21 +174,6 @@ export function ImageUploadField({ name, required, defaultValue, folder = "hospi
   );
 }
 
-/**
- * The seven-day operating hours editor.
- *
- * One field, one value, posted as JSON — see src/lib/hours.ts.
- *
- * Built around the fact that a hospital almost never has seven different
- * schedules. It has one, and then Friday is different. So the row does the
- * work: set a day, then "Copy to all" pushes it across the week and you
- * correct the one or two that differ. Filling seven rows by hand is possible,
- * but it is not the path the design expects anyone to take.
- *
- * Each day carries a MODE rather than only a pair of times, because "Closed"
- * and "Open 24 hours" are not times. Encoding them as 00:00–00:00 is how a
- * hospital ends up claiming to be shut and open at once.
- */
 /**
  * A scanned licence or certificate — PDF, straight to R2, column holds the key
  * (0061).
@@ -330,96 +323,6 @@ function DocumentUploadField({ name, required, defaultValue, hint, sizeName, def
           : <p className="text-[11px] text-muted-foreground mt-1.5">
               {dragging ? "Drop it here." : hint || "Drag the scan here, or click to choose. PDF, up to 10MB."}
             </p>}
-      </div>
-    </div>
-  );
-}
-
-function WeeklyHoursField({ name, defaultValue }: { name: string; defaultValue?: unknown }) {
-  const [week, setWeek] = useState<WeekHours>(() => parseWeek(defaultValue) ?? defaultWeek());
-
-
-  const setDay = (key: DayKey, day: DayHours) => setWeek(w => ({ ...w, [key]: day }));
-
-  const copyToAll = (key: DayKey) =>
-    setWeek(w => DAYS.reduce((next, d) => ({ ...next, [d.key]: w[key] }), {} as WeekHours));
-
-  const summary = summariseWeek(week);
-
-  return (
-    <div className="space-y-3">
-      <input type="hidden" name={name} value={serialiseWeek(week)} />
-
-
-      <div className="rounded-xl border border-border/60 divide-y divide-border/40 overflow-hidden">
-        {DAYS.map(d => {
-          const day = week[d.key];
-          return (
-            <div key={d.key} className="flex flex-wrap items-center gap-2 px-3 py-2 hover:bg-muted/30">
-              <span className="w-24 shrink-0 text-sm font-medium text-foreground/80">{d.label}</span>
-
-              <select
-                value={day.mode}
-                onChange={e => {
-                  const mode = e.target.value as DayHours["mode"];
-                  if (mode === "hours") {
-                    // Keep the times the row last had rather than snapping
-                    // back to the default and throwing away the edit.
-                    const prev = day.mode === "hours" ? day : null;
-                    setDay(d.key, { mode: "hours", open: prev?.open ?? "09:00", close: prev?.close ?? "17:00" });
-                  } else {
-                    setDay(d.key, { mode } as DayHours);
-                  }
-                }}
-                className="bg-muted/40 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="hours">Open</option>
-                <option value="24h">24 hours</option>
-                <option value="closed">Closed</option>
-              </select>
-
-              {day.mode === "hours" ? (
-                <div className="flex items-center gap-1.5">
-                  <input
-                    type="time"
-                    value={day.open}
-                    onChange={e => setDay(d.key, { ...day, open: e.target.value })}
-                    className="bg-muted/40 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary"
-                  />
-                  <span className="text-xs text-muted-foreground">to</span>
-                  <input
-                    type="time"
-                    value={day.close}
-                    onChange={e => setDay(d.key, { ...day, close: e.target.value })}
-                    className="bg-muted/40 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-              ) : (
-                <span className="text-xs text-muted-foreground italic">{formatDay(day)}</span>
-              )}
-
-              <button
-                type="button"
-                onClick={() => copyToAll(d.key)}
-                title={`Copy ${d.label} to every day`}
-                className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-muted-foreground border border-transparent hover:border-border hover:text-primary"
-              >
-                <Copy className="h-3 w-3" /> Copy to all
-              </button>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* What a visitor will actually be shown. The editor is seven rows; the
-          public page collapses them, so the admin should see that collapse. */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-        <span className="font-semibold uppercase tracking-wide">Visitors see</span>
-        {summary.map(row => (
-          <span key={row.days} className="rounded-full bg-muted/50 px-2.5 py-1">
-            <span className="font-medium text-foreground/70">{row.days}</span> · {row.hours}
-          </span>
-        ))}
       </div>
     </div>
   );
@@ -784,6 +687,11 @@ const DetailValue = ({ name, value }: { name: string; value: unknown }) => {
     );
   }
 
+  // A doctor's availability: a week described, old free text as typed.
+  if (name === "availability" && typeof value === "string") {
+    return <>{availabilityLabel(value) ?? "—"}</>;
+  }
+
   // The weekly opening hours, shown the way the public page shows them:
   // "Mon – Fri · 9:00 AM – 5:00 PM" rather than seven near-identical rows.
   const week = name === "opening_hours" ? parseWeek(value) : null;
@@ -881,6 +789,9 @@ export type FieldDef = (
   | { name: string; label: string; type: "list"; itemType?: "text" | "email" | "tel" | "url"; placeholder?: string; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "social"; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "hours"; required?: boolean; fullWidth?: boolean }
+  // A doctor's availability: the same week editor, opening from old free-text
+  // hours where that is what is stored (src/lib/availability.ts).
+  | { name: string; label: string; type: "availability"; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "people"; roleOptions?: string[]; addLabel?: string; required?: boolean; fullWidth?: boolean }
 ) & { step?: number };
 
@@ -918,7 +829,7 @@ export function RecordFormFields({
       {fields.map(f => {
         const fieldStep = f.step ?? ids[0];
         const hidden = activeStepId !== undefined ? fieldStep !== activeStepId : false;
-        const wide = f.fullWidth || f.type === "textarea" || f.type === "image" || f.type === "file" || f.type === "document" || f.type === "files" || f.type === "list" || f.type === "social" || f.type === "hours" || f.type === "people";
+        const wide = f.fullWidth || f.type === "textarea" || f.type === "image" || f.type === "file" || f.type === "document" || f.type === "files" || f.type === "list" || f.type === "social" || f.type === "hours" || f.type === "availability" || f.type === "people";
         return (
           <div key={f.name} className={`${wide ? "col-span-2" : ""} ${hidden ? "hidden" : ""}`}>
             <Field label={f.label} required={f.required}>
@@ -944,6 +855,8 @@ export function RecordFormFields({
                 <SocialField name={f.name} defaultValue={(editing as never)?.[f.name]} />
               ) : f.type === "hours" ? (
                 <WeeklyHoursField name={f.name} defaultValue={(editing as never)?.[f.name]} />
+              ) : f.type === "availability" ? (
+                <WeeklyHoursField name={f.name} defaultValue={(editing as never)?.[f.name]} seed={weekFromAvailability} summaryLabel="Patients see" />
               ) : f.type === "people" ? (
                 <PeopleField name={f.name} defaultValue={(editing as never)?.[f.name]} roleOptions={f.roleOptions} addLabel={f.addLabel} />
               ) : (
@@ -1267,7 +1180,7 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
             {config.fields.map(f => {
               const fieldStep = f.step ?? stepIds[0];
               const hidden = steps ? fieldStep !== activeStepId : false;
-              const wide = f.fullWidth || f.type === "textarea" || f.type === "image" || f.type === "file" || f.type === "document" || f.type === "files" || f.type === "list" || f.type === "social" || f.type === "hours" || f.type === "people";
+              const wide = f.fullWidth || f.type === "textarea" || f.type === "image" || f.type === "file" || f.type === "document" || f.type === "files" || f.type === "list" || f.type === "social" || f.type === "hours" || f.type === "availability" || f.type === "people";
               return (
                 <div key={f.name} className={`${wide ? "col-span-2" : ""} ${hidden ? "hidden" : ""}`}>
                   <Field label={f.label} required={f.required}>
@@ -1293,6 +1206,8 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
                       <SocialField name={f.name} defaultValue={(editing as never)?.[f.name]} />
                     ) : f.type === "hours" ? (
                       <WeeklyHoursField name={f.name} defaultValue={(editing as never)?.[f.name]} />
+                    ) : f.type === "availability" ? (
+                      <WeeklyHoursField name={f.name} defaultValue={(editing as never)?.[f.name]} seed={weekFromAvailability} summaryLabel="Patients see" />
                     ) : f.type === "people" ? (
                       <PeopleField name={f.name} defaultValue={(editing as never)?.[f.name]} roleOptions={f.roleOptions} addLabel={f.addLabel} />
                     ) : (

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { mediaUrl } from "@/lib/media";
+import { availabilityLabel } from "@/lib/availability";
 
 export type DBDoctor = {
   id: string;
@@ -104,14 +105,15 @@ export const mapDBDoctorToUI = (d: DBDoctor): UIDoctor => {
     reviews,
     blurb: d.bio || `Experienced specialist practicing at ${d.hospital_name || "our partner hospital"}.`,
     date: "Available",
-    time: d.availability || "Mon-Fri",
+    // Described, not raw: a week from the editor is JSON (src/lib/availability.ts).
+    time: availabilityLabel(d.availability) || "Mon-Fri",
     mode: "In-Person",
     gender: d.gender,
     img: photo,
     slug: d.slug,
     experience: d.experience_years || 1,
     fee: Number(d.consultation_fee) || 500,
-    available: d.availability || "Mon-Fri",
+    available: availabilityLabel(d.availability) || "Mon-Fri",
     availability: d.availability,
     photo,
     education: d.education || "MBBS",

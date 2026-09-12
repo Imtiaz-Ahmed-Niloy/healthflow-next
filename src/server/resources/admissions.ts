@@ -57,10 +57,16 @@ export const admissionsResource: ResourceDefinition<AdmissionCreate, AdmissionUp
   // Note: PostgREST embeds return ALL related bed_stays rows per admission —
   // there's no way to push an "ended_at is null" filter into the embed
   // through this plain select string, so the client picks the open one.
+  //
+  // admission_bill is a computed field (0080): the stay priced from the beds
+  // and cabins it used, so the bill shows on every row, live or discharged.
+  // finance_invoices is the invoice the discharge raised from that same bill.
   select:
     "*, patients(id, full_name, mrn, gender, date_of_birth, phone), " +
     "doctors(id, name, specialty), " +
-    "bed_stays(id, bed_id, cabin_id, started_at, ended_at, beds(number), cabins(number))",
+    "bed_stays(id, bed_id, cabin_id, started_at, ended_at, beds(number), cabins(number)), " +
+    "admission_bill, " +
+    "finance_invoices(id, reference, amount, due_date, paid_at, line_items)",
   createSchema: admissionCreateSchema,
   updateSchema: admissionUpdateSchema,
   // Patient-name search can't reach through the embed via a plain ilike — it

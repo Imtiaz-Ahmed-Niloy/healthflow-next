@@ -50,7 +50,10 @@ export const GET = async () => {
   if (error) return fail(error.message, 500);
   if (!rows?.length) return fail("No doctor profile is linked to this login.", 404);
 
-  const main = rows.find(r => r.tenant_id === auth.tenantId) ?? rows[0];
+  // A home row (0081) holds the same details but is no hospital: it is never
+  // listed below, and is "main" only for a doctor with no hospital yet.
+  const hospitalRows = rows.filter(r => r.tenant_id !== null);
+  const main = rows.find(r => r.tenant_id && r.tenant_id === auth.tenantId) ?? hospitalRows[0] ?? rows[0];
   return json({
     data: {
       profile: {
@@ -59,7 +62,7 @@ export const GET = async () => {
         email: main.email, phone: main.phone, photo_url: main.photo_url, gender: main.gender,
         bmdc_number: main.bmdc_number,
       },
-      hospitals: rows.map(r => ({
+      hospitals: hospitalRows.map(r => ({
         id: r.tenant_id,
         name: (r.tenants as { name?: string } | null)?.name ?? "Hospital",
         main: r.id === main.id,

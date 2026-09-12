@@ -3,6 +3,7 @@ import { hospitals as staticHospitals, baseLabTests, baseRooms, baseManagement, 
 import { slugify } from "@/lib/slug";
 import { mediaUrl } from "@/lib/media";
 import { parseWeek, summariseWeek } from "@/lib/hours";
+import { availabilityLabel } from "@/lib/availability";
 import { supabase } from "@/lib/supabase/client";
 const atriumFallback = "/assets/hub-atrium.jpg";
 
@@ -186,7 +187,7 @@ const mapPublicToDoctor = (r: PublicDoctor): Doctor => ({
   experience: Number(r.experience_years) || 0,
   rating: Number(r.rating) || 0,
   fee: Number(r.consultation_fee) || 0,
-  available: r.availability || "By appointment",
+  available: availabilityLabel(r.availability) || "By appointment",
   photo: mediaUrl(r.photo_url),
   education: r.education || "",
   languages: splitList(r.languages),
