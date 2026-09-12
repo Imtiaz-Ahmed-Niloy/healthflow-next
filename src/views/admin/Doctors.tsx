@@ -1,10 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ResourcePage } from "@/components/admin/ResourcePage";
+import { WeeklyHoursField } from "@/components/admin/WeeklyHoursField";
 import { Card, Kpi, Pill, Btn, SectionTitle } from "@/components/admin/ui";
-import { statusTone, Modal, ConfirmDialog } from "@/components/admin/crud";
+import { statusTone, Modal, ConfirmDialog, Field, Input } from "@/components/admin/crud";
+import { Avatar } from "@/components/common/Avatar";
+import { useSession } from "@/lib/auth/useSession";
+import { defaultWeek, serialiseWeek, type WeekHours } from "@/lib/hours";
 import { invalidateResource } from "@/redux/api/createResourceApi";
 import { useAppDispatch } from "@/redux/hooks";
 import {
@@ -13,7 +17,7 @@ import {
 } from "@/redux/api/resources";
 import {
   Stethoscope, Users, DollarSign, Star, CalendarRange, ClipboardList,
-  Plus, Trash2, TrendingUp, Activity, AlertCircle, Loader2, KeyRound, Copy,
+  Plus, Trash2, TrendingUp, Activity, AlertCircle, Loader2, KeyRound, Copy, Search, UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { availabilityLabel } from "@/lib/availability";
@@ -66,11 +70,190 @@ const GENDERS = [
 const TABS = ["Directory", "Performance", "Scheduling"] as const;
 type Tab = (typeof TABS)[number];
 
+/**
+ * A doctor already on HealthFlow who is not at this hospital — see
+ * search_doctors_to_add (0082, 0085). With a login they are named by it;
+ * without one, by their home row, which moves here when added.
+ */
+type Candidate = {
+  profile_id: string | null;
+  doctor_id: string | null;
+  has_login: boolean;
+  name: string;
+  specialty: string | null;
+  photo_url: string | null;
+  bmdc_number: string | null;
+  /** Masked: enough to tell two doctors of the same name apart. */
+  email_hint: string | null;
+  phone_hint: string | null;
+  hospitals: string[];
+};
+
+/**
+ * Adds a doctor who is already on HealthFlow to this hospital (0082).
+ *
+ * The other way in — New, then the key, which links a row whose email or BMDC
+ * matches — still works, but it means typing the doctor out again to find
+ * them. Here the hospital searches by name, email or phone, picks the doctor,
+ * and sets only what is its own: the fee and the hours. The doctor's name,
+ * photo and the rest come from their profile.
+ */
+const AddExistingDoctor = () => {
+  const dispatch = useAppDispatch();
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Candidate[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [picked, setPicked] = useState<Candidate | null>(null);
+  const [fee, setFee] = useState("");
+  const [week, setWeek] = useState<WeekHours>(defaultWeek);
+  const [saving, setSaving] = useState(false);
+
+  const reset = () => { setQuery(""); setResults([]); setPicked(null); setFee(""); setWeek(defaultWeek()); };
+  const close = () => { if (!saving) { setOpen(false); reset(); } };
+
+  // Searches as they type, once they pause. A stale answer never replaces a newer one.
+  useEffect(() => {
+    const q = query.trim();
+    if (!open || q.length < 2) { setResults([]); setSearching(false); return; }
+    let live = true;
+    setSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/v1/doctors/existing?q=${encodeURIComponent(q)}`);
+        const body = await res.json().catch(() => null);
+        if (!live) return;
+        if (!res.ok) { toast.error("Couldn't search", { description: body?.error?.message }); setResults([]); return; }
+        setResults(body.data ?? []);
+      } finally {
+        if (live) setSearching(false);
+      }
+    }, 300);
+    return () => { live = false; clearTimeout(timer); };
+  }, [query, open]);
+
+  const add = async () => {
+    if (!picked) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/v1/doctors/existing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...(picked.profile_id ? { profile_id: picked.profile_id } : { doctor_id: picked.doctor_id }),
+          consultation_fee: fee,
+          availability: serialiseWeek(week),
+        }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) { toast.error("Couldn't add the doctor", { description: body?.error?.message }); return; }
+      dispatch(invalidateResource("doctors"));
+      toast.success(`${picked.name} added to your hospital`, {
+        description: picked.has_login
+          ? "They sign in with their own account and will see your hospital in their portal."
+          : "They have no login yet — press the key on their row to create one.",
+      });
+      setOpen(false);
+      reset();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <Btn variant="outline" onClick={() => setOpen(true)} className="whitespace-nowrap">
+        <UserPlus className="h-4 w-4" /> Add existing doctor
+      </Btn>
+
+      <Modal open={open} onClose={close} title={picked ? `Add ${picked.name}` : "Add an existing doctor"} size="lg"
+        footer={<>
+          {picked && <Btn variant="outline" onClick={() => setPicked(null)} disabled={saving} className="mr-auto">Back to search</Btn>}
+          <Btn variant="outline" onClick={close} disabled={saving}>Cancel</Btn>
+          {picked && (
+            <Btn onClick={() => void add()} disabled={saving}>
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />} Add to hospital
+            </Btn>
+          )}
+        </>}>
+        {!picked ? (
+          <>
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input autoFocus value={query} onChange={e => setQuery(e.target.value)}
+                placeholder="Search by name, email, phone or BMDC number" className="pl-9" />
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              Doctors already on HealthFlow and not at your hospital. Type any part of a name, email, phone or BMDC number.
+            </p>
+            {query.trim().length < 2 ? null : searching ? (
+              <div className="py-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+            ) : results.length === 0 ? (
+              <div className="py-10 text-center">
+                <p className="text-sm font-semibold text-primary">No doctor matches</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Doctors already at your hospital aren&apos;t shown. Someone new to HealthFlow is added with New.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {results.map(c => (
+                  <button key={c.profile_id ?? c.doctor_id} type="button" onClick={() => setPicked(c)}
+                    className="w-full flex items-center gap-3 rounded-xl border border-border/60 p-3 text-left hover:border-primary hover:bg-muted/30 transition-colors">
+                    <Avatar src={c.photo_url} name={c.name} className="h-10 w-10" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-primary truncate flex items-center gap-2">
+                        <span className="truncate">{c.name}</span>
+                        {!c.has_login && <Pill tone="default">No login yet</Pill>}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {[c.specialty, c.bmdc_number && `BMDC ${c.bmdc_number}`, c.email_hint, c.phone_hint].filter(Boolean).join(" · ") || "—"}
+                      </p>
+                      {c.hospitals.length > 0 && (
+                        <p className="text-[11px] text-muted-foreground truncate">Works at {c.hospitals.join(", ")}</p>
+                      )}
+                    </div>
+                    <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-3 rounded-xl bg-muted/40 p-3 mb-4">
+              <Avatar src={picked.photo_url} name={picked.name} className="h-12 w-12" />
+              <div className="min-w-0">
+                <p className="font-semibold text-primary truncate">{picked.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {picked.specialty || "No specialty"}
+                  {picked.hospitals.length > 0 && ` · also at ${picked.hospitals.join(", ")}`}
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              {picked.has_login
+                ? "Their name, photo and details come from their own profile. Set what is yours: the fee and the hours they see patients here."
+                : "They have no login yet, so they can be at one hospital: yours, once added. Set the fee and the hours they see patients here, then give them a login with the key on their row."}
+            </p>
+            <Field label="Consultation fee">
+              <Input type="number" min={0} step="0.01" value={fee} onChange={e => setFee(e.target.value)} />
+            </Field>
+            <Field label="Availability at your hospital">
+              <WeeklyHoursField key={picked.profile_id ?? picked.doctor_id} onChange={setWeek} summaryLabel="Patients see" />
+            </Field>
+          </>
+        )}
+      </Modal>
+    </>
+  );
+};
+
 const Doctors = () => {
   const [tab, setTab] = useState<Tab>("Directory");
   return (
     <AdminLayout title="Doctor Management" subtitle="Directory, performance & scheduling">
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="flex flex-wrap items-center gap-2 mb-6">
         {TABS.map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
@@ -96,6 +279,7 @@ const Doctors = () => {
  */
 const DirectoryTab = () => {
   const dispatch = useAppDispatch();
+  const { user } = useSession();
   const [creds, setCreds] = useState<{ doctor: string; email: string; password: string } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   // Creating a login is a real, consequential action — a doctor gets a real
@@ -197,6 +381,8 @@ const DirectoryTab = () => {
     resource: "doctors",
     searchFields: ["name", "specialty", "email", "bmdc_number"],
     statuses: ["active", "on_leave", "suspended"],
+    // A hospital adds to itself; a super admin adds from /super/doctors.
+    beforeAdd: user?.role !== "super_admin" ? <AddExistingDoctor /> : undefined,
     rowActions: r => (
       <button
         type="button"

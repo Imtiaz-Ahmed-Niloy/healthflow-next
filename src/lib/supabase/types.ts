@@ -4296,6 +4296,30 @@ export type Database = {
       auth_tenant_ids: { Args: never; Returns: string[] }
       set_account_active: { Args: { p_profile_id: string; p_active: boolean }; Returns: boolean }
       admission_bill: { Args: { a: Database["public"]["Tables"]["admissions"]["Row"] }; Returns: Json }
+      search_doctors_to_add: {
+        Args: { p_query: string }
+        Returns: {
+          profile_id: string | null
+          doctor_id: string | null
+          name: string
+          specialty: string | null
+          photo_url: string | null
+          bmdc_number: string | null
+          email_hint: string | null
+          phone_hint: string | null
+          hospitals: string[]
+          has_login: boolean
+        }[]
+      }
+      add_doctor_to_hospital: {
+        Args: {
+          p_profile_id?: string | null
+          p_consultation_fee?: number | null
+          p_availability?: string | null
+          p_doctor_id?: string | null
+        }
+        Returns: string
+      }
       transfer_admission: {
         Args: { p_admission_id: string; p_bed_id?: string; p_cabin_id?: string }
         Returns: {

@@ -94,9 +94,11 @@ export const Select = ({ children, ...p }: React.SelectHTMLAttributes<HTMLSelect
 );
 
 // ============ Toolbar ============
-export const Toolbar = ({ search, onSearch, onAdd, onExport, addLabel = "New", filters, bulkCount, onBulkDelete, right }: {
+export const Toolbar = ({ search, onSearch, onAdd, onExport, addLabel = "New", filters, bulkCount, onBulkDelete, right, beforeAdd }: {
   search: string; onSearch: (v: string) => void; onAdd?: () => void; onExport?: () => void; addLabel?: string;
   filters?: ReactNode; bulkCount?: number; onBulkDelete?: () => void; right?: ReactNode;
+  /** Sits right beside the add button — another way in, such as adding an existing record. */
+  beforeAdd?: ReactNode;
 }) => (
   <div className="flex flex-wrap items-center gap-3 mb-4">
     <div className="flex-1 min-w-[220px] flex items-center gap-2 bg-muted/40 rounded-full px-4 py-2">
@@ -109,6 +111,7 @@ export const Toolbar = ({ search, onSearch, onAdd, onExport, addLabel = "New", f
     )}
     {right}
     {onExport && <Btn variant="outline" onClick={onExport}><Download className="h-4 w-4" /> Export</Btn>}
+    {beforeAdd}
     {onAdd && <Btn onClick={onAdd}><Plus className="h-4 w-4" /> {addLabel}</Btn>}
   </div>
 );

@@ -903,6 +903,8 @@ export type ResourceConfig<T extends { id: string; status?: string }> = {
    * actions that are not CRUD — approving a hospital, say.
    */
   rowActions?: (row: T) => ReactNode;
+  /** A button placed just left of New — another way to add, such as an existing doctor. */
+  beforeAdd?: ReactNode;
 };
 
 /**
@@ -997,6 +999,7 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
         <Toolbar
           search={q} onSearch={setQ}
           onAdd={() => setCreating(true)} addLabel={config.addLabel || "New"}
+          beforeAdd={config.beforeAdd}
           onExport={() => exportCSV(rows as never, `${config.exportName || config.storeKey}.csv`)}
           bulkCount={sel.length} onBulkDelete={() => setBulk(true)}
           filters={(config.statuses || config.extraFilters) && (
