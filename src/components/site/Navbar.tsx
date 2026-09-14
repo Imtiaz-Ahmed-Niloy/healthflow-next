@@ -8,11 +8,17 @@ import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { BRAND_INFO } from "@/constants/brand";
 import { useIsPageVisible } from "./PublishedPages";
+import { Avatar } from "@/components/common/Avatar";
+import { useSession, displayName } from "@/lib/auth/useSession";
+import { homePathForRole } from "@/lib/auth/permissions";
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);
   const { t } = useTranslation();
   const isVisible = useIsPageVisible();
+  const { user, isLoading: sessionLoading } = useSession();
+  // Their own panel: a patient's dashboard, a doctor's portal, and so on.
+  const home = homePathForRole(user?.role);
   // A page unpublished in the CMS drops out of the nav rather than sitting
   // there as a link to a 404.
   const links = [
@@ -44,8 +50,21 @@ const Navbar = () => {
         </ul>
         <div className="hidden md:flex items-center gap-3">
           <LanguageSwitcher />
-          <Link href="/signin" className="text-sm font-semibold text-foreground/70 hover:text-primary tracking-wider">{t("nav.signIn").toUpperCase()}</Link>
-          <Link href="/signup" className="inline-flex items-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors">{t("nav.getStarted").toUpperCase()}</Link>
+          {/* Signed in: who you are and the way back to your panel, not an
+              offer to sign in. Nothing until the session is known, so a
+              signed-in visitor never sees Sign In flash past. */}
+          {sessionLoading ? null : user ? (
+            // Their name is the way in: it opens their own panel.
+            <Link href={home} title={t("nav.dashboard")} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm font-semibold text-foreground/80 hover:bg-muted/60 hover:text-primary transition-colors">
+              <Avatar src={user.avatarUrl} name={displayName(user)} className="h-8 w-8 text-xs" />
+              <span className="max-w-[10rem] truncate">{displayName(user)}</span>
+            </Link>
+          ) : (
+            <>
+              <Link href="/signin" className="text-sm font-semibold text-foreground/70 hover:text-primary tracking-wider">{t("nav.signIn").toUpperCase()}</Link>
+              <Link href="/signup" className="inline-flex items-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors">{t("nav.getStarted").toUpperCase()}</Link>
+            </>
+          )}
         </div>
         <button className="md:hidden text-primary" onClick={() => setOpen(!open)} aria-label="Menu">
           {open ? <X /> : <Menu />}
@@ -60,8 +79,19 @@ const Navbar = () => {
               </li>
             ))}
             <li className="pt-2"><LanguageSwitcher /></li>
-            <li><Link href="/signin" onClick={() => setOpen(false)} className="block py-1">{t("nav.signIn")}</Link></li>
-            <li><Link href="/signup" onClick={() => setOpen(false)} className="inline-flex rounded-full bg-primary px-5 py-2 text-primary-foreground">{t("nav.getStarted")}</Link></li>
+            {sessionLoading ? null : user ? (
+              <li>
+                <Link href={home} onClick={() => setOpen(false)} className="flex items-center gap-2 py-1 font-semibold">
+                  <Avatar src={user.avatarUrl} name={displayName(user)} className="h-7 w-7 text-[10px]" />
+                  {displayName(user)}
+                </Link>
+              </li>
+            ) : (
+              <>
+                <li><Link href="/signin" onClick={() => setOpen(false)} className="block py-1">{t("nav.signIn")}</Link></li>
+                <li><Link href="/signup" onClick={() => setOpen(false)} className="inline-flex rounded-full bg-primary px-5 py-2 text-primary-foreground">{t("nav.getStarted")}</Link></li>
+              </>
+            )}
           </ul>
         </div>
       )}

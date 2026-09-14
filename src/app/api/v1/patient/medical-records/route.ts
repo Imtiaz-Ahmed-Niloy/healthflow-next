@@ -65,7 +65,7 @@ export const GET = async () => {
     .from("appointments")
     // One string literal, not a concatenation: supabase-js infers the row type
     // from the select text, and a concatenated one collapses to an error type.
-    .select("id, scheduled_date, scheduled_time, department, notes, bp_systolic, bp_diastolic, complaints, examination, investigation, diagnosis, medicines, advice, doctors ( name, specialty, education ), tenants ( name, address, contact_phone ), patients ( full_name, gender, date_of_birth, mrn, weight_kg, height_feet, height_inches )")
+    .select("id, scheduled_date, scheduled_time, department, notes, bp_systolic, bp_diastolic, complaints, examination, investigation, diagnosis, medicines, advice, doctors ( name, specialty, education ), tenants ( name, address, contact_phone, has_name ), patients ( full_name, gender, date_of_birth, mrn, weight_kg, height_feet, height_inches )")
     .in("patient_id", patientIds)
     .eq("status", "completed")
     .order("scheduled_date", { ascending: false });
@@ -74,7 +74,9 @@ export const GET = async () => {
 
   const visits = (data ?? []).map(row => {
     const doctor = row.doctors as { name?: string; specialty?: string; education?: string | null } | null;
-    const hospital = row.tenants as { name?: string; address?: string | null; contact_phone?: string | null } | null;
+    const hospital = row.tenants as {
+      name?: string; address?: string | null; contact_phone?: string | null; has_name?: boolean;
+    } | null;
     const patient = row.patients as {
       full_name?: string; gender?: string | null; date_of_birth?: string | null; mrn?: string;
       weight_kg?: number | null; height_feet?: number | null; height_inches?: number | null;
@@ -103,7 +105,9 @@ export const GET = async () => {
        */
       sheet: {
         hospital: {
-          name: hospital?.name ?? "Hospital",
+          // None for a chamber with no name of its own (0091) — the patient's
+          // copy is the same sheet the doctor printed.
+          name: hospital?.has_name === false ? null : hospital?.name ?? "Hospital",
           address: hospital?.address ?? null,
           contact_phone: hospital?.contact_phone ?? null,
         },

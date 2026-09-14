@@ -254,6 +254,8 @@ export const POST = async (request: Request) => {
       status: "scheduled",
       priority,
       notes: reasonValue,
+      // Not booked: the doctor can refile it at another of their places (0091).
+      walk_in: true,
     })
     .select("id, scheduled_time, priority")
     .single();

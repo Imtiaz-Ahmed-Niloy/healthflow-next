@@ -55,6 +55,7 @@ type Row = {
     district: string | null;
     subdistrict: string | null;
     contact_phone: string | null;
+    has_name: boolean;
   } | null;
   profiles: { is_active: boolean; email: string | null } | null;
 };
@@ -71,7 +72,7 @@ export const GET = async () => {
     supabase
       .from("doctors")
       .select(
-        "id, tenant_id, profile_id, name, specialty, education, bio, languages, expertise, experience_years, email, phone, photo_url, gender, bmdc_number, status, consultation_fee, availability, created_at, tenants ( name, kind, status, address, location, division, district, subdistrict, contact_phone ), profiles!doctors_profile_id_fkey ( is_active, email )",
+        "id, tenant_id, profile_id, name, specialty, education, bio, languages, expertise, experience_years, email, phone, photo_url, gender, bmdc_number, status, consultation_fee, availability, created_at, tenants ( name, kind, status, address, location, division, district, subdistrict, contact_phone, has_name ), profiles!doctors_profile_id_fkey ( is_active, email )",
       )
       .order("created_at", { ascending: true })
       .limit(5000),

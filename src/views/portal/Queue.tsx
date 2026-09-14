@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { rememberedPlace, rememberPlace } from "@/lib/rxPlace";
 
 type Priority = "high" | "standard" | "routine";
 
@@ -98,7 +99,12 @@ const Queue = () => {
       }
       setQueue(body.data.queue ?? []);
       setCompleted(body.data.completed ?? []);
-      setHospitals(body.data.hospitals ?? []);
+      const list: Hospital[] = body.data.hospitals ?? [];
+      setHospitals(list);
+      // Start where this machine says the doctor is sitting (the prescription
+      // pad's place, 0091), when that's one of theirs.
+      const here = rememberedPlace();
+      if (here && list.some(h => h.id === here)) setForm(f => (f.hospital_id ? f : { ...f, hospital_id: here }));
       setStats(body.data.stats ?? { seen: 0, remaining: 0, total: 0, avg_wait_minutes: 0 });
     } catch {
       toast.error("Couldn't reach the server.");
@@ -239,8 +245,8 @@ const Queue = () => {
               <div className="space-y-4 py-2">
                 {multiHospital && (
                   <div className="space-y-1.5">
-                    <Label>Hospital</Label>
-                    <Select value={form.hospital_id || hospitals[0]?.id} onValueChange={(v) => setForm({ ...form, hospital_id: v })}>
+                    <Label>Where</Label>
+                    <Select value={form.hospital_id || hospitals[0]?.id} onValueChange={(v) => { rememberPlace(v); setForm({ ...form, hospital_id: v }); }}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {hospitals.map((h) => (

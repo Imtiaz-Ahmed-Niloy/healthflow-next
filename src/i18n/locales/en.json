@@ -5,7 +5,8 @@
     "about": "About Us",
     "contact": "Contact",
     "signIn": "Sign In",
-    "getStarted": "Get Started"
+    "getStarted": "Get Started",
+    "dashboard": "Dashboard"
   },
   "common": {
     "language": "Language",

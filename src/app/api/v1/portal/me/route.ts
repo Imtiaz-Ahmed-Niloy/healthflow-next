@@ -24,7 +24,7 @@ export const GET = async () => {
   const supabase = await createServerSupabase();
   const { data: rows, error } = await supabase
     .from("doctors")
-    .select("id, tenant_id, name, specialty, photo_url, tenants ( name )")
+    .select("id, tenant_id, name, specialty, education, photo_url, tenants ( name, kind, has_name, address, contact_phone )")
     .eq("profile_id", auth.userId)
     .order("created_at", { ascending: true });
 
@@ -47,11 +47,18 @@ export const GET = async () => {
       tenant_id: main.tenant_id,
       name: main.name,
       specialty: main.specialty,
+      education: main.education,
       photo_url: main.photo_url,
+      // Hospitals and chambers alike — every place they see patients, with
+      // what a prescription's header needs for each (0091).
       hospitals: hospitalRows.map(r => ({
         doctor_id: r.id,
         id: r.tenant_id,
-        name: (r.tenants as { name?: string } | null)?.name ?? "Hospital",
+        name: r.tenants?.name ?? "Hospital",
+        kind: r.tenants?.kind ?? "hospital",
+        has_name: r.tenants?.has_name ?? true,
+        address: r.tenants?.address ?? null,
+        contact_phone: r.tenants?.contact_phone ?? null,
       })),
     },
   });

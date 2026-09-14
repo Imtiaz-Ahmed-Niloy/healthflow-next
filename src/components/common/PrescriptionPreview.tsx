@@ -27,7 +27,8 @@ export type SheetMedicine = {
 };
 
 export type PrescriptionSheetData = {
-  hospital: { name: string; address: string | null; contact_phone: string | null };
+  /** `name` is null when a chamber keeps its name off prescriptions (0090). */
+  hospital: { name: string | null; address: string | null; contact_phone: string | null };
   doctor: { name: string; specialty: string | null; education: string | null };
   /** The patient bar, as label / value pairs already formatted for display. */
   patientBar: [string, string][];
@@ -72,9 +73,11 @@ export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionShe
           {/* Letterhead */}
           <div className="flex items-start justify-between pb-4 border-b-2 border-slate-800">
             <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-full border-2 border-emerald-700 text-emerald-700 flex items-center justify-center font-bold text-xl">{hospital.name[0] ?? "H"}</div>
+              {hospital.name && (
+                <div className="h-12 w-12 rounded-full border-2 border-emerald-700 text-emerald-700 flex items-center justify-center font-bold text-xl">{hospital.name[0] ?? "H"}</div>
+              )}
               <div>
-                <h1 className="text-2xl font-bold tracking-tight text-emerald-800">{hospital.name}</h1>
+                {hospital.name && <h1 className="text-2xl font-bold tracking-tight text-emerald-800">{hospital.name}</h1>}
                 <p className="text-[11px] text-slate-500 italic">
                   {[hospital.address, hospital.contact_phone].filter(Boolean).join(" • ") || "Address not on file"}
                 </p>

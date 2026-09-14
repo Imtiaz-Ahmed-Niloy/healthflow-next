@@ -237,11 +237,12 @@ const ChambersSection = ({ note, onAdd, canAdd, children }: {
 );
 
 /** One chamber: its details, fee and hours, with close/reopen for one that exists or remove for a new one. */
-const ChamberCard = ({ title, draft, onChange, resetKey, open, onToggleOpen, onRemove }: {
+const ChamberCard = ({ title, draft, onChange, resetKey, doctorName, open, onToggleOpen, onRemove }: {
   title: string;
   draft: ChamberDraft;
   onChange: (patch: Partial<ChamberDraft>) => void;
   resetKey: string | number;
+  doctorName: string;
   open?: boolean;
   onToggleOpen?: () => void;
   onRemove?: () => void;
@@ -263,7 +264,7 @@ const ChamberCard = ({ title, draft, onChange, resetKey, open, onToggleOpen, onR
         </button>
       )}
     </div>
-    <ChamberForm draft={draft} onChange={onChange} resetKey={resetKey} />
+    <ChamberForm draft={draft} onChange={onChange} resetKey={resetKey} doctorName={doctorName} />
   </div>
 );
 
@@ -415,8 +416,8 @@ const Doctors = () => {
     if (!editing) return;
     if (!editDraft.name?.trim()) { toast.error("Name is required"); return; }
     if (editAdds.some(a => !a.tenant_id)) { toast.error("Pick a hospital on each new card, or remove the card"); return; }
-    if ([...Object.values(editChambers), ...editChamberAdds.map(a => a.draft)].some(d => !d.name.trim())) {
-      toast.error("Give each chamber a name, or remove the card");
+    if ([...Object.values(editChambers), ...editChamberAdds.map(a => a.draft)].some(d => d.has_name && !d.name.trim())) {
+      toast.error("Give each chamber a name, turn off “has a name”, or remove the card");
       return;
     }
     if (!editing.has_login && editing.hospitals.length - editRemovals.length + editAdds.length > 1) {
@@ -988,6 +989,7 @@ const Doctors = () => {
                   draft={editChambers[c.id]}
                   onChange={patch => setEditChambers(m => ({ ...m, [c.id]: { ...m[c.id], ...patch } }))}
                   resetKey={`${editing.key}:${c.id}`}
+                  doctorName={editDraft.name || editing.name}
                   open={editChamberOpen[c.id] ?? c.open}
                   onToggleOpen={() => setEditChamberOpen(m => ({ ...m, [c.id]: !(m[c.id] ?? c.open) }))}
                 />
@@ -999,6 +1001,7 @@ const Doctors = () => {
                   draft={a.draft}
                   onChange={patch => chamberCards.update(a.key, patch)}
                   resetKey={a.key}
+                  doctorName={editDraft.name || editing.name}
                   onRemove={() => chamberCards.remove(a.key)}
                 />
               ))}

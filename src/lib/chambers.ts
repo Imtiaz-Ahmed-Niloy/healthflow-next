@@ -19,6 +19,12 @@ export type Chamber = {
   availability: string | null;
   /** Taking bookings. A closed chamber is off the public list. */
   open: boolean;
+  /**
+   * It has a name of its own (0091). Without one, `name` is made from the
+   * doctor and the area — "Dr. Rahman's Chamber, Uttara" — and none prints on
+   * prescriptions.
+   */
+  has_name: boolean;
 };
 
 /** The chamber's fields as the tenants and doctors rows hold them. */
@@ -32,6 +38,7 @@ export type ChamberTenant = {
   subdistrict: string | null;
   contact_phone: string | null;
   status: string;
+  has_name: boolean;
 };
 
 export const toChamber = (
@@ -50,6 +57,7 @@ export const toChamber = (
   consultation_fee: d?.consultation_fee ?? null,
   availability: d?.availability ?? null,
   open: t.status === "approved",
+  has_name: t.has_name,
 });
 
 /** One line for where it is: "House 12, Road 5, Dhanmondi, Dhaka". */

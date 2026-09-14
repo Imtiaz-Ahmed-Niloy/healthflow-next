@@ -37,13 +37,42 @@ export type DBDoctor = {
   /** The chamber's or hospital's address and phone (0089). */
   practice_address: string | null;
   practice_phone: string | null;
+  /** The same on every row of one doctor (0090): what the site groups them by. */
+  person_slug: string | null;
+};
+
+/**
+ * One place a doctor practises — a hospital, or their own chamber (0088) —
+ * with what it charges and when they're there. A doctor has one of these per
+ * doctors row; each is booked separately.
+ */
+export type DoctorPlace = {
+  /** The doctors row at this place — what an appointment is booked against. */
+  id: string;
+  /** That row's own slug. An older link to it still opens the doctor's page. */
+  slug: string;
+  kind: "hospital" | "chamber";
+  name: string;
+  /** The hospital's page, for a hospital. */
+  hospitalSlug: string;
+  /** "Dhanmondi, Dhaka" */
+  location: string;
+  address: string | null;
+  phone: string | null;
+  fee: number;
+  /** As stored, with no fallback — booking holds a patient to it (src/lib/availability.ts). */
+  availability: string | null;
+  /** The same, described: "Sun–Thu 9:00 AM–5:00 PM". Empty when not set. */
+  available: string;
 };
 
 export type UIDoctor = {
+  /** Their first place's doctors row (or their only row): unique per doctor. */
   id: string;
   name: string;
   specialty: string;
   category: string;
+  /** Every place's area, so a filter or search on any of them finds the doctor. */
   location: string;
   rating: number;
   reviews: number;
@@ -56,36 +85,37 @@ export type UIDoctor = {
   bmdc: string | null;
   gender: "male" | "female" | "other" | null;
   img: string | null;
+  /** The doctor's one page: /doctors/<slug> (0090). */
   slug: string;
   experience: number;
   fee: number;
   available: string;
   /**
-   * doctors.availability as typed, with no fallback. `available` above says
-   * "Mon-Fri" for a doctor with nothing entered — fine as a label, wrong as a
-   * rule. Booking checks this one (see src/lib/availability.ts).
+   * The first place's availability as stored, with no fallback. `available`
+   * above says "Mon-Fri" for a doctor with nothing entered — fine as a label,
+   * wrong as a rule. Booking checks the place's own (see DoctorPlace).
    */
   availability: string | null;
   photo: string | null;
-  education: string;
+  /** Their degrees as they entered them, e.g. "MBBS, FCPS (Medicine)" — null when none. */
+  education: string | null;
   languages: string[];
   patients: number;
   /**
-   * At no hospital yet (0081): listed, but not bookable — an appointment
-   * belongs to a hospital, and the booking API refuses one without it.
+   * At no hospital or chamber yet (0081): listed, but not bookable — an
+   * appointment belongs to one, and the booking API refuses one without it.
    */
   independent: boolean;
   /**
-   * Listed at their own chamber (0088), not a hospital: bookable there, and
-   * `hospital` below is the chamber — with no hospital page to link to.
+   * Where they practise: hospitals first, then their chambers. One card and
+   * one page per doctor however many there are (0090). Empty when independent.
    */
-  chamber: boolean;
+  places: DoctorPlace[];
+  /** Their first place, or "Independent practice". */
   hospital: {
     name: string;
     slug: string;
     location: string;
-    address: string | null;
-    phone: string | null;
   };
 };
 
@@ -111,54 +141,98 @@ const getCategoryFromSpecialty = (spec: string): string => {
   return "General Medicine";
 };
 
-export const mapDBDoctorToUI = (d: DBDoctor): UIDoctor => {
+/** "Dhanmondi, Dhaka" — each part once; Dhaka is often area, district and division at once. */
+const placeLocation = (d: DBDoctor) =>
+  [d.location, d.district, d.division]
+    .filter((part, i, all): part is string => !!part && all.indexOf(part) === i)
+    .join(", ");
+
+const toPlace = (d: DBDoctor): DoctorPlace => ({
+  id: d.id,
+  slug: d.slug,
+  kind: d.practice_kind === "chamber" ? "chamber" : "hospital",
+  name: d.hospital_name || (d.practice_kind === "chamber" ? "Chamber" : "Partner Hospital"),
+  hospitalSlug: d.hospital_slug || "",
+  location: placeLocation(d),
+  address: d.practice_address,
+  phone: d.practice_phone,
+  fee: Number(d.consultation_fee) || 500,
+  availability: d.availability,
+  available: availabilityLabel(d.availability) || "",
+});
+
+/**
+ * One doctor from all of their listed rows (0090). The person's own details
+ * are the same on every row (0077's sync), so any row gives them; each row
+ * with a hospital or chamber adds a place.
+ */
+const toDoctor = (rows: DBDoctor[]): UIDoctor => {
+  const places = rows
+    .filter(r => r.tenant_id)
+    .map(r => ({ row: r, place: toPlace(r) }))
+    // Hospitals first, then chambers; each in the order they were added.
+    .sort((a, b) =>
+      (a.place.kind === b.place.kind ? 0 : a.place.kind === "hospital" ? -1 : 1)
+      || a.row.created_at.localeCompare(b.row.created_at));
+  const d = places[0]?.row ?? rows[0];
+  const first = places[0]?.place ?? null;
+
   const rating = Number(d.rating) || 4.5;
-  const reviews = Math.floor(rating * 20);
   // The uploaded photo or nothing. A stock face would pass for the actual
   // doctor; with no photo the cards draw initials instead (see Avatar).
   const photo = mediaUrl(d.photo_url);
-
-  const locationParts = [d.location, d.district, d.division].filter(Boolean);
-  const locationStr = locationParts.join(", ") || "Bangladesh";
+  const areas = places.map(p => p.place.location).filter((l, i, all) => l && all.indexOf(l) === i);
 
   return {
     id: d.id,
     name: d.name,
     specialty: d.specialty || "General Practitioner",
     category: getCategoryFromSpecialty(d.specialty || ""),
-    location: locationStr,
+    location: areas.join(" · ") || placeLocation(d) || "Bangladesh",
     rating,
-    reviews,
-    blurb: d.bio || (d.practice_kind === "chamber"
-      ? `Sees patients at ${d.hospital_name || "their own chamber"}.`
-      : d.tenant_id
-        ? `Experienced specialist practicing at ${d.hospital_name || "our partner hospital"}.`
-        : "Experienced specialist in independent practice."),
+    reviews: Math.floor(rating * 20),
+    blurb: d.bio || (first
+      ? first.kind === "chamber" && places.length === 1
+        ? `Sees patients at ${first.name}.`
+        : `Experienced specialist practicing at ${first.name}.`
+      : "Experienced specialist in independent practice."),
     bio: d.bio?.trim() || null,
     expertise: d.expertise ? d.expertise.split(",").map(s => s.trim()).filter(Boolean) : [],
     bmdc: d.bmdc_number?.trim() || null,
     gender: d.gender,
     img: photo,
-    slug: d.slug,
+    slug: d.person_slug || d.slug,
     experience: d.experience_years || 1,
-    fee: Number(d.consultation_fee) || 500,
+    fee: first?.fee ?? (Number(d.consultation_fee) || 500),
     // Described, not raw: a week from the editor is JSON (src/lib/availability.ts).
-    available: availabilityLabel(d.availability) || "Mon-Fri",
-    availability: d.availability,
+    available: first?.available || availabilityLabel(d.availability) || "Mon-Fri",
+    availability: first ? first.availability : d.availability,
     photo,
-    education: d.education || "MBBS",
+    // As they entered it, or nothing. A default degree would be a
+    // qualification nobody claimed, printed on their card.
+    education: d.education?.trim() || null,
     languages: d.languages ? d.languages.split(",").map(s => s.trim()).filter(Boolean) : ["English", "Bengali"],
     patients: d.patients_treated || 100,
-    independent: !d.tenant_id,
-    chamber: d.practice_kind === "chamber",
+    independent: places.length === 0,
+    places: places.map(p => p.place),
     hospital: {
-      name: d.tenant_id ? d.hospital_name || "Partner Hospital" : INDEPENDENT_LABEL,
-      slug: d.hospital_slug || "",
-      location: locationStr,
-      address: d.practice_address,
-      phone: d.practice_phone,
-    }
+      name: first?.name ?? INDEPENDENT_LABEL,
+      slug: first?.hospitalSlug ?? "",
+      location: first?.location || placeLocation(d) || "Bangladesh",
+    },
   };
+};
+
+/** Rows grouped into doctors, in the order each doctor first appears. */
+export const doctorsFromRows = (rows: DBDoctor[]): UIDoctor[] => {
+  const people = new Map<string, DBDoctor[]>();
+  for (const row of rows) {
+    const key = row.person_slug || row.slug;
+    const list = people.get(key);
+    if (list) list.push(row);
+    else people.set(key, [row]);
+  }
+  return [...people.values()].map(toDoctor);
 };
 
 export const useDoctors = () => {
@@ -180,7 +254,7 @@ export const useDoctors = () => {
         }
 
         if (active && data) {
-          setDoctors((data as DBDoctor[]).map(mapDBDoctorToUI));
+          setDoctors(doctorsFromRows(data as DBDoctor[]));
         }
       } catch (err) {
         console.error("Failed to load doctors:", err);

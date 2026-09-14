@@ -1,20 +1,12 @@
 "use client";
 
-import { ArrowRight, Calendar, Search, X } from "lucide-react";
+import { ArrowRight, Search, X } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { DoctorCard, DoctorCardNotBookable, DOCTOR_CARD_BUTTON } from "@/components/site/DoctorCard";
-import { toast } from "sonner";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
-import { Avatar } from "@/components/common/Avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
+import { BookAppointmentDialog } from "@/components/booking/BookAppointmentDialog";
 import { useDoctors, type UIDoctor } from "@/hooks/useDoctors";
-import { useBookingClock } from "@/lib/appSettings";
-import { availabilityLabel, describeSchedule, hoursOn, outsideAvailabilityReason, parseAvailability } from "@/lib/availability";
 
 const cats = ["All Specialties", "Cardiology", "Neurology", "Dermatology", "Pediatrics", "Psychiatry", "Oncology", "General Medicine"];
 
@@ -29,80 +21,9 @@ const FindDoctors = () => {
   const [cat, setCat] = useState(0);
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(searchParams?.get("q") ?? "");
-  const router = useRouter();
+  // The doctor whose booking form is open — the shared one (BookAppointmentDialog).
   const [booking, setBooking] = useState<UIDoctor | null>(null);
-  const [form, setForm] = useState({ date: "", time: "", reason: "" });
-  const [submitting, setSubmitting] = useState(false);
-  // Today on the hospital's clock (global settings), so a date that has
-  // already passed there can't be picked however late it is in UTC.
-  const clock = useBookingClock();
-
-  // The doctor's days and hours, read from their availability (null when it
-  // can't be read, in which case nothing is refused on its account).
-  const schedule = useMemo(() => parseAvailability(booking?.availability), [booking]);
-
-  /** What is wrong with the picked slot, if anything — shown under the fields as they are filled. */
-  const slotProblem = (() => {
-    if (!booking || !form.date) return null;
-    if (form.date < clock.today) return "That date has already passed. Pick today or a later date.";
-    const dayOrHours = outsideAvailabilityReason(schedule, form.date, form.time, booking.name);
-    if (dayOrHours) return dayOrHours;
-    return form.time ? clock.pastSlotReason(form.date, form.time) : null;
-  })();
-
-  // The picked date's own hours — a week can give each day different ones.
-  const dayHours = hoursOn(schedule, form.date);
-
-  const openBooking = (d: UIDoctor) => {
-    setForm({ date: "", time: "", reason: "" });
-    setBooking(d);
-  };
-
-  const handleConfirm = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!booking) return;
-    if (!form.date || !form.time) {
-      toast.error("Please pick a date and time.");
-      return;
-    }
-    const problem = clock.pastSlotReason(form.date, form.time)
-      ?? outsideAvailabilityReason(schedule, form.date, form.time, booking.name);
-    if (problem) {
-      toast.error(problem);
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/v1/patient/appointments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          doctor_id: booking.id,
-          scheduled_date: form.date,
-          scheduled_time: form.time,
-          notes: form.reason,
-        }),
-      });
-      const body = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        toast.error(body?.error?.message || "Couldn't book that appointment. Please try again.");
-        return;
-      }
-
-      // Read as a calendar date at noon UTC, then printed in UTC: `new Date("2026-09-12")`
-      // is midnight UTC, which a browser west of UTC would print as the 11th.
-      const dateLabel = new Date(`${form.date}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric", timeZone: "UTC" });
-      toast.success(`Appointment requested with ${booking.name} on ${dateLabel} at ${form.time}`);
-      setBooking(null);
-      router.push("/patient/appointments");
-    } catch {
-      toast.error("Couldn't reach the server. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const openBooking = (d: UIDoctor) => setBooking(d);
 
   const activeCat = cats[cat];
   const visible = useMemo(() => {
@@ -121,21 +42,25 @@ const FindDoctors = () => {
         </div>
       </div>
 
-      <div className="mt-6 relative max-w-2xl">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <input
-          type="search"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder="Search by doctor name, specialty or location..."
-          className="w-full rounded-full bg-card border border-border pl-11 pr-12 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary-glow"
-          aria-label="Search doctors"
-        />
-        {query && (
-          <button onClick={() => setQuery("")} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full hover:bg-chip flex items-center justify-center">
-            <X className="h-4 w-4 text-muted-foreground" />
-          </button>
-        )}
+      <div className="mt-6 max-w-2xl">
+        {/* The icons centre on this box alone — not on the match count below,
+            which appears with a search and used to pull them down. */}
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            type="search"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search by doctor name, specialty or location..."
+            className="w-full rounded-full bg-card border border-border pl-11 pr-12 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary-glow [&::-webkit-search-cancel-button]:appearance-none"
+            aria-label="Search doctors"
+          />
+          {query && (
+            <button onClick={() => setQuery("")} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full hover:bg-chip flex items-center justify-center">
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
+          )}
+        </div>
         {query && (
           <p className="text-xs text-muted-foreground mt-2 ml-2">{visible.length} match{visible.length === 1 ? "" : "es"} for &quot;{query}&quot;</p>
         )}
@@ -179,60 +104,7 @@ const FindDoctors = () => {
         )}
       </div>
 
-      <Dialog open={!!booking} onOpenChange={(o) => !o && !submitting && setBooking(null)}>
-        <DialogContent className="sm:max-w-[480px]">
-          <DialogHeader>
-            <DialogTitle className="font-display text-2xl text-primary">Book Appointment</DialogTitle>
-            <DialogDescription>
-              {booking ? `Schedule a consultation with ${booking.name} (${booking.specialty}).` : ""}
-            </DialogDescription>
-          </DialogHeader>
-          {booking && (
-            <form onSubmit={handleConfirm} className="space-y-4 mt-2">
-              <div className="flex items-center gap-3 rounded-xl bg-chip/40 p-3">
-                <Avatar src={booking.img} name={booking.name} className="h-12 w-12 text-base" />
-                <div>
-                  <p className="font-semibold text-primary text-sm">{booking.name}</p>
-                  <p className="text-xs text-primary-glow">{booking.specialty} · {booking.hospital.name}</p>
-                  {booking.availability && (
-                    <p className="text-xs text-foreground/70 mt-1 flex items-center gap-1">
-                      <Calendar className="h-3 w-3" /> Available {availabilityLabel(booking.availability)}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label required>Date</Label>
-                  <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} min={clock.today} required />
-                </div>
-                <div className="space-y-1.5">
-                  <Label required>Time</Label>
-                  {/* Bounded by the doctor's hours, and by now when the date is today. */}
-                  <Input type="time" value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))}
-                    min={[dayHours?.start, form.date === clock.today ? clock.nowTime : undefined].filter(Boolean).sort().pop()}
-                    max={dayHours && dayHours.end !== "24:00" ? dayHours.end : undefined}
-                    required />
-                </div>
-              </div>
-              {schedule && !slotProblem && (
-                <p className="text-xs text-muted-foreground -mt-2">
-                  {booking.name} sees patients {describeSchedule(schedule)}.
-                </p>
-              )}
-              {slotProblem && <p className="text-xs font-semibold text-destructive -mt-2">{slotProblem}</p>}
-              <div className="space-y-1.5">
-                <Label>Reason for visit (optional)</Label>
-                <Textarea value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} placeholder="Briefly describe your symptoms or reason..." rows={3} />
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setBooking(null)} disabled={submitting}>Cancel</Button>
-                <Button type="submit" disabled={submitting || !!slotProblem}>{submitting ? "Booking..." : "Confirm Booking"}</Button>
-              </DialogFooter>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
+      <BookAppointmentDialog doctor={booking} onClose={() => setBooking(null)} />
     </PatientPortalLayout>
   );
 };

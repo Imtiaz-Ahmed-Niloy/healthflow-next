@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowRight, CalendarClock, MapPin, Star } from "lucide-react";
+import { ArrowRight, CalendarClock, GraduationCap, MapPin, Star } from "lucide-react";
 import TiltCard from "@/components/site/TiltCard";
 import { Avatar } from "@/components/common/Avatar";
 import type { UIDoctor } from "@/hooks/useDoctors";
@@ -18,9 +18,9 @@ export const DOCTOR_CARD_BUTTON =
  * and the arrow on the button come alive on the card's hover.
  *
  * `action` replaces the button at the foot — a patient's opens the booking
- * form in place. Left out, it links to the doctor's profile, which is where a
- * visitor books from. A doctor at no hospital yet (0081) can't be booked, so
- * the default button says View Profile for them.
+ * form in place, and says Book Appointment because it does. Left out, the
+ * button is View Profile: it goes to the doctor's profile, which is where a
+ * visitor books from.
  */
 export const DoctorCard = ({ d, i = 0, action }: { d: UIDoctor; i?: number; action?: ReactNode }) => (
   <TiltCard
@@ -48,29 +48,64 @@ export const DoctorCard = ({ d, i = 0, action }: { d: UIDoctor; i?: number; acti
           </div>
         </div>
       </div>
-      <div className="mt-3 flex items-start gap-1 text-xs text-muted-foreground">
-        <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
-        <span>{d.hospital.name} · {d.location}</span>
-      </div>
-      <p className="mt-3 text-xs text-muted-foreground leading-relaxed line-clamp-3">{d.blurb}</p>
-
-      {/* Availability, on its own row: a week reads as "Sun–Thu 9:00 AM–5:00
-          PM · Sat …", so it gets the full width and a single line, with the
-          whole of it in the title when it is too long to show. */}
-      <div className="mt-4 flex items-center gap-3 rounded-xl border border-accent/50 bg-accent/25 px-3 py-2.5">
-        <CalendarClock className="h-6 w-6 shrink-0 text-primary" strokeWidth={1.75} />
-        <div className="min-w-0">
-          <p className="text-[10px] font-bold tracking-widest text-primary/70 leading-none">AVAILABLE</p>
-          <p className="mt-1 truncate text-xs font-semibold text-primary" title={d.available}>
-            {d.available}
+      {/* Every place they practise — one card however many (0090). */}
+      <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+        {(d.places.length ? d.places : [{ id: d.id, name: d.hospital.name, location: d.location }]).map(p => (
+          <p key={p.id} className="flex items-start gap-1">
+            <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
+            <span>{p.name}{p.location ? ` · ${p.location}` : ""}</span>
           </p>
+        ))}
+      </div>
+
+      {/* Their degrees, where a description used to be — nobody reads a
+          paragraph on a card, but "MBBS, FCPS" is what a patient looks for. */}
+      {d.education && (
+        <p className="mt-3 flex items-start gap-1.5 text-xs text-foreground/75">
+          <GraduationCap className="h-3.5 w-3.5 mt-px shrink-0 text-primary-glow" />
+          <span className="line-clamp-2">{d.education}</span>
+        </p>
+      )}
+
+      {/* Their areas of expertise — the first few, and how many more. */}
+      {d.expertise.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {d.expertise.slice(0, 3).map(t => (
+            <span key={t} className="rounded-full bg-accent/40 px-2 py-0.5 text-[11px] font-medium text-primary">{t}</span>
+          ))}
+          {d.expertise.length > 3 && (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">+{d.expertise.length - 3}</span>
+          )}
         </div>
+      )}
+
+      {/* Availability: a block per place, each named when there's more than
+          one. A week reads as "Sun–Thu 9:00 AM–5:00 PM · Sat …", so it gets
+          the full width and a single line, with all of it in the title when
+          it is too long to show. */}
+      <div className="mt-4 space-y-2">
+        {(d.places.length > 1 ? d.places : [null]).map(p => (
+          <div key={p?.id ?? "one"} className="flex items-center gap-3 rounded-xl border border-accent/50 bg-accent/25 px-3 py-2.5">
+            <CalendarClock className="h-6 w-6 shrink-0 text-primary" strokeWidth={1.75} />
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold tracking-widest text-primary/70 leading-none">AVAILABLE</p>
+              {/* The hours lead, as on a card with one place; where is underneath, quieter. */}
+              <p className="mt-1 truncate text-xs font-semibold text-primary"
+                title={p ? p.available || "Hours not set" : d.available}>
+                {p ? p.available || "Hours not set" : d.available}
+              </p>
+              {p && <p className="mt-0.5 truncate text-[11px] text-muted-foreground" title={p.name}>{p.name}</p>}
+            </div>
+          </div>
+        ))}
       </div>
     </Link>
 
+    {/* It goes to their profile — so it says so. Booking is on the profile,
+        where every place they practise, and its hours, is listed. */}
     {action ?? (
       <Link href={`/doctors/${d.slug}`} className={DOCTOR_CARD_BUTTON}>
-        {d.independent ? "View Profile" : "Book Appointment"}
+        View Profile
         {/* Slides out of nothing as the card is hovered. */}
         <ArrowRight className="h-4 w-0 opacity-0 transition-all duration-300 group-hover:w-4 group-hover:opacity-100" />
       </Link>

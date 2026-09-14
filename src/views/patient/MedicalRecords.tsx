@@ -30,7 +30,7 @@ type Visit = {
   medicines: Medicine[];
   /** The printed prescription's letterhead and patient details. */
   sheet: {
-    hospital: { name: string; address: string | null; contact_phone: string | null };
+    hospital: { name: string | null; address: string | null; contact_phone: string | null };
     doctor: { name: string; specialty: string | null; education: string | null };
     patient: {
       full_name: string; gender: string | null; date_of_birth: string | null; mrn: string;

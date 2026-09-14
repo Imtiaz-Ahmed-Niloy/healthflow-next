@@ -131,7 +131,7 @@ export const GET = async (_request: Request, context: RouteContext) => {
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
     .select(
-      "id, patient_id, scheduled_date, department, notes, status, tenant_id, bp_systolic, bp_diastolic, complaints, examination, investigation, diagnosis, medicines, advice"
+      "id, patient_id, scheduled_date, department, notes, status, tenant_id, walk_in, bp_systolic, bp_diastolic, complaints, examination, investigation, diagnosis, medicines, advice"
     )
     .eq("id", id)
     .in("doctor_id", doctor.ids) // never lets a doctor open another doctor's patient
@@ -142,7 +142,7 @@ export const GET = async (_request: Request, context: RouteContext) => {
   const [{ data: patient, error: patientError }, { data: hospital, error: hospitalError }, { data: historyRows, error: historyError }] =
     await Promise.all([
       supabase.from("patients").select("id, full_name, gender, date_of_birth, mrn, weight_kg, height_feet, height_inches").eq("id", appointment.patient_id).maybeSingle(),
-      supabase.from("tenants").select("name, address, contact_phone").eq("id", appointment.tenant_id).maybeSingle(),
+      supabase.from("tenants").select("name, address, contact_phone, has_name").eq("id", appointment.tenant_id).maybeSingle(),
       supabase
         .from("appointments")
         .select("id, scheduled_date, department, notes")
@@ -159,7 +159,11 @@ export const GET = async (_request: Request, context: RouteContext) => {
 
   return json({
     data: {
-      hospital: hospital ?? { name: "Hospital", address: null, contact_phone: null },
+      // A chamber with no name of its own (0091) prints none: null here, and
+      // the header is the address and phone alone.
+      hospital: hospital
+        ? { name: hospital.has_name ? hospital.name : null, address: hospital.address, contact_phone: hospital.contact_phone }
+        : { name: "Hospital", address: null, contact_phone: null },
       doctor: { name: doctor.name, specialty: doctor.specialty, education: doctor.education },
       patient: {
         id: patient.id,
@@ -177,6 +181,9 @@ export const GET = async (_request: Request, context: RouteContext) => {
         department: appointment.department,
         notes: appointment.notes,
         status: appointment.status,
+        // Where it is, and whether it may move there from here (0091).
+        tenant_id: appointment.tenant_id,
+        walk_in: appointment.walk_in,
         bp_systolic: appointment.bp_systolic,
         bp_diastolic: appointment.bp_diastolic,
         complaints: appointment.complaints as string[],
@@ -228,6 +235,13 @@ const patchSchema = z.discriminatedUnion("action", [
     bp_systolic: z.number().positive().nullable().optional(),
     bp_diastolic: z.number().positive().nullable().optional(),
   }),
+  // A walk-in, refiled at another of the doctor's hospitals or chambers
+  // (0091). move_walk_in decides whether it may: only a walk-in still
+  // waiting, and only to a place of theirs.
+  z.object({
+    action: z.literal("move"),
+    tenant_id: z.string().uuid("Pick where the patient is"),
+  }),
 ]);
 
 export const PATCH = async (request: Request, context: RouteContext) => {
@@ -269,6 +283,13 @@ export const PATCH = async (request: Request, context: RouteContext) => {
     .maybeSingle();
   if (apptError) return fail(apptError.message, 500);
   if (!appointment) return fail("Consultation not found, or it isn't yours.", 404);
+
+  if (parsed.data.action === "move") {
+    const { error } = await supabase.rpc("move_walk_in", { p_appointment_id: id, p_tenant_id: parsed.data.tenant_id });
+    // The function's refusals are sentences meant for the doctor.
+    if (error) return fail(error.message, error.code === "P0002" ? 404 : error.code === "42501" ? 403 : 422);
+    return json({ data: { id, tenant_id: parsed.data.tenant_id } });
+  }
 
   if (parsed.data.action === "complete") {
     const { data, error } = await supabase

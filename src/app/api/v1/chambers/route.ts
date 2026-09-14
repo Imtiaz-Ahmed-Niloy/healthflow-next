@@ -34,7 +34,7 @@ export const GET = async (request: Request) => {
   const supabase = await createServerSupabase();
   const { data: tenants, error } = await supabase
     .from("tenants")
-    .select("id, name, address, location, division, district, subdistrict, contact_phone, status")
+    .select("id, name, address, location, division, district, subdistrict, contact_phone, status, has_name")
     .eq("kind", "chamber")
     .eq("owner_profile_id", owner)
     .order("created_at", { ascending: true });
@@ -56,7 +56,9 @@ export const GET = async (request: Request) => {
 const text = (max = 500) => z.string().trim().max(max).optional().transform(v => v || null);
 
 const detailsSchema = z.object({
-  name: z.string().trim().min(1, "Give the chamber a name").max(200),
+  // Required only for a chamber with a name — the function checks, and makes
+  // one from the doctor and area for a chamber without (0091).
+  name: z.string().trim().max(200).optional().default(""),
   address: text(),
   location: text(200),
   division: text(100),
@@ -68,6 +70,8 @@ const detailsSchema = z.object({
   // A week from the editor (src/lib/hours.ts). Booking holds patients to it.
   availability: z.string().trim().max(2000).optional().nullable()
     .refine(v => !v || parseWeek(v) !== null, "The hours aren't a valid week"),
+  // Whether it has a name of its own (0091). Left out, unchanged.
+  has_name: z.boolean().optional(),
 });
 
 const args = (d: z.infer<typeof detailsSchema>) => ({
@@ -80,6 +84,7 @@ const args = (d: z.infer<typeof detailsSchema>) => ({
   p_phone: d.phone,
   p_consultation_fee: d.consultation_fee,
   p_availability: d.availability || null,
+  p_has_name: d.has_name ?? null,
 });
 
 export const POST = async (request: Request) => {

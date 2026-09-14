@@ -210,6 +210,7 @@ export type Database = {
           status: Database["public"]["Enums"]["appointment_status"]
           tenant_id: string
           updated_at: string
+          walk_in: boolean
         }
         Insert: {
           advice?: Json
@@ -233,6 +234,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["appointment_status"]
           tenant_id: string
           updated_at?: string
+          walk_in?: boolean
         }
         Update: {
           advice?: Json
@@ -256,6 +258,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["appointment_status"]
           tenant_id?: string
           updated_at?: string
+          walk_in?: boolean
         }
         Relationships: [
           {
@@ -3768,6 +3771,7 @@ export type Database = {
           owner_phone: string | null
           owner_profile_id: string | null
           kind: Database["public"]["Enums"]["tenant_kind"]
+          has_name: boolean
           owner_since: string | null
           ownership_type: string | null
           package_id: string | null
@@ -3828,6 +3832,7 @@ export type Database = {
           owner_phone?: string | null
           owner_profile_id?: string | null
           kind?: Database["public"]["Enums"]["tenant_kind"]
+          has_name?: boolean
           owner_since?: string | null
           ownership_type?: string | null
           package_id?: string | null
@@ -3888,6 +3893,7 @@ export type Database = {
           owner_phone?: string | null
           owner_profile_id?: string | null
           kind?: Database["public"]["Enums"]["tenant_kind"]
+          has_name?: boolean
           owner_since?: string | null
           ownership_type?: string | null
           package_id?: string | null
@@ -4120,6 +4126,7 @@ export type Database = {
           name: string | null
           patients_treated: number | null
           photo_url: string | null
+          person_slug: string | null
           practice_address: string | null
           practice_kind: string | null
           practice_phone: string | null
@@ -4333,6 +4340,7 @@ export type Database = {
           p_consultation_fee?: number | null
           p_availability?: string | null
           p_profile_id?: string | null
+          p_has_name?: boolean | null
         }
         Returns: string
       }
@@ -4348,10 +4356,12 @@ export type Database = {
           p_phone?: string | null
           p_consultation_fee?: number | null
           p_availability?: string | null
+          p_has_name?: boolean | null
         }
         Returns: string
       }
       set_chamber_open: { Args: { p_tenant_id: string; p_open: boolean }; Returns: string }
+      move_walk_in: { Args: { p_appointment_id: string; p_tenant_id: string }; Returns: string }
       add_doctor_to_hospital: {
         Args: {
           p_profile_id?: string | null

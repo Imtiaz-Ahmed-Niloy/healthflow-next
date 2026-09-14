@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Plus, ClipboardList, ClipboardCheck, FlaskConical, Stethoscope, Lightbulb, History, AlertTriangle, Users, Printer, X, Search, Check } from "lucide-react";
+import { Plus, ClipboardList, ClipboardCheck, FlaskConical, Stethoscope, Lightbulb, History, AlertTriangle, Users, Printer, X, Search, Check, ChevronDown, Store, Building2 } from "lucide-react";
 import { PrescriptionPreview } from "@/components/common/PrescriptionPreview";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { rememberedPlace, rememberPlace } from "@/lib/rxPlace";
 
 /**
  * /portal/prescription (HF-57). Used to render one hardcoded patient no
@@ -67,7 +68,8 @@ type Age = { value: number; unit: "years" | "months" | "days" };
 type Medicine = { name: string; dosage_form: string; dose: string; frequency: string; days: string; meal: "Before Meal" | "After Meal" };
 
 type ConsultationCtx = {
-  hospital: { name: string; address: string | null; contact_phone: string | null };
+  /** `name` is null for a chamber with no name of its own (0091). */
+  hospital: { name: string | null; address: string | null; contact_phone: string | null };
   doctor: { name: string; specialty: string | null; education: string | null };
   patient: {
     id: string;
@@ -85,6 +87,9 @@ type ConsultationCtx = {
     department: string | null;
     notes: string | null;
     status: string;
+    /** Where the visit is (a hospital or chamber), and whether it may be moved (0091). */
+    tenant_id?: string;
+    walk_in?: boolean;
     bp_systolic: number | null;
     bp_diastolic: number | null;
     complaints: string[];
@@ -96,6 +101,18 @@ type ConsultationCtx = {
   };
   history: { id: string; scheduled_date: string; department: string | null; notes: string | null }[];
 };
+
+/** One of the doctor's hospitals or chambers, as /api/v1/portal/me lists it. */
+type Place = {
+  id: string;
+  name: string;
+  kind: "hospital" | "chamber";
+  has_name: boolean;
+  address: string | null;
+  contact_phone: string | null;
+};
+
+type Me = { name: string; specialty: string | null; education: string | null; hospitals: Place[] };
 
 const formatDate = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
@@ -243,6 +260,26 @@ const Prescription = () => {
   const [ctx, setCtx] = useState<ConsultationCtx | null>(null);
   const [loadingCtx, setLoadingCtx] = useState(!!appointmentId);
   const [ctxError, setCtxError] = useState<string | null>(null);
+  // Bumped to read the visit again — after it moves to another place.
+  const [ctxVersion, setCtxVersion] = useState(0);
+
+  // The doctor and every place they see patients, for the header's place
+  // picker (0091) and for a pad with no patient on it yet.
+  const [me, setMe] = useState<Me | null>(null);
+  // The place this machine last chose — a blank pad starts there.
+  const [placeId, setPlaceId] = useState<string | null>(null);
+  const [placeOpen, setPlaceOpen] = useState(false);
+  const [moving, setMoving] = useState(false);
+
+  useEffect(() => {
+    setPlaceId(rememberedPlace());
+    let active = true;
+    fetch("/api/v1/portal/me")
+      .then(res => res.json())
+      .then(body => { if (active && body?.data) setMe(body.data as Me); })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     if (!appointmentId) {
@@ -272,7 +309,37 @@ const Prescription = () => {
       }
     })();
     return () => { active = false; };
-  }, [appointmentId]);
+  }, [appointmentId, ctxVersion]);
+
+  /**
+   * The header's place picker. A pad with no patient just changes where it is
+   * headed; a walk-in still waiting is refiled there (move_walk_in, 0091).
+   * Either way this machine remembers it. A booked visit never gets here —
+   * it stays where the patient booked it.
+   */
+  const choosePlace = async (place: Place) => {
+    setPlaceOpen(false);
+    rememberPlace(place.id);
+    setPlaceId(place.id);
+    if (!appointmentId || !ctx || ctx.appointment.tenant_id === place.id) return;
+
+    setMoving(true);
+    try {
+      const res = await fetch(`/api/v1/portal/consultation/${appointmentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "move", tenant_id: place.id }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) { toast.error("Couldn't move this patient", { description: body?.error?.message }); return; }
+      toast.success(`${ctx.patient.full_name} is now seen at ${place.name}`);
+      setCtxVersion(v => v + 1);
+    } catch {
+      toast.error("Couldn't reach the server.");
+    } finally {
+      setMoving(false);
+    }
+  };
 
   // "Today's Queue" sidebar -- same endpoint Queue.tsx itself reads, so the
   // doctor can jump to a different patient without leaving the chart.
@@ -972,12 +1039,16 @@ type SidebarQueueEntry = {
    * Every field is empty rather than sample text: this sheet can be printed,
    * and a placeholder name on something that looks like a prescription is the
    * kind of thing that gets mistaken for a real one. Dashes make it obvious
-   * nothing has been chosen. The doctor's own details are equally unknown
-   * here — they arrive with the consultation, not the session.
+   * nothing has been chosen. The header is the doctor's own, though, and the
+   * place this machine last chose (0091) — neither is a guess about a patient.
    */
+  const places = me?.hospitals ?? [];
+  const padPlace = places.find(p => p.id === placeId) ?? places[0] ?? null;
   const blankCtx: ConsultationCtx = {
-    hospital: { name: "—", address: null, contact_phone: null },
-    doctor: { name: "—", specialty: null, education: null },
+    hospital: padPlace
+      ? { name: padPlace.has_name ? padPlace.name : null, address: padPlace.address, contact_phone: padPlace.contact_phone }
+      : { name: "—", address: null, contact_phone: null },
+    doctor: me ? { name: me.name, specialty: me.specialty, education: me.education } : { name: "—", specialty: null, education: null },
     patient: {
       id: "", full_name: "—", gender: null, age: null, mrn: "—",
       weight_kg: null, height_feet: null, height_inches: null,
@@ -1000,22 +1071,65 @@ type SidebarQueueEntry = {
   const { hospital, doctor, patient, appointment, history } = ctx ?? blankCtx;
   const ageGender = `${ageShort(patient.age)} / ${patient.gender ? genderLabel(patient.gender)[0] : "—"}`;
 
+  // Which place the header is, and whether it can be swapped: on a pad with
+  // no patient, or for a walk-in still waiting. A booked visit is where the
+  // patient booked it.
+  const headerPlaceId = ctx ? ctx.appointment.tenant_id : padPlace?.id;
+  const canSwapPlace = places.length > 1
+    && (!appointmentId || (!!ctx?.appointment.walk_in && ctx.appointment.status === "scheduled"));
+
+  const headerBlock = (
+    <>
+      <div className="h-14 w-14 shrink-0 rounded-xl bg-chip flex items-center justify-center text-primary"><Stethoscope className="h-6 w-6" /></div>
+      <div className="text-left">
+        {hospital.name && <h1 className="font-display text-2xl text-primary">{hospital.name}</h1>}
+        <p className={`text-xs text-muted-foreground ${hospital.name ? "mt-1" : ""}`}>
+          {hospital.address || "Address not on file"}
+          {hospital.contact_phone ? <><br />{hospital.contact_phone}</> : null}
+        </p>
+      </div>
+    </>
+  );
+
   return (
   <PortalLayout>
     <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
       className="rounded-3xl bg-card shadow-soft p-8">
       {/* Header */}
       <div className="flex items-start justify-between border-b border-border/60 pb-6">
-        <div className="flex gap-4">
-          <div className="h-14 w-14 rounded-xl bg-chip flex items-center justify-center text-primary"><Stethoscope className="h-6 w-6" /></div>
-          <div>
-            <h1 className="font-display text-2xl text-primary">{hospital.name}</h1>
-            <p className="text-xs text-muted-foreground mt-1">
-              {hospital.address || "Address not on file"}
-              {hospital.contact_phone ? <><br />{hospital.contact_phone}</> : null}
-            </p>
-          </div>
-        </div>
+        {canSwapPlace ? (
+          // The whole block is the switch: click it to pick another of your
+          // hospitals or chambers. This machine remembers the choice.
+          <Popover open={placeOpen} onOpenChange={setPlaceOpen}>
+            <PopoverTrigger asChild>
+              <button type="button" disabled={moving} title="Change where you're seeing patients"
+                className="group flex items-start gap-4 rounded-2xl -m-2 p-2 hover:bg-muted/50 transition-colors disabled:opacity-60">
+                {headerBlock}
+                <ChevronDown className="h-4 w-4 mt-2 text-muted-foreground group-hover:text-primary" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-80 p-2">
+              <p className="px-2 py-1.5 text-xs text-muted-foreground">
+                {appointmentId ? "Move this walk-in to" : "Where are you seeing patients?"}
+              </p>
+              {places.map(p => (
+                <button key={p.id} type="button" onClick={() => void choosePlace(p)}
+                  className="flex w-full items-start gap-3 rounded-lg px-2 py-2 text-left hover:bg-muted">
+                  {p.kind === "chamber" ? <Store className="h-4 w-4 mt-0.5 shrink-0 text-primary" /> : <Building2 className="h-4 w-4 mt-0.5 shrink-0 text-primary" />}
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-primary truncate">{p.name}</span>
+                    <span className="block text-xs text-muted-foreground truncate">
+                      {p.kind === "chamber" ? "Your chamber" : "Hospital"}{p.address ? ` · ${p.address}` : ""}
+                    </span>
+                  </span>
+                  {p.id === headerPlaceId && <Check className="h-4 w-4 mt-0.5 shrink-0 text-primary" />}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
+        ) : (
+          <div className="flex gap-4">{headerBlock}</div>
+        )}
         <div className="text-right">
           <h2 className="font-display text-2xl text-primary">{doctor.name}</h2>
           <p className="text-xs text-muted-foreground mt-1">

@@ -51,8 +51,15 @@ const Chambers = () => {
     }
   };
 
+  // Their name, for what a chamber with no name will be called.
+  const [doctorName, setDoctorName] = useState<string | undefined>();
+
   useEffect(() => {
     void load();
+    fetch("/api/v1/portal/me")
+      .then(res => res.json())
+      .then(body => setDoctorName(body?.data?.name ?? undefined))
+      .catch(() => undefined);
   }, []);
 
   const open = (c: Chamber | "new") => {
@@ -63,7 +70,7 @@ const Chambers = () => {
 
   const save = async () => {
     if (!editing) return;
-    if (!draft.name.trim()) { toast.error("Give the chamber a name"); return; }
+    if (draft.has_name && !draft.name.trim()) { toast.error("Give the chamber a name, or turn off “has a name”"); return; }
     setSaving(true);
     try {
       const adding = editing === "new";
@@ -191,7 +198,7 @@ const Chambers = () => {
             {saving && <Loader2 className="h-4 w-4 animate-spin" />} {editing === "new" ? "Add chamber" : "Save"}
           </Btn>
         </>}>
-        <ChamberForm draft={draft} onChange={patch => setDraft(d => ({ ...d, ...patch }))} resetKey={formKey} />
+        <ChamberForm draft={draft} onChange={patch => setDraft(d => ({ ...d, ...patch }))} resetKey={formKey} doctorName={doctorName} />
       </Modal>
 
       <ConfirmDialog

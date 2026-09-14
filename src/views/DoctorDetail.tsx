@@ -1,62 +1,55 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { BookAppointmentDialog } from "@/components/booking/BookAppointmentDialog";
 import { motion } from "framer-motion";
 import { ArrowLeft, Star, Calendar, Languages, GraduationCap, Award, Heart, Mail, Phone, MapPin, Clock, CheckCircle2, User, BadgeCheck, Store } from "lucide-react";
 import { toast } from "sonner";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import { Avatar } from "@/components/common/Avatar";
-import { useDoctors, INDEPENDENT_LABEL } from "@/hooks/useDoctors";
+import { useDoctors, INDEPENDENT_LABEL, type DoctorPlace } from "@/hooks/useDoctors";
 import { useHospitals } from "@/hooks/useHospitals";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useFormatters } from "@/lib/appSettings";
 import type { Hospital } from "@/data/hospitals";
 
 const DoctorDetail = () => {
   const slug = useParams<{ slug: string }>()?.slug;
+  const router = useRouter();
+  const { formatCurrency } = useFormatters();
   const { doctors, loading: loadingDocs } = useDoctors();
   const hospitals = useHospitals();
 
+  // One page per doctor (0090). A link to one of their listings — each
+  // hospital or chamber row has its own slug, and those were the URLs before —
+  // still finds them.
   const found = useMemo(() => {
     if (!slug) return null;
-    const doc = doctors.find((x) => x.slug === slug);
-    if (!doc) return null;
+    const doc = doctors.find((x) => x.slug === slug || x.places.some((p) => p.slug === slug));
+    return doc ? { d: doc } : null;
+  }, [doctors, slug]);
 
-    const hospital = hospitals.find((h) => h.slug === doc.hospital.slug) || {
-      name: doc.hospital.name,
-      slug: doc.hospital.slug,
-      location: doc.hospital.location,
-      image: "/assets/hub-atrium.jpg",
-      phone: "",
-      email: "",
-      doctors_list: [],
-      lab_tests: [],
-      rooms: [],
-      management: [],
-      tag: "Partner Hospital",
-      address: doc.hospital.location,
-      rating: 0,
-      reviews: 0,
-      beds: 0,
-      doctors: 0,
-      founded: new Date().getFullYear(),
-      specialties: [],
-      cert: "Partner Hospital",
-      phones: [],
-      emails: [],
-      websites: [],
-      website: "",
-      social: [],
-      summary: "",
-      about: "",
-      facilities: [],
-      awards: [],
-      hours: []
-    } as Hospital;
+  // ...and then the address bar shows the doctor's one URL, not the listing's.
+  useEffect(() => {
+    if (found && slug && found.d.slug !== slug) router.replace(`/doctors/${found.d.slug}`);
+  }, [found, slug, router]);
 
-    return { d: doc, hospital };
-  }, [doctors, hospitals, slug]);
+  // The booking form opens here, on the profile (BookAppointmentDialog).
+  // `?book=1` opens it on arrival — where sign-in sends someone who pressed
+  // Book Appointment while signed out.
+  const searchParams = useSearchParams();
+  const [booking, setBooking] = useState(false);
+  useEffect(() => {
+    if (found && !found.d.independent && searchParams?.get("book") === "1") setBooking(true);
+  }, [found, searchParams]);
+  const closeBooking = () => {
+    setBooking(false);
+    if (searchParams?.get("book") && found) router.replace(`/doctors/${found.d.slug}`);
+  };
+
+  const hospitalOf = (p: DoctorPlace): Hospital | undefined => hospitals.find((h) => h.slug === p.hospitalSlug);
 
   if (loadingDocs) {
     return (
@@ -85,11 +78,9 @@ const DoctorDetail = () => {
     );
   }
 
-  const { d, hospital } = found;
-  // Other doctors — not this one's own listing at another hospital or chamber,
-  // which carries the same name.
+  const { d } = found;
   const peers = doctors
-    .filter((x) => x.slug !== d.slug && x.name !== d.name && x.category === d.category)
+    .filter((x) => x.slug !== d.slug && x.category === d.category)
     .slice(0, 3)
     .map((p) => ({ d: p }));
 
@@ -119,9 +110,11 @@ const DoctorDetail = () => {
             <div className="p-6">
               <span className="text-[10px] uppercase tracking-widest font-bold text-primary-glow">{d.specialty}</span>
               <h1 className="font-display text-3xl text-primary mt-2">{d.name}</h1>
-              <p className="text-sm text-foreground/75 flex items-start gap-1.5 mt-2">
-                <GraduationCap className="h-4 w-4 mt-0.5 shrink-0 text-primary-glow" />{d.education}
-              </p>
+              {d.education && (
+                <p className="text-sm text-foreground/75 flex items-start gap-1.5 mt-2">
+                  <GraduationCap className="h-4 w-4 mt-0.5 shrink-0 text-primary-glow" />{d.education}
+                </p>
+              )}
               {d.bmdc && (
                 <p className="text-sm text-foreground/75 flex items-center gap-1.5 mt-1.5">
                   <BadgeCheck className="h-4 w-4 shrink-0 text-primary-glow" />
@@ -134,9 +127,10 @@ const DoctorDetail = () => {
                   Not taking bookings on HealthFlow yet
                 </p>
               ) : (
-                <Link href={`/patient/find-doctors?q=${encodeURIComponent(d.name)}`} className="mt-5 block text-center w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors">
+                // Books right here — the same form as a patient's Find Doctors.
+                <button type="button" onClick={() => setBooking(true)} className="mt-5 block text-center w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors">
                   Book Appointment
-                </Link>
+                </button>
               )}
               <button onClick={() => toast.success(`${d.name} saved to favorites`)} className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-full border border-primary/30 py-2.5 text-sm font-semibold text-primary hover:bg-primary/5">
                 <Heart className="h-4 w-4" /> Save
@@ -166,12 +160,16 @@ const DoctorDetail = () => {
                   template — "a board-certified … specialist … patient-first
                   approach" — printed for every doctor whatever they had saved. */}
               <p className="text-foreground/75 leading-relaxed mt-3 whitespace-pre-line">
-                {d.bio ?? `${d.name} is a ${d.specialty.toLowerCase()} specialist${d.independent ? " in independent practice" : d.chamber ? `, seeing patients at ${hospital.name}` : ` at ${hospital.name}`}.`}
+                {d.bio ?? `${d.name} is a ${d.specialty.toLowerCase()} specialist${d.independent ? " in independent practice" : ` at ${d.places.map((p) => p.name).join(" and ")}`}.`}
               </p>
               <div className="grid sm:grid-cols-2 gap-4 mt-5 text-sm">
                 <div className="flex items-center gap-2 text-foreground/70"><Languages className="h-4 w-4 text-primary-glow" />{d.languages.join(" · ")}</div>
-                <div className="flex items-center gap-2 text-foreground/70"><Calendar className="h-4 w-4 text-primary-glow" />Available {d.available}</div>
-                <div className="flex items-center gap-2 text-foreground/70"><MapPin className="h-4 w-4 text-primary-glow" />{hospital.name} · {hospital.location}</div>
+                <div className="flex items-center gap-2 text-foreground/70"><Calendar className="h-4 w-4 text-primary-glow" />
+                  {d.places.length > 1 ? `At ${d.places.length} places — hours for each below` : `Available ${d.available}`}
+                </div>
+                <div className="flex items-center gap-2 text-foreground/70"><MapPin className="h-4 w-4 text-primary-glow" />
+                  {d.places.length ? d.places.map((p) => p.name).join(" · ") : `${d.hospital.name} · ${d.hospital.location}`}
+                </div>
                 <div className="flex items-center gap-2 text-foreground/70"><Clock className="h-4 w-4 text-primary-glow" />30 min consultation</div>
                 {d.gender && (
                   <div className="flex items-center gap-2 text-foreground/70 capitalize"><User className="h-4 w-4 text-primary-glow" />{d.gender}</div>
@@ -198,42 +196,62 @@ const DoctorDetail = () => {
                     Not at a HealthFlow hospital or chamber yet, so not taking bookings here.
                   </p>
                 </div>
-              ) : d.chamber ? (
-                // Their own chamber (0088): no hospital page behind it, so the
-                // address and phone are right here.
-                <div className="flex items-start gap-4 rounded-2xl bg-accent/20 p-4">
-                  <div className="h-16 w-16 shrink-0 rounded-xl bg-card grid place-items-center text-primary">
-                    <Store className="h-7 w-7" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-display text-lg text-primary">{d.hospital.name}</p>
-                    <p className="text-xs text-muted-foreground">Their own chamber</p>
-                    <p className="text-xs text-muted-foreground inline-flex items-start gap-1 mt-1.5">
-                      <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
-                      {/* Area, district and division repeat in Dhaka ("Dhaka, Dhaka"); each once. */}
-                      {[d.hospital.address, ...d.hospital.location.split(", ")].filter((part, i, all) => part && all.indexOf(part) === i).join(", ")}
-                    </p>
-                    {d.hospital.phone && (
-                      <a href={`tel:${d.hospital.phone}`} className="mt-1 flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-glow">
-                        <Phone className="h-3 w-3" />{d.hospital.phone}
-                      </a>
-                    )}
-                  </div>
-                </div>
               ) : (
-              <div className="flex items-center gap-4 rounded-2xl bg-accent/20 p-4 hover:bg-accent/30 transition-colors">
-                <Link href={`/hospitals/${hospital.slug}`} className="flex items-center gap-4 flex-1">
-                  <img src={hospital.image} alt={hospital.name} className="h-16 w-16 rounded-xl object-cover" />
-                  <div className="flex-1">
-                    <p className="font-display text-lg text-primary hover:text-primary-glow">{hospital.name}</p>
-                    <p className="text-xs text-muted-foreground inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{hospital.location}</p>
-                  </div>
-                </Link>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  <a href={`tel:${hospital.phone}`} className="inline-flex items-center gap-1 hover:text-primary"><Phone className="h-3 w-3" /></a>
-                  <a href={`mailto:${hospital.email}`} className="inline-flex items-center gap-1 hover:text-primary"><Mail className="h-3 w-3" /></a>
+                // Every place they practise, each with its own hours and fee (0090).
+                <div className="space-y-3">
+                  {d.places.map((p) => {
+                    const h = p.kind === "hospital" ? hospitalOf(p) : undefined;
+                    const detail = (
+                      <>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                          <Calendar className="h-3 w-3 shrink-0" />{p.available || "Hours not set"} · Fee {formatCurrency(p.fee)}
+                        </p>
+                      </>
+                    );
+                    return p.kind === "chamber" ? (
+                      // Their own chamber (0088): no hospital page behind it, so
+                      // the address and phone are right here.
+                      <div key={p.id} className="flex items-start gap-4 rounded-2xl bg-accent/20 p-4">
+                        <div className="h-16 w-16 shrink-0 rounded-xl bg-card grid place-items-center text-primary">
+                          <Store className="h-7 w-7" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-display text-lg text-primary">{p.name}</p>
+                          <p className="text-xs text-muted-foreground">Their own chamber</p>
+                          <p className="text-xs text-muted-foreground flex items-start gap-1 mt-1.5">
+                            <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
+                            {[p.address, ...p.location.split(", ")].filter((part, i, all) => part && all.indexOf(part) === i).join(", ")}
+                          </p>
+                          {p.phone && (
+                            <a href={`tel:${p.phone}`} className="mt-1 flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-glow">
+                              <Phone className="h-3 w-3" />{p.phone}
+                            </a>
+                          )}
+                          {detail}
+                        </div>
+                      </div>
+                    ) : (
+                      <div key={p.id} className="flex items-center gap-4 rounded-2xl bg-accent/20 p-4 hover:bg-accent/30 transition-colors">
+                        <Link href={`/hospitals/${p.hospitalSlug}`} className="flex items-center gap-4 flex-1 min-w-0">
+                          <img src={h?.image ?? "/assets/hub-atrium.jpg"} alt={p.name} className="h-16 w-16 rounded-xl object-cover" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-display text-lg text-primary hover:text-primary-glow">{p.name}</p>
+                            {(h?.location || p.location) && (
+                              <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" />{h?.location || p.location}</p>
+                            )}
+                            {detail}
+                          </div>
+                        </Link>
+                        {h && (
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <a href={`tel:${h.phone}`} className="inline-flex items-center gap-1 hover:text-primary"><Phone className="h-3 w-3" /></a>
+                            <a href={`mailto:${h.email}`} className="inline-flex items-center gap-1 hover:text-primary"><Mail className="h-3 w-3" /></a>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
               )}
             </section>
 
@@ -261,6 +279,7 @@ const DoctorDetail = () => {
         </motion.div>
       </main>
       <Footer />
+      <BookAppointmentDialog doctor={booking ? d : null} onClose={closeBooking} />
     </div>
   );
 };
