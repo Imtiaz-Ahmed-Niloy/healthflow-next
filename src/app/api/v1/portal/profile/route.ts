@@ -44,15 +44,17 @@ export const GET = async () => {
   const supabase = await createServerSupabase();
   const { data: rows, error } = await supabase
     .from("doctors")
-    .select(`id, tenant_id, ${PERSONAL}, consultation_fee, availability, status, tenants ( name )`)
+    .select(`id, tenant_id, ${PERSONAL}, consultation_fee, availability, status, tenants ( name, kind )`)
     .eq("profile_id", auth.userId)
     .order("created_at", { ascending: true });
   if (error) return fail(error.message, 500);
   if (!rows?.length) return fail("No doctor profile is linked to this login.", 404);
 
   // A home row (0081) holds the same details but is no hospital: it is never
-  // listed below, and is "main" only for a doctor with no hospital yet.
-  const hospitalRows = rows.filter(r => r.tenant_id !== null);
+  // listed below, and is "main" only for a doctor with no hospital yet. Their
+  // own chambers (0088) are theirs to set, on My Chambers — not listed here
+  // among the hospitals that set their fee and hours for them.
+  const hospitalRows = rows.filter(r => r.tenant_id !== null && r.tenants?.kind !== "chamber");
   const main = rows.find(r => r.tenant_id && r.tenant_id === auth.tenantId) ?? hospitalRows[0] ?? rows[0];
   return json({
     data: {
@@ -64,7 +66,7 @@ export const GET = async () => {
       },
       hospitals: hospitalRows.map(r => ({
         id: r.tenant_id,
-        name: (r.tenants as { name?: string } | null)?.name ?? "Hospital",
+        name: r.tenants?.name ?? "Hospital",
         main: r.id === main.id,
         consultation_fee: r.consultation_fee,
         availability: r.availability,

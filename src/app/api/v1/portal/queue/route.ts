@@ -178,7 +178,10 @@ export const POST = async (request: Request) => {
   const auth = await getAuthContext();
   if (!auth) return fail("Not signed in", 401);
   if (auth.role !== "doctor") return fail("Only a doctor can add to their own queue", 403);
-  if (!auth.tenantId) return fail("No hospital on this account", 403);
+  // Any tenant will do — the walk-in is filed at one of the doctor's own rows
+  // below. A doctor added to a hospital, or with only a chamber, can have no
+  // main tenant_id at all.
+  if (!auth.tenantIds.length) return fail("No hospital or chamber on this account", 403);
 
   const body = await request.json().catch(() => null);
   const parsed = walkInSchema.safeParse(body);

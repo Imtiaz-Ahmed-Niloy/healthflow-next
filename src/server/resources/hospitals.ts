@@ -243,6 +243,10 @@ export const hospitalsResource: ResourceDefinition<HospitalCreate, HospitalUpdat
   // and every insert would fail.
   tenantScoped: false,
 
+  // Doctors' chambers are tenants too (0088). They are managed from the
+  // doctor's panel and /super/doctors, never as hospitals.
+  scope: { kind: "hospital" },
+
   createSchema: hospitalCreateSchema,
   updateSchema: hospitalUpdateSchema,
   /**

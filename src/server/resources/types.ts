@@ -58,6 +58,14 @@ export type ResourceDefinition<TCreate = unknown, TUpdate = unknown> = {
   filterFields?: string[];
 
   /**
+   * Fixed column values that decide which rows are this module's at all.
+   * Every read, update and delete is held to them, and a create is stamped
+   * with them. `tenants` holds hospitals and doctors' chambers (0088); the
+   * hospitals module is `{ kind: "hospital" }` and never sees a chamber.
+   */
+  scope?: Record<string, string>;
+
+  /**
    * Default ordering for list responses.
    *
    * The convention is `{ column: "created_at", ascending: false }` — newest

@@ -3766,6 +3766,8 @@ export type Database = {
           owner_name: string | null
           owner_nid: string | null
           owner_phone: string | null
+          owner_profile_id: string | null
+          kind: Database["public"]["Enums"]["tenant_kind"]
           owner_since: string | null
           ownership_type: string | null
           package_id: string | null
@@ -3824,6 +3826,8 @@ export type Database = {
           owner_name?: string | null
           owner_nid?: string | null
           owner_phone?: string | null
+          owner_profile_id?: string | null
+          kind?: Database["public"]["Enums"]["tenant_kind"]
           owner_since?: string | null
           ownership_type?: string | null
           package_id?: string | null
@@ -3882,6 +3886,8 @@ export type Database = {
           owner_name?: string | null
           owner_nid?: string | null
           owner_phone?: string | null
+          owner_profile_id?: string | null
+          kind?: Database["public"]["Enums"]["tenant_kind"]
           owner_since?: string | null
           ownership_type?: string | null
           package_id?: string | null
@@ -4114,6 +4120,9 @@ export type Database = {
           name: string | null
           patients_treated: number | null
           photo_url: string | null
+          practice_address: string | null
+          practice_kind: string | null
+          practice_phone: string | null
           rating: number | null
           slug: string | null
           specialty: string | null
@@ -4312,6 +4321,37 @@ export type Database = {
           has_login: boolean
         }[]
       }
+      create_chamber: {
+        Args: {
+          p_name: string
+          p_address?: string | null
+          p_location?: string | null
+          p_division?: string | null
+          p_district?: string | null
+          p_subdistrict?: string | null
+          p_phone?: string | null
+          p_consultation_fee?: number | null
+          p_availability?: string | null
+          p_profile_id?: string | null
+        }
+        Returns: string
+      }
+      update_chamber: {
+        Args: {
+          p_tenant_id: string
+          p_name: string
+          p_address?: string | null
+          p_location?: string | null
+          p_division?: string | null
+          p_district?: string | null
+          p_subdistrict?: string | null
+          p_phone?: string | null
+          p_consultation_fee?: number | null
+          p_availability?: string | null
+        }
+        Returns: string
+      }
+      set_chamber_open: { Args: { p_tenant_id: string; p_open: boolean }; Returns: string }
       add_doctor_to_hospital: {
         Args: {
           p_profile_id?: string | null
@@ -4431,6 +4471,7 @@ export type Database = {
         | "rejected"
       support_ticket_priority: "low" | "medium" | "high" | "critical"
       support_ticket_status: "pending" | "processing" | "resolved"
+      tenant_kind: "hospital" | "chamber"
       tenant_status: "pending" | "approved" | "suspended"
       voucher_type:
         | "payment"
@@ -4654,6 +4695,7 @@ export const Constants = {
       ],
       support_ticket_priority: ["low", "medium", "high", "critical"],
       support_ticket_status: ["pending", "processing", "resolved"],
+      tenant_kind: ["hospital", "chamber"],
       tenant_status: ["pending", "approved", "suspended"],
       ward_category: [
         "general",

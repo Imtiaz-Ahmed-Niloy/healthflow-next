@@ -11,10 +11,14 @@ import {
 import { Avatar } from "@/components/common/Avatar";
 import { ImageUploadField } from "@/components/admin/ResourcePage";
 import { WeeklyHoursField } from "@/components/admin/WeeklyHoursField";
+import {
+  ChamberForm, chamberPayload, draftFromChamber, emptyChamberDraft, type ChamberDraft,
+} from "@/components/admin/ChamberForm";
 import { defaultWeek, serialiseWeek, type WeekHours } from "@/lib/hours";
 import { availabilityLabel, weekFromAvailability } from "@/lib/availability";
+import { chamberPlace, type Chamber } from "@/lib/chambers";
 import { useFormatters } from "@/lib/appSettings";
-import { Stethoscope, KeyRound, Building2, UserX, UserCheck, Loader2, Copy, Plus, Trash2 } from "lucide-react";
+import { Stethoscope, KeyRound, Building2, UserX, UserCheck, Loader2, Copy, Plus, Trash2, Store } from "lucide-react";
 
 /**
  * Every doctor on the platform, as people (0077).
@@ -22,8 +26,8 @@ import { Stethoscope, KeyRound, Building2, UserX, UserCheck, Loader2, Copy, Plus
  * A doctor with a login is one person however many hospitals list them; a
  * row with no login is a directory entry one hospital typed in. The super
  * admin can add a doctor to any hospital or to none yet (0081), correct a
- * doctor's personal details (copied to every hospital's row), and suspend or
- * reactivate their login.
+ * doctor's personal details (copied to every hospital's row), open and change
+ * their own chambers (0088), and suspend or reactivate their login.
  */
 
 type Hospital = {
@@ -55,10 +59,14 @@ type Person = {
   is_active: boolean | null;
   joined_at: string;
   hospitals: Hospital[];
-  /** Their home row (0081) and its hours — their own, apart from any hospital's. */
+  /** Their own practices (0088) — each with its own fee and hours. */
+  chambers: Chamber[];
+  /** Their home row (0081): the person, apart from any hospital. */
   home_doctor_id: string | null;
-  home_availability: string | null;
 };
+
+/** A chamber being added in Edit, before Save opens it. */
+type ChamberAdd = { key: number; draft: ChamberDraft };
 
 type Filter = "all" | "login" | "directory" | "suspended";
 
@@ -79,7 +87,7 @@ type Draft = Record<string, string>;
 
 const EDIT_KEYS = ["name", "specialty", "bmdc_number", "phone", "education", "experience_years", "gender", "languages", "expertise", "bio", "photo_url"] as const;
 
-/** The person. Where they work — and when — is `assignments`, or `homeWeek` with no hospital. */
+/** The person. Where they work — and when — is `assignments`. */
 const EMPTY_CREATE: Draft = {
   name: "", email: "", specialty: "", bmdc_number: "", phone: "",
   education: "", experience_years: "", gender: "", languages: "", photo_url: "", expertise: "", bio: "",
@@ -208,6 +216,57 @@ const HospitalsSection = ({ note, onAdd, canAdd, children }: {
   </div>
 );
 
+/** Their own chambers — the same heading and Add button as Hospitals, beneath it. */
+const ChambersSection = ({ note, onAdd, canAdd, children }: {
+  note: string; onAdd?: () => void; canAdd: boolean; children?: React.ReactNode;
+}) => (
+  <div className="mb-4 space-y-3">
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <h3 className="font-display text-lg text-primary">Chambers</h3>
+        <p className="text-xs text-muted-foreground">{note}</p>
+      </div>
+      {onAdd && (
+        <Btn variant="outline" className="shrink-0 whitespace-nowrap" onClick={onAdd} disabled={!canAdd}>
+          <Plus className="h-4 w-4" /> Add chamber
+        </Btn>
+      )}
+    </div>
+    {children}
+  </div>
+);
+
+/** One chamber: its details, fee and hours, with close/reopen for one that exists or remove for a new one. */
+const ChamberCard = ({ title, draft, onChange, resetKey, open, onToggleOpen, onRemove }: {
+  title: string;
+  draft: ChamberDraft;
+  onChange: (patch: Partial<ChamberDraft>) => void;
+  resetKey: string | number;
+  open?: boolean;
+  onToggleOpen?: () => void;
+  onRemove?: () => void;
+}) => (
+  <div className={`rounded-2xl border p-4 ${open === false ? "border-dashed border-border bg-muted/20" : "border-border/60"}`}>
+    <div className="flex items-center justify-between gap-3 mb-3">
+      <p className="flex items-center gap-2 text-sm font-semibold text-primary min-w-0">
+        <Store className="h-4 w-4 shrink-0" />
+        <span className="truncate">{title}</span>
+        {open === false && <Pill>Closed to bookings</Pill>}
+      </p>
+      {onToggleOpen && (
+        <Btn variant="ghost" className="shrink-0" onClick={onToggleOpen}>{open ? "Close to bookings" : "Reopen"}</Btn>
+      )}
+      {onRemove && (
+        <button type="button" onClick={onRemove} title="Remove this chamber"
+          className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+          <Trash2 className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+    <ChamberForm draft={draft} onChange={onChange} resetKey={resetKey} />
+  </div>
+);
+
 /** An existing hospital's fee as typed, and its week once touched — untouched hours are left as stored. */
 type HospitalEdit = { fee: string; week: WeekHours | null };
 
@@ -238,16 +297,16 @@ const Doctors = () => {
   const [photoUploading, setPhotoUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
-  // Their own hours, kept on their home row, while no hospital is picked.
-  const [homeWeek, setHomeWeek] = useState<WeekHours>(defaultWeek);
   const nextKey = useRef(1);
-  // Edit: each existing hospital's fee and hours, hospitals being added, and
-  // their own hours (null until touched, so an untouched week is not rewritten).
+  // Edit: each existing hospital's fee and hours, and hospitals being added.
   const [editExisting, setEditExisting] = useState<Record<string, HospitalEdit>>({});
   const [editAdds, setEditAdds] = useState<Assignment[]>([]);
   // Hospital rows to remove on Save — marked, with an undo, rather than gone on the click.
   const [editRemovals, setEditRemovals] = useState<string[]>([]);
-  const [editHomeWeek, setEditHomeWeek] = useState<WeekHours | null>(null);
+  // Their chambers as edited, whether each is open, and new ones — all applied on Save.
+  const [editChambers, setEditChambers] = useState<Record<string, ChamberDraft>>({});
+  const [editChamberOpen, setEditChamberOpen] = useState<Record<string, boolean>>({});
+  const [editChamberAdds, setEditChamberAdds] = useState<ChamberAdd[]>([]);
   // A login's email and password on screen — just created, viewed, or reset.
   // `person` offers a fresh password from the same window.
   const [creds, setCreds] = useState<{ name: string; email: string; password: string; note: string; person?: Person } | null>(null);
@@ -293,7 +352,7 @@ const Doctors = () => {
       if (filter === "directory" && p.has_login) return false;
       if (filter === "suspended" && !(p.has_login && !p.is_active)) return false;
       if (!q) return true;
-      return [p.name, p.specialty, p.email, p.phone, p.bmdc_number, ...p.hospitals.map(h => h.name)]
+      return [p.name, p.specialty, p.email, p.phone, p.bmdc_number, ...p.hospitals.map(h => h.name), ...p.chambers.map(c => c.name)]
         .some(v => v?.toLowerCase().includes(q));
     });
   }, [people, filter, query]);
@@ -305,14 +364,61 @@ const Doctors = () => {
     setEditExisting(Object.fromEntries(p.hospitals.map(h => [h.doctor_id, { fee: feeText(h.consultation_fee), week: null }])));
     setEditAdds([]);
     setEditRemovals([]);
-    setEditHomeWeek(null);
+    setEditChambers(Object.fromEntries(p.chambers.map(c => [c.id, draftFromChamber(c)])));
+    setEditChamberOpen(Object.fromEntries(p.chambers.map(c => [c.id, c.open])));
+    setEditChamberAdds([]);
     setEditing(p);
+  };
+
+  /** New-chamber cards in Edit. */
+  const chamberCards = {
+    add: () => {
+      const key = nextKey.current;
+      nextKey.current += 1;
+      setEditChamberAdds(list => [...list, { key, draft: emptyChamberDraft() }]);
+    },
+    update: (key: number, patch: Partial<ChamberDraft>) =>
+      setEditChamberAdds(list => list.map(a => (a.key === key ? { ...a, draft: { ...a.draft, ...patch } } : a))),
+    remove: (key: number) => setEditChamberAdds(list => list.filter(a => a.key !== key)),
+  };
+
+  /**
+   * Chamber changes, after the person is saved: each through /api/v1/chambers,
+   * which opens and changes them as the doctor's own would. Returns what
+   * failed, by name, so one bad chamber doesn't hide the others.
+   */
+  const saveChambers = async (p: Person) => {
+    const failed: string[] = [];
+    const send = async (method: "POST" | "PATCH", body: object, name: string) => {
+      const res = await fetch("/api/v1/chambers", {
+        method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      if (!res.ok) failed.push(`${name}: ${await errorOf(res) ?? "failed"}`);
+    };
+
+    for (const c of p.chambers) {
+      const draft = editChambers[c.id];
+      if (draft && JSON.stringify(chamberPayload(draft)) !== JSON.stringify(chamberPayload(draftFromChamber(c)))) {
+        await send("PATCH", { id: c.id, ...chamberPayload(draft) }, draft.name || c.name);
+      }
+      if (editChamberOpen[c.id] !== undefined && editChamberOpen[c.id] !== c.open) {
+        await send("PATCH", { id: c.id, open: editChamberOpen[c.id] }, c.name);
+      }
+    }
+    for (const a of editChamberAdds) {
+      await send("POST", { ...chamberPayload(a.draft), profile_id: p.profile_id }, a.draft.name || "New chamber");
+    }
+    return failed;
   };
 
   const saveEdit = async () => {
     if (!editing) return;
     if (!editDraft.name?.trim()) { toast.error("Name is required"); return; }
     if (editAdds.some(a => !a.tenant_id)) { toast.error("Pick a hospital on each new card, or remove the card"); return; }
+    if ([...Object.values(editChambers), ...editChamberAdds.map(a => a.draft)].some(d => !d.name.trim())) {
+      toast.error("Give each chamber a name, or remove the card");
+      return;
+    }
     if (!editing.has_login && editing.hospitals.length - editRemovals.length + editAdds.length > 1) {
       toast.error("A doctor at more than one hospital needs a login", {
         description: "Give them a login from a hospital's Doctors page first — it makes them one person at every hospital.",
@@ -350,17 +456,24 @@ const Doctors = () => {
               tenant_id: a.tenant_id, consultation_fee: a.consultation_fee, availability: serialiseWeek(a.week),
             })),
           } : {}),
-          ...(editHomeWeek && editing.hospitals.length === 0 && !editAdds.length
-            ? { home_availability: serialiseWeek(editHomeWeek) } : {}),
           ...(editRemovals.length ? { remove_hospitals: editRemovals } : {}),
         }),
       });
       if (!res.ok) { toast.error("Couldn't save", { description: await errorOf(res) }); return; }
+
+      const chamberFailures = await saveChambers(editing);
+      if (chamberFailures.length) {
+        toast.error("Saved, but a chamber wasn't", { description: chamberFailures.join(" · ") });
+        void load();
+        return;
+      }
       const count = editing.hospitals.length - editRemovals.length + editAdds.length;
       toast.success(
-        editAdds.length || editRemovals.length
-          ? count === 0 ? "Saved — now at no hospital" : `Saved — now at ${count} hospital${count === 1 ? "" : "s"}`
-          : editing.hospitals.length > 1 ? `Saved at all ${editing.hospitals.length} hospitals` : "Doctor updated",
+        editChamberAdds.length
+          ? `Saved — ${editChamberAdds.length === 1 ? "chamber" : `${editChamberAdds.length} chambers`} open for bookings`
+          : editAdds.length || editRemovals.length
+            ? count === 0 ? "Saved — now at no hospital" : `Saved — now at ${count} hospital${count === 1 ? "" : "s"}`
+            : editing.hospitals.length > 1 ? `Saved at all ${editing.hospitals.length} hospitals` : "Doctor updated",
       );
       setEditing(null);
       void load();
@@ -372,7 +485,6 @@ const Doctors = () => {
   const openCreate = () => {
     setCreateDraft(EMPTY_CREATE);
     setAssignments([]);
-    setHomeWeek(defaultWeek());
     setWithLogin(true);
     setCreateKey(k => k + 1);
     setCreating(true);
@@ -425,7 +537,6 @@ const Doctors = () => {
             consultation_fee: a.consultation_fee,
             availability: serialiseWeek(a.week),
           })),
-          ...(assignments.length === 0 ? { availability: serialiseWeek(homeWeek) } : {}),
         }),
       });
       const body = await res.json().catch(() => null);
@@ -590,13 +701,19 @@ const Doctors = () => {
       ),
     },
     {
-      key: "hospitals", label: "HOSPITALS", sortable: true, accessor: p => p.hospitals.length,
-      render: p => p.hospitals.length === 0 ? (
+      key: "hospitals", label: "PRACTISES AT", sortable: true, accessor: p => p.hospitals.length + p.chambers.length,
+      render: p => p.hospitals.length + p.chambers.length === 0 ? (
         <span className="text-xs text-muted-foreground">No hospital yet</span>
       ) : (
         <div className="flex flex-wrap gap-1">
           {p.hospitals.map(h => (
             <span key={h.doctor_id} className="rounded-full bg-chip text-primary px-2 py-0.5 text-[11px] font-semibold">{h.name}</span>
+          ))}
+          {p.chambers.map(c => (
+            <span key={c.id} title="Their own chamber"
+              className={`inline-flex items-center gap-1 rounded-full border border-primary/25 px-2 py-0.5 text-[11px] font-semibold ${c.open ? "text-primary" : "text-muted-foreground line-through"}`}>
+              <Store className="h-3 w-3" />{c.name}
+            </span>
           ))}
         </div>
       ),
@@ -706,15 +823,9 @@ const Doctors = () => {
                 {viewing.hospitals.length === 1 ? "Hospital" : viewing.hospitals.length === 0 ? "Hospitals" : `${viewing.hospitals.length} hospitals`}
               </p>
               {viewing.hospitals.length === 0 && (
-                <>
-                  <p className="text-sm text-muted-foreground">
-                    Not at any hospital yet. A hospital that adds them by this email or BMDC number is linked to this doctor.
-                  </p>
-                  {viewing.home_availability && (
-                    <p className="text-sm mt-2"><span className="text-muted-foreground">Their hours:</span>{" "}
-                      <span className="text-primary font-medium">{availabilityLabel(viewing.home_availability)}</span></p>
-                  )}
-                </>
+                <p className="text-sm text-muted-foreground">
+                  Not at any hospital yet. A hospital that adds them by this email or BMDC number is linked to this doctor.
+                </p>
               )}
               <div className="space-y-2">
                 {viewing.hospitals.map(h => (
@@ -731,6 +842,28 @@ const Doctors = () => {
                 ))}
               </div>
             </div>
+            {viewing.chambers.length > 0 && (
+              <div>
+                <p className="font-display text-lg text-primary mb-2">
+                  {viewing.chambers.length === 1 ? "Chamber" : `${viewing.chambers.length} chambers`}
+                </p>
+                <div className="space-y-2">
+                  {viewing.chambers.map(c => (
+                    <div key={c.id} className="flex items-center justify-between gap-3 rounded-xl bg-muted/30 border border-border/40 px-3 py-2.5">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-primary truncate">{c.name}</p>
+                        <p className="text-xs text-muted-foreground">{c.open ? "Taking bookings" : "Closed to bookings"}</p>
+                        {chamberPlace(c) && <p className="text-xs text-muted-foreground mt-0.5">{chamberPlace(c)}</p>}
+                        <p className="text-xs text-muted-foreground mt-0.5">{availabilityLabel(c.availability) ?? "No hours set"}</p>
+                      </div>
+                      <span className="text-sm font-semibold text-primary shrink-0">
+                        {c.consultation_fee == null ? "—" : formatCurrency(Number(c.consultation_fee))}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="flex gap-2">
               <Btn variant="outline" onClick={() => { setViewKey(null); openEdit(viewing); }}>Edit</Btn>
               <Btn variant="outline" onClick={() => onKey(viewing)} disabled={loginBusy === viewing.key}>
@@ -774,10 +907,10 @@ const Doctors = () => {
             />
 
             {/* Where they work, and when — each hospital's own fee and hours,
-                hospitals to add, or their own hours while at none. */}
+                and hospitals to add. Their own hours are their chambers', below. */}
             <HospitalsSection
               note={editing.hospitals.length === 0 && editAdds.length === 0
-                ? "Not at any hospital yet. Add one, or set their own hours below — a hospital can add them later by email or BMDC number."
+                ? "Not at any hospital yet. Add one here — or a hospital can add them later by email or BMDC number."
                 : !editing.has_login && editing.hospitals.length - editRemovals.length > 0
                   ? "Each hospital has its own fee and hours. To add another hospital, give them a login first — it makes them one doctor at every hospital."
                   : "Each hospital has its own fee and hours. Patients booking there are held to them."}
@@ -835,18 +968,41 @@ const Doctors = () => {
                   onRemove={() => editCards.remove(a.key)}
                 />
               ))}
-
-              {editing.hospitals.length === 0 && editAdds.length === 0 && (
-                <Field label="Their own availability">
-                  <WeeklyHoursField
-                    key={editing.key}
-                    seed={() => weekFromAvailability(editing.home_availability)}
-                    onChange={setEditHomeWeek}
-                    summaryLabel="Their hours"
-                  />
-                </Field>
-              )}
             </HospitalsSection>
+
+            {/* Their own practices: each its own address, fee and hours. A
+                chamber is run from the doctor's panel, so it needs a login. */}
+            <ChambersSection
+              note={!editing.has_login
+                ? "A chamber is run from the doctor's own panel — give them a login first."
+                : editing.chambers.length + editChamberAdds.length === 0
+                  ? "Where they practise for themselves. Patients book them there, with its own fee and hours."
+                  : "Each chamber has its own fee and hours. Patients booking there are held to them."}
+              onAdd={chamberCards.add}
+              canAdd={editing.has_login}
+            >
+              {editing.chambers.map(c => editChambers[c.id] && (
+                <ChamberCard
+                  key={`${editing.key}:${c.id}`}
+                  title={editChambers[c.id].name || c.name}
+                  draft={editChambers[c.id]}
+                  onChange={patch => setEditChambers(m => ({ ...m, [c.id]: { ...m[c.id], ...patch } }))}
+                  resetKey={`${editing.key}:${c.id}`}
+                  open={editChamberOpen[c.id] ?? c.open}
+                  onToggleOpen={() => setEditChamberOpen(m => ({ ...m, [c.id]: !(m[c.id] ?? c.open) }))}
+                />
+              ))}
+              {editChamberAdds.map((a, i) => (
+                <ChamberCard
+                  key={a.key}
+                  title={a.draft.name || (editChamberAdds.length > 1 ? `New chamber ${i + 1}` : "New chamber")}
+                  draft={a.draft}
+                  onChange={patch => chamberCards.update(a.key, patch)}
+                  resetKey={a.key}
+                  onRemove={() => chamberCards.remove(a.key)}
+                />
+              ))}
+            </ChambersSection>
 
             {/* Where Add Doctor offers a login, Edit shows the one they have. */}
             <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 p-3 text-sm">
@@ -889,10 +1045,10 @@ const Doctors = () => {
         />
 
         {/* Where they work, and when. Each hospital sets its own fee and
-            hours (0077); with none, the hours are the doctor's own. */}
+            hours (0077); the doctor's own are their chambers'. */}
         <HospitalsSection
           note={assignments.length === 0
-            ? "Not at any hospital yet. Add one, or set their own hours below — a hospital can add them later by email or BMDC number."
+            ? "Not at any hospital yet. Add one here — or a hospital can add them later by email or BMDC number."
             : "Each hospital has its own fee and hours. Patients booking there are held to them."}
           onAdd={createCards.add}
           canAdd={assignments.length < hospitalOptions.length}
@@ -910,13 +1066,14 @@ const Doctors = () => {
               onRemove={() => createCards.remove(a.key)}
             />
           ))}
-
-          {assignments.length === 0 && (
-            <Field label="Their own availability">
-              <WeeklyHoursField key={createKey} onChange={setHomeWeek} summaryLabel="Their hours" />
-            </Field>
-          )}
         </HospitalsSection>
+
+        {/* Same place as on Edit. A chamber belongs to a login, which this
+            form makes only once the doctor is saved. */}
+        <ChambersSection
+          note="Their own practice, with its own address, fee and hours. Add it from Edit once the doctor has a login."
+          canAdd={false}
+        />
         <label className="flex items-start gap-3 rounded-xl bg-muted/40 p-3 text-sm cursor-pointer">
           <input type="checkbox" checked={withLogin} onChange={e => setWithLogin(e.target.checked)} className="mt-0.5" />
           <span>

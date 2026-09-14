@@ -64,6 +64,7 @@ export const PANELS: Panel[] = [
       { path: "/portal/queue", label: "Patient Queue" },
       { path: "/portal/prescription", label: "Prescription" },
       { path: "/portal/directory", label: "Directory" },
+      { path: "/portal/chambers", label: "My Chambers" },
     ],
   },
   {

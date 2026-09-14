@@ -74,6 +74,7 @@ export const createResourceRoute = <TCreate, TUpdate>(
   definition: ResourceDefinition<TCreate, TUpdate>,
 ) => {
   const select = definition.select ?? "*";
+  const scope = definition.scope ?? {};
 
   /** Resolves auth once and rejects unauthenticated callers. */
   const requireAuth = async () => {
@@ -96,6 +97,7 @@ export const createResourceRoute = <TCreate, TUpdate>(
         .from(definition.table)
         .select(select)
         .eq("id", id)
+        .match(scope)
         .maybeSingle();
 
       if (error) return fromPostgrest(error);
@@ -115,7 +117,7 @@ export const createResourceRoute = <TCreate, TUpdate>(
     );
     const from = (page - 1) * limit;
 
-    let query = supabase.from(definition.table).select(select, { count: "exact" });
+    let query = supabase.from(definition.table).select(select, { count: "exact" }).match(scope);
 
     const search = url.searchParams.get("q")?.trim();
     if (search && definition.searchFields?.length) {
@@ -175,7 +177,7 @@ export const createResourceRoute = <TCreate, TUpdate>(
     const parsed = definition.createSchema.safeParse(body);
     if (!parsed.success) return fail("Validation failed", 422, parsed.error.flatten());
 
-    const payload: Record<string, unknown> = { ...(parsed.data as Record<string, unknown>) };
+    const payload: Record<string, unknown> = { ...(parsed.data as Record<string, unknown>), ...scope };
 
     if (definition.tenantScoped) {
       // A super_admin may write on behalf of a hospital by passing tenant_id.
@@ -244,6 +246,7 @@ export const createResourceRoute = <TCreate, TUpdate>(
       .from(definition.table)
       .update(payload)
       .eq("id", id)
+      .match(scope)
       .select(select)
       .maybeSingle();
 
@@ -277,6 +280,7 @@ export const createResourceRoute = <TCreate, TUpdate>(
       .from(definition.table)
       .delete()
       .eq("id", id)
+      .match(scope)
       .select("id")
       .maybeSingle();
 

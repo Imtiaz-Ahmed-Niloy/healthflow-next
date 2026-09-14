@@ -41,9 +41,10 @@ export const GET = async () => {
   const supabase = await createServerSupabase();
 
   // head: true asks Postgres for the count and no rows at all, so a tile costs
-  // a count and nothing else.
+  // a count and nothing else. Hospitals only: a doctor's chamber is a tenant
+  // too (0088), and not a customer of ours in the same sense.
   const countHospitals = (status?: TenantStatus) => {
-    const query = supabase.from("tenants").select("id", { count: "exact", head: true });
+    const query = supabase.from("tenants").select("id", { count: "exact", head: true }).eq("kind", "hospital");
     return status ? query.eq("status", status) : query;
   };
 
@@ -58,6 +59,7 @@ export const GET = async () => {
     supabase
       .from("tenants")
       .select("id, name, slug, status, created_at, packages ( name )")
+      .eq("kind", "hospital")
       .order("created_at", { ascending: false })
       // Same tiebreaker, same direction, as the hospitals list endpoint. Most
       // tenants share a created_at from the seed, so without this the two
@@ -87,6 +89,7 @@ export const GET = async () => {
         supabase
           .from("tenants")
           .select("id", { count: "exact", head: true })
+          .eq("kind", "hospital")
           .eq("status", "approved")
           .eq("package_id", plan.id),
       ),
@@ -94,6 +97,7 @@ export const GET = async () => {
     supabase
       .from("tenants")
       .select("id", { count: "exact", head: true })
+      .eq("kind", "hospital")
       .eq("status", "approved")
       .is("package_id", null),
     // One query for the staff of the five listed hospitals, tallied below.

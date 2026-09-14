@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { Building2, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
@@ -186,9 +187,14 @@ const Profile = () => {
           <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}
             className="rounded-3xl bg-card border border-border/60 p-6 shadow-soft">
             <h2 className="font-display text-2xl text-primary">
-              {hospitals.length === 1 ? "Your hospital" : `Your ${hospitals.length} hospitals`}
+              {hospitals.length === 1 ? "Your hospital" : hospitals.length === 0 ? "Your hospitals" : `Your ${hospitals.length} hospitals`}
             </h2>
-            <p className="text-xs text-muted-foreground mt-1">Fees, hours and status are set by each hospital.</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {hospitals.length
+                ? "Fees, hours and status are set by each hospital."
+                : "You're not at a hospital on HealthFlow yet."}{" "}
+              Your own chambers are on <Link href="/portal/chambers" className="font-semibold text-primary hover:underline">My Chambers</Link>.
+            </p>
             <div className="mt-5 space-y-3">
               {hospitals.map(h => (
                 <div key={h.id} className="rounded-2xl bg-muted/30 border border-border/40 p-4">

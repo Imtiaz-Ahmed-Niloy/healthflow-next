@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BookOpen, FileText, Users, BookUser, Calendar, ChevronDown, Lightbulb,
-  ShieldCheck, Printer, MessagesSquare, Pill, CircleDashed,
+  ShieldCheck, Printer, MessagesSquare, Pill, CircleDashed, Store,
 } from "lucide-react";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 
@@ -94,8 +94,24 @@ const sections = [
       "Open a scheduled visit to go straight into the consultation for it.",
     ],
     tips: [
-      "Schedule shows your appointments; it is not where availability is set. See Not here yet.",
+      "Schedule shows your appointments; it is not where availability is set. A hospital sets your hours there; your own chamber's hours are on My Chambers.",
       "Days with appointments are marked on the calendar, so an empty week is visible at a glance.",
+    ],
+  },
+  {
+    id: "chambers",
+    icon: Store,
+    title: "My Chambers",
+    summary: "Your own practice: where patients book you outside any hospital.",
+    steps: [
+      "Open My Chambers and press Add chamber. Give it a name, the address, the phone patients should call, your fee and your hours.",
+      "It is taking bookings as soon as you save. Patients find you on HealthFlow and book you there, inside the hours you set.",
+      "Those patients come into your Queue, Schedule and Directory with everyone else's, labelled with the chamber. Consult and prescribe exactly as at a hospital — the prescription prints the chamber's name, address and phone.",
+      "Edit changes the details, fee or hours at any time. Close to bookings takes it off the list; appointments already booked stay, and Reopen puts it back.",
+    ],
+    tips: [
+      "You can have more than one chamber, each with its own fee and hours.",
+      "A hospital's fee and hours for you are the hospital's to set. Your chamber's are yours.",
     ],
   },
   {
@@ -162,7 +178,7 @@ const quickTips = [
  * from being read as a promise.
  */
 const notYet = [
-  "Setting your own availability or consulting hours — bookings are made by the hospital, and Schedule shows them rather than shaping them.",
+  "Setting your hours at a hospital — the hospital sets them. (Your own chamber's hours are yours, on My Chambers.)",
   "Requesting leave. Ask your hospital's admin; HR keeps leave in the admin panel, not here.",
   "Video consultation. The telehealth page is not connected to anything yet.",
   "Sending a prescription to a patient by SMS or email. It prints; the patient portal shows their own records separately.",

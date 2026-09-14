@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminSupabase, createServerSupabase, getAuthContext, isSuperAdmin } from "@/lib/supabase/server";
 import { parseWeek } from "@/lib/hours";
+import { toChamber } from "@/lib/chambers";
 import type { TablesInsert } from "@/lib/supabase/types";
 
 /**
@@ -11,7 +12,9 @@ import type { TablesInsert } from "@/lib/supabase/types";
  * at (0077); those rows are grouped into one entry by profile_id. A row with
  * no login is a directory listing one hospital typed in, and stands alone.
  * A row with no hospital is a doctor's home row (0081): the person, before or
- * besides any hospital — never listed as one of their hospitals.
+ * besides any hospital — never listed as one of their hospitals. A row at a
+ * chamber (0088) is listed as a chamber, not a hospital; chambers are opened
+ * and changed through /api/v1/chambers, not here.
  *
  * PATCH edits a doctor's personal details. Written to one row — the 0077 sync
  * trigger copies it to the rest — and a super admin passes the guard that
@@ -42,9 +45,21 @@ type Row = {
   consultation_fee: number | null;
   availability: string | null;
   created_at: string;
-  tenants: { name: string } | null;
+  tenants: {
+    name: string;
+    kind: "hospital" | "chamber";
+    status: string;
+    address: string | null;
+    location: string | null;
+    division: string | null;
+    district: string | null;
+    subdistrict: string | null;
+    contact_phone: string | null;
+  } | null;
   profiles: { is_active: boolean; email: string | null } | null;
 };
+
+const isChamber = (r: Pick<Row, "tenants">) => r.tenants?.kind === "chamber";
 
 export const GET = async () => {
   const auth = await getAuthContext();
@@ -56,12 +71,12 @@ export const GET = async () => {
     supabase
       .from("doctors")
       .select(
-        "id, tenant_id, profile_id, name, specialty, education, bio, languages, expertise, experience_years, email, phone, photo_url, gender, bmdc_number, status, consultation_fee, availability, created_at, tenants ( name ), profiles!doctors_profile_id_fkey ( is_active, email )",
+        "id, tenant_id, profile_id, name, specialty, education, bio, languages, expertise, experience_years, email, phone, photo_url, gender, bmdc_number, status, consultation_fee, availability, created_at, tenants ( name, kind, status, address, location, division, district, subdistrict, contact_phone ), profiles!doctors_profile_id_fkey ( is_active, email )",
       )
       .order("created_at", { ascending: true })
       .limit(5000),
-    // The Create form's hospital picker.
-    supabase.from("tenants").select("id, name").eq("status", "approved").order("name"),
+    // The Create form's hospital picker — hospitals, not doctors' chambers.
+    supabase.from("tenants").select("id, name").eq("status", "approved").eq("kind", "hospital").order("name"),
   ]);
   if (error) return fail(error.message, 500);
   if (tenants.error) return fail(tenants.error.message, 500);
@@ -94,7 +109,7 @@ export const GET = async () => {
     has_login: !!head.profile_id,
     is_active: head.profile_id ? head.profiles?.is_active ?? true : null,
     joined_at: head.created_at,
-    hospitals: rows.flatMap(r => r.tenant_id === null ? [] : [{
+    hospitals: rows.flatMap(r => r.tenant_id === null || isChamber(r) ? [] : [{
       doctor_id: r.id,
       id: r.tenant_id,
       name: r.tenants?.name ?? "Hospital",
@@ -102,8 +117,10 @@ export const GET = async () => {
       consultation_fee: r.consultation_fee,
       availability: r.availability,
     }]),
+    chambers: rows.flatMap(r => r.tenant_id === null || !r.tenants || !isChamber(r) ? [] : [
+      toChamber({ ...r.tenants, id: r.tenant_id }, r),
+    ]),
     home_doctor_id: rows.find(r => r.tenant_id === null)?.id ?? null,
-    home_availability: rows.find(r => r.tenant_id === null)?.availability ?? null,
   }));
 
   result.sort((a, b) => a.name.localeCompare(b.name));
@@ -155,8 +172,9 @@ const hospitalSchema = z.object({
  * caller is a super admin, who has no hospital of their own to stamp and may
  * write to any of them (RLS says so too). Each hospital gets its own row with
  * its own fee and hours (0077). With no hospital, the doctor gets their home
- * row (0081), carrying their own hours: on HealthFlow, at no hospital yet,
- * until one adds them by email or BMDC.
+ * row (0081): on HealthFlow, at no hospital yet, until one adds them. It has
+ * no hours — a doctor's own hours are their chamber's (0088), added once they
+ * have a login.
  *
  * The rows start unlinked. The page then calls /api/v1/doctors/:id/login on
  * the first — creating the login, or linking the account they already have —
@@ -167,8 +185,6 @@ const hospitalSchema = z.object({
 const createSchema = z.object({
   hospitals: z.array(hospitalSchema).max(20, "That's more hospitals than one form should add").default([])
     .refine(list => new Set(list.map(h => h.tenant_id)).size === list.length, "Each hospital can be added once"),
-  // The home row's hours — used only with no hospital.
-  availability: availability.optional(),
   name: z.string().trim().min(1, "Name is required").max(200),
   email: z.string().trim().email("A valid email is required"),
   specialty: text(200),
@@ -194,12 +210,13 @@ export const POST = async (request: Request) => {
   const parsed = createSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Invalid request", 422);
 
-  const { hospitals, availability: homeHours, ...person } = parsed.data;
+  const { hospitals, ...person } = parsed.data;
   const supabase = await createServerSupabase();
 
   if (hospitals.length) {
     const ids = hospitals.map(h => h.tenant_id);
-    const { data: found, error: tenantError } = await supabase.from("tenants").select("id").in("id", ids);
+    const { data: found, error: tenantError } = await supabase
+      .from("tenants").select("id").in("id", ids).eq("kind", "hospital");
     if (tenantError) return fail(tenantError.message, 500);
     if ((found ?? []).length !== ids.length) return fail("One of those hospitals doesn't exist", 422);
   }
@@ -210,7 +227,7 @@ export const POST = async (request: Request) => {
       ...person, slug: "", tenant_id: h.tenant_id,
       consultation_fee: h.consultation_fee, availability: h.availability ?? null,
     }))
-    : [{ ...person, slug: "", tenant_id: null, consultation_fee: null, availability: homeHours ?? null }];
+    : [{ ...person, slug: "", tenant_id: null, consultation_fee: null, availability: null }];
 
   const { data, error } = await supabase.from("doctors").insert(rows).select("id, tenant_id");
   if (error) return fail(error.message, 400);
@@ -233,16 +250,18 @@ export const POST = async (request: Request) => {
  *     a login gets a row linked to it (0077's pull trigger copies their details
  *     onto it). One without a login can only be placed at a first hospital —
  *     their home row moves there; at a second, the rows would be two doctors.
- *   - `home_availability`: the hours on their home row (0081), for a doctor at
- *     no hospital.
  *   - `remove_hospitals`: their rows at hospitals they no longer work at. As a
  *     hospital's own removal does, this releases the hospital from their login
  *     (release_doctor_affiliation, 0077/0081) and deletes the row — so that
  *     hospital's appointments, admissions and lab orders keep their history
  *     without the link, and its shifts and performance records for them go.
  *     Unlike a hospital's, it never takes the doctor off HealthFlow: removing
- *     their last hospital leaves them a home row with their details, and the
- *     login stays. A saved password moves to a row that remains.
+ *     their last hospital leaves them a home row with their details (or their
+ *     chamber, if they have one), and the login stays. A saved password moves
+ *     to a row that remains.
+ *
+ * Chambers are rows of theirs too, but never hospitals here: they can't be
+ * edited, removed or added through these fields.
  */
 const editSchema = patchSchema.extend({
   hospitals: z.array(z.object({
@@ -252,7 +271,6 @@ const editSchema = patchSchema.extend({
   })).max(50).optional(),
   add_hospitals: z.array(hospitalSchema).max(20).optional()
     .refine(list => !list || new Set(list.map(h => h.tenant_id)).size === list.length, "Each hospital can be added once"),
-  home_availability: availability.optional(),
   remove_hospitals: z.array(z.string().uuid()).max(50).optional(),
 });
 
@@ -268,10 +286,9 @@ export const PATCH = async (request: Request) => {
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Invalid request", 422);
 
   const {
-    doctor_id, hospitals = [], add_hospitals: adds = [], home_availability, remove_hospitals: removals = [], ...fields
+    doctor_id, hospitals = [], add_hospitals: adds = [], remove_hospitals: removals = [], ...fields
   } = parsed.data;
-  if (Object.keys(fields).length === 0 && !hospitals.length && !adds.length
-      && home_availability === undefined && !removals.length) {
+  if (Object.keys(fields).length === 0 && !hospitals.length && !adds.length && !removals.length) {
     return fail("Nothing to update", 422);
   }
 
@@ -284,11 +301,12 @@ export const PATCH = async (request: Request) => {
   if (!head) return fail("Doctor not found", 404);
 
   const { data: personRows, error: rowsError } = head.profile_id
-    ? await supabase.from("doctors").select("id, tenant_id").eq("profile_id", head.profile_id)
-    : await supabase.from("doctors").select("id, tenant_id").eq("id", head.id);
+    ? await supabase.from("doctors").select("id, tenant_id, tenants ( kind )").eq("profile_id", head.profile_id)
+    : await supabase.from("doctors").select("id, tenant_id, tenants ( kind )").eq("id", head.id);
   if (rowsError) return fail(rowsError.message, 400);
   const rows = personRows ?? [];
-  let hospitalRows = rows.filter(r => r.tenant_id !== null);
+  let hospitalRows = rows.filter(r => r.tenant_id !== null && r.tenants?.kind !== "chamber");
+  const chamberRows = rows.filter(r => r.tenants?.kind === "chamber");
   let homeRow = rows.find(r => r.tenant_id === null) ?? null;
 
   if (removals.some(id => !hospitalRows.some(r => r.id === id))) {
@@ -306,20 +324,21 @@ export const PATCH = async (request: Request) => {
     const remaining = hospitalRows.filter(r => r.id !== rowId);
 
     // Their last hospital: keep them on HealthFlow, with their details, at none.
-    if (!homeRow && remaining.length === 0) {
+    // A chamber already does that.
+    if (!homeRow && remaining.length === 0 && chamberRows.length === 0) {
       const { data: person, error: readError } = await supabase.from("doctors").select(PERSONAL).eq("id", rowId).single();
       if (readError) return fail(readError.message, 400);
       const { data: made, error: homeError } = await supabase.from("doctors")
         .insert({ ...person, tenant_id: null, profile_id: head.profile_id, slug: "" })
         .select("id, tenant_id").single();
       if (homeError) return fail(`Couldn't keep them on HealthFlow: ${homeError.message}`, 400);
-      homeRow = made;
+      homeRow = { ...made, tenants: null };
     }
 
     // doctor_login_secrets has no policy for signed-in users at all (0021);
     // the service role is the only way to it, as in /api/v1/doctors/:id/login.
     const admin = createAdminSupabase();
-    const target = homeRow ?? remaining[0] ?? null;
+    const target = homeRow ?? remaining[0] ?? chamberRows[0] ?? null;
     if (target) {
       const { data: kept } = await admin.from("doctor_login_secrets").select("doctor_id").eq("doctor_id", target.id).maybeSingle();
       if (!kept) {
@@ -352,17 +371,12 @@ export const PATCH = async (request: Request) => {
     if (error) return fail(error.message, 400);
   }
 
-  if (home_availability !== undefined && homeRow) {
-    const { error } = await supabase.from("doctors").update({ availability: home_availability }).eq("id", homeRow.id);
-    if (error) return fail(error.message, 400);
-  }
-
   if (adds.length) {
     const already = new Set(hospitalRows.map(r => r.tenant_id));
     if (adds.some(a => already.has(a.tenant_id))) return fail("They're already at one of those hospitals", 422);
 
     const { data: found, error: tenantError } = await supabase
-      .from("tenants").select("id").in("id", adds.map(a => a.tenant_id));
+      .from("tenants").select("id").in("id", adds.map(a => a.tenant_id)).eq("kind", "hospital");
     if (tenantError) return fail(tenantError.message, 500);
     if ((found ?? []).length !== adds.length) return fail("One of those hospitals doesn't exist", 422);
 

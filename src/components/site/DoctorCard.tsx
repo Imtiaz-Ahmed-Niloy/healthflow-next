@@ -78,10 +78,10 @@ export const DoctorCard = ({ d, i = 0, action }: { d: UIDoctor; i?: number; acti
   </TiltCard>
 );
 
-/** The note in place of the button for a doctor at no hospital yet — nothing to book. */
+/** The note in place of the button for a doctor at no hospital or chamber yet — nothing to book. */
 export const DoctorCardNotBookable = () => (
   <p className="mt-5 w-full rounded-full border border-border py-2.5 text-center text-xs font-semibold text-muted-foreground">
-    Bookings open once a hospital adds them
+    Not taking bookings on HealthFlow yet
   </p>
 );
 

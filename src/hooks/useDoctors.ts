@@ -32,6 +32,11 @@ export type DBDoctor = {
   gender: "male" | "female" | "other" | null;
   /** Public registration, published since 0087. */
   bmdc_number: string | null;
+  /** 'hospital', 'chamber' (0088), or null at neither. */
+  practice_kind: string | null;
+  /** The chamber's or hospital's address and phone (0089). */
+  practice_address: string | null;
+  practice_phone: string | null;
 };
 
 export type UIDoctor = {
@@ -70,10 +75,17 @@ export type UIDoctor = {
    * belongs to a hospital, and the booking API refuses one without it.
    */
   independent: boolean;
+  /**
+   * Listed at their own chamber (0088), not a hospital: bookable there, and
+   * `hospital` below is the chamber — with no hospital page to link to.
+   */
+  chamber: boolean;
   hospital: {
     name: string;
     slug: string;
     location: string;
+    address: string | null;
+    phone: string | null;
   };
 };
 
@@ -117,9 +129,11 @@ export const mapDBDoctorToUI = (d: DBDoctor): UIDoctor => {
     location: locationStr,
     rating,
     reviews,
-    blurb: d.bio || (d.tenant_id
-      ? `Experienced specialist practicing at ${d.hospital_name || "our partner hospital"}.`
-      : "Experienced specialist in independent practice."),
+    blurb: d.bio || (d.practice_kind === "chamber"
+      ? `Sees patients at ${d.hospital_name || "their own chamber"}.`
+      : d.tenant_id
+        ? `Experienced specialist practicing at ${d.hospital_name || "our partner hospital"}.`
+        : "Experienced specialist in independent practice."),
     bio: d.bio?.trim() || null,
     expertise: d.expertise ? d.expertise.split(",").map(s => s.trim()).filter(Boolean) : [],
     bmdc: d.bmdc_number?.trim() || null,
@@ -136,10 +150,13 @@ export const mapDBDoctorToUI = (d: DBDoctor): UIDoctor => {
     languages: d.languages ? d.languages.split(",").map(s => s.trim()).filter(Boolean) : ["English", "Bengali"],
     patients: d.patients_treated || 100,
     independent: !d.tenant_id,
+    chamber: d.practice_kind === "chamber",
     hospital: {
       name: d.tenant_id ? d.hospital_name || "Partner Hospital" : INDEPENDENT_LABEL,
       slug: d.hospital_slug || "",
       location: locationStr,
+      address: d.practice_address,
+      phone: d.practice_phone,
     }
   };
 };

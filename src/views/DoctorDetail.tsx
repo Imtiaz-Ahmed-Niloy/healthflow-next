@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Star, Calendar, Languages, GraduationCap, Award, Heart, Mail, Phone, MapPin, Clock, CheckCircle2, User, BadgeCheck } from "lucide-react";
+import { ArrowLeft, Star, Calendar, Languages, GraduationCap, Award, Heart, Mail, Phone, MapPin, Clock, CheckCircle2, User, BadgeCheck, Store } from "lucide-react";
 import { toast } from "sonner";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
@@ -86,8 +86,10 @@ const DoctorDetail = () => {
   }
 
   const { d, hospital } = found;
+  // Other doctors — not this one's own listing at another hospital or chamber,
+  // which carries the same name.
   const peers = doctors
-    .filter((x) => x.slug !== d.slug && x.category === d.category)
+    .filter((x) => x.slug !== d.slug && x.name !== d.name && x.category === d.category)
     .slice(0, 3)
     .map((p) => ({ d: p }));
 
@@ -127,9 +129,9 @@ const DoctorDetail = () => {
                 </p>
               )}
               {d.independent ? (
-                // An appointment belongs to a hospital; this doctor has none yet.
+                // An appointment belongs to a hospital or a chamber; this doctor has neither yet.
                 <p className="mt-5 text-center w-full rounded-full border border-border py-3 text-xs font-semibold text-muted-foreground">
-                  Bookings open once a hospital adds them
+                  Not taking bookings on HealthFlow yet
                 </p>
               ) : (
                 <Link href={`/patient/find-doctors?q=${encodeURIComponent(d.name)}`} className="mt-5 block text-center w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors">
@@ -164,7 +166,7 @@ const DoctorDetail = () => {
                   template — "a board-certified … specialist … patient-first
                   approach" — printed for every doctor whatever they had saved. */}
               <p className="text-foreground/75 leading-relaxed mt-3 whitespace-pre-line">
-                {d.bio ?? `${d.name} is a ${d.specialty.toLowerCase()} specialist${d.independent ? " in independent practice" : ` at ${hospital.name}`}.`}
+                {d.bio ?? `${d.name} is a ${d.specialty.toLowerCase()} specialist${d.independent ? " in independent practice" : d.chamber ? `, seeing patients at ${hospital.name}` : ` at ${hospital.name}`}.`}
               </p>
               <div className="grid sm:grid-cols-2 gap-4 mt-5 text-sm">
                 <div className="flex items-center gap-2 text-foreground/70"><Languages className="h-4 w-4 text-primary-glow" />{d.languages.join(" · ")}</div>
@@ -193,8 +195,30 @@ const DoctorDetail = () => {
                 <div className="rounded-2xl bg-accent/20 p-4">
                   <p className="font-display text-lg text-primary">{INDEPENDENT_LABEL}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Not at a HealthFlow hospital yet. Bookings open once a hospital adds them.
+                    Not at a HealthFlow hospital or chamber yet, so not taking bookings here.
                   </p>
+                </div>
+              ) : d.chamber ? (
+                // Their own chamber (0088): no hospital page behind it, so the
+                // address and phone are right here.
+                <div className="flex items-start gap-4 rounded-2xl bg-accent/20 p-4">
+                  <div className="h-16 w-16 shrink-0 rounded-xl bg-card grid place-items-center text-primary">
+                    <Store className="h-7 w-7" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-display text-lg text-primary">{d.hospital.name}</p>
+                    <p className="text-xs text-muted-foreground">Their own chamber</p>
+                    <p className="text-xs text-muted-foreground inline-flex items-start gap-1 mt-1.5">
+                      <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
+                      {/* Area, district and division repeat in Dhaka ("Dhaka, Dhaka"); each once. */}
+                      {[d.hospital.address, ...d.hospital.location.split(", ")].filter((part, i, all) => part && all.indexOf(part) === i).join(", ")}
+                    </p>
+                    {d.hospital.phone && (
+                      <a href={`tel:${d.hospital.phone}`} className="mt-1 flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-glow">
+                        <Phone className="h-3 w-3" />{d.hospital.phone}
+                      </a>
+                    )}
+                  </div>
                 </div>
               ) : (
               <div className="flex items-center gap-4 rounded-2xl bg-accent/20 p-4 hover:bg-accent/30 transition-colors">
