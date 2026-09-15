@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowRight, CalendarClock, GraduationCap, MapPin, Star } from "lucide-react";
+import { ArrowRight, GraduationCap, MapPin, Star } from "lucide-react";
 import TiltCard from "@/components/site/TiltCard";
 import { Avatar } from "@/components/common/Avatar";
 import type { UIDoctor } from "@/hooks/useDoctors";
@@ -48,16 +48,6 @@ export const DoctorCard = ({ d, i = 0, action }: { d: UIDoctor; i?: number; acti
           </div>
         </div>
       </div>
-      {/* Every place they practise — one card however many (0090). */}
-      <div className="mt-3 space-y-1 text-xs text-muted-foreground">
-        {(d.places.length ? d.places : [{ id: d.id, name: d.hospital.name, location: d.location }]).map(p => (
-          <p key={p.id} className="flex items-start gap-1">
-            <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
-            <span>{p.name}{p.location ? ` · ${p.location}` : ""}</span>
-          </p>
-        ))}
-      </div>
-
       {/* Their degrees, where a description used to be — nobody reads a
           paragraph on a card, but "MBBS, FCPS" is what a patient looks for. */}
       {d.education && (
@@ -79,25 +69,24 @@ export const DoctorCard = ({ d, i = 0, action }: { d: UIDoctor; i?: number; acti
         </div>
       )}
 
-      {/* Availability: a block per place, each named when there's more than
-          one. A week reads as "Sun–Thu 9:00 AM–5:00 PM · Sat …", so it gets
-          the full width and a single line, with all of it in the title when
-          it is too long to show. */}
-      <div className="mt-4 space-y-2">
-        {(d.places.length > 1 ? d.places : [null]).map(p => (
-          <div key={p?.id ?? "one"} className="flex items-center gap-3 rounded-xl border border-accent/50 bg-accent/25 px-3 py-2.5">
-            <CalendarClock className="h-6 w-6 shrink-0 text-primary" strokeWidth={1.75} />
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold tracking-widest text-primary/70 leading-none">AVAILABLE</p>
-              {/* The hours lead, as on a card with one place; where is underneath, quieter. */}
-              <p className="mt-1 truncate text-xs font-semibold text-primary"
-                title={p ? p.available || "Hours not set" : d.available}>
-                {p ? p.available || "Hours not set" : d.available}
-              </p>
-              {p && <p className="mt-0.5 truncate text-[11px] text-muted-foreground" title={p.name}>{p.name}</p>}
+      {/* Where they practise (0090): each place and its hours, plainly. A
+          week reads as "Sun–Thu 9:00 AM–5:00 PM · Sat …", so it gets a line
+          of its own, with all of it in the title when it is too long. */}
+      <div className="mt-4">
+        <p className="text-xs font-semibold text-primary">Practicing At</p>
+        <div className="mt-1.5 space-y-2">
+          {(d.places.length ? d.places : [{ id: d.id, name: d.hospital.name, available: d.available }]).map(p => (
+            <div key={p.id} className="flex items-center gap-1.5 min-w-0">
+              <MapPin className="h-3.5 w-3.5 shrink-0 text-primary-glow" />
+              <div className="min-w-0">
+                <p className="truncate text-xs font-medium text-foreground/85" title={p.name}>{p.name}</p>
+                <p className="truncate text-xs text-muted-foreground" title={p.available || "Hours not set"}>
+                  {p.available || "Hours not set"}
+                </p>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </Link>
 
