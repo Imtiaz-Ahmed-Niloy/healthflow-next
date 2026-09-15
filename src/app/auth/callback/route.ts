@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { homePathForRole, type AppRole } from "@/lib/auth/permissions";
+import { AUTH_NEXT_COOKIE, isSafeNext } from "@/lib/auth/authNext";
 
 /**
  * GET /auth/callback — where Google sends the browser back.
@@ -56,12 +58,17 @@ export const GET = async (request: Request) => {
   }
 
   /**
-   * Where to land. `next` is honoured only when it is a path on this site —
-   * an absolute URL here would turn our own callback into an open redirect,
-   * which is worth more to an attacker than it sounds.
+   * Where to land. `next` — on the URL, or in the cookie GoogleAuthButton set
+   * for a sign-in that started somewhere in particular — is honoured only when
+   * it is a path on this site: an absolute URL here would turn our own
+   * callback into an open redirect, which is worth more to an attacker than it
+   * sounds. The cookie is spent either way.
    */
-  const next = searchParams.get("next");
-  if (next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\")) {
+  const cookieStore = await cookies();
+  const fromCookie = cookieStore.get(AUTH_NEXT_COOKIE)?.value;
+  if (fromCookie !== undefined) cookieStore.delete(AUTH_NEXT_COOKIE);
+  const next = searchParams.get("next") ?? (fromCookie ? decodeURIComponent(fromCookie) : null);
+  if (isSafeNext(next)) {
     return redirectTo(next);
   }
 

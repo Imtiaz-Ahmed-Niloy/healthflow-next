@@ -8,6 +8,7 @@ import { BarChart3, Eye, EyeOff, ShieldCheck, Stethoscope, User } from "lucide-r
 import { toast } from "sonner";
 import { useForm, type SubmitErrorHandler, type SubmitHandler } from "react-hook-form";
 import { AuthLayout } from "@/components/site/AuthLayout";
+import { GoogleAuthButton } from "@/components/site/GoogleAuthButton";
 import { supabase } from "@/lib/supabase/client";
 import { homePathForRole, type AppRole } from "@/lib/auth/permissions";
 import { BRAND_INFO } from "@/constants/brand";
@@ -206,7 +207,18 @@ const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
             <p className="text-sm text-muted-foreground mt-1">Welcome back!</p>
           </div>
 
-          <form data-testid="signin-form" onSubmit={handleSubmit(onSubmit, onInvalid)} className="mt-8 space-y-5" noValidate>
+          {/* The same as on sign-up. Someone who signed up with Google signs
+              in with it; `next` brings them back where they started — a
+              doctor's profile with the booking form open, say. */}
+          <GoogleAuthButton disabled={isLoading} next={searchParams?.get("next")} className="mt-8" />
+
+          <div className="my-6 flex items-center gap-3">
+            <hr className="flex-1 border-border/60" />
+            <p className="text-[10px] tracking-widest font-bold text-muted-foreground">OR SIGN IN WITH EMAIL</p>
+            <hr className="flex-1 border-border/60" />
+          </div>
+
+          <form data-testid="signin-form" onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-5" noValidate>
             <div>
               <Label htmlFor="signin-email" className="text-[11px] tracking-widest font-bold text-primary" required>EMAIL / USER ID</Label>
               <input
