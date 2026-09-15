@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { rememberedPlace, rememberPlace } from "@/lib/rxPlace";
 import { SuggestInput, type Suggestion } from "@/components/portal/SuggestInput";
 import { useInvestigations } from "@/hooks/useInvestigations";
+import { useAdvice } from "@/hooks/useAdvice";
 
 /**
  * /portal/prescription (HF-57). Used to render one hardcoded patient no
@@ -263,6 +264,7 @@ const Prescription = () => {
   const searchParams = useSearchParams();
   const appointmentId = searchParams?.get("appointment") ?? null;
   const { investigations: investigationList } = useInvestigations();
+  const { advice: adviceList } = useAdvice();
 
   const [ctx, setCtx] = useState<ConsultationCtx | null>(null);
   const [loadingCtx, setLoadingCtx] = useState(!!appointmentId);
@@ -770,8 +772,8 @@ type SidebarQueueEntry = {
     setAdviceOpen(true);
   };
 
-  const saveAdvice = () => {
-    const v = newAdvice.trim();
+  const saveAdvice = (picked?: string) => {
+    const v = (picked ?? newAdvice).trim();
     if (!v) return;
     if (editingAdviceIndex !== null) {
       setAdvice((a) => a.map((x, idx) => (idx === editingAdviceIndex ? v : x)));
@@ -1411,8 +1413,8 @@ type SidebarQueueEntry = {
             </div>
             {adviceOpen && (
               <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2 mt-3">
-                <input autoFocus value={newAdvice} onChange={(e) => setNewAdvice(e.target.value)} onKeyDown={(e) => e.key === "Enter" && saveAdvice()} placeholder="Type advice…" className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                <button onClick={saveAdvice} className="rounded-lg bg-primary text-primary-foreground px-3 text-xs font-semibold hover:opacity-90">
+                <SuggestInput value={newAdvice} onChange={setNewAdvice} onPick={saveAdvice} suggestions={adviceList} placeholder="Search advice, e.g. rest, water, follow-up" />
+                <button onClick={() => saveAdvice()} className="rounded-lg bg-primary text-primary-foreground px-3 text-xs font-semibold hover:opacity-90">
                   {editingAdviceIndex !== null ? "Update" : "Save"}
                 </button>
               </motion.div>
