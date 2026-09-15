@@ -194,7 +194,7 @@ export const AdminLayout = ({ children, title, subtitle }: { children: ReactNode
   const router = useRouter();
   const { user, isLoading } = useSession();
 
-  // src/middleware.ts already blocks this route server-side, so by the time
+  // src/proxy.ts already blocks this route server-side, so by the time
   // anything renders the user is authorised. This only covers the case where
   // a session expires while the tab is open.
   useEffect(() => {

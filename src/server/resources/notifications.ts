@@ -65,7 +65,7 @@ export const notificationUpdateSchema = z.object({
 export type NotificationCreate = z.infer<typeof notificationCreateSchema>;
 export type NotificationUpdate = z.infer<typeof notificationUpdateSchema>;
 
-/** Every role the /admin panel lets in (src/middleware.ts), and no other. */
+/** Every role the /admin panel lets in (src/proxy.ts), and no other. */
 const ADMIN_ROLES = [
   "hospital_admin", "hr_admin", "finance_admin", "lab_admin", "pharmacy_admin",
 ] as const;

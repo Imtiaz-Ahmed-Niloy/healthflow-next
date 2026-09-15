@@ -39,6 +39,10 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
+      // globals.css scrolls smoothly for in-page links. This keeps page-to-page
+      // navigation an instant jump to the top, which Next.js 16 no longer does
+      // on its own.
+      data-scroll-behavior="smooth"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">

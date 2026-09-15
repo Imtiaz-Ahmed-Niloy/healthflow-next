@@ -8,8 +8,8 @@ applied here is applied there; a row deleted here is gone.
 
 `src/app/**/page.tsx` re-exports a component from `src/views/**` — edit the
 view. `/` is ISR (`revalidate = 60`), the rest `force-dynamic`. Panels are
-gated by prefix in `src/middleware.ts`: `/super`, `/admin`, `/portal` (doctor),
-`/patient`.
+gated by prefix in `src/proxy.ts` (Next 16's name for middleware): `/super`,
+`/admin`, `/portal` (doctor), `/patient`.
 
 A module is three files: the migration, `src/server/resources/<name>.ts`, and a
 route that re-exports `createResourceRoute(...)`. The frontend mirror is

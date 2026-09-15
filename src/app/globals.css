@@ -1,9 +1,11 @@
+/* First in the file: CSS requires @import before every other rule, and the
+   @tailwind lines below expand into thousands of them. Webpack let an import
+   below them through; Turbopack (Next 16's default) refuses to build. */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap');
-
 
 @layer base {
   :root {

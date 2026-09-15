@@ -10,6 +10,9 @@ import { homePathForRole, type AppRole } from "@/lib/auth/permissions";
  *
  * This is a second line of defence, not the only one. Data is protected by
  * RLS regardless of what gets rendered.
+ *
+ * Next.js 16 renamed middleware to proxy: this file and its export are the
+ * convention's new names, and it runs on the Node.js runtime.
  */
 
 const ROUTE_ROLES: { prefix: string; roles: AppRole[] }[] = [
@@ -32,7 +35,7 @@ const ROUTE_ROLES: { prefix: string; roles: AppRole[] }[] = [
 /** Signed-in users have no business back on the sign-in screen. */
 const AUTH_PAGES = ["/signin", "/signup", "/forgot-password", "/reset-password"];
 
-export const middleware = async (request: NextRequest) => {
+export const proxy = async (request: NextRequest) => {
   const { response, userId, role } = await updateSession(request);
   const { pathname } = request.nextUrl;
 
