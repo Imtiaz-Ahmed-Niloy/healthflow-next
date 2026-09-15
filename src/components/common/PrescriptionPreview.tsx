@@ -29,7 +29,7 @@ export type SheetMedicine = {
 export type PrescriptionSheetData = {
   /** `name` is null when a chamber keeps its name off prescriptions (0090). */
   hospital: { name: string | null; address: string | null; contact_phone: string | null };
-  doctor: { name: string; specialty: string | null; education: string | null };
+  doctor: { name: string; specialty: string | null; education: string | null; bmdc_number?: string | null };
   /** The patient bar, as label / value pairs already formatted for display. */
   patientBar: [string, string][];
   complaints: string[];
@@ -89,9 +89,12 @@ export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionShe
                 <Stethoscope className="h-6 w-6" />
               </div>
             )}
+            {/* Name, then degrees, specialty and BMDC number — a line each. */}
             <div className="text-right">
               <h2 className="text-lg font-bold text-slate-900">{doctor.name}</h2>
-              <p className="text-[11px] text-slate-600 italic">{doctor.education || doctor.specialty || "—"}</p>
+              {doctor.education && <p className="text-[11px] text-slate-600 italic">{doctor.education}</p>}
+              {doctor.specialty && <p className="text-[11px] text-slate-600">{doctor.specialty}</p>}
+              {doctor.bmdc_number && <p className="text-[11px] text-slate-600">BMDC Reg. No. {doctor.bmdc_number}</p>}
             </div>
           </div>
 
@@ -193,13 +196,14 @@ export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionShe
           {/* Footer / signature */}
           <div className="mt-6 pt-4 border-t-2 border-slate-800 flex items-end justify-between">
             <div className="text-[10px] text-slate-500 italic max-w-xs">
-              This prescription is digitally signed and valid without a physical signature. Please consult before any dose changes.
+              Please consult your doctor before any dose changes.
             </div>
             <div className="text-right">
-              <div className="text-2xl italic font-bold text-emerald-800 leading-none">HealthFlow</div>
+              {/* Room above the line for the doctor's own signature. */}
+              <div aria-hidden className="h-6" />
               <div className="border-t border-slate-400 w-52 mt-1 pt-1 text-[11px] text-slate-600">
                 <span className="font-semibold text-slate-900">{doctor.name}</span>
-                <div className="text-[10px] text-slate-500">Digitally Signed</div>
+                <div className="text-[10px] text-slate-500">Signed</div>
               </div>
             </div>
           </div>

@@ -109,7 +109,10 @@ const normalizeMedicine = (m: Partial<PrescribedMedicine>): PrescribedMedicine =
 const myDoctor = async (supabase: Awaited<ReturnType<typeof createServerSupabase>>, userId: string) => {
   const rows = await myDoctorRows(supabase, userId);
   if (rows.length === 0) return null;
-  return { ids: rows.map(r => r.id), name: rows[0].name, specialty: rows[0].specialty, education: rows[0].education };
+  return {
+    ids: rows.map(r => r.id), name: rows[0].name, specialty: rows[0].specialty,
+    education: rows[0].education, bmdc_number: rows[0].bmdc_number,
+  };
 };
 
 export const GET = async (_request: Request, context: RouteContext) => {
@@ -166,7 +169,7 @@ export const GET = async (_request: Request, context: RouteContext) => {
           ? { name: hospital.name, address: hospital.address, contact_phone: hospital.contact_phone }
           : { name: null, address: null, contact_phone: null }
         : { name: "Hospital", address: null, contact_phone: null },
-      doctor: { name: doctor.name, specialty: doctor.specialty, education: doctor.education },
+      doctor: { name: doctor.name, specialty: doctor.specialty, education: doctor.education, bmdc_number: doctor.bmdc_number },
       patient: {
         id: patient.id,
         full_name: patient.full_name,

@@ -24,7 +24,7 @@ export const GET = async () => {
   const supabase = await createServerSupabase();
   const { data: rows, error } = await supabase
     .from("doctors")
-    .select("id, tenant_id, name, specialty, education, photo_url, tenants ( name, kind, has_name, address, contact_phone )")
+    .select("id, tenant_id, name, specialty, education, bmdc_number, photo_url, tenants ( name, kind, has_name, address, contact_phone )")
     .eq("profile_id", auth.userId)
     .order("created_at", { ascending: true });
 
@@ -48,6 +48,7 @@ export const GET = async () => {
       name: main.name,
       specialty: main.specialty,
       education: main.education,
+      bmdc_number: main.bmdc_number,
       photo_url: main.photo_url,
       // Hospitals and chambers alike — every place they see patients, with
       // what a prescription's header needs for each (0091).

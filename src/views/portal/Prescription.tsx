@@ -17,6 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { rememberedPlace, rememberPlace } from "@/lib/rxPlace";
+import { SuggestInput, type Suggestion } from "@/components/portal/SuggestInput";
+import { useInvestigations } from "@/hooks/useInvestigations";
 
 /**
  * /portal/prescription (HF-57). Used to render one hardcoded patient no
@@ -70,7 +72,7 @@ type Medicine = { name: string; dosage_form: string; dose: string; frequency: st
 type ConsultationCtx = {
   /** `name` is null for a chamber with no name of its own (0091). */
   hospital: { name: string | null; address: string | null; contact_phone: string | null };
-  doctor: { name: string; specialty: string | null; education: string | null };
+  doctor: { name: string; specialty: string | null; education: string | null; bmdc_number?: string | null };
   patient: {
     id: string;
     full_name: string;
@@ -112,7 +114,7 @@ type Place = {
   contact_phone: string | null;
 };
 
-type Me = { name: string; specialty: string | null; education: string | null; hospitals: Place[] };
+type Me = { name: string; specialty: string | null; education: string | null; bmdc_number: string | null; hospitals: Place[] };
 
 const formatDate = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
@@ -144,9 +146,11 @@ type EditableSectionProps = {
   onRemove: (i: number) => void;
   placeholder?: string;
   multiline?: boolean;
+  /** Offered as the doctor types; free text still goes in (Investigation, 0094). */
+  suggestions?: Suggestion[];
 };
 
-const EditableSection = ({ icon: Icon, title, action, items, onAdd, onUpdate, onRemove, placeholder, multiline }: EditableSectionProps) => {
+const EditableSection = ({ icon: Icon, title, action, items, onAdd, onUpdate, onRemove, placeholder, multiline, suggestions }: EditableSectionProps) => {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
   // null = the open input is adding a new entry; an index = editing that
@@ -170,8 +174,8 @@ const EditableSection = ({ icon: Icon, title, action, items, onAdd, onUpdate, on
     setOpen(true);
   };
 
-  const submit = () => {
-    const v = value.trim();
+  const submit = (picked?: string) => {
+    const v = (picked ?? value).trim();
     if (!v) return;
     if (editingIndex !== null) {
       onUpdate(editingIndex, v);
@@ -208,6 +212,8 @@ const EditableSection = ({ icon: Icon, title, action, items, onAdd, onUpdate, on
               rows={3}
               className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
+          ) : suggestions ? (
+            <SuggestInput value={value} onChange={setValue} onPick={submit} suggestions={suggestions} placeholder={placeholder} />
           ) : (
             <input
               autoFocus
@@ -218,7 +224,7 @@ const EditableSection = ({ icon: Icon, title, action, items, onAdd, onUpdate, on
               className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           )}
-          <button onClick={submit} className="rounded-lg bg-primary text-primary-foreground px-3 text-xs font-semibold hover:opacity-90">
+          <button onClick={() => submit()} className="rounded-lg bg-primary text-primary-foreground px-3 text-xs font-semibold hover:opacity-90">
             {editingIndex !== null ? "Update" : "Save"}
           </button>
         </motion.div>
@@ -256,6 +262,7 @@ const Prescription = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const appointmentId = searchParams?.get("appointment") ?? null;
+  const { investigations: investigationList } = useInvestigations();
 
   const [ctx, setCtx] = useState<ConsultationCtx | null>(null);
   const [loadingCtx, setLoadingCtx] = useState(!!appointmentId);
@@ -1050,7 +1057,9 @@ type SidebarQueueEntry = {
         ? { name: padPlace.name, address: padPlace.address, contact_phone: padPlace.contact_phone }
         : { name: null, address: null, contact_phone: null }
       : { name: "—", address: null, contact_phone: null },
-    doctor: me ? { name: me.name, specialty: me.specialty, education: me.education } : { name: "—", specialty: null, education: null },
+    doctor: me
+      ? { name: me.name, specialty: me.specialty, education: me.education, bmdc_number: me.bmdc_number }
+      : { name: "—", specialty: null, education: null },
     patient: {
       id: "", full_name: "—", gender: null, age: null, mrn: "—",
       weight_kg: null, height_feet: null, height_inches: null,
@@ -1134,12 +1143,12 @@ type SidebarQueueEntry = {
         ) : (
           <div className="flex gap-4">{headerBlock}</div>
         )}
+        {/* Name, then degrees, specialty and BMDC number — a line each. */}
         <div className="text-right">
           <h2 className="font-display text-2xl text-primary">{doctor.name}</h2>
-          <p className="text-xs text-muted-foreground mt-1">
-            {doctor.education || doctor.specialty || "—"}
-            {doctor.specialty && doctor.education ? <> • {doctor.specialty}</> : null}
-          </p>
+          {doctor.education && <p className="text-xs text-muted-foreground mt-1">{doctor.education}</p>}
+          {doctor.specialty && <p className="text-xs text-muted-foreground">{doctor.specialty}</p>}
+          {doctor.bmdc_number && <p className="text-xs text-muted-foreground">BMDC Reg. No. {doctor.bmdc_number}</p>}
         </div>
       </div>
 
@@ -1209,7 +1218,8 @@ type SidebarQueueEntry = {
             icon={FlaskConical}
             title="Investigation"
             action="Add Investigation"
-            placeholder="e.g. Lipid Profile"
+            placeholder="Search tests, e.g. CBC, Lipid Profile"
+            suggestions={investigationList}
             items={investigation}
             onAdd={addTo(setInvestigation)}
             onUpdate={updateIn(setInvestigation)}
@@ -1422,9 +1432,10 @@ type SidebarQueueEntry = {
           </div>
 
           <div className="mt-16 flex flex-col items-end">
-            <div className="font-display text-2xl italic text-primary">HealthFlow</div>
+            {/* Room above the line for the doctor's own signature. */}
+            <div aria-hidden className="h-8" />
             <div className="border-t border-border w-48 mt-1 pt-2 text-right text-xs text-muted-foreground">
-              Digitally Signed By<br /><span className="font-semibold text-primary">{doctor.name}</span>
+              Signed By<br /><span className="font-semibold text-primary">{doctor.name}</span>
             </div>
           </div>
         </div>

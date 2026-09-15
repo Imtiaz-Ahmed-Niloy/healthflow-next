@@ -31,7 +31,7 @@ type Visit = {
   /** The printed prescription's letterhead and patient details. */
   sheet: {
     hospital: { name: string | null; address: string | null; contact_phone: string | null };
-    doctor: { name: string; specialty: string | null; education: string | null };
+    doctor: { name: string; specialty: string | null; education: string | null; bmdc_number?: string | null };
     patient: {
       full_name: string; gender: string | null; date_of_birth: string | null; mrn: string;
       weight_kg: number | null; height_feet: number | null; height_inches: number | null;

@@ -25,13 +25,14 @@ export type MyDoctorRow = {
   name: string;
   specialty: string | null;
   education: string | null;
+  bmdc_number: string | null;
   hospital_name: string;
 };
 
 export const myDoctorRows = async (supabase: Supabase, userId: string): Promise<MyDoctorRow[]> => {
   const { data, error } = await supabase
     .from("doctors")
-    .select("id, tenant_id, name, specialty, education, tenants ( name )")
+    .select("id, tenant_id, name, specialty, education, bmdc_number, tenants ( name )")
     .eq("profile_id", userId)
     .not("tenant_id", "is", null)
     .order("created_at", { ascending: true });
@@ -43,6 +44,7 @@ export const myDoctorRows = async (supabase: Supabase, userId: string): Promise<
     name: row.name,
     specialty: row.specialty,
     education: row.education,
+    bmdc_number: row.bmdc_number,
     hospital_name: (row.tenants as { name?: string } | null)?.name ?? "Hospital",
   }]);
 };

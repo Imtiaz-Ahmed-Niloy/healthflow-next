@@ -65,7 +65,7 @@ export const GET = async () => {
     .from("appointments")
     // One string literal, not a concatenation: supabase-js infers the row type
     // from the select text, and a concatenated one collapses to an error type.
-    .select("id, scheduled_date, scheduled_time, department, notes, bp_systolic, bp_diastolic, complaints, examination, investigation, diagnosis, medicines, advice, doctors ( name, specialty, education ), tenants ( name, address, contact_phone, has_name ), patients ( full_name, gender, date_of_birth, mrn, weight_kg, height_feet, height_inches )")
+    .select("id, scheduled_date, scheduled_time, department, notes, bp_systolic, bp_diastolic, complaints, examination, investigation, diagnosis, medicines, advice, doctors ( name, specialty, education, bmdc_number ), tenants ( name, address, contact_phone, has_name ), patients ( full_name, gender, date_of_birth, mrn, weight_kg, height_feet, height_inches )")
     .in("patient_id", patientIds)
     .eq("status", "completed")
     .order("scheduled_date", { ascending: false });
@@ -73,7 +73,7 @@ export const GET = async () => {
   if (error) return fail(error.message, 400);
 
   const visits = (data ?? []).map(row => {
-    const doctor = row.doctors as { name?: string; specialty?: string; education?: string | null } | null;
+    const doctor = row.doctors as { name?: string; specialty?: string; education?: string | null; bmdc_number?: string | null } | null;
     const hospital = row.tenants as {
       name?: string; address?: string | null; contact_phone?: string | null; has_name?: boolean;
     } | null;
@@ -117,6 +117,7 @@ export const GET = async () => {
           name: doctor?.name ?? "Doctor",
           specialty: doctor?.specialty ?? null,
           education: doctor?.education ?? null,
+          bmdc_number: doctor?.bmdc_number ?? null,
         },
         patient: {
           full_name: patient?.full_name ?? "",

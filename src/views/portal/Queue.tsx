@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { CheckCircle2, Clock, ArrowRightLeft, Plus, SlidersHorizontal, ArrowRight, Check } from "lucide-react";
+import { CheckCircle2, Clock, ArrowRightLeft, Plus, SlidersHorizontal, ArrowRight, Check, MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
@@ -126,10 +126,35 @@ const Queue = () => {
     void load();
   }, []);
 
+  // Which of the doctor's hospitals or chambers to show — all of them, or one.
+  const [place, setPlace] = useState<string>("ALL");
+  const inPlace = (entry: { hospital: Hospital }) => place === "ALL" || entry.hospital.id === place;
+
   const visible = useMemo(
-    () => (filter === "ALL" ? queue : queue.filter((p) => p.priority === filter)),
-    [queue, filter],
+    () => queue.filter(p => (place === "ALL" || p.hospital.id === place) && (filter === "ALL" || p.priority === filter)),
+    [queue, filter, place],
   );
+  const completedHere = completed.filter(inPlace);
+
+  /**
+   * The tiles, for the place picked. The server counts across every place;
+   * for one, the same numbers come from today's lists — still-scheduled is
+   * waiting, completed is seen, and the wait averages those not yet in
+   * consultation, as the server does.
+   */
+  const shownStats = (() => {
+    if (place === "ALL") return stats;
+    const waiting = queue.filter(inPlace);
+    const notStarted = waiting.filter(p => !p.in_consultation);
+    return {
+      seen: completedHere.length,
+      remaining: waiting.length,
+      total: completedHere.length + waiting.length,
+      avg_wait_minutes: notStarted.length
+        ? Math.round(notStarted.reduce((sum, p) => sum + p.waited_minutes, 0) / notStarted.length)
+        : 0,
+    };
+  })();
 
   const handleAddWalkIn = async () => {
     if (!form.name.trim()) {
@@ -199,9 +224,9 @@ const Queue = () => {
   };
 
   const statCards = [
-    { label: "PATIENTS SEEN", value: String(stats.seen), suffix: `/ ${stats.total}`, icon: CheckCircle2 },
-    { label: "AVG WAIT TIME", value: String(stats.avg_wait_minutes), suffix: "mins", icon: Clock },
-    { label: "REMAINING", value: String(stats.remaining), suffix: "appointments", icon: ArrowRightLeft },
+    { label: "PATIENTS SEEN", value: String(shownStats.seen), suffix: `/ ${shownStats.total}`, icon: CheckCircle2 },
+    { label: "AVG WAIT TIME", value: String(shownStats.avg_wait_minutes), suffix: "mins", icon: Clock },
+    { label: "REMAINING", value: String(shownStats.remaining), suffix: "appointments", icon: ArrowRightLeft },
   ];
 
   return (
@@ -213,7 +238,24 @@ const Queue = () => {
             {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
+          {/* One place's patients at a time, for a doctor at several. A walk-in
+              added while one is picked goes there. */}
+          {multiHospital && (
+            <Select value={place} onValueChange={v => {
+              setPlace(v);
+              if (v !== "ALL") setForm(f => ({ ...f, hospital_id: v }));
+            }}>
+              <SelectTrigger className="h-auto w-auto min-w-[12rem] gap-2 rounded-full border-border px-5 py-2.5 text-sm font-semibold text-primary">
+                <MapPin className="h-4 w-4 shrink-0" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All hospitals & chambers</SelectItem>
+                {hospitals.map(h => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
           <Popover>
             <PopoverTrigger asChild>
               <button className="flex items-center gap-2 rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-primary hover:bg-chip transition-colors">
@@ -337,7 +379,11 @@ const Queue = () => {
             </div>
           ) : visible.length === 0 ? (
             <div className="rounded-2xl bg-card border border-border/60 p-8 text-center text-sm text-muted-foreground">
-              {queue.length === 0 ? "No patients scheduled today." : "No patients match this filter."}
+              {queue.length === 0
+                ? "No patients scheduled today."
+                : place !== "ALL" && !queue.some(inPlace)
+                  ? `No patients waiting at ${hospitals.find(h => h.id === place)?.name ?? "this place"} today.`
+                  : "No patients match this filter."}
             </div>
           ) : (
             visible.map((p, i) => {
@@ -384,15 +430,15 @@ const Queue = () => {
         </div>
       </div>
 
-      {!loading && completed.length > 0 && (
+      {!loading && completedHere.length > 0 && (
         <div className="mt-10">
           <div className="flex items-center gap-3 mb-5">
             <div className="h-5 w-1 rounded-full bg-muted-foreground/40" />
             <h2 className="font-display text-xl text-primary">Seen Today</h2>
-            <span className="rounded-full bg-muted text-muted-foreground text-[10px] font-bold px-2 py-0.5">{completed.length}</span>
+            <span className="rounded-full bg-muted text-muted-foreground text-[10px] font-bold px-2 py-0.5">{completedHere.length}</span>
           </div>
           <div className="space-y-2">
-            {completed.map((p, i) => (
+            {completedHere.map((p, i) => (
               <motion.div key={p.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3, delay: i * 0.05 }}
                 className="rounded-2xl bg-card/60 border border-border/40 p-4 flex items-center gap-5">
                 <div className="h-11 w-11 rounded-full bg-muted flex items-center justify-center font-display text-sm text-muted-foreground shrink-0">
