@@ -107,6 +107,7 @@ type PublicHospital = {
   location: string | null;
   division: string | null;
   district: string | null;
+  subdistrict: string | null;
   address: string | null;
   contact_phone: string | null;
   contact_email: string | null;
@@ -127,6 +128,17 @@ type PublicHospital = {
   founded_year: number | null;
   rating: number | null;
   reviews_count: number | null;
+};
+
+/**
+ * "Gulshan, Dhaka" — each part once. A location typed as "Bogura, Bangladesh"
+ * already names its district, and Dhaka is often area, district and division.
+ */
+const hospitalLocation = (r: PublicHospital) => {
+  const parts = [...(r.location ?? "").split(","), r.district ?? "", r.division ?? ""]
+    .map((p) => p.trim())
+    .filter((p) => p && p.toLowerCase() !== "bangladesh");
+  return parts.filter((p, i) => parts.findIndex((q) => q.toLowerCase() === p.toLowerCase()) === i).join(", ");
 };
 
 /** Drops blanks and duplicates, keeping the canonical value first. */
@@ -215,7 +227,10 @@ const mapPublicToHospital = (r: PublicHospital, doctors: Doctor[] = []): Hospita
     slug: r.slug || slugify(r.name || r.id || ""),
     name: r.name || "Untitled hospital",
     tag: r.tagline || "Partner hospital",
-    location: [r.location, r.district, r.division].filter(Boolean).join(", ") || "",
+    location: hospitalLocation(r),
+    division: r.division,
+    district: r.district,
+    subdistrict: r.subdistrict,
     address: r.address || r.location || "",
     rating: Number(r.rating) || 0,
     reviews: Number(r.reviews_count) || 0,
@@ -383,6 +398,9 @@ const useApprovedHospitals = () => {
 
 /** Approved partners merged over the static marketing content. */
 export const useHospitals = () => useApprovedHospitals().hospitals;
+
+/** The same list, with whether it's still loading — for a page that shows a spinner. */
+export const useHospitalList = useApprovedHospitals;
 
 /**
  * Single hospital by slug.

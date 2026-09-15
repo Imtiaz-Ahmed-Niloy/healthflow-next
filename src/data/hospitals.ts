@@ -55,6 +55,11 @@ export type Hospital = {
   name: string;
   tag: string;
   location: string;
+  /** In the 0096 lists' spelling; what the patient's Find Hospitals filters match. */
+  division?: string | null;
+  district?: string | null;
+  /** The upazila, or a Dhaka city thana. */
+  subdistrict?: string | null;
   address: string;
   rating: number;
   reviews: number;
