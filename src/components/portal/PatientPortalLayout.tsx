@@ -17,8 +17,8 @@ export const PatientSidebar = () => {
   const { t } = useTranslation();
   const links = [
     { to: "/patient/dashboard", icon: LayoutGrid, label: t("sidebar.dashboard") },
-    { to: "/patient/appointments", icon: Calendar, label: t("sidebar.appointments") },
     { to: "/patient/find-doctors", icon: Users, label: t("sidebar.findDoctors") },
+    { to: "/patient/appointments", icon: Calendar, label: t("sidebar.appointments") },
     { to: "/patient/saved-doctors", icon: Heart, label: t("sidebar.savedDoctors") },
     { to: "/patient/billing", icon: CreditCard, label: t("sidebar.billing") },
     { to: "/patient/medical-records", icon: FileText, label: t("sidebar.medicalRecords") },

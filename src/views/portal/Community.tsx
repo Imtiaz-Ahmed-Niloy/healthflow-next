@@ -514,7 +514,9 @@ const Post = ({
               key={m.key}
               src={mediaUrl(m.key) ?? ""}
               alt=""
-              className="w-full rounded-xl border border-border/60 object-cover max-h-80"
+              // The whole photo, never cropped — a tall one sits on a soft
+              // backdrop instead of losing its top and bottom.
+              className="w-full rounded-xl border border-border/60 bg-muted/40 object-contain max-h-[32rem]"
             />
           ))}
         </div>
