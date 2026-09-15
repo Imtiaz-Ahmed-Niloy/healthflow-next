@@ -104,13 +104,15 @@ export const GET = async () => {
        * patient's copy carries the same hospital, doctor and details.
        */
       sheet: {
-        hospital: {
-          // None for a chamber with no name of its own (0091) — the patient's
-          // copy is the same sheet the doctor printed.
-          name: hospital?.has_name === false ? null : hospital?.name ?? "Hospital",
-          address: hospital?.address ?? null,
-          contact_phone: hospital?.contact_phone ?? null,
-        },
+        // Nothing for a chamber with no name of its own (0091) — the patient's
+        // copy is the same sheet the doctor printed.
+        hospital: hospital?.has_name === false
+          ? { name: null, address: null, contact_phone: null }
+          : {
+            name: hospital?.name ?? "Hospital",
+            address: hospital?.address ?? null,
+            contact_phone: hospital?.contact_phone ?? null,
+          },
         doctor: {
           name: doctor?.name ?? "Doctor",
           specialty: doctor?.specialty ?? null,

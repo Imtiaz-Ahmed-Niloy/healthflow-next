@@ -159,10 +159,12 @@ export const GET = async (_request: Request, context: RouteContext) => {
 
   return json({
     data: {
-      // A chamber with no name of its own (0091) prints none: null here, and
-      // the header is the address and phone alone.
+      // A chamber with no name of its own (0091) heads the pad with nothing:
+      // no name, address or phone — the doctor's own name is the letterhead.
       hospital: hospital
-        ? { name: hospital.has_name ? hospital.name : null, address: hospital.address, contact_phone: hospital.contact_phone }
+        ? hospital.has_name
+          ? { name: hospital.name, address: hospital.address, contact_phone: hospital.contact_phone }
+          : { name: null, address: null, contact_phone: null }
         : { name: "Hospital", address: null, contact_phone: null },
       doctor: { name: doctor.name, specialty: doctor.specialty, education: doctor.education },
       patient: {

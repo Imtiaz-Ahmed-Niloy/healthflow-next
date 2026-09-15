@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Plus, ClipboardList, ClipboardCheck, FlaskConical, Stethoscope, Lightbulb, History, AlertTriangle, Users, Printer, X, Search, Check, ChevronDown, Store, Building2 } from "lucide-react";
+import { Plus, ClipboardList, ClipboardCheck, FlaskConical, Stethoscope, Lightbulb, History, AlertTriangle, Users, Printer, X, Search, Check, Store, Building2 } from "lucide-react";
 import { PrescriptionPreview } from "@/components/common/PrescriptionPreview";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
@@ -1046,7 +1046,9 @@ type SidebarQueueEntry = {
   const padPlace = places.find(p => p.id === placeId) ?? places[0] ?? null;
   const blankCtx: ConsultationCtx = {
     hospital: padPlace
-      ? { name: padPlace.has_name ? padPlace.name : null, address: padPlace.address, contact_phone: padPlace.contact_phone }
+      ? padPlace.has_name
+        ? { name: padPlace.name, address: padPlace.address, contact_phone: padPlace.contact_phone }
+        : { name: null, address: null, contact_phone: null }
       : { name: "—", address: null, contact_phone: null },
     doctor: me ? { name: me.name, specialty: me.specialty, education: me.education } : { name: "—", specialty: null, education: null },
     patient: {
@@ -1078,16 +1080,19 @@ type SidebarQueueEntry = {
   const canSwapPlace = places.length > 1
     && (!appointmentId || (!!ctx?.appointment.walk_in && ctx.appointment.status === "scheduled"));
 
+  // A chamber with no name (0091) is the icon alone — no name, address or phone.
   const headerBlock = (
     <>
       <div className="h-14 w-14 shrink-0 rounded-xl bg-chip flex items-center justify-center text-primary"><Stethoscope className="h-6 w-6" /></div>
-      <div className="text-left">
-        {hospital.name && <h1 className="font-display text-2xl text-primary">{hospital.name}</h1>}
-        <p className={`text-xs text-muted-foreground ${hospital.name ? "mt-1" : ""}`}>
-          {hospital.address || "Address not on file"}
-          {hospital.contact_phone ? <><br />{hospital.contact_phone}</> : null}
-        </p>
-      </div>
+      {hospital.name && (
+        <div className="text-left">
+          <h1 className="font-display text-2xl text-primary">{hospital.name}</h1>
+          <p className="text-xs text-muted-foreground">
+            {hospital.address || "Address not on file"}
+            {hospital.contact_phone ? <><br />{hospital.contact_phone}</> : null}
+          </p>
+        </div>
+      )}
     </>
   );
 
@@ -1105,7 +1110,6 @@ type SidebarQueueEntry = {
               <button type="button" disabled={moving} title="Change where you're seeing patients"
                 className="group flex items-start gap-4 rounded-2xl -m-2 p-2 hover:bg-muted/50 transition-colors disabled:opacity-60">
                 {headerBlock}
-                <ChevronDown className="h-4 w-4 mt-2 text-muted-foreground group-hover:text-primary" />
               </button>
             </PopoverTrigger>
             <PopoverContent align="start" className="w-80 p-2">

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Printer, X } from "lucide-react";
+import { Printer, Stethoscope, X } from "lucide-react";
 
 /**
  * The printed prescription — one sheet, two readers.
@@ -72,17 +72,23 @@ export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionShe
         <div id="rx-print-area" className="px-10 py-8 font-serif text-slate-900 bg-[linear-gradient(to_bottom,#ffffff,#fbfbf6)]">
           {/* Letterhead */}
           <div className="flex items-start justify-between pb-4 border-b-2 border-slate-800">
-            <div className="flex items-center gap-3">
-              {hospital.name && (
+            {/* A chamber with no name (0091) is the mark alone — no name,
+                address or phone; the doctor's own name heads the sheet. */}
+            {hospital.name ? (
+              <div className="flex items-center gap-3">
                 <div className="h-12 w-12 rounded-full border-2 border-emerald-700 text-emerald-700 flex items-center justify-center font-bold text-xl">{hospital.name[0] ?? "H"}</div>
-              )}
-              <div>
-                {hospital.name && <h1 className="text-2xl font-bold tracking-tight text-emerald-800">{hospital.name}</h1>}
-                <p className="text-[11px] text-slate-500 italic">
-                  {[hospital.address, hospital.contact_phone].filter(Boolean).join(" • ") || "Address not on file"}
-                </p>
+                <div>
+                  <h1 className="text-2xl font-bold tracking-tight text-emerald-800">{hospital.name}</h1>
+                  <p className="text-[11px] text-slate-500 italic">
+                    {[hospital.address, hospital.contact_phone].filter(Boolean).join(" • ") || "Address not on file"}
+                  </p>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="h-12 w-12 rounded-full border-2 border-emerald-700 text-emerald-700 flex items-center justify-center">
+                <Stethoscope className="h-6 w-6" />
+              </div>
+            )}
             <div className="text-right">
               <h2 className="text-lg font-bold text-slate-900">{doctor.name}</h2>
               <p className="text-[11px] text-slate-600 italic">{doctor.education || doctor.specialty || "—"}</p>
