@@ -69,16 +69,21 @@ const Hero = ({ content }: { content: HomeContent }) => {
     // and the hero would run off the bottom.
     <section className="container mx-auto flex min-h-[calc(100svh-5rem)] items-center py-10 lg:py-14">
       <div className="grid w-full lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+        {/* Centred on the picture, not the picture plus its reflection: the
+            reflection strip below it (mt-2 + h-32) makes the right column
+            8.5rem taller than the picture, so side by side the text gets the
+            same space at its foot to sit level with the picture's middle. */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
+          className="lg:pb-[8.5rem]"
         >
           {/* whitespace-pre-line so the break the editor typed is the break that
               renders — the headline is written as lines, not left to the browser.
               The sizes step down at lg because the column halves there: the type
               is as large as the longest line can be without wrapping again. */}
-          <h1 className="mt-6 font-display text-4xl md:text-6xl lg:text-[2.7rem] xl:text-[3.4rem] 2xl:text-[3.8rem] leading-[1.05] text-primary whitespace-pre-line">
+          <h1 className="font-display text-4xl md:text-6xl lg:text-[2.7rem] xl:text-[3.4rem] 2xl:text-[3.8rem] leading-[1.05] text-primary whitespace-pre-line">
             {content.heroTitle1}
             {content.heroTitle2 && (
               <>

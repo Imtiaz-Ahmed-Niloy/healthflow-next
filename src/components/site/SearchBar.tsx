@@ -6,7 +6,7 @@ import { Search, SlidersHorizontal, X, MapPin, Stethoscope } from "lucide-react"
 import { toast } from "sonner";
 import { BD_DIVISIONS, BD_LOCATIONS } from "@/data/bdLocations";
 import { BD_UPAZILAS } from "@/data/bdUpazilas";
-import { specialtyTabs } from "@/data/doctors";
+import { useSpecialties } from "@/hooks/useSpecialties";
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -61,8 +61,6 @@ const FilterSelect = ({ label, value, options, onChange, disabled, icon }: Filte
   </Select>
 );
 
-const SPECIALTY_OPTIONS = specialtyTabs.filter((s) => s !== "All");
-
 type SearchBarProps = {
   division: string;
   zilla: string;
@@ -89,6 +87,8 @@ const SearchBar = ({
   const [q, setQ] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const router = useRouter();
+  // The specialties list (0093) — the one a doctor's specialty is picked from.
+  const { specialties } = useSpecialties();
 
   const zillas = division ? BD_LOCATIONS[division] ?? [] : [];
   const upazilas = zilla ? BD_UPAZILAS[zilla] ?? [] : [];
@@ -195,7 +195,7 @@ const SearchBar = ({
               <FilterSelect
                 label="Specialist"
                 value={specialty}
-                options={SPECIALTY_OPTIONS}
+                options={specialties}
                 onChange={onSpecialtyChange}
                 icon={<Stethoscope className="h-3 w-3 shrink-0 text-muted-foreground" />}
               />

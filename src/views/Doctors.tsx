@@ -7,8 +7,8 @@ import { ArrowLeft, Search, MapPin, SlidersHorizontal, X, Stethoscope } from "lu
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import { DoctorCard } from "@/components/site/DoctorCard";
-import { specialtyTabs as tabs } from "@/data/doctors";
 import { useDoctors } from "@/hooks/useDoctors";
+import { useSpecialties } from "@/hooks/useSpecialties";
 import { BD_DIVISIONS, BD_LOCATIONS } from "@/data/bdLocations";
 import { BD_UPAZILAS } from "@/data/bdUpazilas";
 import {
@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-const SPECIALTY_OPTIONS = tabs.filter((s) => s !== "All");
 
 const FilterSelect = ({
   label,
@@ -67,6 +66,8 @@ const FilterSelect = ({
 
 const Doctors = () => {
   const { doctors, loading } = useDoctors();
+  // The specialties list (0093) — the one a doctor's specialty is picked from.
+  const { specialties } = useSpecialties();
   const [specialty, setSpecialty] = useState("");
   const [query, setQuery] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -114,7 +115,7 @@ const Doctors = () => {
           <div className="mb-10">
             <h1 className="font-display text-4xl md:text-5xl text-primary">All Doctors</h1>
             <p className="text-muted-foreground mt-3 max-w-xl">
-              Browse our full directory of trusted specialists across {tabs.length - 1} disciplines.
+              Browse our full directory of trusted specialists across {specialties.length || "every"} disciplines.
             </p>
           </div>
 
@@ -181,7 +182,7 @@ const Doctors = () => {
                   <FilterSelect
                     label="Specialist"
                     value={specialty}
-                    options={SPECIALTY_OPTIONS}
+                    options={specialties}
                     onChange={setSpecialty}
                     icon={<Stethoscope className="h-3 w-3 shrink-0 text-muted-foreground" />}
                   />

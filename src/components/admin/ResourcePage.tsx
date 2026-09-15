@@ -14,6 +14,7 @@ import {
 import { parseWeek, summariseWeek } from "@/lib/hours";
 import { availabilityLabel, weekFromAvailability } from "@/lib/availability";
 import { WeeklyHoursField } from "./WeeklyHoursField";
+import { SpecialtySelect } from "@/components/common/SpecialtySelect";
 
 /**
  * Uploads to Cloudflare R2 and stores the object KEY, not a URL.
@@ -792,6 +793,8 @@ export type FieldDef = (
   // A doctor's availability: the same week editor, opening from old free-text
   // hours where that is what is stored (src/lib/availability.ts).
   | { name: string; label: string; type: "availability"; required?: boolean; fullWidth?: boolean }
+  // A doctor's specialty, picked from the specialties list (0093) — SpecialtySelect.
+  | { name: string; label: string; type: "specialty"; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "people"; roleOptions?: string[]; addLabel?: string; required?: boolean; fullWidth?: boolean }
 ) & { step?: number };
 
@@ -857,6 +860,9 @@ export function RecordFormFields({
                 <WeeklyHoursField name={f.name} defaultValue={(editing as never)?.[f.name]} />
               ) : f.type === "availability" ? (
                 <WeeklyHoursField name={f.name} defaultValue={(editing as never)?.[f.name]} seed={weekFromAvailability} summaryLabel="Patients see" />
+              ) : f.type === "specialty" ? (
+                <SpecialtySelect key={String((editing as { id?: string } | null)?.id ?? "new")} name={f.name}
+                  defaultValue={(editing as never)?.[f.name] ?? ""} />
               ) : f.type === "people" ? (
                 <PeopleField name={f.name} defaultValue={(editing as never)?.[f.name]} roleOptions={f.roleOptions} addLabel={f.addLabel} />
               ) : (
@@ -1211,6 +1217,9 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
                       <WeeklyHoursField name={f.name} defaultValue={(editing as never)?.[f.name]} />
                     ) : f.type === "availability" ? (
                       <WeeklyHoursField name={f.name} defaultValue={(editing as never)?.[f.name]} seed={weekFromAvailability} summaryLabel="Patients see" />
+                    ) : f.type === "specialty" ? (
+                      <SpecialtySelect key={String((editing as { id?: string } | null)?.id ?? "new")} name={f.name}
+                        defaultValue={(editing as never)?.[f.name] ?? ""} />
                     ) : f.type === "people" ? (
                       <PeopleField name={f.name} defaultValue={(editing as never)?.[f.name]} roleOptions={f.roleOptions} addLabel={f.addLabel} />
                     ) : (

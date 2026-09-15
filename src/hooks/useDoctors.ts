@@ -71,6 +71,7 @@ export type UIDoctor = {
   id: string;
   name: string;
   specialty: string;
+  /** Their specialty as chosen from the list (0093); what the filters match. */
   category: string;
   /** Every place's area, so a filter or search on any of them finds the doctor. */
   location: string;
@@ -123,24 +124,6 @@ export type UIDoctor = {
 /** What a doctor at no hospital shows where a hospital's name would go. */
 export const INDEPENDENT_LABEL = "Independent practice";
 
-const getCategoryFromSpecialty = (spec: string): string => {
-  const s = spec.toLowerCase();
-  if (s.includes("cardi")) return "Cardiology";
-  if (s.includes("dent") || s.includes("odont")) return "Dentistry";
-  if (s.includes("ent") || s.includes("otolaryng")) return "ENT";
-  if (s.includes("endo") || s.includes("diabet")) return "Endocrinology";
-  if (s.includes("gastro") || s.includes("hepat") || s.includes("liver")) return "Gastroenterology";
-  if (s.includes("gyne") || s.includes("obs") || s.includes("pregn")) return "Gynecology";
-  if (s.includes("nephr") || s.includes("kidney")) return "Nephrology";
-  if (s.includes("neuro") || s.includes("brain")) return "Neurology";
-  if (s.includes("onco") || s.includes("cancer") || s.includes("breast")) return "Oncology";
-  if (s.includes("ortho") || s.includes("bone")) return "Orthopedics";
-  if (s.includes("pediat") || s.includes("child")) return "Pediatrics";
-  if (s.includes("psych") || s.includes("mental")) return "Psychiatry";
-  if (s.includes("surg")) return "Surgery";
-  if (s.includes("urol")) return "Urology";
-  return "General Medicine";
-};
 
 /** "Dhanmondi, Dhaka" — each part once; Dhaka is often area, district and division at once. */
 const placeLocation = (d: DBDoctor) =>
@@ -188,7 +171,10 @@ const toDoctor = (rows: DBDoctor[]): UIDoctor => {
     id: d.id,
     name: d.name,
     specialty: d.specialty || "General Practitioner",
-    category: getCategoryFromSpecialty(d.specialty || ""),
+    // Their specialty exactly as chosen from the specialties list (0093) —
+    // what the filters match. It used to be guessed from keywords in free
+    // text ("dent" in anything made a dentist).
+    category: d.specialty?.trim() || "",
     location: areas.join(" · ") || placeLocation(d) || "Bangladesh",
     rating,
     reviews: Math.floor(rating * 20),

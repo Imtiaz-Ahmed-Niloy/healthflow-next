@@ -74,6 +74,7 @@ export const PANELS: Panel[] = [
       { path: "/patient/dashboard", label: "Dashboard" },
       { path: "/patient/appointments", label: "Appointments" },
       { path: "/patient/find-doctors", label: "Find Doctors" },
+      { path: "/patient/saved-doctors", label: "Saved Doctors" },
       { path: "/patient/medical-records", label: "Medical Records" },
       { path: "/patient/billing", label: "Billing" },
       { path: "/patient/profile", label: "Profile" },

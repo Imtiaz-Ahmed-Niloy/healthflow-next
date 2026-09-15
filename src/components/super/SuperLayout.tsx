@@ -8,7 +8,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Building2, ShieldCheck, FileBarChart, Package, Globe2, ListChecks,
   FileCode2, Receipt, Settings, LogOut, Bell, Menu, X, Network, Megaphone, LifeBuoy, ScrollText, Mail,
-  ChevronDown, Stethoscope, Users,
+  ChevronDown, Stethoscope, Users, Tags,
 } from "lucide-react";
 import { toast } from "sonner";
 import { NotificationProvider, useNotifications } from "@/components/admin/NotificationProvider";
@@ -33,6 +33,7 @@ export const superNav = [
   // People, not hospital rows: one entry per doctor or patient however many
   // hospitals they're at (0077) — so they sit in their own group, not Tenants.
   { to: "/super/doctors", icon: Stethoscope, label: "Doctor Management", group: "People" },
+  { to: "/super/specialties", icon: Tags, label: "Specialties", group: "People" },
   { to: "/super/patients", icon: Users, label: "Patient Management", group: "People" },
   { to: "/super/logs", icon: FileBarChart, label: "Log Reports", group: "Monitoring" },
   { to: "/super/verification", icon: BadgeCheck, label: "Patient Verification", group: "Monitoring" },

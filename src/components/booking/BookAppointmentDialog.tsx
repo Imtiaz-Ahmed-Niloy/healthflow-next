@@ -70,6 +70,20 @@ export const BookAppointmentDialog = ({ doctor, onClose }: {
   // The picked date's own hours — a week can give each day different ones.
   const dayHours = hoursOn(schedule, form.date);
 
+  /**
+   * What the server refused about a slot — already booked by someone else
+   * (409), or outside hours or past by its clock (422). Tied to the place,
+   * date and time it was said about, so changing any of them clears it
+   * without anyone having to remember to.
+   */
+  const slotKey = `${place?.id ?? ""}|${form.date}|${form.time}`;
+  const [refused, setRefused] = useState<{ key: string; message: string } | null>(null);
+  const serverProblem = refused?.key === slotKey ? refused.message : null;
+
+  /** The problem with the date and time as picked: marks both fields and shows under them. */
+  const fieldProblem = slotProblem ?? serverProblem;
+  const fieldClass = fieldProblem ? "border-destructive focus-visible:ring-destructive" : "";
+
   const confirm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!doctor || !place) return;
@@ -98,7 +112,10 @@ export const BookAppointmentDialog = ({ doctor, onClose }: {
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        toast.error(body?.error?.message || "Couldn't book that appointment. Please try again.");
+        const message = body?.error?.message || "Couldn't book that appointment. Please try again.";
+        // A refusal about the slot itself belongs on the date and time fields.
+        if (res.status === 409 || res.status === 422) setRefused({ key: slotKey, message });
+        toast.error(message);
         return;
       }
 
@@ -189,7 +206,8 @@ export const BookAppointmentDialog = ({ doctor, onClose }: {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label required>Date</Label>
-                <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} min={clock.today} required />
+                <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} min={clock.today} required
+                  aria-invalid={!!fieldProblem} aria-describedby={fieldProblem ? "slot-problem" : undefined} className={fieldClass} />
               </div>
               <div className="space-y-1.5">
                 <Label required>Time</Label>
@@ -197,22 +215,23 @@ export const BookAppointmentDialog = ({ doctor, onClose }: {
                 <Input type="time" value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))}
                   min={[dayHours?.start, form.date === clock.today ? clock.nowTime : undefined].filter(Boolean).sort().pop()}
                   max={dayHours && dayHours.end !== "24:00" ? dayHours.end : undefined}
-                  required />
+                  required
+                  aria-invalid={!!fieldProblem} aria-describedby={fieldProblem ? "slot-problem" : undefined} className={fieldClass} />
               </div>
             </div>
-            {schedule && !slotProblem && (
+            {schedule && !fieldProblem && (
               <p className="text-xs text-muted-foreground -mt-2">
                 {doctor.name} sees patients {describeSchedule(schedule)}.
               </p>
             )}
-            {slotProblem && <p className="text-xs font-semibold text-destructive -mt-2">{slotProblem}</p>}
+            {fieldProblem && <p id="slot-problem" role="alert" className="text-xs font-semibold text-destructive -mt-2">{fieldProblem}</p>}
             <div className="space-y-1.5">
               <Label>Reason for visit (optional)</Label>
               <Textarea value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} placeholder="Briefly describe your symptoms or reason..." rows={3} />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
-              <Button type="submit" disabled={submitting || !!slotProblem}>{submitting ? "Booking..." : "Confirm Booking"}</Button>
+              <Button type="submit" disabled={submitting || !!fieldProblem}>{submitting ? "Booking..." : "Confirm Booking"}</Button>
             </DialogFooter>
           </form>
         )}

@@ -59,15 +59,24 @@ const formatTime = (t: string) => {
   return `${((h + 11) % 12 + 1)}:${mm} ${h >= 12 ? "PM" : "AM"}`;
 };
 
-const dobLabel = (iso: string | null) => {
+/**
+ * Their age from the date of birth — what a doctor glancing down the queue
+ * wants, not the date itself. Years, or months and then days for a baby, the
+ * same units the prescription pad uses.
+ */
+const ageLabel = (iso: string | null) => {
   if (!iso) return "—";
   const dob = new Date(`${iso}T00:00:00`);
-  let age = new Date().getFullYear() - dob.getFullYear();
-  const notYetHadBirthdayThisYear =
-    new Date().getMonth() < dob.getMonth() ||
-    (new Date().getMonth() === dob.getMonth() && new Date().getDate() < dob.getDate());
-  if (notYetHadBirthdayThisYear) age -= 1;
-  return `${dob.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })} (${age}y)`;
+  const now = new Date();
+  let months = (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth());
+  if (now.getDate() < dob.getDate()) months -= 1;
+  if (months >= 12) {
+    const years = Math.floor(months / 12);
+    return `${years} ${years === 1 ? "year" : "years"}`;
+  }
+  if (months >= 1) return `${months} ${months === 1 ? "month" : "months"}`;
+  const days = Math.max(0, Math.floor((now.getTime() - dob.getTime()) / 86_400_000));
+  return `${days} ${days === 1 ? "day" : "days"}`;
 };
 
 const initials = (name: string) =>
@@ -344,7 +353,7 @@ const Queue = () => {
                   </div>
                   <div className="min-w-[180px]">
                     <p className="font-semibold text-primary">{p.patient?.full_name ?? "Patient"}</p>
-                    <p className="text-xs text-muted-foreground">DOB: {dobLabel(p.patient?.date_of_birth ?? null)}</p>
+                    <p className="text-xs text-muted-foreground">Age: {ageLabel(p.patient?.date_of_birth ?? null)}</p>
                     {multiHospital && <p className="text-xs font-semibold text-primary-glow mt-0.5">{p.hospital.name}</p>}
                   </div>
                   <div className="hidden md:block min-w-[120px]">
@@ -391,7 +400,7 @@ const Queue = () => {
                 </div>
                 <div className="min-w-[180px]">
                   <p className="font-semibold text-primary">{p.patient?.full_name ?? "Patient"}</p>
-                  <p className="text-xs text-muted-foreground">DOB: {dobLabel(p.patient?.date_of_birth ?? null)}</p>
+                  <p className="text-xs text-muted-foreground">Age: {ageLabel(p.patient?.date_of_birth ?? null)}</p>
                   {multiHospital && <p className="text-xs font-semibold text-muted-foreground mt-0.5">{p.hospital.name}</p>}
                 </div>
                 <div className="hidden md:block min-w-[120px]">

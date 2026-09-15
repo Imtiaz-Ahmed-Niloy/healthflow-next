@@ -7,8 +7,9 @@ import { DoctorCard, DoctorCardNotBookable, DOCTOR_CARD_BUTTON } from "@/compone
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
 import { BookAppointmentDialog } from "@/components/booking/BookAppointmentDialog";
 import { useDoctors, type UIDoctor } from "@/hooks/useDoctors";
+import { useSpecialties } from "@/hooks/useSpecialties";
 
-const cats = ["All Specialties", "Cardiology", "Neurology", "Dermatology", "Pediatrics", "Psychiatry", "Oncology", "General Medicine"];
+const ALL = "All Specialties";
 
 const matchesQuery = (q: string, ...fields: string[]) => {
   const s = q.trim().toLowerCase();
@@ -18,6 +19,9 @@ const matchesQuery = (q: string, ...fields: string[]) => {
 
 const FindDoctors = () => {
   const { doctors, loading } = useDoctors();
+  // The specialties list (0093) — the one a doctor's specialty is picked from.
+  const { specialties } = useSpecialties();
+  const cats = useMemo(() => [ALL, ...specialties], [specialties]);
   const [cat, setCat] = useState(0);
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(searchParams?.get("q") ?? "");
@@ -25,10 +29,10 @@ const FindDoctors = () => {
   const [booking, setBooking] = useState<UIDoctor | null>(null);
   const openBooking = (d: UIDoctor) => setBooking(d);
 
-  const activeCat = cats[cat];
+  const activeCat = cats[cat] ?? ALL;
   const visible = useMemo(() => {
     return doctors.filter(d =>
-      (activeCat === "All Specialties" || d.category === activeCat) &&
+      (activeCat === ALL || d.category === activeCat) &&
       matchesQuery(query, d.name, d.specialty, d.location),
     );
   }, [doctors, activeCat, query]);

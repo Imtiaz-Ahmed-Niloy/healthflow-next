@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { BookAppointmentDialog } from "@/components/booking/BookAppointmentDialog";
+import { useSavedDoctors } from "@/hooks/useSavedDoctors";
 import { motion } from "framer-motion";
 import { ArrowLeft, Star, Calendar, Languages, GraduationCap, Award, Heart, Phone, MapPin, Clock, User, BadgeCheck, Store } from "lucide-react";
 import { toast } from "sonner";
@@ -20,6 +21,8 @@ const DoctorDetail = () => {
   const router = useRouter();
   const { formatCurrency } = useFormatters();
   const { doctors, loading: loadingDocs } = useDoctors();
+  // The patient's saved doctors (0092), for the Save button.
+  const savedDoctors = useSavedDoctors();
   const hospitals = useHospitals();
 
   // One page per doctor (0090). A link to one of their listings — each
@@ -138,8 +141,27 @@ const DoctorDetail = () => {
                   Book Appointment
                 </button>
               )}
-              <button onClick={() => toast.success(`${d.name} saved to favorites`)} className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-full border border-primary/30 py-2.5 text-sm font-semibold text-primary hover:bg-primary/5">
-                <Heart className="h-4 w-4" /> Save
+              {/* Saves to the patient's list (0092), shown at /patient/saved-doctors.
+                  Signed out, it asks them to sign in and comes back here. */}
+              <button
+                type="button"
+                disabled={savedDoctors.busy}
+                onClick={() => {
+                  if (savedDoctors.sessionLoading) return;
+                  if (!savedDoctors.signedIn) {
+                    router.push(`/signin?next=${encodeURIComponent(`/doctors/${d.slug}`)}`);
+                    return;
+                  }
+                  if (!savedDoctors.canSave) {
+                    toast.info("Saving doctors is for patient accounts.");
+                    return;
+                  }
+                  void savedDoctors.toggle(d);
+                }}
+                className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-full border border-primary/30 py-2.5 text-sm font-semibold text-primary hover:bg-primary/5 disabled:opacity-60"
+              >
+                <Heart className={`h-4 w-4 ${savedDoctors.isSaved(d) ? "fill-primary" : ""}`} />
+                {savedDoctors.isSaved(d) ? "Saved" : "Save"}
               </button>
             </div>
           </div>
@@ -157,9 +179,6 @@ const DoctorDetail = () => {
                 <div className="flex items-center gap-2 text-foreground/70"><Languages className="h-4 w-4 text-primary-glow" />{d.languages.join(" · ")}</div>
                 <div className="flex items-center gap-2 text-foreground/70"><Calendar className="h-4 w-4 text-primary-glow" />
                   {d.places.length > 1 ? `At ${d.places.length} places — hours for each below` : `Available ${d.available}`}
-                </div>
-                <div className="flex items-center gap-2 text-foreground/70"><MapPin className="h-4 w-4 text-primary-glow" />
-                  {d.places.length ? d.places.map((p) => p.name).join(" · ") : `${d.hospital.name} · ${d.hospital.location}`}
                 </div>
                 <div className="flex items-center gap-2 text-foreground/70"><Clock className="h-4 w-4 text-primary-glow" />30 min consultation</div>
                 {d.gender && (

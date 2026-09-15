@@ -411,7 +411,8 @@ const DirectoryTab = () => {
     fields: [
       { name: "photo_url", label: "Doctor photo", type: "image" },
       { name: "name", label: "Full name", type: "text", required: true },
-      { name: "specialty", label: "Specialization", type: "select", options: ["Cardiology", "Neurology", "Orthopedics", "Pediatrics", "Oncology", "Dermatology", "Gynecology", "General"] },
+      // The specialties list (0093), searchable — the same one the site filters by.
+      { name: "specialty", label: "Specialization", type: "specialty" },
       { name: "gender", label: "Gender", type: "select", options: GENDERS },
       { name: "education", label: "Education / Qualifications", type: "text", required: true },
       // min/max/numberStep mirror the check constraints in 0005. Without

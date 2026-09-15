@@ -90,6 +90,18 @@ const Appointments = () => {
   const rescheduleHours = hoursOn(rescheduleSchedule, rescheduleForm.date);
   const [savingReschedule, setSavingReschedule] = useState(false);
 
+  /**
+   * What the server refused about the new slot — someone else's booking
+   * (409), or outside hours or past by its clock (422) — tied to the
+   * appointment, date and time it was said about, so changing either clears
+   * it. As the booking form (BookAppointmentDialog) does.
+   */
+  const rescheduleKey = `${rescheduling?.id ?? ""}|${rescheduleForm.date}|${rescheduleForm.time}`;
+  const [rescheduleRefused, setRescheduleRefused] = useState<{ key: string; message: string } | null>(null);
+  const rescheduleFieldProblem = rescheduleProblem
+    ?? (rescheduleRefused?.key === rescheduleKey ? rescheduleRefused.message : null);
+  const rescheduleFieldClass = rescheduleFieldProblem ? "border-destructive focus-visible:ring-destructive" : "";
+
   const load = async () => {
     try {
       const res = await fetch("/api/v1/patient/appointments");
@@ -165,7 +177,10 @@ const Appointments = () => {
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        toast.error(body?.error?.message || "Couldn't reschedule that appointment.");
+        const message = body?.error?.message || "Couldn't reschedule that appointment.";
+        // A refusal about the slot itself belongs on the date and time fields.
+        if (res.status === 409 || res.status === 422) setRescheduleRefused({ key: rescheduleKey, message });
+        toast.error(message);
         return;
       }
       setAppointments(prev =>
@@ -373,7 +388,9 @@ const Appointments = () => {
                   <Label required>Date</Label>
                   <Input type="date" value={rescheduleForm.date}
                     onChange={e => setRescheduleForm(f => ({ ...f, date: e.target.value }))}
-                    min={clock.today} required />
+                    min={clock.today} required
+                    aria-invalid={!!rescheduleFieldProblem} aria-describedby={rescheduleFieldProblem ? "reschedule-problem" : undefined}
+                    className={rescheduleFieldClass} />
                 </div>
                 <div className="space-y-1.5">
                   <Label required>Time</Label>
@@ -381,18 +398,22 @@ const Appointments = () => {
                     onChange={e => setRescheduleForm(f => ({ ...f, time: e.target.value }))}
                     min={[rescheduleHours?.start, rescheduleForm.date === clock.today ? clock.nowTime : undefined].filter(Boolean).sort().pop()}
                     max={rescheduleHours && rescheduleHours.end !== "24:00" ? rescheduleHours.end : undefined}
-                    required />
+                    required
+                    aria-invalid={!!rescheduleFieldProblem} aria-describedby={rescheduleFieldProblem ? "reschedule-problem" : undefined}
+                    className={rescheduleFieldClass} />
                 </div>
               </div>
-              {rescheduling.doctor?.availability && !rescheduleProblem && (
+              {rescheduling.doctor?.availability && !rescheduleFieldProblem && (
                 <p className="text-xs text-muted-foreground -mt-2">
                   {rescheduling.doctor.name} is available {availabilityLabel(rescheduling.doctor.availability)}.
                 </p>
               )}
-              {rescheduleProblem && <p className="text-xs font-semibold text-destructive -mt-2">{rescheduleProblem}</p>}
+              {rescheduleFieldProblem && (
+                <p id="reschedule-problem" role="alert" className="text-xs font-semibold text-destructive -mt-2">{rescheduleFieldProblem}</p>
+              )}
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setRescheduling(null)} disabled={savingReschedule}>Cancel</Button>
-                <Button type="submit" disabled={savingReschedule || !!rescheduleProblem}>{savingReschedule ? "Saving..." : "Save New Time"}</Button>
+                <Button type="submit" disabled={savingReschedule || !!rescheduleFieldProblem}>{savingReschedule ? "Saving..." : "Save New Time"}</Button>
               </DialogFooter>
             </form>
           )}

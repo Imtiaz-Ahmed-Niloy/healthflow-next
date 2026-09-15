@@ -10,6 +10,7 @@ import {
 } from "@/components/admin/crud";
 import { Avatar } from "@/components/common/Avatar";
 import { ImageUploadField } from "@/components/admin/ResourcePage";
+import { SpecialtySelect } from "@/components/common/SpecialtySelect";
 import { WeeklyHoursField } from "@/components/admin/WeeklyHoursField";
 import {
   ChamberForm, chamberPayload, draftFromChamber, emptyChamberDraft, type ChamberDraft,
@@ -174,7 +175,14 @@ const DoctorDetails = ({ draft, set, email, photo, note }: {
           <Input type="email" value={email.value} readOnly disabled className="opacity-60 cursor-not-allowed" />
         </Field>
       )}
-      <Field label="Specialization"><Input value={draft.specialty ?? ""} onChange={set("specialty")} placeholder="Cardiology" /></Field>
+      <Field label="Specialization">
+        {/* From the specialties list (0093). `set` reads e.target.value, so the
+            pick goes through it the same way a typed field does. */}
+        <SpecialtySelect
+          value={draft.specialty ?? ""}
+          onChange={v => set("specialty")({ target: { value: v } } as React.ChangeEvent<HTMLInputElement>)}
+        />
+      </Field>
       <Field label="BMDC registration no."><Input value={draft.bmdc_number ?? ""} onChange={set("bmdc_number")} /></Field>
       <Field label="Phone"><Input type="tel" value={draft.phone ?? ""} onChange={set("phone")} /></Field>
       <Field label="Education"><Input value={draft.education ?? ""} onChange={set("education")} placeholder="MBBS, FCPS" /></Field>

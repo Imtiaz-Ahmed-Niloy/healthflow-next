@@ -7,6 +7,7 @@ import { Building2, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { ImageUploadField } from "@/components/admin/ResourcePage";
+import { SpecialtySelect } from "@/components/common/SpecialtySelect";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -47,7 +48,6 @@ type Hospital = {
 
 const TEXT_FIELDS: { name: keyof DoctorProfile; label: string; placeholder?: string }[] = [
   { name: "name", label: "Full name" },
-  { name: "specialty", label: "Specialization", placeholder: "Cardiology" },
   { name: "bmdc_number", label: "BMDC registration no.", placeholder: "A-12345" },
   { name: "education", label: "Education / Qualifications", placeholder: "MBBS, FCPS (Medicine)" },
   { name: "experience_years", label: "Experience (years)" },
@@ -149,6 +149,12 @@ const Profile = () => {
                     placeholder={f.placeholder} />
                 </div>
               ))}
+              <div className="space-y-1.5">
+                <Label>Specialization</Label>
+                {/* From the specialties list (0093) — what patients filter by. */}
+                <SpecialtySelect name="specialty" defaultValue={profile.specialty ?? ""}
+                  className="flex h-10 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm text-left" />
+              </div>
               <div className="space-y-1.5">
                 <Label htmlFor="gender">Gender</Label>
                 <select id="gender" name="gender" defaultValue={profile.gender ?? ""}
