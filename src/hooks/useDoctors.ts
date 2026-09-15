@@ -57,6 +57,11 @@ export type DoctorPlace = {
   hospitalSlug: string;
   /** "Dhanmondi, Dhaka" */
   location: string;
+  /** Written in the 0096 lists' spelling ("Cumilla", not "Comilla"); what the Find Doctors filters match. */
+  division: string | null;
+  district: string | null;
+  /** The upazila, or a Dhaka city thana. */
+  subdistrict: string | null;
   address: string | null;
   phone: string | null;
   fee: number;
@@ -125,11 +130,17 @@ export type UIDoctor = {
 export const INDEPENDENT_LABEL = "Independent practice";
 
 
-/** "Dhanmondi, Dhaka" — each part once; Dhaka is often area, district and division at once. */
-const placeLocation = (d: DBDoctor) =>
-  [d.location, d.district, d.division]
-    .filter((part, i, all): part is string => !!part && all.indexOf(part) === i)
-    .join(", ");
+/**
+ * "Dhanmondi, Dhaka" — each part once; Dhaka is often area, district and
+ * division at once, and a location typed as "Bogura, Bangladesh" already
+ * names its district.
+ */
+const placeLocation = (d: DBDoctor) => {
+  const parts = [...(d.location ?? "").split(","), d.district ?? "", d.division ?? ""]
+    .map(p => p.trim())
+    .filter(p => p && p.toLowerCase() !== "bangladesh");
+  return parts.filter((p, i) => parts.findIndex(q => q.toLowerCase() === p.toLowerCase()) === i).join(", ");
+};
 
 const toPlace = (d: DBDoctor): DoctorPlace => ({
   id: d.id,
@@ -138,6 +149,9 @@ const toPlace = (d: DBDoctor): DoctorPlace => ({
   name: d.hospital_name || (d.practice_kind === "chamber" ? "Chamber" : "Partner Hospital"),
   hospitalSlug: d.hospital_slug || "",
   location: placeLocation(d),
+  division: d.division,
+  district: d.district,
+  subdistrict: d.subdistrict,
   address: d.practice_address,
   phone: d.practice_phone,
   fee: Number(d.consultation_fee) || 500,

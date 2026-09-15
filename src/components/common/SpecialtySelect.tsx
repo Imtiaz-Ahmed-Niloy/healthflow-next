@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -20,7 +20,7 @@ import { useSpecialties } from "@/hooks/useSpecialties";
 /** The admin forms' input look (components/admin/crud). */
 const TRIGGER = "w-full flex items-center justify-between gap-2 bg-muted/40 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary text-sm text-left";
 
-export const SpecialtySelect = ({ value, onChange, name, defaultValue = "", placeholder = "Select a specialty…", className = TRIGGER }: {
+export const SpecialtySelect = ({ value, onChange, name, defaultValue = "", placeholder = "Select a specialty…", className = TRIGGER, icon, noneLabel = "No specialty" }: {
   value?: string;
   onChange?: (value: string) => void;
   /** For a FormData form: writes a hidden input with this name. */
@@ -29,6 +29,10 @@ export const SpecialtySelect = ({ value, onChange, name, defaultValue = "", plac
   placeholder?: string;
   /** The trigger's classes — defaults to the admin forms' input look. */
   className?: string;
+  /** Shown before the value in the trigger. */
+  icon?: ReactNode;
+  /** The option that clears it — "All specialties" when it's a filter. */
+  noneLabel?: string;
 }) => {
   const { specialties } = useSpecialties();
   const [open, setOpen] = useState(false);
@@ -50,7 +54,10 @@ export const SpecialtySelect = ({ value, onChange, name, defaultValue = "", plac
         <PopoverTrigger asChild>
           {/* Radix gives the trigger its aria-expanded and aria-controls. */}
           <button type="button" aria-haspopup="listbox" className={className}>
-            <span className={`truncate ${current ? "" : "text-muted-foreground"}`}>{current || placeholder}</span>
+            <span className="flex min-w-0 items-center gap-2">
+              {icon}
+              <span className={`truncate ${current ? "" : "text-muted-foreground"}`}>{current || placeholder}</span>
+            </span>
             <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
           </button>
         </PopoverTrigger>
@@ -63,7 +70,7 @@ export const SpecialtySelect = ({ value, onChange, name, defaultValue = "", plac
               <CommandGroup>
                 {current && (
                   <CommandItem value="__none__" onSelect={() => choose("")} className="text-muted-foreground">
-                    <span className="w-4" /> No specialty
+                    <span className="w-4" /> {noneLabel}
                   </CommandItem>
                 )}
                 {options.map(s => (

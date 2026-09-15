@@ -494,6 +494,112 @@ export type Database = {
         }
         Relationships: []
       }
+      bd_districts: {
+        Row: {
+          aliases: string[]
+          bn_name: string | null
+          created_at: string
+          division_id: number
+          id: number
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          aliases?: string[]
+          bn_name?: string | null
+          created_at?: string
+          division_id: number
+          id?: number
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          aliases?: string[]
+          bn_name?: string | null
+          created_at?: string
+          division_id?: number
+          id?: number
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_districts_division_id_fkey"
+            columns: ["division_id"]
+            isOneToOne: false
+            referencedRelation: "bd_divisions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bd_divisions: {
+        Row: {
+          aliases: string[]
+          bn_name: string | null
+          created_at: string
+          id: number
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          aliases?: string[]
+          bn_name?: string | null
+          created_at?: string
+          id?: number
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          aliases?: string[]
+          bn_name?: string | null
+          created_at?: string
+          id?: number
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      bd_upazilas: {
+        Row: {
+          aliases: string[]
+          bn_name: string | null
+          created_at: string
+          district_id: number
+          id: number
+          kind: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          aliases?: string[]
+          bn_name?: string | null
+          created_at?: string
+          district_id: number
+          id?: number
+          kind?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          aliases?: string[]
+          bn_name?: string | null
+          created_at?: string
+          district_id?: number
+          id?: number
+          kind?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_upazilas_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "bd_districts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bed_stays: {
         Row: {
           admission_id: string
