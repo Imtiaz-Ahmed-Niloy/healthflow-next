@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { BookAppointmentDialog } from "@/components/booking/BookAppointmentDialog";
 import { motion } from "framer-motion";
-import { ArrowLeft, Star, Calendar, Languages, GraduationCap, Award, Heart, Mail, Phone, MapPin, Clock, CheckCircle2, User, BadgeCheck, Store } from "lucide-react";
+import { ArrowLeft, Star, Calendar, Languages, GraduationCap, Award, Heart, Phone, MapPin, Clock, User, BadgeCheck, Store } from "lucide-react";
 import { toast } from "sonner";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
@@ -121,6 +121,12 @@ const DoctorDetail = () => {
                   BMDC Reg. No. <span className="font-semibold text-primary">{d.bmdc}</span>
                 </p>
               )}
+              {d.experience != null && d.experience > 0 && (
+                <p className="text-sm text-foreground/75 flex items-center gap-1.5 mt-1.5">
+                  <Award className="h-4 w-4 shrink-0 text-primary-glow" />
+                  <span><span className="font-semibold text-primary">{d.experience}</span> {d.experience === 1 ? "year" : "years"} of experience</span>
+                </p>
+              )}
               {d.independent ? (
                 // An appointment belongs to a hospital or a chamber; this doctor has neither yet.
                 <p className="mt-5 text-center w-full rounded-full border border-border py-3 text-xs font-semibold text-muted-foreground">
@@ -139,21 +145,6 @@ const DoctorDetail = () => {
           </div>
 
           <div className="space-y-8">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[
-                { l: "Experience", v: `${d.experience}+ yrs`, i: Award },
-                { l: "Patients", v: `${(d.patients / 1000).toFixed(1)}k`, i: Heart },
-                { l: "Rating", v: d.rating, i: Star },
-                { l: "Fee", v: `$${d.fee}`, i: CheckCircle2 },
-              ].map((s) => (
-                <div key={s.l} className="rounded-2xl bg-card border border-border/60 p-4 text-center">
-                  <s.i className="h-5 w-5 text-primary-glow mx-auto" />
-                  <p className="font-display text-2xl text-primary mt-2">{s.v}</p>
-                  <p className="text-[11px] text-muted-foreground mt-1">{s.l}</p>
-                </div>
-              ))}
-            </div>
-
             <section className="rounded-3xl bg-card border border-border/60 p-7">
               <h2 className="font-display text-2xl text-primary">About Dr. {d.name.split(" ").slice(-1)[0]}</h2>
               {/* Their own About, as written on their profile. This used to be a
@@ -201,54 +192,54 @@ const DoctorDetail = () => {
                 <div className="space-y-3">
                   {d.places.map((p) => {
                     const h = p.kind === "hospital" ? hospitalOf(p) : undefined;
-                    const detail = (
-                      <>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                          <Calendar className="h-3 w-3 shrink-0" />{p.available || "Hours not set"} · Fee {formatCurrency(p.fee)}
-                        </p>
-                      </>
+                    const hours = (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                        <Calendar className="h-3 w-3 shrink-0" />{p.available || "Hours not set"}
+                      </p>
+                    );
+                    // What a visit here costs, large, on the right.
+                    const fee = (
+                      <div className="shrink-0 text-right">
+                        <p className="font-display text-xl text-primary leading-none">{formatCurrency(p.fee)}</p>
+                        <p className="text-[11px] text-muted-foreground mt-1">Consultation fee</p>
+                      </div>
                     );
                     return p.kind === "chamber" ? (
                       // Their own chamber (0088): no hospital page behind it, so
                       // the address and phone are right here.
-                      <div key={p.id} className="flex items-start gap-4 rounded-2xl bg-accent/20 p-4">
+                      <div key={p.id} className="flex items-center gap-4 rounded-2xl bg-accent/20 p-4">
                         <div className="h-16 w-16 shrink-0 rounded-xl bg-card grid place-items-center text-primary">
                           <Store className="h-7 w-7" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="font-display text-lg text-primary">{p.name}</p>
+                          <p className="font-display text-xl text-primary">{p.name}</p>
                           <p className="text-xs text-muted-foreground">Their own chamber</p>
                           <p className="text-xs text-muted-foreground flex items-start gap-1 mt-1.5">
                             <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
                             {[p.address, ...p.location.split(", ")].filter((part, i, all) => part && all.indexOf(part) === i).join(", ")}
                           </p>
                           {p.phone && (
-                            <a href={`tel:${p.phone}`} className="mt-1 flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-glow">
-                              <Phone className="h-3 w-3" />{p.phone}
-                            </a>
+                            <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                              <Phone className="h-3 w-3 shrink-0" />{p.phone}
+                            </p>
                           )}
-                          {detail}
+                          {hours}
                         </div>
+                        {fee}
                       </div>
                     ) : (
-                      <div key={p.id} className="flex items-center gap-4 rounded-2xl bg-accent/20 p-4 hover:bg-accent/30 transition-colors">
-                        <Link href={`/hospitals/${p.hospitalSlug}`} className="flex items-center gap-4 flex-1 min-w-0">
-                          <img src={h?.image ?? "/assets/hub-atrium.jpg"} alt={p.name} className="h-16 w-16 rounded-xl object-cover" />
-                          <div className="flex-1 min-w-0">
-                            <p className="font-display text-lg text-primary hover:text-primary-glow">{p.name}</p>
-                            {(h?.location || p.location) && (
-                              <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" />{h?.location || p.location}</p>
-                            )}
-                            {detail}
-                          </div>
-                        </Link>
-                        {h && (
-                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                            <a href={`tel:${h.phone}`} className="inline-flex items-center gap-1 hover:text-primary"><Phone className="h-3 w-3" /></a>
-                            <a href={`mailto:${h.email}`} className="inline-flex items-center gap-1 hover:text-primary"><Mail className="h-3 w-3" /></a>
-                          </div>
-                        )}
-                      </div>
+                      <Link key={p.id} href={`/hospitals/${p.hospitalSlug}`}
+                        className="flex items-center gap-4 rounded-2xl bg-accent/20 p-4 hover:bg-accent/30 transition-colors">
+                        <img src={h?.image ?? "/assets/hub-atrium.jpg"} alt={p.name} className="h-16 w-16 shrink-0 rounded-xl object-cover" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-display text-xl text-primary hover:text-primary-glow">{p.name}</p>
+                          {(h?.location || p.location) && (
+                            <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" />{h?.location || p.location}</p>
+                          )}
+                          {hours}
+                        </div>
+                        {fee}
+                      </Link>
                     );
                   })}
                 </div>

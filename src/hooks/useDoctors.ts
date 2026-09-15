@@ -87,7 +87,8 @@ export type UIDoctor = {
   img: string | null;
   /** The doctor's one page: /doctors/<slug> (0090). */
   slug: string;
-  experience: number;
+  /** Years of experience as they entered it; null when not entered. */
+  experience: number | null;
   fee: number;
   available: string;
   /**
@@ -202,7 +203,8 @@ const toDoctor = (rows: DBDoctor[]): UIDoctor => {
     gender: d.gender,
     img: photo,
     slug: d.person_slug || d.slug,
-    experience: d.experience_years || 1,
+    // As entered, or null — not a default year they never claimed.
+    experience: d.experience_years ?? null,
     fee: first?.fee ?? (Number(d.consultation_fee) || 500),
     // Described, not raw: a week from the editor is JSON (src/lib/availability.ts).
     available: first?.available || availabilityLabel(d.availability) || "Mon-Fri",
