@@ -19,7 +19,6 @@ import type { HomeContent } from "@/data/homeContent";
  * which is where the frame cuts on narrow screens.
  */
 const HERO_IMAGES = [
-  { name: "doctor", alt: "A doctor in a white coat with a stethoscope" },
   { name: "diagnostic", alt: "A CT scanner in a hospital imaging room" },
   { name: "microscope", alt: "A microscope and workstation on a clinical laboratory bench" },
   { name: "infusion", alt: "A nurse setting the rate on an infusion pump beside a patient monitor" },
@@ -63,6 +62,16 @@ const Hero = ({ content }: { content: HomeContent }) => {
 
   const active = HERO_IMAGES[index];
 
+  // The words in the brand gradient: the second title when the CMS has one,
+  // or else everything after the headline's first line break —
+  // "Connected in One Place." in "Your Health,\nConnected in One Place.".
+  const breakAt = content.heroTitle1.indexOf("\n");
+  const [plain, highlight] = content.heroTitle2
+    ? [`${content.heroTitle1} `, content.heroTitle2]
+    : breakAt === -1
+      ? [content.heroTitle1, ""]
+      : [content.heroTitle1.slice(0, breakAt + 1), content.heroTitle1.slice(breakAt + 1)];
+
   return (
     // Fills the screen below the sticky navbar, which is ~5rem of it. svh, not
     // vh: on phones vh counts the browser chrome that is not actually there,
@@ -82,17 +91,11 @@ const Hero = ({ content }: { content: HomeContent }) => {
           {/* whitespace-pre-line so the break the editor typed is the break that
               renders — the headline is written as lines, not left to the browser.
               The sizes step down at lg because the column halves there: the type
-              is as large as the longest line can be without wrapping again. */}
-          <h1 className="font-display text-4xl md:text-6xl lg:text-[2.7rem] xl:text-[3.4rem] 2xl:text-[3.8rem] leading-[1.05] text-primary whitespace-pre-line">
-            {content.heroTitle1}
-            {content.heroTitle2 && (
-              <>
-                {" "}
-                <span className="italic text-primary-glow text-4xl">
-                  {content.heroTitle2}
-                </span>
-              </>
-            )}
+              is as large as the longest line can be without wrapping again.
+              Sized for Inter, which runs wider than the serif it replaced. */}
+          <h1 className="font-display text-[1.75rem] sm:text-4xl md:text-5xl lg:text-[2.2rem] xl:text-[2.75rem] 2xl:text-[3.3rem] leading-[1.1] text-primary whitespace-pre-line">
+            {plain}
+            {highlight && <span className="lp-gradient-text">{highlight}</span>}
           </h1>
           <p className="mt-6 text-base text-muted-foreground max-w-xl leading-relaxed md:text-base text-justify whitespace-pre-line">
             {content.heroDesc}

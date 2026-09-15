@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, FilterX } from "lucide-react";
 import { useDoctors } from "@/hooks/useDoctors";
 import { DoctorCard } from "@/components/site/DoctorCard";
+import { GradientWords } from "@/components/site/GradientWords";
 
 type SpecialistsProps = {
   division?: string;
@@ -45,7 +46,7 @@ const Specialists = forwardRef<HTMLElement, SpecialistsProps>(
     return (
       <section id="features" ref={ref} className="container mx-auto py-20">
         <div className="mb-10">
-          <h2 className="font-display text-3xl md:text-4xl text-primary">Find Your Specialist</h2>
+          <h2 className="font-display text-3xl md:text-4xl text-primary"><GradientWords text="Find Your Specialist" last={1} /></h2>
         </div>
 
         {activeFilterCount > 0 && (

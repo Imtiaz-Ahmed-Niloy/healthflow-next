@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Quote } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTestimonials, type TestimonialAudience } from "@/data/testimonials";
 import TiltCard from "@/components/site/TiltCard";
+import { GradientWords } from "@/components/site/GradientWords";
 
 const TABS: TestimonialAudience[] = ["Patients", "Doctors", "Hospitals"];
 
@@ -65,7 +66,7 @@ const Testimonials = () => {
 
   return (
     <section className="container mx-auto py-24">
-      <h2 className="text-center font-display text-3xl md:text-4xl text-primary">{tr("testimonials.heading")}</h2>
+      <h2 className="text-center font-display text-3xl md:text-4xl text-primary"><GradientWords text={tr("testimonials.heading")} /></h2>
 
       <div className="flex justify-center mt-6">
         {/* White, not muted: the section sits on the page's own off-white, and

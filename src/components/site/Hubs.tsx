@@ -5,6 +5,7 @@ import Link from "next/link";
 import { MapPin, ArrowRight, Building2, Star, ChevronLeft, ChevronRight } from "lucide-react";
 import { useHospitals } from "@/hooks/useHospitals";
 import TiltCard from "@/components/site/TiltCard";
+import { GradientWords } from "@/components/site/GradientWords";
 
 const Hubs = () => {
   const hospitals = useHospitals();
@@ -46,7 +47,7 @@ const Hubs = () => {
   return (
     <section id="hubs" className="container mx-auto py-20">
       <div className="text-center max-w-2xl mx-auto mb-12">
-        <h2 className="font-display text-3xl md:text-5xl text-primary">Verified Health Hub</h2>
+        <h2 className="font-display text-3xl md:text-5xl text-primary"><GradientWords text="Verified Health Hub" /></h2>
         <p className="text-muted-foreground mt-3 text-sm">Access verified hospitals, clinics, and diagnostic centers you can trust — all in one secure platform designed to connect you with quality healthcare, faster decisions, and better patient outcomes.</p>
       </div>
 

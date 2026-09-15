@@ -1,7 +1,7 @@
 /* First in the file: CSS requires @import before every other rule, and the
    @tailwind lines below expand into thousands of them. Webpack let an import
    below them through; Turbopack (Next 16's default) refuses to build. */
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,500;1,600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -61,17 +61,85 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }
-  h1, h2, h3, h4 { font-family: 'Fraunces', serif; font-weight: 500; letter-spacing: -0.02em; }
+  /* Headings are Inter like the body, as on prescriply.bd — the serif
+     (Fraunces) they used to be set in is gone site-wide. */
+  h1, h2, h3, h4 { font-family: 'Inter', system-ui, sans-serif; font-weight: 600; letter-spacing: -0.02em; }
 }
 
 @layer utilities {
-  .font-display { font-family: 'Fraunces', serif; }
+  .font-display { font-family: 'Inter', system-ui, sans-serif; }
   .text-balance { text-wrap: balance; }
   .bg-gradient-hero { background: var(--gradient-hero); }
   .bg-gradient-dark { background: var(--gradient-dark); }
   .shadow-soft { box-shadow: var(--shadow-soft); }
   .shadow-card { box-shadow: var(--shadow-card); }
   .shadow-glow { box-shadow: var(--shadow-glow); }
+
+  /* The landing page's colour, taken from prescriply.bd's own CSS (its
+     .lp-page, .lp-wash-*, .lp-orb-* and .lp-dotgrid): a mint-white base with
+     teal and cyan light at the top, a wash per section, and blurred orbs
+     that drift slowly. Drawn by <SectionGlow> (components/site). */
+  .lp-page-bg {
+    background-color: #f6fbfa;
+    background-image:
+      radial-gradient(52rem 34rem at 12% -10%, rgba(45, 212, 191, 0.16), transparent 56%),
+      radial-gradient(44rem 30rem at 100% -4%, rgba(34, 211, 238, 0.12), transparent 55%),
+      radial-gradient(40rem 40rem at 50% 120%, rgba(13, 148, 136, 0.075), transparent 62%);
+    background-repeat: no-repeat;
+  }
+  /* Words filled with the brand gradient — prescriply.bd's .lp-gradient-text
+     ("found by patients"): deep teal through teal and cyan to emerald, drawn
+     at twice the text's width so the teal-to-cyan half shows. */
+  .lp-gradient-text {
+    background-image: linear-gradient(105deg, #0f766e, #0d9488 22%, #0891b2 52%, #0e9f6e 78%, #059669);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+            background-clip: text;
+    color: transparent;
+  }
+  /* The same gradient a few shades lighter, for a title on a dark band —
+     the deep teal would sink into the dark green. */
+  .lp-gradient-text-light {
+    background-image: linear-gradient(105deg, #5eead4, #2dd4bf 22%, #67e8f9 52%, #6ee7b7 78%, #34d399);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+            background-clip: text;
+    color: transparent;
+  }
+  .lp-wash-teal { background-image: radial-gradient(60rem 32rem at 12% -6%, rgba(20, 184, 166, 0.14), transparent 60%); }
+  .lp-wash-cyan { background-image: radial-gradient(60rem 32rem at 88% -6%, rgba(6, 182, 212, 0.14), transparent 60%); }
+  .lp-wash-emerald { background-image: radial-gradient(62rem 34rem at 50% 106%, rgba(16, 185, 129, 0.12), transparent 62%); }
+  .lp-dotgrid {
+    background-image: radial-gradient(rgba(13, 148, 136, 0.11) 1px, transparent 1.5px);
+    background-size: 22px 22px;
+    -webkit-mask-image: radial-gradient(70% 60% at 50% 35%, #000 40%, transparent 100%);
+            mask-image: radial-gradient(70% 60% at 50% 35%, #000 40%, transparent 100%);
+  }
+  .lp-orb { position: absolute; border-radius: 9999px; filter: blur(60px); pointer-events: none; opacity: 0.8; }
+  .lp-orb-teal { background: radial-gradient(circle at 50% 50%, rgba(20, 184, 166, 0.42), transparent 70%); }
+  .lp-orb-cyan { background: radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.34), transparent 70%); }
+  .lp-orb-emerald { background: radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.3), transparent 70%); }
+  .lp-drift-a { animation: lp-drift-a 26s ease-in-out infinite; will-change: transform; }
+  .lp-drift-b { animation: lp-drift-b 32s ease-in-out infinite; will-change: transform; }
+  .lp-drift-c { animation: lp-drift-c 30s ease-in-out infinite; will-change: transform; }
+  /* Sections meet without a line: the glow fades out at the top and bottom
+     (the hero only at the bottom — above it is the navbar's own edge). */
+  .lp-fade-y {
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
+            mask-image: linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
+  }
+  .lp-fade-bottom {
+    -webkit-mask-image: linear-gradient(to bottom, #000 80%, transparent);
+            mask-image: linear-gradient(to bottom, #000 80%, transparent);
+  }
+}
+
+@keyframes lp-drift-a { 0%, 100% { transform: translateZ(0) scale(1); } 50% { transform: translate3d(6%, 7%, 0) scale(1.14); } }
+@keyframes lp-drift-b { 0%, 100% { transform: translateZ(0) scale(1); } 50% { transform: translate3d(-7%, 6%, 0) scale(1.16); } }
+@keyframes lp-drift-c { 0%, 100% { transform: translateZ(0) scale(1); } 50% { transform: translate3d(5%, -6%, 0) scale(1.1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-drift-a, .lp-drift-b, .lp-drift-c { animation: none; }
 }
 
 /* Prescription print (Prescription.tsx's #rx-print-area). Used to print via
