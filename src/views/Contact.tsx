@@ -66,12 +66,14 @@ const Contact = ({ hero, content }: { hero: CmsHeroFields; content: ContactConte
     // The homepage's surface: its page colour, a glow behind each light
     // section, and the brand gradient on part of the title.
     <div className="min-h-screen lp-page-bg overflow-x-clip">
-      <Navbar />
+      <Navbar transparentAtTop />
 
       <main>
         {/* The masthead opens on the homepage hero's glow, so the page starts
-            with colour rather than dropping straight into a form. */}
-        <section className="relative isolate">
+            with colour rather than dropping straight into a form. Pulled up
+            under the see-through navbar (5rem) and padded back down, as on
+            the homepage. */}
+        <section className="relative isolate -mt-20 pt-20">
           <SectionGlow {...GLOW.hero} />
 
           <div className="relative container mx-auto py-16 md:py-20">

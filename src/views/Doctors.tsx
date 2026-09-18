@@ -113,10 +113,12 @@ const Doctors = () => {
     // The homepage's surface: its page colour and hero glow, and the brand
     // gradient on part of the title.
     <div className="min-h-screen lp-page-bg overflow-x-clip">
-      <Navbar />
+      <Navbar transparentAtTop />
       {/* At least a screen tall, so the footer stays below the fold while the
-          doctors load instead of riding up under the spinner. */}
-      <main className="relative isolate container mx-auto min-h-screen py-16">
+          doctors load instead of riding up under the spinner. Pulled up under
+          the see-through navbar (5rem) and padded back down, as on the
+          homepage. */}
+      <main className="relative isolate container mx-auto min-h-screen -mt-20 pt-36 pb-16">
         <SectionGlow {...GLOW.hero} bleed />
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
           <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-primary hover:gap-2 transition-all mb-6">

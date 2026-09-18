@@ -32,10 +32,11 @@ const Features = ({ hero, content }: { hero: CmsHeroFields; content: FeaturesCon
     // The homepage's surface: its page colour, a glow behind each light
     // section, and the brand gradient on part of each title.
     <div className="min-h-screen lp-page-bg overflow-x-clip">
-      <Navbar />
+      <Navbar transparentAtTop />
       <main>
-        {/* Hero */}
-        <section className="relative isolate container mx-auto pt-12 pb-16">
+        {/* Hero, pulled up under the see-through navbar (5rem) and padded
+            back down, as on the homepage. */}
+        <section className="relative isolate container mx-auto -mt-20 pt-32 pb-16">
           <SectionGlow {...GLOW.hero} bleed />
           <div className="grid lg:grid-cols-2 gap-10 items-center">
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>

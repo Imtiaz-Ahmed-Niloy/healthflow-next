@@ -19,9 +19,11 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
     // The homepage's surface: its page colour, a glow behind each light
     // section, and the brand gradient on part of each title.
     <div className="min-h-screen lp-page-bg overflow-x-clip">
-      <Navbar />
+      <Navbar transparentAtTop />
       <main>
-        <section className="relative isolate container mx-auto pt-16 pb-12 text-center">
+        {/* Pulled up under the see-through navbar (5rem) and padded back
+            down, as on the homepage. */}
+        <section className="relative isolate container mx-auto -mt-20 pt-36 pb-12 text-center">
           <SectionGlow {...GLOW.hero} bleed />
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
             {/* One line from tablets up: the size steps with the container so

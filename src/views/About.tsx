@@ -124,15 +124,16 @@ const About = ({ hero, content }: { hero: CmsHeroFields; content: AboutContent }
     // The homepage's surface: its page colour, a glow behind each light
     // section, and the brand gradient on part of each title.
     <div className="min-h-screen lp-page-bg overflow-x-clip">
-      <Navbar />
+      <Navbar transparentAtTop />
       <main>
         {/* Hero */}
         {/* A rounded card inside the page's column from tablets up. On a phone
             it runs edge to edge instead: the card's inset and the column's
             2rem padding left the text a narrow strip. The wash is heavier
             there too, as the text spans the whole picture rather than its
-            left half. */}
-        <section className="relative isolate md:container md:mx-auto md:pt-8">
+            left half. Pulled up under the navbar (5rem), which is see-through
+            at the top of the page, and padded back down, as on the homepage. */}
+        <section className="relative isolate -mt-20 pt-20 md:container md:mx-auto md:pt-28">
           <SectionGlow {...GLOW.hero} bleed />
           <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8 }}
             className="relative overflow-hidden md:rounded-3xl">
