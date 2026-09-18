@@ -452,6 +452,8 @@
       "copied": "{label} copied",
       "copy": "Copy {label}",
       "approveTitle": "Approve and create the admin login",
+      "approveConfirmTitle": "Approve {name}?",
+      "approveConfirmBody": "It goes live on the public site and its admin login is created. The login uses the hospital's main email — or the owner's — as the username.",
       "approving": "Approving…",
       "approve": "Approve",
       "viewLogin": "View this hospital's admin login",

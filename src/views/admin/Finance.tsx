@@ -7,6 +7,7 @@ import { Card, Btn, Pill, Kpi } from "@/components/admin/ui";
 import { DataTable, Toolbar, Modal, Field, Input, Select, RowActions, exportCSV, type Column } from "@/components/admin/crud";
 import { useResourceCrud } from "@/components/admin/useResourceCrud";
 import { useNotifications } from "@/components/admin/NotificationProvider";
+import { useConfirmAction } from "@/components/common/ConfirmProvider";
 import { Wallet, TrendingUp, AlertCircle, Receipt } from "lucide-react";
 import { useFormatters } from "@/lib/appSettings";
 import {
@@ -33,6 +34,7 @@ type PatientOption = { id: string; full_name: string };
 const Finance = () => {
   const t = useTranslations("admin.finance");
   const tc = useTranslations("common");
+  const confirmAction = useConfirmAction();
   const { formatCurrency: fmt } = useFormatters();
   const crud = useResourceCrud<Invoice>("finance-invoices");
   // Attaching a patient is what puts the invoice on their /patient/billing
@@ -136,10 +138,10 @@ const Finance = () => {
               <RowActions
                 extra={
                   r.paid_at
-                    ? <Btn variant="ghost" onClick={() => void markUnpaid(r)}>{t("markUnpaid")}</Btn>
-                    : <Btn variant="ghost" onClick={() => void markPaid(r)}>{t("markPaid")}</Btn>
+                    ? <Btn variant="ghost" onClick={async () => { if (await confirmAction(t("markUnpaid"), { name: r.reference })) void markUnpaid(r); }}>{t("markUnpaid")}</Btn>
+                    : <Btn variant="ghost" onClick={async () => { if (await confirmAction(t("markPaid"), { name: r.reference })) void markPaid(r); }}>{t("markPaid")}</Btn>
                 }
-                onDelete={() => void crud.remove(r.id)}
+                onDelete={async () => { if (await confirmAction(tc("delete"), { name: r.reference, danger: true })) void crud.remove(r.id); }}
               />
             )}
           />

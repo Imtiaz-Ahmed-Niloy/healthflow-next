@@ -243,7 +243,10 @@ const mapPublicToHospital = (r: PublicHospital, w: Words, locale: Locale, doctor
   return {
     slug: r.slug || slugify(r.name || r.id || ""),
     name: r.name || w.untitled,
-    tag: r.tagline || w.partner,
+    // One badge for every hospital on the public pages. The tagline ("Medical
+    // College", "Diagnostic") used to fill it, which read as a set of
+    // categories; it still shows as the summary when there is no summary.
+    tag: w.partner,
     location: hospitalLocation(r),
     division: r.division,
     district: r.district,

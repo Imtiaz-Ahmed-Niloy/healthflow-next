@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, Btn, Pill, SectionTitle } from "@/components/admin/ui";
+import { useConfirmAction } from "@/components/common/ConfirmProvider";
 import { DataTable, Toolbar, Modal, Field, Input, Select, Chips, statusTone, RowActions, ConfirmDialog, exportCSV, type Column } from "@/components/admin/crud";
 import { useResourceCrud } from "@/components/admin/useResourceCrud";
 import { useNotifications } from "@/components/admin/NotificationProvider";
@@ -63,6 +64,7 @@ const suggestReference = (orders: LabOrder[]) => {
 const Lab = () => {
   const t = useTranslations("admin.lab");
   const tc = useTranslations("common");
+  const confirmAction = useConfirmAction();
   const locale = useLocale();
 
   const orderStatusLabel = (value: string) =>
@@ -164,7 +166,12 @@ const Lab = () => {
             empty={t("empty")}
             actions={r => <RowActions
               onDelete={() => setDel(r.id)}
-              extra={<Btn variant="ghost" onClick={() => void advance(r)}>
+              // Moving an order to its next step asks first. Entering or
+              // updating a result opens its own form, so that goes straight.
+              extra={<Btn variant="ghost" onClick={async () => {
+                const opensForm = r.status === "processing" || r.status === "reported";
+                if (opensForm || await confirmAction(t("advance"), { name: r.reference })) void advance(r);
+              }}>
                 {r.status === "reported" ? t("updateResult") : r.status === "processing" ? t("enterResult") : t("advance")}
               </Btn>}
             />}

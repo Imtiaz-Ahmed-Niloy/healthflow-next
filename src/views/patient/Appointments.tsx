@@ -10,6 +10,7 @@ import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
 import { useBookingClock } from "@/lib/appSettings";
 import { availabilityLabel, hoursOn, outsideAvailabilityReason, parseAvailability } from "@/lib/availability";
 import { Button } from "@/components/ui/button";
+import { useConfirmAction } from "@/components/common/ConfirmProvider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -60,6 +61,7 @@ const formatTime = (t: string) => {
 const Appointments = () => {
   const t = useTranslations("patient.appointments");
   const tc = useTranslations("common");
+  const confirmAction = useConfirmAction();
   const tb = useTranslations("booking");
   const locale = useLocale();
   // Monday first, one letter each, in the page's language.
@@ -275,7 +277,10 @@ const Appointments = () => {
                           {t("reschedule")}
                         </Button>
                         <Button size="sm" variant="outline" disabled={cancellingId === a.id}
-                          onClick={() => handleCancel(a.id, a.doctor?.name ?? t("theDoctor"))}>
+                          onClick={async () => {
+                            const doctor = a.doctor?.name ?? t("theDoctor");
+                            if (await confirmAction(t("cancel"), { name: doctor, danger: true })) void handleCancel(a.id, doctor);
+                          }}>
                           {cancellingId === a.id ? t("cancelling") : t("cancel")}
                         </Button>
                       </div>

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ResourcePage } from "@/components/admin/ResourcePage";
 import { Card, Kpi, Pill, Btn, SectionTitle } from "@/components/admin/ui";
+import { useConfirmAction } from "@/components/common/ConfirmProvider";
 import { statusTone } from "@/components/admin/crud";
 import {
   HeartPulse, Users, Building2, CalendarRange, Star, Activity,
@@ -248,6 +249,7 @@ const SHIFT_TONES: Record<string, string> = {
 const ShiftTab = () => {
   const t = useTranslations("admin.nurses");
   const tc = useTranslations("common");
+  const confirmAction = useConfirmAction();
   const shiftLabel = useShiftLabel();
   const { nurses, isLoading: nursesLoading, error: nursesError } = useNurses();
   const shiftsQuery = nurseShiftsApi.useList({ limit: 100 });
@@ -373,7 +375,7 @@ const ShiftTab = () => {
                             <div key={s.id} className={`relative group rounded-lg border px-2 py-1.5 text-[11px] ${SHIFT_TONES[s.shift_type] ?? SHIFT_TONES.Off}`}>
                               <div className="font-bold">{shiftLabel(s.shift_type)}</div>
                               {s.ward && <div className="opacity-70 truncate">{s.ward}</div>}
-                              <button onClick={() => void remove(s.id)} disabled={removing === s.id}
+                              <button onClick={async () => { if (await confirmAction(tc("remove"), { name: `${n.name} · ${t(`days.${day as "Mon"}`)} · ${shiftLabel(s.shift_type)}`, danger: true })) void remove(s.id); }} disabled={removing === s.id}
                                 aria-label={t("removeShiftFor", { shift: shiftLabel(s.shift_type), day: t(`days.${day as "Mon"}`), name: n.name })}
                                 className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 grid place-items-center disabled:opacity-50">
                                 {removing === s.id

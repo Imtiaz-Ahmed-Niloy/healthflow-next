@@ -5,6 +5,7 @@ import { Printer, Play, Download, Search, Settings2, ChevronRight } from "lucide
 import { useLocale, useTranslations } from "next-intl";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, Btn, Pill } from "@/components/admin/ui";
+import { useConfirmAction } from "@/components/common/ConfirmProvider";
 import { DataTable, Toolbar, Modal, ConfirmDialog, Field, Input, statusTone, RowActions, exportCSV, type Column } from "@/components/admin/crud";
 import { useResourceCrud } from "@/components/admin/useResourceCrud";
 import type { EmployeeRow } from "@/redux/api/resources";
@@ -45,6 +46,7 @@ const JOB_STATUSES = ["active", "probation", "suspended", "terminated", "resigne
 const Payroll = () => {
   const t = useTranslations("admin.payroll");
   const tc = useTranslations("common");
+  const confirmAction = useConfirmAction();
   const locale = useLocale();
   const { formatCurrency: fmt } = useFormatters();
 
@@ -463,7 +465,11 @@ const Payroll = () => {
               <div className="flex items-center gap-1">
                 {flow.indexOf(r.status) < flow.length - 1 && (
                   <button
-                    onClick={() => void advance(r)}
+                    onClick={async e => {
+                      e.stopPropagation();
+                      const label = t("advanceTo", { status: runStatusLabel(flow[flow.indexOf(r.status) + 1]) });
+                      if (await confirmAction(label, { name: runLabel(r) })) void advance(r);
+                    }}
                     title={t("advanceTo", { status: runStatusLabel(flow[flow.indexOf(r.status) + 1]) })}
                     aria-label={t("advanceTo", { status: runStatusLabel(flow[flow.indexOf(r.status) + 1]) })}
                     className="p-1.5 rounded-lg hover:bg-muted text-foreground/70"
@@ -532,7 +538,7 @@ const Payroll = () => {
           <div className="text-center py-12">
             <p className="text-sm text-muted-foreground mb-3">{t("noPayslips")}</p>
             {slipsRun && (
-              <button onClick={() => void process(slipsRun)} disabled={processing}
+              <button onClick={async () => { if (await confirmAction(t("processNow"), { name: runLabel(slipsRun) })) void process(slipsRun); }} disabled={processing}
                 className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground inline-flex items-center gap-1.5 disabled:opacity-60">
                 <Play className="h-3.5 w-3.5" /> {processing ? t("processing") : t("processNow")}
               </button>

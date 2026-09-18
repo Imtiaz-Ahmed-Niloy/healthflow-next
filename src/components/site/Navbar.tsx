@@ -19,15 +19,20 @@ const subscribeScroll = (onChange: () => void) => {
 const isAtTop = () => window.scrollY <= 0;
 
 /**
+ * Whether the page is scrolled all the way up — for a header that is
+ * see-through there and frosted from the first pixel of scroll. Re-renders
+ * only when it flips. The server render assumes the top, where a page loads.
+ */
+export const useAtTop = () => useSyncExternalStore(subscribeScroll, isAtTop, () => true);
+
+/**
  * `transparentAtTop` (the landing page): no background, blur or border while
  * the page is scrolled all the way up, so the hero's colour runs up behind
  * it; the usual frosted bar returns with the first pixel of scroll.
  */
 const Navbar = ({ transparentAtTop = false }: { transparentAtTop?: boolean }) => {
   const [open, setOpen] = useState(false);
-  // Re-renders only when it flips, not on every scroll event. The server
-  // render assumes the top, which is where a page loads.
-  const atTop = useSyncExternalStore(subscribeScroll, isAtTop, () => true);
+  const atTop = useAtTop();
   // The open mobile menu keeps its background, so its links stay readable.
   const clear = transparentAtTop && atTop && !open;
   const t = useTranslations();

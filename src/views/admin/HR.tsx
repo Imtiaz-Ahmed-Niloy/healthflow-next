@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, Kpi, SectionTitle, Pill, Btn } from "@/components/admin/ui";
 import { useFormatters } from "@/lib/appSettings";
+import { useConfirmAction } from "@/components/common/ConfirmProvider";
 import {
   Users2, UserPlus, Clock3, Wallet, CalendarCheck2, CheckCircle2, XCircle,
   CalendarDays, ArrowRight, ShieldAlert,
@@ -69,6 +70,7 @@ const days = (from: string, to: string) =>
 
 const HRPage = () => {
   const t = useTranslations("admin.hr");
+  const confirmAction = useConfirmAction();
   const tc = useTranslations("common");
   const locale = useLocale();
   const leaveLabel = (value: string) =>
@@ -242,11 +244,13 @@ const HRPage = () => {
                     {l.reason && <p className="text-xs text-foreground/70 mt-0.5 truncate">{l.reason}</p>}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <button type="button" disabled={deciding === l.id} onClick={() => decide(l.id, "approved")}
+                    <button type="button" disabled={deciding === l.id}
+                      onClick={async () => { if (await confirmAction(t("approve"), { name: l.employees?.name })) void decide(l.id, "approved"); }}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground disabled:opacity-60">
                       <CheckCircle2 className="h-3.5 w-3.5" /> {t("approve")}
                     </button>
-                    <button type="button" disabled={deciding === l.id} onClick={() => decide(l.id, "rejected")}
+                    <button type="button" disabled={deciding === l.id}
+                      onClick={async () => { if (await confirmAction(t("reject"), { name: l.employees?.name, danger: true })) void decide(l.id, "rejected"); }}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-border disabled:opacity-60">
                       <XCircle className="h-3.5 w-3.5" /> {t("reject")}
                     </button>

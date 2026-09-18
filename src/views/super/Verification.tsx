@@ -7,6 +7,7 @@ import { SuperLayout } from "@/components/super/SuperLayout";
 import { Card, Kpi, Pill, SectionTitle, Btn } from "@/components/admin/ui";
 import { Avatar } from "@/components/common/Avatar";
 import { useFormatters } from "@/lib/appSettings";
+import { useConfirmAction } from "@/components/common/ConfirmProvider";
 import { useListResourceQuery, useUpdateResourceMutation } from "@/redux/api/createResourceApi";
 import type { IdentityDocumentRow } from "@/redux/api/resources";
 import { BadgeCheck, FileText, ShieldQuestion, XCircle, Clock3 } from "lucide-react";
@@ -54,6 +55,9 @@ const Verification = () => {
     value === "pending" || value === "verified" || value === "rejected" ? t(`statuses.${value}`) : value;
 
   const { formatDateTime } = useFormatters();
+  // Verify asks first. Reject needs no second question: it already opens
+  // the note box, and its own button there is the confirmation.
+  const confirmAction = useConfirmAction();
   const [filter, setFilter] = useState<Filter>("pending");
   const [rejecting, setRejecting] = useState<string | null>(null);
   const [note, setNote] = useState("");
@@ -178,7 +182,8 @@ const Verification = () => {
                     <Pill tone={STATUS_TONE[row.status] ?? "info"}>{statusLabel(row.status)}</Pill>
 
                     {row.status !== "verified" && (
-                      <button type="button" disabled={saving} onClick={() => decide(row, "verified")}
+                      <button type="button" disabled={saving}
+                        onClick={async () => { if (await confirmAction(t("verify"), { name: row.profiles?.full_name })) void decide(row, "verified"); }}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold disabled:opacity-60">
                         <BadgeCheck className="h-3.5 w-3.5" /> {t("verify")}
                       </button>

@@ -7,6 +7,7 @@ import { BRAND_INFO } from "@/constants/brand";
 import LanguageSwitcher from "@/components/site/LanguageSwitcher";
 import SectionGlow, { GLOW } from "@/components/site/SectionGlow";
 import Footer from "@/components/site/Footer";
+import { useAtTop } from "@/components/site/Navbar";
 
 export const PromoBar = () => {
   const t = useTranslations("auth.layout");
@@ -24,6 +25,7 @@ export const PromoBar = () => {
 export const AuthHeader = () => {
   const pathname = usePathname();
   const onSignUp = pathname === "/signup";
+  const atTop = useAtTop();
   const t = useTranslations();
   const navLinks = [
     { label: t("nav.features"), to: "/features" },
@@ -32,7 +34,9 @@ export const AuthHeader = () => {
     { label: t("nav.contact"), to: "/contact" },
   ];
   return (
-    <header className="bg-card md:bg-background border-b border-border/50">
+    // See-through at the top of the page, like the main navbar, so the glow
+    // runs up behind it; frosted from the first pixel of scroll.
+    <header className={`sticky top-0 z-50 border-b transition-colors duration-300 ${atTop ? "border-transparent bg-transparent" : "backdrop-blur-md bg-card/80 md:bg-background/80 border-border/50"}`}>
       {/* Sized down on a phone like the main navbar's: at full size the
           logo, the name, the language switch and the button overran the row. */}
       <nav className="container mx-auto flex items-center justify-between gap-3 py-4">
@@ -62,8 +66,8 @@ export const AuthHeader = () => {
 
 /**
  * Sign in, sign up and password reset: the homepage's page colour with its
- * hero glow behind the form, faded at both edges since it sits between the
- * header and the footer rather than under a see-through navbar.
+ * hero glow running up behind the see-through header and the form, fading
+ * out towards the footer.
  *
  * On a phone the whole page is plain white instead, and the form sits on it
  * without a card: there is no room for a card's inset and a backdrop there.
@@ -71,12 +75,16 @@ export const AuthHeader = () => {
 export const AuthLayout = ({ children }: { children: React.ReactNode }) => (
   <div className="min-h-screen flex flex-col bg-card md:lp-page-bg overflow-x-clip">
     <PromoBar />
-    <AuthHeader />
-    <div className="relative isolate flex-1">
+    {/* The header sits inside the glow's area, so the glow shows through it
+        while it is see-through, with no negative margins to line up. At
+        least a screen tall, so the footer stays below the fold until the
+        page is scrolled. */}
+    <div className="relative isolate flex-1 min-h-screen">
+      <AuthHeader />
       {/* Behind the form and click-through: a positioned layer paints over
           an unpositioned <main>, and without these it swallowed every click. */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 hidden md:block">
-        <SectionGlow {...GLOW.hero} fade="both" />
+        <SectionGlow {...GLOW.hero} />
       </div>
       <main className="container mx-auto py-12">{children}</main>
     </div>

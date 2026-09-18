@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { SuperLayout } from "@/components/super/SuperLayout";
 import { Btn, Pill } from "@/components/admin/ui";
+import { useConfirmAction } from "@/components/common/ConfirmProvider";
 import {
   Plus, Search, Megaphone, Image as ImageIcon, Type, Pencil, Trash2,
   Eye, EyeOff, Calendar, Upload, X, Sparkles, ArrowRight,
@@ -69,6 +70,7 @@ const toDraft = (a: Announcement): Draft => ({
 const Page = () => {
   const t = useTranslations("super.announcements");
   const tc = useTranslations("common");
+  const confirmAction = useConfirmAction();
   const { formatDateTime } = useFormatters();
   const crud = useResourceCrud<Announcement>("announcements");
   const items = crud.items;
@@ -237,7 +239,7 @@ const Page = () => {
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => void crud.remove(a.id)}
+                      onClick={async () => { if (await confirmAction(tc("delete"), { name: a.title, danger: true })) void crud.remove(a.id); }}
                       className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                       title={tc("delete")}
                     >

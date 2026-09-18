@@ -207,11 +207,10 @@ const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
           // (AuthLayout), so the form sits on it with no card at all.
           className="md:bg-card md:rounded-3xl md:shadow-soft md:p-10">
           <div className="text-center">
-            {/* The stacked logo carries the wordmark, so the name is not printed
-                again under it — the heading stays for screen readers. */}
-            <img src={BRAND_INFO.logo} alt="" className="mx-auto h-28 w-auto" />
-            <h1 className="sr-only">{BRAND_INFO.name}</h1>
-            <p className="text-sm text-muted-foreground mt-1">{t("welcomeBack")}</p>
+            {/* A title and a line under it, as on sign-up, rather than the big
+                logo: the header above already carries the brand. */}
+            <h1 className="font-display text-xl sm:text-3xl text-primary">{t("welcomeBack")}</h1>
+            <p className="text-sm text-muted-foreground mt-2">{t("subtitle", { brand: BRAND_INFO.name })}</p>
           </div>
 
           {/* The same as on sign-up. Someone who signed up with Google signs

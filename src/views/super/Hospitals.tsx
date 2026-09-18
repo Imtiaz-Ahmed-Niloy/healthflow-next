@@ -14,6 +14,7 @@ import { statusTone } from "@/components/admin/crud";
 import { BD_DIVISIONS, BD_LOCATIONS } from "@/data/bdLocations";
 import { BD_UPAZILAS } from "@/data/bdUpazilas";
 import { useHospitalFields, useHospitalSteps } from "@/data/hospitalFields";
+import { useConfirm } from "@/components/common/ConfirmProvider";
 import type { Database } from "@/lib/supabase/types";
 
 /**
@@ -71,6 +72,7 @@ const Page = () => {
   // to provision has to come from here.
   const [pendingProvision, setPendingProvision] = useState<H | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const confirm = useConfirm();
 
   // Filter state
   const [division, setDivision] = useState("");
@@ -234,6 +236,16 @@ const Page = () => {
     }
   };
 
+  /** Approving is never one click: it publishes the hospital and creates a login. */
+  const askApprove = async (h: H) => {
+    const ok = await confirm({
+      title: t("approveConfirmTitle", { name: h.name }),
+      description: t("approveConfirmBody"),
+      confirmLabel: t("approve"),
+    });
+    if (ok) void approve(h);
+  };
+
   const copy = (v: string, label: string) => {
     navigator.clipboard.writeText(v);
     toast.success(t("copied", { label }));
@@ -249,22 +261,12 @@ const Page = () => {
         extraFilters,
         filterFn,
         steps: HOSPITAL_STEPS,
-        // Pending hospitals get Approve, which is what creates the login.
-        // Once there is a login, the key icon reads it back — the same
-        // affordance /admin/doctors has for doctors.
+        // Approving is done from the Pending badge in the status column. Once
+        // there is a login, the key icon reads it back — the same affordance
+        // /admin/doctors has for doctors.
         rowActions: h => (
           <>
-            {h.status === "pending" ? (
-              <button
-                type="button"
-                onClick={e => { e.stopPropagation(); void approve(h); }}
-                disabled={approving === h.id}
-                title={t("approveTitle")}
-                className="inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-[11px] font-semibold border border-border hover:bg-muted disabled:opacity-50">
-                <BadgeCheck className="h-3.5 w-3.5" />
-                {approving === h.id ? t("approving") : t("approve")}
-              </button>
-            ) : (
+            {h.status !== "pending" && (
               <button
                 type="button"
                 onClick={e => { e.stopPropagation(); void viewLogin(h); }}
@@ -334,7 +336,28 @@ const Page = () => {
           { key: "beds", label: t("columns.beds"), sortable: true, accessor: r => Number(r.beds ?? 0), render: r => r.beds ?? "—" },
           { key: "doctor_count", label: t("columns.doctors"), accessor: r => Number(r.doctor_count ?? 0), render: r => r.doctor_count ?? "—" },
           { key: "created_at", label: t("columns.added"), sortable: true, accessor: r => (r.created_at || "").slice(0, 10) },
-          { key: "status", label: t("columns.status"), render: r => <Pill tone={statusTone(r.status)}>{statusLabel(r.status)}</Pill> },
+          {
+            key: "status", label: t("columns.status"),
+            // Pending is the approve button: no separate action to hunt for,
+            // and it still asks first. Approved and suspended are plain labels.
+            render: r => r.status === "pending" ? (
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); void askApprove(r); }}
+                disabled={approving === r.id}
+                title={t("approveTitle")}
+                className="group/approve inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2.5 py-0.5 text-[11px] font-semibold text-yellow-800 ring-1 ring-inset ring-yellow-300 transition-colors hover:bg-primary hover:text-primary-foreground hover:ring-primary disabled:opacity-60">
+                {approving === r.id ? (
+                  <><Loader2 className="h-3 w-3 animate-spin" /> {t("approving")}</>
+                ) : (
+                  <>
+                    <span className="group-hover/approve:hidden">{statusLabel(r.status)}</span>
+                    <span className="hidden items-center gap-1 group-hover/approve:inline-flex"><BadgeCheck className="h-3 w-3" /> {t("approve")}</span>
+                  </>
+                )}
+              </button>
+            ) : <Pill tone={statusTone(r.status)}>{statusLabel(r.status)}</Pill>,
+          },
         ],
         fields: HOSPITAL_FIELDS,
       }} />

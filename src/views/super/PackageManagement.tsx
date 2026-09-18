@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { SuperLayout } from "@/components/super/SuperLayout";
+import { useConfirmAction } from "@/components/common/ConfirmProvider";
 import { toast } from "sonner";
 import {
   Pencil, Trash2, Plus, Gift, Search, X, AlertCircle, Loader2, ArrowUp, ArrowDown, ChevronsUpDown,
@@ -128,6 +129,8 @@ const SHOW_OFFERS_SECTION = false;
 
 const PackageManagement = () => {
   const { t, statusLabel, cycleLabel } = usePackageWords();
+  const tc = useTranslations("common");
+  const confirmAction = useConfirmAction();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -449,7 +452,7 @@ const PackageManagement = () => {
                             <Pencil className="h-4 w-4" />
                           </button>
                           <button
-                            onClick={() => void deleteAssignment(row)}
+                            onClick={async () => { if (await confirmAction(tc("remove"), { name: hospitalName(row), danger: true })) void deleteAssignment(row); }}
                             disabled={removing === row.id}
                             aria-label={t("removeFor", { name: hospitalName(row) })}
                             className="p-1.5 rounded hover:bg-destructive/10 text-destructive disabled:opacity-40"
@@ -531,7 +534,7 @@ const PackageManagement = () => {
                             className="p-1.5 rounded hover:bg-primary/10 text-primary">
                             <Pencil className="h-4 w-4" />
                           </button>
-                          <button onClick={() => void deleteOffer(offer)} disabled={removing === offer.id}
+                          <button onClick={async () => { if (await confirmAction(tc("delete"), { name: offer.code, danger: true })) void deleteOffer(offer); }} disabled={removing === offer.id}
                             aria-label={t("offers.delete", { code: offer.code })}
                             className="p-1.5 rounded hover:bg-destructive/10 text-destructive disabled:opacity-40">
                             {removing === offer.id

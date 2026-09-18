@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { SuperLayout } from "@/components/super/SuperLayout";
 import { Card, SectionTitle, Btn, Pill } from "@/components/admin/ui";
+import { useConfirmAction } from "@/components/common/ConfirmProvider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -54,6 +55,7 @@ const useScopeLabel = () => {
 
 const Roles = () => {
   const t = useTranslations("super.roles");
+  const confirmAction = useConfirmAction();
   const scopeLabel = useScopeLabel();
   const router = useRouter();
   const pathname = usePathname();
@@ -232,7 +234,7 @@ const Roles = () => {
                       <Pencil className="h-4 w-4" /> {t("configure")}
                     </Btn>
                     <button
-                      onClick={() => void remove(role)}
+                      onClick={async () => { if (await confirmAction(t("delete"), { name: role.label, danger: true })) void remove(role); }}
                       disabled={role.is_system || pendingDelete === role.id}
                       title={role.is_system ? t("systemNoDelete") : t("delete")}
                       aria-label={t("deleteName", { name: role.label })}

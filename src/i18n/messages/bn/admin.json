@@ -90,7 +90,7 @@
     "details": "বিস্তারিত",
     "deleteRecord": "রেকর্ড মুছুন",
     "deleteRecordBody": "এটি স্থায়ীভাবে মুছে যাবে।",
-    "deleteMany": "{count}টি রেকর্ড মুছবেন?",
+    "deleteMany": "{count} টি রেকর্ড মুছবেন?",
     "deleteManyBody": "একসাথে মোছার কাজটি আর ফেরানো যাবে না।"
   },
   "hospitalFields": {
@@ -225,8 +225,8 @@
     "createFailed": "তৈরি করা যায়নি",
     "updateFailed": "হালনাগাদ করা যায়নি",
     "deleteFailed": "মোছা যায়নি",
-    "bulkFailed": "{total}টির মধ্যে {failed}টি মোছা যায়নি",
-    "bulkRemoved": "{count}টি মুছে ফেলা হয়েছে"
+    "bulkFailed": "{total} টির মধ্যে {failed} টি মোছা যায়নি",
+    "bulkRemoved": "{count} টি মুছে ফেলা হয়েছে"
   },
   "admin": {
     "attendance": {
@@ -420,7 +420,7 @@
         "resigned": "পদত্যাগী"
       },
       "deductionFailed": "কর্তনটি সংরক্ষণ করা যায়নি",
-      "processed": "{count}টি পে-স্লিপ তৈরি হয়েছে",
+      "processed": "{count} টি পে-স্লিপ তৈরি হয়েছে",
       "processedBody": "{run} · মোট {gross} · নিট {net}",
       "processFailed": "এই বেতন প্রক্রিয়া করা যায়নি",
       "columns": {
@@ -750,7 +750,7 @@
       "noClockIns": "গত সাত দিনে কেউ হাজিরা দেননি।",
       "departmentMix": "বিভাগভিত্তিক কর্মী",
       "noEmployees": "এখনো কোনো কর্মী নিবন্ধিত নেই।",
-      "pendingCount": "{count}টি অপেক্ষমাণ",
+      "pendingCount": "{count} টি অপেক্ষমাণ",
       "nothingWaiting": "কিছু অপেক্ষায় নেই",
       "unknownEmployee": "অজানা কর্মী",
       "leaveTypes": {
@@ -821,7 +821,7 @@
       "resultPublished": "{reference}-এর ফল প্রকাশিত হয়েছে",
       "deleteRequest": "ল্যাব অনুরোধ মুছুন",
       "deleteRequestBody": "এটি অনুরোধ ও তার ফল স্থায়ীভাবে মুছে দেবে।",
-      "deleteMany": "{count}টি অনুরোধ মুছবেন?",
+      "deleteMany": "{count} টি অনুরোধ মুছবেন?",
       "catalogueTitle": "ল্যাব টেস্ট ও মূল্য তালিকা",
       "fields": {
         "reference": "রেফারেন্স",
@@ -842,7 +842,7 @@
     "notifications": {
       "title": "নোটিফিকেশন",
       "subtitle": "এই হাসপাতালে কী ঘটেছে, আর আপনি কোনটি এখনো পড়েননি",
-      "unreadCount": "{count}টি অপঠিত",
+      "unreadCount": "{count} টি অপঠিত",
       "allCaughtUp": "সব পড়া হয়ে গেছে",
       "filters": {
         "all": "সব",
@@ -941,11 +941,11 @@
       "weeklyRoster": "সাপ্তাহিক রোস্টার",
       "removeShiftFor": "{name}-এর {day}-এর {shift} শিফট সরান",
       "legend": "সংকেত:",
-      "saveFailedSome": "{total}টির মধ্যে {failed}টি সংরক্ষণ করা যায়নি",
+      "saveFailedSome": "{total} টির মধ্যে {failed} টি সংরক্ষণ করা যায়নি",
       "performanceSaved": "কর্মদক্ষতা সংরক্ষিত হয়েছে",
       "nursesSaved": "{count} জন নার্সের তথ্য সংরক্ষিত হয়েছে",
       "performanceTitle": "নার্সের কর্মদক্ষতা",
-      "unsavedRows": "{count}টি সারি সংরক্ষণ করা হয়নি",
+      "unsavedRows": "{count} টি সারি সংরক্ষণ করা হয়নি",
       "perf": {
         "patients": "রোগী",
         "hours": "ঘণ্টা",
@@ -1011,8 +1011,8 @@
       "advance": "পরের ধাপে →",
       "reject": "বাতিল",
       "reopen": "আবার খুলুন",
-      "showRejected": "{count}টি বাতিল রিকুইজিশন দেখুন",
-      "hideRejected": "{count}টি বাতিল রিকুইজিশন লুকান",
+      "showRejected": "{count} টি বাতিল রিকুইজিশন দেখুন",
+      "hideRejected": "{count} টি বাতিল রিকুইজিশন লুকান",
       "newRequisitionTitle": "নতুন রিকুইজিশন",
       "newRequisitionToast": "নতুন রিকুইজিশন: {title}",
       "notChosen": "এখনো বাছাই হয়নি",
@@ -1044,7 +1044,7 @@
       "to": "শেষ",
       "exportCsv": "সিএসভি রপ্তানি",
       "report": "প্রতিবেদন",
-      "rows": "{count}টি সারি",
+      "rows": "{count} টি সারি",
       "building": "তৈরি হচ্ছে…",
       "tryAgain": "আবার চেষ্টা করুন",
       "emptyRange": "এই সময়ের মধ্যে কিছু নেই। তারিখের পরিসর বাড়ান, অথবা এই প্রতিবেদনের পেছনের রেকর্ডগুলো এখনো নেই।",
@@ -1052,15 +1052,15 @@
     },
     "settings": {
       "title": "সেটিংস",
-      "subtitle": "পছন্দ, অনুমতি, নিরাপত্তা ও অডিট",
+      "subtitle": "সেটিংস, অনুমতি, নিরাপত্তা ও অডিট",
       "tabs": {
-        "preferences": "পছন্দ",
+        "preferences": "সেটিংস",
         "roles": "ভূমিকা",
         "security": "নিরাপত্তা",
         "audit": "অডিট"
       },
-      "preferences": "হাসপাতালের পছন্দ",
-      "applied": "পছন্দ পুরো সাইটে প্রয়োগ হয়েছে",
+      "preferences": "হাসপাতালের সেটিংস",
+      "applied": "সেটিংস পুরো সাইটে প্রয়োগ হয়েছে",
       "timezone": "টাইমজোন",
       "language": "ডিফল্ট ভাষা",
       "dateFormat": "তারিখের ফরম্যাট",
@@ -1231,7 +1231,7 @@
       "subtitle": "চিকিৎসা ও এইচআর সনদপত্র ইস্যু ও পরিচালনা করুন",
       "issueNew": "নতুন সনদপত্র ইস্যু করুন",
       "issueNewNote": "ইস্যু করতে একটি টেমপ্লেট বেছে নিন। রোগী ও কর্মী দুই ধরনের সনদপত্রই আছে।",
-      "issuedCount": "{count}টি ইস্যু হয়েছে",
+      "issuedCount": "{count} টি ইস্যু হয়েছে",
       "searchPlaceholder": "নম্বর, নাম বা ধরন দিয়ে খুঁজুন…",
       "all": "সব",
       "allTypes": "সব ধরন",
@@ -1489,13 +1489,13 @@
       "halfDischargedBody": "ভর্তি পাতা থেকে অবস্থা \"ছাড়পত্র প্রাপ্ত\" করুন",
       "kpis": {
         "totalBeds": "মোট বেড",
-        "acrossWards": "{count}টি ওয়ার্ডে",
+        "acrossWards": "{count} টি ওয়ার্ডে",
         "capacity": "{pct}% পূর্ণ",
         "livePatients": "বর্তমান রোগীর সংখ্যা",
         "readyForAdmission": "ভর্তির জন্য প্রস্তুত",
         "justNow": "এইমাত্র হালনাগাদ",
         "totalCabins": "মোট কেবিন",
-        "acrossFloors": "{count}টি তলায়",
+        "acrossFloors": "{count} টি তলায়",
         "activeStays": "চলমান অবস্থান",
         "readyToBook": "বুকিংয়ের জন্য প্রস্তুত",
         "dailyRevenue": "দৈনিক আয়",
@@ -1665,7 +1665,7 @@
           "feedback": "গড় মতামত"
         },
         "title": "ডাক্তারের পারফরম্যান্স",
-        "unsaved": "{count}টি সারি সংরক্ষিত হয়নি",
+        "unsaved": "{count} টি সারি সংরক্ষিত হয়নি",
         "columns": {
           "doctor": "ডাক্তার",
           "volume": "রোগীর সংখ্যা",
@@ -1683,7 +1683,7 @@
         },
         "noChanges": "সংরক্ষণের মতো কোনো পরিবর্তন নেই",
         "save": "মেট্রিক্স সংরক্ষণ করুন",
-        "saveFailed": "{total}টির মধ্যে {failed}টি সংরক্ষণ করা যায়নি",
+        "saveFailed": "{total} টির মধ্যে {failed} টি সংরক্ষণ করা যায়নি",
         "saved": "{count, plural, one {পারফরম্যান্স সংরক্ষিত হয়েছে} other {#জন ডাক্তারের তথ্য সংরক্ষিত হয়েছে}}"
       },
       "scheduling": {
@@ -1975,7 +1975,7 @@
         "budgetCreated": "বাজেট তৈরি হয়েছে",
         "budgetUpdated": "বাজেট হালনাগাদ হয়েছে",
         "budgetSaveFailed": "বাজেটটি সংরক্ষণ করা যায়নি। ওই খাত ও মাসের জন্য হয়তো আগেই একটি আছে।",
-        "matched": "{count}টি ভাউচার মিলেছে"
+        "matched": "{count} টি ভাউচার মিলেছে"
       },
       "form": {
         "costCenter": "খরচ কেন্দ্র",
@@ -2026,7 +2026,7 @@
       "reconcile": {
         "title": "ব্যাংক মিলকরণ",
         "matching": "মেলানো হচ্ছে…",
-        "mark": "{count, plural, =0 {মিলেছে হিসেবে চিহ্নিত করুন} other {#টি মিলেছে হিসেবে চিহ্নিত করুন}}",
+        "mark": "{count, plural, =0 {মিলেছে হিসেবে চিহ্নিত করুন} other {# টি মিলেছে হিসেবে চিহ্নিত করুন}}",
         "intro": "ব্যাংক বিবরণীতে যে এন্ট্রিগুলো আছে সেগুলোতে টিক দিন।",
         "statementDate": "বিবরণীর তারিখ"
       }

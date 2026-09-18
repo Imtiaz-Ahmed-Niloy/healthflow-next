@@ -57,14 +57,14 @@
   },
   "specialists": {
     "heading": "আপনার <g>বিশেষজ্ঞ</g> খুঁজুন",
-    "showing": "{filters} এর জন্য {count}টি ফলাফল দেখানো হচ্ছে",
+    "showing": "{filters} এর জন্য {count} টি ফলাফল দেখানো হচ্ছে",
     "none": "আপনার ফিল্টারের সাথে কোনো বিশেষজ্ঞ মেলেনি।",
     "viewAll": "সব ডাক্তার দেখুন"
   },
   "hubs": {
     "heading": "যাচাইকৃত <g>হেলথ হাব</g>",
     "description": "যাচাইকৃত হাসপাতাল, ক্লিনিক ও ডায়াগনস্টিক সেন্টার — সব এক নিরাপদ প্ল্যাটফর্মে, যাতে আপনি মানসম্মত চিকিৎসা পান, দ্রুত সিদ্ধান্ত নিতে পারেন এবং রোগীরা ভালো ফল পান।",
-    "beds": "{count}টি বেড",
+    "beds": "{count} টি বেড",
     "viewAll": "সব হাসপাতাল দেখুন"
   },
   "pricing": {
@@ -77,21 +77,21 @@
   "directory": {
     "backHome": "হোমে ফিরে যান",
     "doctorsTitle": "সব <g>ডাক্তার</g>",
-    "doctorsSubtitle": "{count}টি বিভাগের বিশ্বস্ত বিশেষজ্ঞদের পূর্ণ তালিকা দেখুন।",
+    "doctorsSubtitle": "{count} টি বিভাগের বিশ্বস্ত বিশেষজ্ঞদের পূর্ণ তালিকা দেখুন।",
     "doctorsSubtitleAll": "সব বিভাগের বিশ্বস্ত বিশেষজ্ঞদের পূর্ণ তালিকা দেখুন।",
     "doctorsNone": "আপনার খোঁজের সাথে কোনো ডাক্তার মেলেনি।",
     "hospitalsTitle": "সব পরিবেশবান্ধব হাসপাতাল",
     "hospitalsSubtitle": "দেশজুড়ে আমাদের কার্বন-নিরপেক্ষ, প্রকৃতিঘনিষ্ঠভাবে তৈরি চিকিৎসাকেন্দ্রগুলোর পুরো নেটওয়ার্ক দেখুন।",
     "hospitalsPlaceholder": "নাম, শহর বা বিশেষজ্ঞতা দিয়ে হাসপাতাল খুঁজুন...",
     "hospitalsNone": "আপনার খোঁজের সাথে কোনো হাসপাতাল মেলেনি।",
-    "reviews": "{count}টি রিভিউ"
+    "reviews": "{count} টি রিভিউ"
   },
   "hospitalDetail": {
     "loading": "হাসপাতাল লোড হচ্ছে…",
     "notFound": "হাসপাতাল পাওয়া যায়নি",
     "backAll": "সব হাসপাতালে ফিরে যান",
     "allHospitals": "সব হাসপাতাল",
-    "reviews": "{count}টি রিভিউ",
+    "reviews": "{count} টি রিভিউ",
     "est": "প্রতিষ্ঠা {year}",
     "logoAlt": "{name}-এর লোগো",
     "stats": {
@@ -209,7 +209,7 @@
     "bioIndependent": "{name} একজন {specialty} বিশেষজ্ঞ, স্বাধীনভাবে প্র্যাকটিস করেন।",
     "bioAt": "{name} {places}-এ কর্মরত একজন {specialty} বিশেষজ্ঞ।",
     "and": " ও ",
-    "atPlaces": "{count}টি জায়গায় বসেন — প্রতিটির সময় নিচে দেওয়া আছে",
+    "atPlaces": "{count} টি জায়গায় বসেন — প্রতিটির সময় নিচে দেওয়া আছে",
     "available": "যখন পাওয়া যাবে: {hours}",
     "consultation": "৩০ মিনিটের পরামর্শ",
     "gender": {
@@ -226,7 +226,7 @@
     "otherSpecialists": "অন্যান্য {specialty} বিশেষজ্ঞ"
   },
   "doctorCard": {
-    "reviews": "{count}টি রিভিউ",
+    "reviews": "{count} টি রিভিউ",
     "practicingAt": "যেখানে রোগী দেখেন",
     "hoursNotSet": "সময় দেওয়া নেই",
     "viewProfile": "প্রোফাইল দেখুন",
@@ -234,7 +234,7 @@
     "notBookable": "এখনো HealthFlow-এ বুকিং নিচ্ছেন না"
   },
   "hospitalCard": {
-    "beds": "{count}টি বেড",
+    "beds": "{count} টি বেড",
     "doctors": "{count} জন ডাক্তার",
     "call": "কল করুন",
     "noPhone": "ফোন নেই",
@@ -329,7 +329,7 @@
     "minRead": "{count} মিনিটে পড়ুন",
     "min": "{count} মিনিট",
     "byReads": "{author} · {count} বার পড়া হয়েছে",
-    "articles": "{count}টি লেখা",
+    "articles": "{count} টি লেখা",
     "read": "পড়ুন",
     "publication": "দ্য হিলিং টাইমস",
     "linkCopied": "লিংক কপি হয়েছে",
@@ -430,7 +430,7 @@
     "total": "মোট",
     "cartEmpty": "কার্ট খালি",
     "booked": "টেস্ট বুক হয়েছে",
-    "bookedDetail": "{count}টি টেস্ট · ${total}",
+    "bookedDetail": "{count} টি টেস্ট · ${total}",
     "book": "টেস্ট বুক করুন",
     "secure": "ফলাফল নিরাপদে আপনার পোর্টালে পৌঁছে যাবে",
     "browse": "হাসপাতাল দেখুন →"
@@ -442,7 +442,7 @@
     "intro": "কক্ষের ধরন ও তারিখ বেছে নিশ্চিত করুন। আমরা আপনার জায়গা প্রস্তুত করে একটি চেক-ইন পাস পাঠাব।",
     "available": "খালি কক্ষ",
     "perNight": "/ রাত",
-    "availableOf": "{total}টির মধ্যে {available}টি খালি",
+    "availableOf": "{total} টির মধ্যে {available} টি খালি",
     "selected": "বাছাই করা",
     "summary": "বুকিংয়ের সারাংশ",
     "full": "কক্ষটি পূর্ণ",

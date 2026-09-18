@@ -183,10 +183,9 @@ const Signup = () => {
           className="w-full md:max-w-lg md:bg-card md:rounded-3xl md:shadow-soft md:p-10"
         >
           <div className="text-center">
-            <span className="inline-flex rounded-full bg-chip text-chip-foreground px-4 py-1.5 text-[10px] font-bold tracking-widest">
-              HEALTHFLOW
-            </span>
-            <h1 className="mt-5 font-display text-3xl text-primary">{t("title")}</h1>
+            {/* text-xl on a phone keeps "Create your patient account" to one
+                line; at text-3xl it wrapped. */}
+            <h1 className="font-display text-xl sm:text-3xl text-primary">{t("title")}</h1>
             <p className="text-sm text-muted-foreground mt-2">{t("subtitle")}</p>
           </div>
 
@@ -496,14 +495,6 @@ const Signup = () => {
                 t("submit")
               )}
             </button>
-
-            <div className="rounded-2xl bg-muted/40 p-3 flex items-center gap-3 text-xs text-muted-foreground">
-              <div className="flex -space-x-2">
-                <div className="h-6 w-6 rounded-full bg-chip border-2 border-card" />
-                <div className="h-6 w-6 rounded-full bg-accent border-2 border-card" />
-              </div>
-              <p>{t("quote")}</p>
-            </div>
 
             <p className="text-center text-xs text-muted-foreground">
               {t("haveAccount")}{" "}

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, Btn, Pill } from "@/components/admin/ui";
+import { useConfirmAction } from "@/components/common/ConfirmProvider";
 import { Modal, Field, Input, TextArea, Select, statusTone } from "@/components/admin/crud";
 import { useResourceCrud } from "@/components/admin/useResourceCrud";
 import { useNotifications } from "@/components/admin/NotificationProvider";
@@ -139,6 +140,7 @@ const suggestNumber = (rows: Certificate[], type: CertType) => {
 export default function Administration() {
   const t = useTranslations("admin.certificates");
   const tc = useTranslations("common");
+  const confirmAction = useConfirmAction();
   const typeLabel = (type: CertType) => t(`types.${type}`);
   const categoryLabel = (category: "Patient" | "Employee") =>
     category === "Patient" ? t("categories.patient") : t("categories.employee");
@@ -330,7 +332,7 @@ export default function Administration() {
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         <Btn variant="ghost" onClick={() => setPreview(c)}>{t("preview")}</Btn>
                         <Btn variant="ghost" onClick={() => setEditing(c)}>{tc("edit")}</Btn>
-                        <Btn variant="danger" onClick={() => void crud.remove(c.id)}>{tc("delete")}</Btn>
+                        <Btn variant="danger" onClick={async () => { if (await confirmAction(tc("delete"), { name: c.recipient_name, danger: true })) void crud.remove(c.id); }}>{tc("delete")}</Btn>
                       </td>
                     </tr>
                   ))}

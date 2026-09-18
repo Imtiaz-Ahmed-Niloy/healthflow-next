@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PortalLayout } from "@/components/portal/PortalLayout";
+import { useConfirmAction } from "@/components/common/ConfirmProvider";
 import { useAppDispatch } from "@/redux/hooks";
 import { invalidateResource } from "@/redux/api/createResourceApi";
 import { mediaUrl } from "@/lib/media";
@@ -389,6 +390,7 @@ const Post = ({
   const t = useTranslations("portal.community");
   const when = useWhen();
   const dispatch = useAppDispatch();
+  const confirmAction = useConfirmAction();
   const [showComments, setShowComments] = useState(false);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -485,7 +487,7 @@ const Post = ({
         </span>
         {canDelete && (
           <button
-            onClick={() => void deletePost()}
+            onClick={async () => { if (await confirmAction(t("removePost"), { danger: true })) void deletePost(); }}
             title={t("removePost")}
             aria-label={t("removePost")}
             className="p-1.5 rounded-lg text-destructive hover:bg-destructive/10 shrink-0"

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { SuperLayout } from "@/components/super/SuperLayout";
 import { Card, Kpi, SectionTitle, Btn, Pill } from "@/components/admin/ui";
+import { useConfirmAction } from "@/components/common/ConfirmProvider";
 import { Modal, ConfirmDialog } from "@/components/admin/crud";
 import { useGetResourceQuery } from "@/redux/api/createResourceApi";
 import { platformInvoicesApi, type PlatformInvoiceRow } from "@/redux/api/resources";
@@ -94,6 +95,7 @@ const isOverdue = (invoice: PlatformInvoiceRow) =>
 
 const Billing = () => {
   const t = useTranslations("super.billing");
+  const confirmAction = useConfirmAction();
   const locale = useLocale();
   const monthLabel = monthLabelIn(locale);
   const dayLabel = dayLabelIn(locale);
@@ -509,7 +511,7 @@ const Billing = () => {
                       >
                         {invoice.status !== "paid" && invoice.status !== "void" && (
                           <button
-                            onClick={() => void setStatus(invoice, "paid")}
+                            onClick={async () => { if (await confirmAction(t("actions.markPaid"), { name: invoiceNo(invoice) })) void setStatus(invoice, "paid"); }}
                             disabled={busyId === invoice.id}
                             title={t("actions.markPaid")}
                             aria-label={t("actions.markPaidNo", { no: invoiceNo(invoice) })}
@@ -522,7 +524,7 @@ const Billing = () => {
                         )}
                         {invoice.status !== "pending" && (
                           <button
-                            onClick={() => void setStatus(invoice, "pending")}
+                            onClick={async () => { if (await confirmAction(t("actions.reopen"), { name: invoiceNo(invoice) })) void setStatus(invoice, "pending"); }}
                             disabled={busyId === invoice.id}
                             title={t("actions.reopen")}
                             aria-label={t("actions.reopenNo", { no: invoiceNo(invoice) })}
@@ -533,7 +535,7 @@ const Billing = () => {
                         )}
                         {invoice.status !== "void" && (
                           <button
-                            onClick={() => void setStatus(invoice, "void")}
+                            onClick={async () => { if (await confirmAction(t("actions.void"), { name: invoiceNo(invoice), danger: true })) void setStatus(invoice, "void"); }}
                             disabled={busyId === invoice.id}
                             title={t("actions.void")}
                             aria-label={t("actions.voidNo", { no: invoiceNo(invoice) })}

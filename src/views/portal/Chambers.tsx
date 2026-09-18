@@ -8,6 +8,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { Modal, ConfirmDialog } from "@/components/admin/crud";
 import { Btn, Pill } from "@/components/admin/ui";
+import { useConfirmAction } from "@/components/common/ConfirmProvider";
 import {
   ChamberForm, chamberPayload, draftFromChamber, emptyChamberDraft, type ChamberDraft,
 } from "@/components/admin/ChamberForm";
@@ -30,6 +31,7 @@ const errorOf = async (res: Response) => (await res.json().catch(() => null))?.e
 const Chambers = () => {
   const t = useTranslations("portal.chambers");
   const tc = useTranslations("common");
+  const confirmAction = useConfirmAction();
   const locale = useLocale();
   const { formatCurrency } = useFormatters();
   const [chambers, setChambers] = useState<Chamber[]>([]);
@@ -179,7 +181,7 @@ const Chambers = () => {
                       {busy === c.id && <Loader2 className="h-4 w-4 animate-spin" />} {t("closeToBookings")}
                     </Btn>
                   ) : (
-                    <Btn variant="ghost" onClick={() => void setOpen(c, true)} disabled={busy === c.id}>
+                    <Btn variant="ghost" onClick={async () => { if (await confirmAction(t("reopen"), { name: c.name })) void setOpen(c, true); }} disabled={busy === c.id}>
                       {busy === c.id && <Loader2 className="h-4 w-4 animate-spin" />} {t("reopen")}
                     </Btn>
                   )}

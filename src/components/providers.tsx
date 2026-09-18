@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import PlatformSettings from "@/components/common/PlatformSettings";
+import { ConfirmProvider } from "@/components/common/ConfirmProvider";
 import "@/lib/appSettings";
 
 export default function Providers({ children }: { children: ReactNode }) {
@@ -20,7 +21,8 @@ export default function Providers({ children }: { children: ReactNode }) {
         {/* Applies the platform's defaults before anything formats a date, and
             carries the maintenance notice onto every panel. */}
         <PlatformSettings />
-        {children}
+        {/* The app-wide "Are you sure?" behind useConfirm(). */}
+        <ConfirmProvider>{children}</ConfirmProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

@@ -6,6 +6,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ResourcePage } from "@/components/admin/ResourcePage";
 import { WeeklyHoursField } from "@/components/admin/WeeklyHoursField";
 import { Card, Kpi, Pill, Btn, SectionTitle } from "@/components/admin/ui";
+import { useConfirmAction } from "@/components/common/ConfirmProvider";
 import { statusTone, Modal, ConfirmDialog, Field, Input } from "@/components/admin/crud";
 import { Avatar } from "@/components/common/Avatar";
 import { useSession } from "@/lib/auth/useSession";
@@ -757,6 +758,7 @@ const hhmm = (value: string) => value.slice(0, 5);
 const SchedulingTab = () => {
   const t = useTranslations("admin.doctors.scheduling");
   const tc = useTranslations("common");
+  const confirmAction = useConfirmAction();
   const shiftLabel = (value: string) =>
     value in SHIFT_KEYS ? t(`shiftTypes.${SHIFT_KEYS[value as keyof typeof SHIFT_KEYS]}`) : value;
   const dayLabel = (day: (typeof DAYS)[number]) => t(`days.${day}`);
@@ -907,7 +909,7 @@ const SchedulingTab = () => {
                               </div>
                               <div className="opacity-80">{shiftLabel(shift.shift_type)}</div>
                               {shift.ward && <div className="opacity-70 truncate">{shift.ward}</div>}
-                              <button onClick={() => void remove(shift.id)}
+                              <button onClick={async () => { if (await confirmAction(tc("remove"), { name: `${doctor.name} · ${dayLabel(day)} · ${shiftLabel(shift.shift_type)}`, danger: true })) void remove(shift.id); }}
                                 disabled={removing === shift.id}
                                 aria-label={t("aria.remove", { shift: shiftLabel(shift.shift_type), name: doctor.name, day: dayLabel(day) })}
                                 className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 grid place-items-center disabled:opacity-50">

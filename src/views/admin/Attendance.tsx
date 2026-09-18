@@ -7,6 +7,7 @@ import { Card, Btn, Pill, SectionTitle, Kpi } from "@/components/admin/ui";
 import { Chips, Modal, Field, Input, Select } from "@/components/admin/crud";
 import { useResourceCrud } from "@/components/admin/useResourceCrud";
 import { useNotifications } from "@/components/admin/NotificationProvider";
+import { useConfirmAction } from "@/components/common/ConfirmProvider";
 import { Users2, CalendarCheck2, AlertTriangle, Plane, X, Printer } from "lucide-react";
 import { getEligibleEmployees } from "@/lib/payroll";
 import type { EmployeeRow } from "@/redux/api/resources";
@@ -89,6 +90,7 @@ type Tab = "log" | "sheet" | "leave" | "holidays";
 const Attendance = () => {
   const t = useTranslations("admin.attendance");
   const tc = useTranslations("common");
+  const confirmAction = useConfirmAction();
   const locale = useLocale();
   const words = useAttendanceWords();
   const { push } = useNotifications();
@@ -455,8 +457,8 @@ const Attendance = () => {
                         </td>
                         <td className="px-4 py-3 text-right whitespace-nowrap">
                           {l.status === "pending" && <>
-                            <Btn variant="ghost" onClick={() => void decideLeave(l, "approved")}>{t("approve")}</Btn>
-                            <Btn variant="danger" onClick={() => void decideLeave(l, "rejected")}>{t("reject")}</Btn>
+                            <Btn variant="ghost" onClick={async () => { if (await confirmAction(t("approve"), { name: l.employees?.name })) void decideLeave(l, "approved"); }}>{t("approve")}</Btn>
+                            <Btn variant="danger" onClick={async () => { if (await confirmAction(t("reject"), { name: l.employees?.name, danger: true })) void decideLeave(l, "rejected"); }}>{t("reject")}</Btn>
                           </>}
                         </td>
                       </tr>
@@ -515,7 +517,7 @@ const Attendance = () => {
                 <div key={h.id} className="flex items-center gap-4 px-4 py-3 rounded-xl bg-chip/30">
                   <span className="font-mono text-xs text-muted-foreground">{h.holiday_on}</span>
                   <span className="font-semibold text-primary">{h.name}</span>
-                  <Btn variant="danger" className="ml-auto" onClick={() => void holidays.remove(h.id)}>{tc("remove")}</Btn>
+                  <Btn variant="danger" className="ml-auto" onClick={async () => { if (await confirmAction(tc("remove"), { name: h.name, danger: true })) void holidays.remove(h.id); }}>{tc("remove")}</Btn>
                 </div>
               ))}
             </div>

@@ -2,6 +2,9 @@
   "common": {
     "language": "Language",
     "changeLanguage": "Change language",
+    "confirmTitle": "{action}?",
+    "confirmTitleFor": "{action}: {name}?",
+    "confirmBody": "This changes it straight away. Please confirm to go ahead.",
     "search": "Search",
     "save": "Save",
     "saving": "Saving…",

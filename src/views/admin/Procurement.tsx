@@ -7,6 +7,7 @@ import { Card, Btn, Pill } from "@/components/admin/ui";
 import { Modal, Field, Input, Select } from "@/components/admin/crud";
 import { useResourceCrud } from "@/components/admin/useResourceCrud";
 import { useNotifications } from "@/components/admin/NotificationProvider";
+import { useConfirmAction } from "@/components/common/ConfirmProvider";
 import { WorkOrderModal } from "@/components/admin/WorkOrderModal";
 import { useFormatters } from "@/lib/appSettings";
 import type { Tables } from "@/lib/supabase/types";
@@ -57,6 +58,7 @@ const suggestWorkOrderReference = (rows: { reference: string }[]) => {
 const Procurement = () => {
   const t = useTranslations("admin.procurement");
   const tc = useTranslations("common");
+  const confirmAction = useConfirmAction();
   const { formatCurrency } = useFormatters();
   const fmt = (n: number | string) => formatCurrency(Number(n));
   const stageLabel = (value: string) =>
@@ -150,8 +152,8 @@ const Procurement = () => {
                     )}
                     {items.map(it => card(it, <>
                       <Btn variant="ghost" onClick={() => setView(it)}>{t("view")}</Btn>
-                      {it.stage !== "delivered" && <Btn onClick={() => void advance(it)}>{t("advance")}</Btn>}
-                      {it.stage === "pending" && <Btn variant="danger" onClick={() => void reject(it)}>{t("reject")}</Btn>}
+                      {it.stage !== "delivered" && <Btn onClick={async () => { if (await confirmAction(t("advance"), { name: it.reference })) void advance(it); }}>{t("advance")}</Btn>}
+                      {it.stage === "pending" && <Btn variant="danger" onClick={async () => { if (await confirmAction(t("reject"), { name: it.reference, danger: true })) void reject(it); }}>{t("reject")}</Btn>}
                     </>))}
                   </div>
                 </div>
@@ -169,7 +171,7 @@ const Procurement = () => {
                 <div className="grid md:grid-cols-4 gap-4 mt-4">
                   {rejected.map(it => card(it, <>
                     <Btn variant="ghost" onClick={() => setView(it)}>{t("view")}</Btn>
-                    <Btn variant="outline" onClick={() => void reopen(it)}>{t("reopen")}</Btn>
+                    <Btn variant="outline" onClick={async () => { if (await confirmAction(t("reopen"), { name: it.reference })) void reopen(it); }}>{t("reopen")}</Btn>
                   </>))}
                 </div>
               )}
