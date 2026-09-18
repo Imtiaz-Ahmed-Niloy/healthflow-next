@@ -7,6 +7,8 @@ import { useTranslations } from "next-intl";
 import { ArrowLeft, Search, MapPin, SlidersHorizontal, X, Stethoscope } from "lucide-react";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
+import SectionGlow, { GLOW } from "@/components/site/SectionGlow";
+import { gradient } from "@/components/site/GradientWords";
 import { DoctorCard } from "@/components/site/DoctorCard";
 import { useDoctors } from "@/hooks/useDoctors";
 import { useSpecialties } from "@/hooks/useSpecialties";
@@ -108,16 +110,21 @@ const Doctors = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-hero">
+    // The homepage's surface: its page colour and hero glow, and the brand
+    // gradient on part of the title.
+    <div className="min-h-screen lp-page-bg overflow-x-clip">
       <Navbar />
-      <main className="container mx-auto py-16">
+      {/* At least a screen tall, so the footer stays below the fold while the
+          doctors load instead of riding up under the spinner. */}
+      <main className="relative isolate container mx-auto min-h-screen py-16">
+        <SectionGlow {...GLOW.hero} bleed />
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
           <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-primary hover:gap-2 transition-all mb-6">
             <ArrowLeft className="h-4 w-4" /> {t("backHome")}
           </Link>
 
           <div className="mb-10">
-            <h1 className="font-display text-4xl md:text-5xl text-primary">{t("doctorsTitle")}</h1>
+            <h1 className="font-display text-4xl md:text-5xl text-primary">{t.rich("doctorsTitle", gradient)}</h1>
             <p className="text-muted-foreground mt-3 max-w-xl">
               {specialties.length ? t("doctorsSubtitle", { count: specialties.length }) : t("doctorsSubtitleAll")}
             </p>
@@ -130,7 +137,7 @@ const Doctors = () => {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="flex-1 bg-transparent px-3 py-2 text-base outline-none placeholder:text-muted-foreground"
+                className="min-w-0 flex-1 bg-transparent px-3 py-2 text-base outline-none placeholder:text-muted-foreground"
                 placeholder={tf("placeholder")}
               />
               {query && (

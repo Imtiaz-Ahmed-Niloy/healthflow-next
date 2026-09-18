@@ -178,7 +178,9 @@ const Signup = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="rounded-3xl bg-card shadow-soft p-8 md:p-10 w-full max-w-lg"
+          // A card from tablets up; on a phone the page itself is white
+          // (AuthLayout), so the form sits on it with no card at all.
+          className="w-full md:max-w-lg md:bg-card md:rounded-3xl md:shadow-soft md:p-10"
         >
           <div className="text-center">
             <span className="inline-flex rounded-full bg-chip text-chip-foreground px-4 py-1.5 text-[10px] font-bold tracking-widest">

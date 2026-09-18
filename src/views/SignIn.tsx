@@ -203,7 +203,9 @@ const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
         <div className="hidden lg:flex flex-col gap-6">{left.map(a => <AdCard key={a.id} ad={a} />)}</div>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
-          className="rounded-3xl bg-card shadow-soft p-8 md:p-10">
+          // A card from tablets up; on a phone the page itself is white
+          // (AuthLayout), so the form sits on it with no card at all.
+          className="md:bg-card md:rounded-3xl md:shadow-soft md:p-10">
           <div className="text-center">
             {/* The stacked logo carries the wordmark, so the name is not printed
                 again under it — the heading stays for screen readers. */}

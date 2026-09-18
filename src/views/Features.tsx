@@ -8,6 +8,7 @@ import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import SectionGlow, { GLOW } from "@/components/site/SectionGlow";
 import { GradientText } from "@/components/site/GradientWords";
+import { titleReveal } from "@/components/site/titleReveal";
 const dashboard = "/assets/feature-dashboard.jpg";
 const n1 = "/assets/medical-1.jpg";
 const n2 = "/assets/medical-2.jpg";
@@ -55,7 +56,7 @@ const Features = ({ hero, content }: { hero: CmsHeroFields; content: FeaturesCon
         <section className="relative isolate container mx-auto py-16">
           <SectionGlow {...GLOW.teal} bleed />
           <div className="text-center max-w-2xl mx-auto">
-            <h2 className="font-display text-3xl md:text-4xl text-primary"><GradientText text={architecture.title} /></h2>
+            <motion.h2 {...titleReveal} className="font-display text-3xl md:text-4xl text-primary"><GradientText text={architecture.title} /></motion.h2>
             <p className="text-muted-foreground mt-3 whitespace-pre-line">{architecture.subtitle}</p>
           </div>
           {architecture.tabs.length > 0 && (
@@ -98,7 +99,7 @@ const Features = ({ hero, content }: { hero: CmsHeroFields; content: FeaturesCon
               ))}
             </div>
             <div>
-              <h2 className="font-display text-3xl md:text-4xl">{logic.title}</h2>
+              <motion.h2 {...titleReveal} className="font-display text-3xl md:text-4xl">{logic.title}</motion.h2>
               <p className="font-display text-2xl md:text-3xl text-accent mt-1">{logic.accentTitle}</p>
               <p className="opacity-70 mt-4 text-sm leading-relaxed max-w-md whitespace-pre-line">{logic.description}</p>
               <div className="mt-8 space-y-5">
@@ -126,7 +127,7 @@ const Features = ({ hero, content }: { hero: CmsHeroFields; content: FeaturesCon
           <SectionGlow {...GLOW.cyan} bleed />
           <div className="grid lg:grid-cols-2 gap-12">
             <div>
-              <h2 className="font-display text-3xl md:text-4xl text-primary"><GradientText text={core.title} /></h2>
+              <motion.h2 {...titleReveal} className="font-display text-3xl md:text-4xl text-primary"><GradientText text={core.title} /></motion.h2>
               <p className="text-muted-foreground mt-3 max-w-sm whitespace-pre-line">{core.subtitle}</p>
             </div>
             <div className="space-y-3">

@@ -9,7 +9,7 @@ import { useTranslations } from "next-intl";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import SectionGlow, { GLOW } from "@/components/site/SectionGlow";
-import { GradientText } from "@/components/site/GradientWords";
+import { GradientText, gradient } from "@/components/site/GradientWords";
 import type { CmsHeroFields } from "@/data/cmsPageHero";
 import type { ContactContent } from "@/data/contactContent";
 import { BRAND_INFO } from "@/constants/brand";
@@ -76,7 +76,9 @@ const Contact = ({ hero, content }: { hero: CmsHeroFields; content: ContactConte
 
           <div className="relative container mx-auto py-16 md:py-20">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-              <h1 className="font-display text-4xl md:text-6xl text-primary leading-[1.05]"><GradientText text={hero.title} /></h1>
+              {/* 32px on a phone, a step under text-4xl: at 36px the headline
+                  (about 40 characters) broke onto a third line. */}
+              <h1 className="font-display text-[2rem] sm:text-4xl md:text-6xl text-primary leading-[1.05]"><GradientText text={hero.title} /></h1>
               <p className="text-muted-foreground mt-5 text-lg whitespace-pre-line">{hero.description}</p>
             </motion.div>
           </div>
@@ -86,10 +88,14 @@ const Contact = ({ hero, content }: { hero: CmsHeroFields; content: ContactConte
             and the column beside it is short lines that do not. */}
         <div className="relative isolate container mx-auto grid lg:grid-cols-5 gap-8 lg:gap-10 py-16">
           <SectionGlow {...GLOW.teal} bleed />
+          {/* A card from tablets up. On a phone the card's padding inside the
+              column's own left the fields a narrow strip, so there the form is
+              a white band edge to edge instead: -mx-8 undoes the column's 2rem
+              and px-8 puts the fields back where they were. */}
           <motion.form onSubmit={onSubmit}
             initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}
-            className="lg:col-span-3 rounded-3xl bg-card border border-border/60 shadow-card p-7 md:p-9">
-            <h2 className="font-display text-2xl text-primary">{t("formTitle")}</h2>
+            className="lg:col-span-3 -mx-8 bg-card px-8 py-8 border-y border-border/60 md:mx-0 md:rounded-3xl md:border md:shadow-card md:p-9">
+            <h2 className="font-display text-2xl text-primary">{t.rich("formTitle", gradient)}</h2>
             <p className="text-sm text-muted-foreground mt-2">{t("formSub")}</p>
 
             <div className="mt-7 space-y-5">

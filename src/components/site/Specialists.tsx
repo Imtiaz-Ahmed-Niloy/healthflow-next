@@ -7,6 +7,8 @@ import { useDoctors } from "@/hooks/useDoctors";
 import { DoctorCard } from "@/components/site/DoctorCard";
 import { useTranslations } from "next-intl";
 import { gradient } from "@/components/site/GradientWords";
+import { motion } from "framer-motion";
+import { titleReveal } from "@/components/site/titleReveal";
 
 type SpecialistsProps = {
   division?: string;
@@ -48,7 +50,7 @@ const Specialists = forwardRef<HTMLElement, SpecialistsProps>(
     return (
       <section id="features" ref={ref} className="container mx-auto py-20">
         <div className="mb-10">
-          <h2 className="font-display text-3xl md:text-4xl text-primary">{t.rich("heading", gradient)}</h2>
+          <motion.h2 {...titleReveal} className="font-display text-3xl md:text-4xl text-primary">{t.rich("heading", gradient)}</motion.h2>
         </div>
 
         {activeFilterCount > 0 && (

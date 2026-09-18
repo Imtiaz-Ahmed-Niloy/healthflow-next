@@ -6,6 +6,8 @@ import { useTranslations } from "next-intl";
 import { useTestimonials, type TestimonialAudience } from "@/data/testimonials";
 import TiltCard from "@/components/site/TiltCard";
 import { gradient } from "@/components/site/GradientWords";
+import { motion } from "framer-motion";
+import { titleReveal } from "@/components/site/titleReveal";
 
 const TABS: TestimonialAudience[] = ["Patients", "Doctors", "Hospitals"];
 
@@ -89,7 +91,7 @@ const Testimonials = () => {
 
   return (
     <section className="container mx-auto py-24">
-      <h2 className="text-center font-display text-3xl md:text-4xl text-primary">{tr.rich("testimonials.heading", gradient)}</h2>
+      <motion.h2 {...titleReveal} className="text-center font-display text-3xl md:text-4xl text-primary">{tr.rich("testimonials.heading", gradient)}</motion.h2>
 
       <div className="flex justify-center mt-6">
         {/* White, not muted: the section sits on the page's own off-white, and

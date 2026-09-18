@@ -76,7 +76,7 @@
   },
   "directory": {
     "backHome": "Back to Home",
-    "doctorsTitle": "All Doctors",
+    "doctorsTitle": "All <g>Doctors</g>",
     "doctorsSubtitle": "Browse our full directory of trusted specialists across {count} disciplines.",
     "doctorsSubtitleAll": "Browse our full directory of trusted specialists across every discipline.",
     "doctorsNone": "No doctors match your search.",
@@ -300,7 +300,7 @@
   },
   "contactPage": {
     "failed": "We couldn't send your message. Please try again, or email us directly.",
-    "formTitle": "Send us a message",
+    "formTitle": "Send us a <g>message</g>",
     "formSub": "We read every message and reply to most within a working day.",
     "sending": "Sending…",
     "noMedical": "Please don't send medical details or documents here — this is a general enquiry form.",

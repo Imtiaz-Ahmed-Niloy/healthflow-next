@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useInView, useReducedMotion } from "framer-motion";
+import { useLocale } from "next-intl";
 
 /**
  * Counts a stat up to its value the first time it scrolls into view.
@@ -45,6 +46,9 @@ const CountUp = ({ value, className }: { value: string; className?: string }) =>
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, margin: "-80px" });
   const reduceMotion = useReducedMotion();
+  // Bangla digits on the Bangla site (৫০০+, ৯৯.৯%): the figures are stored
+  // once, in Latin digits, and written out in the reader's language.
+  const numberLocale = useLocale() === "bn" ? "bn-BD" : "en-US";
 
   const parsed = parse(value);
   const target = parsed?.target ?? 0;
@@ -85,7 +89,7 @@ const CountUp = ({ value, className }: { value: string; className?: string }) =>
   return (
     <span ref={ref} className={className}>
       {parsed.prefix}
-      {n.toLocaleString("en-US", {
+      {n.toLocaleString(numberLocale, {
         minimumFractionDigits: parsed.decimals,
         maximumFractionDigits: parsed.decimals,
         useGrouping: parsed.grouped,

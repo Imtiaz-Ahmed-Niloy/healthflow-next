@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { BRAND_INFO } from "@/constants/brand";
 import LanguageSwitcher from "@/components/site/LanguageSwitcher";
 import SectionGlow, { GLOW } from "@/components/site/SectionGlow";
+import Footer from "@/components/site/Footer";
 
 export const PromoBar = () => {
   const t = useTranslations("auth.layout");
@@ -22,6 +23,7 @@ export const PromoBar = () => {
 
 export const AuthHeader = () => {
   const pathname = usePathname();
+  const onSignUp = pathname === "/signup";
   const t = useTranslations();
   const navLinks = [
     { label: t("nav.features"), to: "/features" },
@@ -30,10 +32,12 @@ export const AuthHeader = () => {
     { label: t("nav.contact"), to: "/contact" },
   ];
   return (
-    <header className="bg-background border-b border-border/50">
-      <nav className="container mx-auto flex items-center justify-between py-4">
-        <Link href="/" className="flex items-center gap-2 font-display text-2xl font-semibold text-primary">
-          <img src={BRAND_INFO.logoMark} alt={`${BRAND_INFO.name} logo`} className="h-9 w-auto" />
+    <header className="bg-card md:bg-background border-b border-border/50">
+      {/* Sized down on a phone like the main navbar's: at full size the
+          logo, the name, the language switch and the button overran the row. */}
+      <nav className="container mx-auto flex items-center justify-between gap-3 py-4">
+        <Link href="/" className="flex shrink-0 items-center gap-1.5 md:gap-2 font-display text-xl md:text-2xl font-semibold text-primary">
+          <img src={BRAND_INFO.logoMark} alt={`${BRAND_INFO.name} logo`} className="h-7 md:h-9 w-auto" />
           {BRAND_INFO.name}
         </Link>
         <ul className="hidden md:flex items-center gap-10 text-xs font-bold tracking-widest">
@@ -45,29 +49,14 @@ export const AuthHeader = () => {
             </li>
           ))}
         </ul>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
           <LanguageSwitcher compact />
-          <Link href="/signup" className="rounded-full bg-gradient-dark text-surface-dark-foreground px-6 py-2.5 text-xs font-bold tracking-wider hover:opacity-90 transition-opacity">{t("nav.getStarted").toUpperCase()}</Link>
+          {/* On the sign-up page the way out is signing in, not the page
+              you are already on. */}
+          <Link href={onSignUp ? "/signin" : "/signup"} className="whitespace-nowrap rounded-full bg-gradient-dark text-surface-dark-foreground px-4 md:px-6 py-2 md:py-2.5 text-[10px] md:text-xs font-bold tracking-wider hover:opacity-90 transition-opacity">{(onSignUp ? t("nav.signIn") : t("nav.getStarted")).toUpperCase()}</Link>
         </div>
       </nav>
     </header>
-  );
-};
-
-export const AuthFooter = () => {
-  const t = useTranslations("auth.layout");
-  return (
-    <footer className="border-t border-border/50 mt-auto bg-background">
-      <div className="container mx-auto py-5 flex flex-wrap items-center justify-between gap-4 text-[11px] tracking-widest font-semibold text-muted-foreground">
-        <p>{BRAND_INFO.copyrightUppercase}</p>
-        <ul className="flex flex-wrap gap-6">
-          <li><Link href="/privacy" className="hover:text-primary">{t("privacy")}</Link></li>
-          <li><Link href="/terms" className="hover:text-primary">{t("terms")}</Link></li>
-          <li><Link href="/data-use" className="hover:text-primary">{t("dataUse")}</Link></li>
-          <li><Link href="/cookies" className="hover:text-primary">{t("cookies")}</Link></li>
-        </ul>
-      </div>
-    </footer>
   );
 };
 
@@ -75,15 +64,20 @@ export const AuthFooter = () => {
  * Sign in, sign up and password reset: the homepage's page colour with its
  * hero glow behind the form, faded at both edges since it sits between the
  * header and the footer rather than under a see-through navbar.
+ *
+ * On a phone the whole page is plain white instead, and the form sits on it
+ * without a card: there is no room for a card's inset and a backdrop there.
  */
 export const AuthLayout = ({ children }: { children: React.ReactNode }) => (
-  <div className="min-h-screen flex flex-col lp-page-bg overflow-x-clip">
+  <div className="min-h-screen flex flex-col bg-card md:lp-page-bg overflow-x-clip">
     <PromoBar />
     <AuthHeader />
     <div className="relative isolate flex-1">
-      <SectionGlow {...GLOW.hero} fade="both" />
+      <div aria-hidden className="absolute inset-0 hidden md:block">
+        <SectionGlow {...GLOW.hero} fade="both" />
+      </div>
       <main className="container mx-auto py-12">{children}</main>
     </div>
-    <AuthFooter />
+    <Footer />
   </div>
 );

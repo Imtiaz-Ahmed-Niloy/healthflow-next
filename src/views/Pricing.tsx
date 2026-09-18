@@ -9,6 +9,7 @@ import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import SectionGlow, { GLOW } from "@/components/site/SectionGlow";
 import { GradientText, gradient } from "@/components/site/GradientWords";
+import { titleReveal } from "@/components/site/titleReveal";
 import type { PricingContent } from "@/data/pricingContent";
 
 const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
@@ -70,7 +71,7 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
         <section className="relative isolate container mx-auto py-12">
           <SectionGlow {...GLOW.teal} bleed />
           <div className="text-center max-w-2xl mx-auto mb-10">
-            <h2 className="font-display text-3xl md:text-4xl text-primary">{t.rich("compareTitle", gradient)}</h2>
+            <motion.h2 {...titleReveal} className="font-display text-3xl md:text-4xl text-primary">{t.rich("compareTitle", gradient)}</motion.h2>
             <p className="text-muted-foreground mt-2 text-sm">{t("compareSub")}</p>
           </div>
           <div className="overflow-x-auto">
@@ -107,13 +108,16 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
           {/* A white panel, not a tint of the page: bg-muted sat a couple of
              percent off the cream gradient behind it, so the section had no
              edge at all. Card white plus a border and an accent wash gives it
-             one, and each question sits on its own tinted tile inside. */}
-          <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-card shadow-card p-8 md:p-14">
-            <div aria-hidden className="pointer-events-none absolute -top-24 -right-20 h-72 w-72 rounded-full bg-accent/30 blur-3xl" />
-            <div aria-hidden className="pointer-events-none absolute -bottom-28 -left-24 h-72 w-72 rounded-full bg-secondary/60 blur-3xl" />
+             one, and each question sits on its own tinted tile inside.
+             Tablet up only: on a phone the panel's padding squeezed every
+             answer into a narrow column, so there the tiles sit straight on
+             the page at full width. */}
+          <div className="relative md:overflow-hidden md:rounded-3xl md:border md:border-border/60 md:bg-card md:shadow-card md:p-14">
+            <div aria-hidden className="pointer-events-none absolute -top-24 -right-20 hidden h-72 w-72 rounded-full bg-accent/30 blur-3xl md:block" />
+            <div aria-hidden className="pointer-events-none absolute -bottom-28 -left-24 hidden h-72 w-72 rounded-full bg-secondary/60 blur-3xl md:block" />
 
             <div className="relative text-center max-w-2xl mx-auto">
-              <h2 className="font-display text-3xl md:text-4xl text-primary">{t.rich("faqTitle", gradient)}</h2>
+              <motion.h2 {...titleReveal} className="font-display text-3xl md:text-4xl text-primary">{t.rich("faqTitle", gradient)}</motion.h2>
               <p className="text-muted-foreground mt-3 text-sm">{t("faqSub")}</p>
             </div>
 
@@ -121,7 +125,7 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
               {faqs.map((f, i) => (
                 <motion.div key={f.q}
                   initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4, delay: i * 0.05 }}
-                  className="rounded-2xl border border-border/70 bg-background/70 p-6 transition-all duration-300 hover:border-accent hover:shadow-soft">
+                  className="rounded-2xl border border-border/70 bg-card md:bg-background/70 p-5 md:p-6 shadow-soft md:shadow-none transition-all duration-300 hover:border-accent hover:shadow-soft">
                   <div className="flex items-start gap-3">
                     <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent/40 text-primary text-xs font-bold">{i + 1}</span>
                     <div>

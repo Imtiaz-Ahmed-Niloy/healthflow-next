@@ -6,6 +6,8 @@ import { useTranslations } from "next-intl";
 import type { PricingPlan } from "@/data/pricingContent";
 import TiltCard from "@/components/site/TiltCard";
 import { gradientLight } from "@/components/site/GradientWords";
+import { motion } from "framer-motion";
+import { titleReveal } from "@/components/site/titleReveal";
 
 /**
  * The plans, on the dark band.
@@ -32,7 +34,7 @@ const Pricing = ({ plans }: { plans: PricingPlan[] }) => {
         <div className="text-center max-w-2xl mx-auto mb-14">
           {/* Was text-7xl on phones and text-5xl above them — the wrong way
               round, and 72px on a 360px screen. */}
-          <h2 className="font-display text-4xl md:text-5xl">{t.rich("pricing.heading", gradientLight)}</h2>
+          <motion.h2 {...titleReveal} className="font-display text-4xl md:text-5xl">{t.rich("pricing.heading", gradientLight)}</motion.h2>
           <p className="opacity-70 mt-3 text-sm">{t("pricing.subheading")}</p>
         </div>
 

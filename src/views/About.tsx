@@ -9,6 +9,7 @@ import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import SectionGlow, { GLOW } from "@/components/site/SectionGlow";
 import { GradientText, gradient } from "@/components/site/GradientWords";
+import { titleReveal } from "@/components/site/titleReveal";
 const heroImg = "/assets/about-hero.jpg";
 import type { CmsHeroFields } from "@/data/cmsPageHero";
 import type { AboutContent, JourneyStep } from "@/data/aboutContent";
@@ -109,7 +110,7 @@ const SectionHeader = ({ title, subtitle, centered = true, light = false }: { ti
   // (Bangla sets wider than English at the same size); the subtitle keeps its
   // own narrower measure below.
   <div className={`${centered ? "text-center" : ""} max-w-4xl ${centered ? "mx-auto" : ""}`}>
-    <h2 className={`font-display text-3xl md:text-5xl ${light ? "text-white" : "text-primary"} leading-tight`}>{title}</h2>
+    <motion.h2 {...titleReveal} className={`font-display text-3xl md:text-5xl ${light ? "text-white" : "text-primary"} leading-tight`}>{title}</motion.h2>
     {subtitle && <p className={`mt-4 ${light ? "text-white/70" : "text-muted-foreground"} max-w-lg whitespace-pre-line ${centered ? "mx-auto" : ""}`}>{subtitle}</p>}
   </div>
 );
@@ -126,13 +127,18 @@ const About = ({ hero, content }: { hero: CmsHeroFields; content: AboutContent }
       <Navbar />
       <main>
         {/* Hero */}
-        <section className="relative isolate container mx-auto pt-8">
+        {/* A rounded card inside the page's column from tablets up. On a phone
+            it runs edge to edge instead: the card's inset and the column's
+            2rem padding left the text a narrow strip. The wash is heavier
+            there too, as the text spans the whole picture rather than its
+            left half. */}
+        <section className="relative isolate md:container md:mx-auto md:pt-8">
           <SectionGlow {...GLOW.hero} bleed />
           <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8 }}
-            className="relative rounded-3xl overflow-hidden">
+            className="relative overflow-hidden md:rounded-3xl">
             <img src={heroImg} alt={t("heroAlt")} width={1600} height={900} className="w-full h-[460px] object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/70 to-background/10" />
-            <div className="absolute inset-0 p-8 md:p-14 flex flex-col justify-center max-w-2xl">
+            <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/85 to-background/60 md:via-background/70 md:to-background/10" />
+            <div className="absolute inset-0 px-5 py-8 md:p-14 flex flex-col justify-center max-w-2xl">
               <h1 className="font-display text-4xl md:text-6xl text-primary mt-4 leading-tight"><GradientText text={hero.title} /></h1>
               <p className="mt-5 text-muted-foreground max-w-md whitespace-pre-line">{hero.description}</p>
             </div>
@@ -185,16 +191,18 @@ const About = ({ hero, content }: { hero: CmsHeroFields; content: AboutContent }
             <div className="text-center mb-10">
             </div>
             <TiltCard maxTilt={5} lift={5}
-              className="relative rounded-3xl bg-card border border-border/60 p-8 md:p-14 text-center shadow-soft transition-shadow duration-300 hover:shadow-card"
+              className="relative rounded-3xl bg-card border border-border/60 p-6 md:p-14 text-center shadow-soft transition-shadow duration-300 hover:shadow-card"
             >
-              <Quote className="h-10 w-10 text-primary/20 mx-auto mb-6" />
-              <blockquote className="font-display text-xl md:text-2xl text-primary leading-relaxed max-w-2xl mx-auto whitespace-pre-line">
+              <Quote className="h-8 w-8 md:h-10 md:w-10 text-primary/20 mx-auto mb-4 md:mb-6" />
+              {/* Body size on a phone: the message is a paragraph, and at
+                  text-xl it filled several screens there. */}
+              <blockquote className="font-display text-base md:text-2xl text-primary leading-relaxed max-w-2xl mx-auto whitespace-pre-line">
                 {ceoMessage.quote}
               </blockquote>
-              <div className="mt-8 flex flex-col items-center">
+              <div className="mt-6 md:mt-8 flex flex-col items-center">
                 <div className="h-1 w-12 bg-primary-glow rounded-full mb-4" />
                 <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">{ceoMessage.attributionLead}</div>
-                <div className="font-display text-2xl md:text-3xl text-primary mt-1.5">{ceoMessage.attributionName}</div>
+                <div className="font-display text-xl md:text-3xl text-primary mt-1.5">{ceoMessage.attributionName}</div>
               </div>
             </TiltCard>
           </div>
@@ -227,7 +235,7 @@ const About = ({ hero, content }: { hero: CmsHeroFields; content: AboutContent }
         <section className="relative isolate container mx-auto py-20">
           <SectionGlow {...GLOW.emerald} bleed />
           <div className="text-center">
-            <h2 className="font-display text-3xl md:text-4xl text-primary inline-block"><GradientText text={pillars.title} /></h2>
+            <motion.h2 {...titleReveal} className="font-display text-3xl md:text-4xl text-primary inline-block"><GradientText text={pillars.title} /></motion.h2>
             <div className="mx-auto mt-3 h-0.5 w-16 bg-primary-glow rounded-full" />
           </div>
           <div className="grid md:grid-cols-3 gap-0 mt-12 rounded-3xl border border-border/60 bg-card overflow-hidden divide-y md:divide-y-0 md:divide-x divide-border/60">
