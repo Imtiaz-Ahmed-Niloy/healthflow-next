@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { SuperLayout } from "@/components/super/SuperLayout";
 import { Card, Kpi, Pill, Btn } from "@/components/admin/ui";
@@ -19,6 +20,7 @@ import { defaultWeek, serialiseWeek, type WeekHours } from "@/lib/hours";
 import { availabilityLabel, weekFromAvailability } from "@/lib/availability";
 import { chamberPlace, type Chamber } from "@/lib/chambers";
 import { useFormatters } from "@/lib/appSettings";
+import type { Locale } from "@/i18n/config";
 import { Stethoscope, KeyRound, Building2, UserX, UserCheck, Loader2, Copy, Plus, Trash2, Store } from "lucide-react";
 
 /**
@@ -69,20 +71,11 @@ type Person = {
 /** A chamber being added in Edit, before Save opens it. */
 type ChamberAdd = { key: number; draft: ChamberDraft };
 
-type Filter = "all" | "login" | "directory" | "suspended";
+const FILTERS = ["all", "login", "directory", "suspended"] as const;
+type Filter = (typeof FILTERS)[number];
 
-const FILTERS: { value: Filter; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "login", label: "With a login" },
-  { value: "directory", label: "Directory only" },
-  { value: "suspended", label: "Suspended" },
-];
-
-const GENDERS = [
-  { value: "male", label: "Male" },
-  { value: "female", label: "Female" },
-  { value: "other", label: "Other" },
-];
+const GENDERS = ["male", "female", "other"] as const;
+const DOCTOR_STATUSES = ["active", "on_leave", "suspended"] as const;
 
 type Draft = Record<string, string>;
 
@@ -92,6 +85,13 @@ const EDIT_KEYS = ["name", "specialty", "bmdc_number", "phone", "education", "ex
 const EMPTY_CREATE: Draft = {
   name: "", email: "", specialty: "", bmdc_number: "", phone: "",
   education: "", experience_years: "", gender: "", languages: "", photo_url: "", expertise: "", bio: "",
+};
+
+/** Gender labels, used by the details form and the drawer. */
+const useGenderLabel = () => {
+  const t = useTranslations("super.doctors");
+  return (v: string | null) =>
+    v && (GENDERS as readonly string[]).includes(v) ? t(`genders.${v as (typeof GENDERS)[number]}`) : null;
 };
 
 /**
@@ -108,36 +108,39 @@ const HospitalCard = ({ title, hospital, select, fee, onFee, initialWeek, onWeek
   initialWeek: WeekHours;
   onWeek: (week: WeekHours) => void;
   onRemove?: () => void;
-}) => (
-  <div className="rounded-2xl border border-border/60 p-4">
-    <div className="grid sm:grid-cols-[1fr_180px_auto] gap-x-4 items-start">
-      {select ? (
-        <Field label={title} required>
-          <Select value={select.value} onChange={e => select.onChange(e.target.value)}>
-            <option value="">Select a hospital…</option>
-            {select.options.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
-          </Select>
+}) => {
+  const t = useTranslations("super.doctors.cards");
+  return (
+    <div className="rounded-2xl border border-border/60 p-4">
+      <div className="grid sm:grid-cols-[1fr_180px_auto] gap-x-4 items-start">
+        {select ? (
+          <Field label={title} required>
+            <Select value={select.value} onChange={e => select.onChange(e.target.value)}>
+              <option value="">{t("selectHospital")}</option>
+              {select.options.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+            </Select>
+          </Field>
+        ) : (
+          <Field label={title}>
+            <p className="py-2.5 text-sm font-semibold text-primary">{hospital}</p>
+          </Field>
+        )}
+        <Field label={t("fee")}>
+          <Input type="number" min={0} step="0.01" value={fee} onChange={e => onFee(e.target.value)} />
         </Field>
-      ) : (
-        <Field label={title}>
-          <p className="py-2.5 text-sm font-semibold text-primary">{hospital}</p>
-        </Field>
-      )}
-      <Field label="Consultation fee">
-        <Input type="number" min={0} step="0.01" value={fee} onChange={e => onFee(e.target.value)} />
+        {onRemove ? (
+          <button type="button" onClick={onRemove} title={t("removeHospital")}
+            className="mt-6 p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+            <Trash2 className="h-4 w-4" />
+          </button>
+        ) : <span />}
+      </div>
+      <Field label={hospital ? t("availabilityAt", { hospital }) : t("availability")}>
+        <WeeklyHoursField seed={() => initialWeek} onChange={onWeek} summaryLabel={t("patientsSee")} />
       </Field>
-      {onRemove ? (
-        <button type="button" onClick={onRemove} title="Remove this hospital"
-          className="mt-6 p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10">
-          <Trash2 className="h-4 w-4" />
-        </button>
-      ) : <span />}
     </div>
-    <Field label={hospital ? `Availability at ${hospital}` : "Availability"}>
-      <WeeklyHoursField seed={() => initialWeek} onChange={onWeek} summaryLabel="Patients see" />
-    </Field>
-  </div>
-);
+  );
+};
 
 type FieldSetter = (key: string) =>
   (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
@@ -153,96 +156,106 @@ const DoctorDetails = ({ draft, set, email, photo, note }: {
   email: { value: string; editable: boolean };
   photo: { resetKey: string | number; current?: string; onChange: (value: string) => void; onUploading: (uploading: boolean) => void };
   note?: string;
-}) => (
-  <>
-    {note && <p className="text-xs text-muted-foreground mb-4">{note}</p>}
-    <Field label="Photo">
-      <ImageUploadField
-        key={photo.resetKey}
-        name="photo_url"
-        folder="doctors"
-        defaultValue={photo.current ?? ""}
-        onChange={photo.onChange}
-        onUploadingChange={photo.onUploading}
-      />
-    </Field>
-    <div className="grid sm:grid-cols-2 gap-x-4">
-      <Field label="Full name" required><Input value={draft.name ?? ""} onChange={set("name")} placeholder="Dr. …" /></Field>
-      {email.editable ? (
-        <Field label="Email" required hint="Their sign-in address"><Input type="email" value={email.value} onChange={set("email")} /></Field>
-      ) : (
-        <Field label="Email" hint="Their sign-in address — it can't be changed here">
-          <Input type="email" value={email.value} readOnly disabled className="opacity-60 cursor-not-allowed" />
-        </Field>
-      )}
-      <Field label="Specialization">
-        {/* From the specialties list (0093). `set` reads e.target.value, so the
-            pick goes through it the same way a typed field does. */}
-        <SpecialtySelect
-          value={draft.specialty ?? ""}
-          onChange={v => set("specialty")({ target: { value: v } } as React.ChangeEvent<HTMLInputElement>)}
+}) => {
+  const t = useTranslations("super.doctors.fields");
+  const genderLabel = useGenderLabel();
+  return (
+    <>
+      {note && <p className="text-xs text-muted-foreground mb-4">{note}</p>}
+      <Field label={t("photo")}>
+        <ImageUploadField
+          key={photo.resetKey}
+          name="photo_url"
+          folder="doctors"
+          defaultValue={photo.current ?? ""}
+          onChange={photo.onChange}
+          onUploadingChange={photo.onUploading}
         />
       </Field>
-      <Field label="BMDC registration no."><Input value={draft.bmdc_number ?? ""} onChange={set("bmdc_number")} /></Field>
-      <Field label="Phone"><Input type="tel" value={draft.phone ?? ""} onChange={set("phone")} /></Field>
-      <Field label="Education"><Input value={draft.education ?? ""} onChange={set("education")} placeholder="MBBS, FCPS" /></Field>
-      <Field label="Experience (years)"><Input type="number" min={0} value={draft.experience_years ?? ""} onChange={set("experience_years")} /></Field>
-      <Field label="Gender">
-        <Select value={draft.gender ?? ""} onChange={set("gender")}>
-          <option value="">—</option>
-          {GENDERS.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
-        </Select>
+      <div className="grid sm:grid-cols-2 gap-x-4">
+        <Field label={t("name")} required><Input value={draft.name ?? ""} onChange={set("name")} placeholder={t("namePlaceholder")} /></Field>
+        {email.editable ? (
+          <Field label={t("email")} required hint={t("emailHint")}><Input type="email" value={email.value} onChange={set("email")} /></Field>
+        ) : (
+          <Field label={t("email")} hint={t("emailLocked")}>
+            <Input type="email" value={email.value} readOnly disabled className="opacity-60 cursor-not-allowed" />
+          </Field>
+        )}
+        <Field label={t("specialty")}>
+          {/* From the specialties list (0093). `set` reads e.target.value, so the
+              pick goes through it the same way a typed field does. */}
+          <SpecialtySelect
+            value={draft.specialty ?? ""}
+            onChange={v => set("specialty")({ target: { value: v } } as React.ChangeEvent<HTMLInputElement>)}
+          />
+        </Field>
+        <Field label={t("bmdc")}><Input value={draft.bmdc_number ?? ""} onChange={set("bmdc_number")} /></Field>
+        <Field label={t("phone")}><Input type="tel" value={draft.phone ?? ""} onChange={set("phone")} /></Field>
+        <Field label={t("education")}><Input value={draft.education ?? ""} onChange={set("education")} placeholder="MBBS, FCPS" /></Field>
+        <Field label={t("experience")}><Input type="number" min={0} value={draft.experience_years ?? ""} onChange={set("experience_years")} /></Field>
+        <Field label={t("gender")}>
+          <Select value={draft.gender ?? ""} onChange={set("gender")}>
+            <option value="">—</option>
+            {GENDERS.map(g => <option key={g} value={g}>{genderLabel(g)}</option>)}
+          </Select>
+        </Field>
+      </div>
+      <Field label={t("languages")} hint={t("commaSeparated")}>
+        <Input value={draft.languages ?? ""} onChange={set("languages")} placeholder={t("languagesPlaceholder")} />
       </Field>
-    </div>
-    <Field label="Languages" hint="Comma separated">
-      <Input value={draft.languages ?? ""} onChange={set("languages")} placeholder="Bangla, English" />
-    </Field>
-    <Field label="Areas of expertise" hint="Comma separated">
-      <TextArea rows={2} value={draft.expertise ?? ""} onChange={set("expertise")} placeholder="Interventional cardiology, Heart failure" />
-    </Field>
-    <Field label="About">
-      <TextArea rows={4} value={draft.bio ?? ""} onChange={set("bio")} placeholder="Their background, training and approach, as patients will read it" />
-    </Field>
-  </>
-);
+      <Field label={t("expertise")} hint={t("commaSeparated")}>
+        <TextArea rows={2} value={draft.expertise ?? ""} onChange={set("expertise")} placeholder={t("expertisePlaceholder")} />
+      </Field>
+      <Field label={t("about")}>
+        <TextArea rows={4} value={draft.bio ?? ""} onChange={set("bio")} placeholder={t("aboutPlaceholder")} />
+      </Field>
+    </>
+  );
+};
 
 /** Where the doctor works, and when — the heading and Add button both forms share. */
 const HospitalsSection = ({ note, onAdd, canAdd, children }: {
   note: string; onAdd: () => void; canAdd: boolean; children: React.ReactNode;
-}) => (
-  <div className="mb-4 space-y-3">
-    <div className="flex items-center justify-between gap-3">
-      <div>
-        <h3 className="font-display text-lg text-primary">Hospitals and availability</h3>
-        <p className="text-xs text-muted-foreground">{note}</p>
+}) => {
+  const t = useTranslations("super.doctors.cards");
+  return (
+    <div className="mb-4 space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h3 className="font-display text-lg text-primary">{t("hospitalsTitle")}</h3>
+          <p className="text-xs text-muted-foreground">{note}</p>
+        </div>
+        <Btn variant="outline" className="shrink-0 whitespace-nowrap" onClick={onAdd} disabled={!canAdd}>
+          <Plus className="h-4 w-4" /> {t("addHospital")}
+        </Btn>
       </div>
-      <Btn variant="outline" className="shrink-0 whitespace-nowrap" onClick={onAdd} disabled={!canAdd}>
-        <Plus className="h-4 w-4" /> Add hospital
-      </Btn>
+      {children}
     </div>
-    {children}
-  </div>
-);
+  );
+};
 
 /** Their own chambers — the same heading and Add button as Hospitals, beneath it. */
 const ChambersSection = ({ note, onAdd, canAdd, children }: {
   note: string; onAdd?: () => void; canAdd: boolean; children?: React.ReactNode;
-}) => (
-  <div className="mb-4 space-y-3">
-    <div className="flex items-center justify-between gap-3">
-      <div>
-        <h3 className="font-display text-lg text-primary">Chambers</h3>
-        <p className="text-xs text-muted-foreground">{note}</p>
+}) => {
+  const t = useTranslations("super.doctors.cards");
+  return (
+    <div className="mb-4 space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h3 className="font-display text-lg text-primary">{t("chambersTitle")}</h3>
+          <p className="text-xs text-muted-foreground">{note}</p>
+        </div>
+        {onAdd && (
+          <Btn variant="outline" className="shrink-0 whitespace-nowrap" onClick={onAdd} disabled={!canAdd}>
+            <Plus className="h-4 w-4" /> {t("addChamber")}
+          </Btn>
+        )}
       </div>
-      {onAdd && (
-        <Btn variant="outline" className="shrink-0 whitespace-nowrap" onClick={onAdd} disabled={!canAdd}>
-          <Plus className="h-4 w-4" /> Add chamber
-        </Btn>
-      )}
+      {children}
     </div>
-    {children}
-  </div>
-);
+  );
+};
 
 /** One chamber: its details, fee and hours, with close/reopen for one that exists or remove for a new one. */
 const ChamberCard = ({ title, draft, onChange, resetKey, doctorName, open, onToggleOpen, onRemove }: {
@@ -254,39 +267,49 @@ const ChamberCard = ({ title, draft, onChange, resetKey, doctorName, open, onTog
   open?: boolean;
   onToggleOpen?: () => void;
   onRemove?: () => void;
-}) => (
-  <div className={`rounded-2xl border p-4 ${open === false ? "border-dashed border-border bg-muted/20" : "border-border/60"}`}>
-    <div className="flex items-center justify-between gap-3 mb-3">
-      <p className="flex items-center gap-2 text-sm font-semibold text-primary min-w-0">
-        <Store className="h-4 w-4 shrink-0" />
-        <span className="truncate">{title}</span>
-        {open === false && <Pill>Closed to bookings</Pill>}
-      </p>
-      {onToggleOpen && (
-        <Btn variant="ghost" className="shrink-0" onClick={onToggleOpen}>{open ? "Close to bookings" : "Reopen"}</Btn>
-      )}
-      {onRemove && (
-        <button type="button" onClick={onRemove} title="Remove this chamber"
-          className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10">
-          <Trash2 className="h-4 w-4" />
-        </button>
-      )}
+}) => {
+  const t = useTranslations("super.doctors.cards");
+  return (
+    <div className={`rounded-2xl border p-4 ${open === false ? "border-dashed border-border bg-muted/20" : "border-border/60"}`}>
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <p className="flex items-center gap-2 text-sm font-semibold text-primary min-w-0">
+          <Store className="h-4 w-4 shrink-0" />
+          <span className="truncate">{title}</span>
+          {open === false && <Pill>{t("closed")}</Pill>}
+        </p>
+        {onToggleOpen && (
+          <Btn variant="ghost" className="shrink-0" onClick={onToggleOpen}>{open ? t("close") : t("reopen")}</Btn>
+        )}
+        {onRemove && (
+          <button type="button" onClick={onRemove} title={t("removeChamber")}
+            className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+      <ChamberForm draft={draft} onChange={onChange} resetKey={resetKey} doctorName={doctorName} />
     </div>
-    <ChamberForm draft={draft} onChange={onChange} resetKey={resetKey} doctorName={doctorName} />
-  </div>
-);
+  );
+};
 
 /** An existing hospital's fee as typed, and its week once touched — untouched hours are left as stored. */
 type HospitalEdit = { fee: string; week: WeekHours | null };
 
-const loginState = (p: Person) =>
-  !p.has_login ? { label: "No login", tone: "default" as const }
-    : p.is_active ? { label: "Active", tone: "ok" as const }
-      : { label: "Suspended", tone: "bad" as const };
-
 const errorOf = async (res: Response) => (await res.json().catch(() => null))?.error?.message as string | undefined;
 
 const Doctors = () => {
+  const t = useTranslations("super.doctors");
+  const tc = useTranslations("common");
+  const locale = useLocale() as Locale;
+  const genderLabel = useGenderLabel();
+  const statusLabel = (s: string) =>
+    (DOCTOR_STATUSES as readonly string[]).includes(s) ? t(`statuses.${s as (typeof DOCTOR_STATUSES)[number]}`) : s;
+  const loginState = (p: Person) =>
+    !p.has_login ? { label: t("login.none"), tone: "default" as const }
+      : p.is_active ? { label: t("login.active"), tone: "ok" as const }
+        : { label: t("login.suspended"), tone: "bad" as const };
+  const tryAgain = t("requestFailed");
+
   const { formatCurrency, formatDate } = useFormatters();
   const [people, setPeople] = useState<Person[]>([]);
   const [hospitalOptions, setHospitalOptions] = useState<{ id: string; name: string }[]>([]);
@@ -402,7 +425,7 @@ const Doctors = () => {
       const res = await fetch("/api/v1/chambers", {
         method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
       });
-      if (!res.ok) failed.push(`${name}: ${await errorOf(res) ?? "failed"}`);
+      if (!res.ok) failed.push(`${name}: ${await errorOf(res) ?? t("toasts.failed")}`);
     };
 
     for (const c of p.chambers) {
@@ -415,23 +438,21 @@ const Doctors = () => {
       }
     }
     for (const a of editChamberAdds) {
-      await send("POST", { ...chamberPayload(a.draft), profile_id: p.profile_id }, a.draft.name || "New chamber");
+      await send("POST", { ...chamberPayload(a.draft), profile_id: p.profile_id }, a.draft.name || t("cards.newChamber"));
     }
     return failed;
   };
 
   const saveEdit = async () => {
     if (!editing) return;
-    if (!editDraft.name?.trim()) { toast.error("Name is required"); return; }
-    if (editAdds.some(a => !a.tenant_id)) { toast.error("Pick a hospital on each new card, or remove the card"); return; }
+    if (!editDraft.name?.trim()) { toast.error(t("toasts.nameRequired")); return; }
+    if (editAdds.some(a => !a.tenant_id)) { toast.error(t("toasts.pickEachNew")); return; }
     if ([...Object.values(editChambers), ...editChamberAdds.map(a => a.draft)].some(d => d.has_name && !d.name.trim())) {
-      toast.error("Give each chamber a name, turn off “has a name”, or remove the card");
+      toast.error(t("toasts.chamberName"));
       return;
     }
     if (!editing.has_login && editing.hospitals.length - editRemovals.length + editAdds.length > 1) {
-      toast.error("A doctor at more than one hospital needs a login", {
-        description: "Give them a login from a hospital's Doctors page first — it makes them one person at every hospital.",
-      });
+      toast.error(t("toasts.needsLogin"), { description: t("toasts.needsLoginEdit") });
       return;
     }
 
@@ -468,21 +489,21 @@ const Doctors = () => {
           ...(editRemovals.length ? { remove_hospitals: editRemovals } : {}),
         }),
       });
-      if (!res.ok) { toast.error("Couldn't save", { description: await errorOf(res) }); return; }
+      if (!res.ok) { toast.error(t("toasts.saveFailed"), { description: await errorOf(res) }); return; }
 
       const chamberFailures = await saveChambers(editing);
       if (chamberFailures.length) {
-        toast.error("Saved, but a chamber wasn't", { description: chamberFailures.join(" · ") });
+        toast.error(t("toasts.chamberFailed"), { description: chamberFailures.join(" · ") });
         void load();
         return;
       }
       const count = editing.hospitals.length - editRemovals.length + editAdds.length;
       toast.success(
         editChamberAdds.length
-          ? `Saved — ${editChamberAdds.length === 1 ? "chamber" : `${editChamberAdds.length} chambers`} open for bookings`
+          ? t("toasts.savedChambers", { count: editChamberAdds.length })
           : editAdds.length || editRemovals.length
-            ? count === 0 ? "Saved — now at no hospital" : `Saved — now at ${count} hospital${count === 1 ? "" : "s"}`
-            : editing.hospitals.length > 1 ? `Saved at all ${editing.hospitals.length} hospitals` : "Doctor updated",
+            ? count === 0 ? t("toasts.savedNoHospital") : t("toasts.savedAt", { count })
+            : editing.hospitals.length > 1 ? t("toasts.savedAll", { count: editing.hospitals.length }) : t("toasts.updated"),
       );
       setEditing(null);
       void load();
@@ -499,7 +520,7 @@ const Doctors = () => {
     setCreating(true);
   };
 
-  const hospitalName = (tenantId: string) => hospitalOptions.find(h => h.id === tenantId)?.name ?? "the hospital";
+  const hospitalName = (tenantId: string) => hospitalOptions.find(h => h.id === tenantId)?.name ?? t("theHospital");
 
   /** Add, change and remove new-hospital cards — the same for Add Doctor and Edit. */
   const cardsOf = (set: Dispatch<SetStateAction<Assignment[]>>) => ({
@@ -522,15 +543,13 @@ const Doctors = () => {
   };
 
   const saveCreate = async () => {
-    if (!createDraft.name.trim()) { toast.error("Name is required"); return; }
-    if (!createDraft.email.trim()) { toast.error("Email is required"); return; }
-    if (assignments.some(a => !a.tenant_id)) { toast.error("Pick a hospital on each card, or remove the card"); return; }
+    if (!createDraft.name.trim()) { toast.error(t("toasts.nameRequired")); return; }
+    if (!createDraft.email.trim()) { toast.error(t("toasts.emailRequired")); return; }
+    if (assignments.some(a => !a.tenant_id)) { toast.error(t("toasts.pickEach")); return; }
     // Hospital rows are one person only through their login (0077). Without
     // one, each would stand alone as a separate doctor.
     if (assignments.length > 1 && !withLogin) {
-      toast.error("A doctor at more than one hospital needs a login", {
-        description: "The login is what makes them one person at every hospital.",
-      });
+      toast.error(t("toasts.needsLogin"), { description: t("toasts.needsLoginCreate") });
       return;
     }
 
@@ -549,7 +568,7 @@ const Doctors = () => {
         }),
       });
       const body = await res.json().catch(() => null);
-      if (!res.ok) { toast.error("Couldn't add the doctor", { description: body?.error?.message }); return; }
+      if (!res.ok) { toast.error(t("toasts.addFailed"), { description: body?.error?.message }); return; }
 
       const ids: string[] = body.data.ids;
       const name = createDraft.name.trim();
@@ -563,7 +582,7 @@ const Doctors = () => {
         const login = await fetch(`/api/v1/doctors/${ids[0]}/login`, { method: "POST" });
         const loginBody = await login.json().catch(() => null);
         if (!login.ok) {
-          toast.warning("Doctor added, but the login wasn't created", { description: loginBody?.error?.message });
+          toast.warning(t("toasts.addedNoLogin"), { description: loginBody?.error?.message });
           void load();
           return;
         }
@@ -574,28 +593,24 @@ const Doctors = () => {
           if (!link.ok) unlinked.push(hospitalName(assignments[i + 1].tenant_id));
         }
         if (unlinked.length) {
-          toast.warning(`Couldn't link the login at ${unlinked.join(", ")}`, {
-            description: "Open that hospital's Doctors page and press the key on this doctor to link it.",
+          toast.warning(t("toasts.unlinked", { hospitals: unlinked.join(", ") }), {
+            description: t("toasts.unlinkedHint"),
           });
         }
 
         if (loginBody.data?.linked) {
-          toast.success(`Linked to ${loginBody.data.name}'s existing account`, {
-            description: assignments.length
-              ? "They already use HealthFlow and now work at these hospitals too."
-              : "They already use HealthFlow.",
+          toast.success(t("toasts.linked", { name: loginBody.data.name }), {
+            description: assignments.length ? t("toasts.linkedHospitals") : t("toasts.linkedPlain"),
           });
         } else {
           setCreds({
             name, ...loginBody.data,
-            note: firstHospital
-              ? `Share these securely. You can view them again here any time, and ${firstHospital} can from its Doctors page.`
-              : "Share these securely. You can view them again here any time.",
+            note: firstHospital ? t("notes.newAt", { hospital: firstHospital }) : t("notes.new"),
           });
-          toast.success(assignments.length > 1 ? `Doctor added at ${assignments.length} hospitals` : "Doctor added with a new login");
+          toast.success(assignments.length > 1 ? t("toasts.addedAt", { count: assignments.length }) : t("toasts.addedWithLogin"));
         }
       } else {
-        toast.success("Doctor added");
+        toast.success(t("toasts.added"));
       }
       void load();
     } finally {
@@ -618,12 +633,12 @@ const Doctors = () => {
       if (!res.ok) {
         // A login with no saved password can't be shown, only replaced.
         if (body?.error?.code === "no_saved_password") { setPendingReset({ person, missing: true }); return; }
-        toast.error("Couldn't load the login", { description: body?.error?.message });
+        toast.error(t("toasts.loginLoadFailed"), { description: body?.error?.message });
         return;
       }
-      setCreds({ name: person.name, ...body.data, person, note: "Share these securely. You can come back and view them here any time." });
+      setCreds({ name: person.name, ...body.data, person, note: t("notes.view") });
     } catch {
-      toast.error("Couldn't load the login", { description: "The request failed. Please try again." });
+      toast.error(t("toasts.loginLoadFailed"), { description: tryAgain });
     } finally {
       setLoginBusy(null);
     }
@@ -634,18 +649,16 @@ const Doctors = () => {
     try {
       const res = await fetch(`/api/v1/doctors/${person.doctor_id}/login`, { method: "POST" });
       const body = await res.json().catch(() => null);
-      if (!res.ok) { toast.error("Couldn't create the login", { description: body?.error?.message }); return; }
+      if (!res.ok) { toast.error(t("toasts.loginCreateFailed"), { description: body?.error?.message }); return; }
       if (body.data?.linked) {
-        toast.success(`Linked to ${body.data.name}'s existing account`, {
-          description: "They sign in with the account they already have.",
-        });
+        toast.success(t("toasts.linked", { name: body.data.name }), { description: t("toasts.linkedOwn") });
       } else {
-        setCreds({ name: person.name, ...body.data, note: "Share these securely. You can come back and view them here any time." });
-        toast.success("Login created");
+        setCreds({ name: person.name, ...body.data, note: t("notes.view") });
+        toast.success(t("toasts.loginCreated"));
       }
       void load();
     } catch {
-      toast.error("Couldn't create the login", { description: "The request failed. Please try again." });
+      toast.error(t("toasts.loginCreateFailed"), { description: tryAgain });
     } finally {
       setLoginBusy(null);
     }
@@ -656,14 +669,11 @@ const Doctors = () => {
     try {
       const res = await fetch(`/api/v1/doctors/${loginRowOf(person)}/login`, { method: "PUT" });
       const body = await res.json().catch(() => null);
-      if (!res.ok) { toast.error("Couldn't reset the password", { description: body?.error?.message }); return; }
-      setCreds({
-        name: person.name, ...body.data, person,
-        note: "This is their new password everywhere they sign in — the old one no longer works. Share it securely.",
-      });
-      toast.success("New password generated");
+      if (!res.ok) { toast.error(t("toasts.resetFailed"), { description: body?.error?.message }); return; }
+      setCreds({ name: person.name, ...body.data, person, note: t("notes.reset") });
+      toast.success(t("toasts.newPassword"));
     } catch {
-      toast.error("Couldn't reset the password", { description: "The request failed. Please try again." });
+      toast.error(t("toasts.resetFailed"), { description: tryAgain });
     } finally {
       setLoginBusy(null);
     }
@@ -679,16 +689,16 @@ const Doctors = () => {
       body: JSON.stringify({ profile_id: person.profile_id, active }),
     });
     if (!res.ok) {
-      toast.error(active ? "Couldn't reactivate" : "Couldn't suspend", { description: await errorOf(res) });
+      toast.error(active ? t("toasts.reactivateFailed") : t("toasts.suspendFailed"), { description: await errorOf(res) });
       return;
     }
-    toast.success(active ? `${person.name} can sign in again` : `${person.name} is suspended and signed out`);
+    toast.success(active ? t("toasts.reactivated", { name: person.name }) : t("toasts.suspended", { name: person.name }));
     void load();
   };
 
   const columns: Column<Person>[] = [
     {
-      key: "name", label: "DOCTOR", sortable: true, accessor: p => p.name,
+      key: "name", label: t("columns.doctor"), sortable: true, accessor: p => p.name,
       render: p => (
         <div className="flex items-center gap-3 min-w-0">
           <Avatar src={p.photo_url} name={p.name} className="h-9 w-9" />
@@ -699,9 +709,9 @@ const Doctors = () => {
         </div>
       ),
     },
-    { key: "bmdc", label: "BMDC NO.", sortable: true, accessor: p => p.bmdc_number ?? "", render: p => p.bmdc_number || "—" },
+    { key: "bmdc", label: t("columns.bmdc"), sortable: true, accessor: p => p.bmdc_number ?? "", render: p => p.bmdc_number || "—" },
     {
-      key: "contact", label: "CONTACT", accessor: p => p.email ?? "",
+      key: "contact", label: t("columns.contact"), accessor: p => p.email ?? "",
       render: p => (
         <div className="text-xs">
           <p className="text-primary">{p.email || "—"}</p>
@@ -710,16 +720,16 @@ const Doctors = () => {
       ),
     },
     {
-      key: "hospitals", label: "PRACTISES AT", sortable: true, accessor: p => p.hospitals.length + p.chambers.length,
+      key: "hospitals", label: t("columns.practises"), sortable: true, accessor: p => p.hospitals.length + p.chambers.length,
       render: p => p.hospitals.length + p.chambers.length === 0 ? (
-        <span className="text-xs text-muted-foreground">No hospital yet</span>
+        <span className="text-xs text-muted-foreground">{t("noHospitalYet")}</span>
       ) : (
         <div className="flex flex-wrap gap-1">
           {p.hospitals.map(h => (
             <span key={h.doctor_id} className="rounded-full bg-chip text-primary px-2 py-0.5 text-[11px] font-semibold">{h.name}</span>
           ))}
           {p.chambers.map(c => (
-            <span key={c.id} title="Their own chamber"
+            <span key={c.id} title={t("ownChamber")}
               className={`inline-flex items-center gap-1 rounded-full border border-primary/25 px-2 py-0.5 text-[11px] font-semibold ${c.open ? "text-primary" : "text-muted-foreground line-through"}`}>
               <Store className="h-3 w-3" />{c.name}
             </span>
@@ -728,7 +738,7 @@ const Doctors = () => {
       ),
     },
     {
-      key: "login", label: "LOGIN", sortable: true, accessor: p => loginState(p).label,
+      key: "login", label: t("columns.login"), sortable: true, accessor: p => loginState(p).label,
       render: p => <Pill tone={loginState(p).tone}>{loginState(p).label}</Pill>,
     },
   ];
@@ -739,38 +749,41 @@ const Doctors = () => {
   const setEdit = set(setEditDraft);
   const setCreate = set(setCreateDraft);
 
+  const noHours = t("noHours");
+
   return (
-    <SuperLayout title="Doctor Management" subtitle="Every doctor on HealthFlow, across all hospitals">
+    <SuperLayout title={t("title")} subtitle={t("subtitle")}>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <Kpi icon={Stethoscope} label="Doctors" value={loading ? "—" : String(counts.all)} tone="primary" />
-        <Kpi icon={KeyRound} label="With a login" value={loading ? "—" : String(counts.login)} tone="accent" />
-        <Kpi icon={Building2} label="At 2+ hospitals" value={loading ? "—" : String(counts.multi)} tone="chip" />
-        <Kpi icon={UserX} label="Suspended" value={loading ? "—" : String(counts.suspended)} tone={counts.suspended ? "destructive" : "primary"} />
+        <Kpi icon={Stethoscope} label={t("kpis.doctors")} value={loading ? "—" : String(counts.all)} tone="primary" />
+        <Kpi icon={KeyRound} label={t("filters.login")} value={loading ? "—" : String(counts.login)} tone="accent" />
+        <Kpi icon={Building2} label={t("kpis.multi")} value={loading ? "—" : String(counts.multi)} tone="chip" />
+        <Kpi icon={UserX} label={t("filters.suspended")} value={loading ? "—" : String(counts.suspended)} tone={counts.suspended ? "destructive" : "primary"} />
       </div>
 
       <Card className="p-5">
         <Toolbar
           search={query} onSearch={setQuery}
-          onAdd={openCreate} addLabel="Add Doctor"
+          onAdd={openCreate} addLabel={t("add")}
           onExport={() => exportCSV(rows.map(p => ({
-            name: p.name, specialty: p.specialty, bmdc_number: p.bmdc_number, email: p.email, phone: p.phone,
-            hospitals: p.hospitals.map(h => h.name).join("; "), login: loginState(p).label,
+            [t("csv.name")]: p.name, [t("csv.specialty")]: p.specialty, [t("csv.bmdc")]: p.bmdc_number,
+            [t("csv.email")]: p.email, [t("csv.phone")]: p.phone,
+            [t("csv.hospitals")]: p.hospitals.map(h => h.name).join("; "), [t("csv.login")]: loginState(p).label,
           })), "doctors.csv")}
-          filters={<Chips value={filter} onChange={setFilter} options={FILTERS} />}
+          filters={<Chips value={filter} onChange={setFilter} options={FILTERS.map(value => ({ value, label: t(`filters.${value}`) }))} />}
         />
         {loading ? (
           <div className="py-16 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
         ) : failed ? (
           <div className="py-12 text-center">
-            <p className="text-sm text-foreground/80">Couldn&apos;t load the doctors.</p>
-            <Btn variant="outline" className="mt-4" onClick={() => void load()}>Try again</Btn>
+            <p className="text-sm text-foreground/80">{t("loadFailed")}</p>
+            <Btn variant="outline" className="mt-4" onClick={() => void load()}>{t("tryAgain")}</Btn>
           </div>
         ) : (
           <DataTable<Person>
             rows={rows}
             columns={columns}
             onRow={p => setViewKey(p.key)}
-            empty="No doctors match."
+            empty={t("noMatch")}
             actions={p => (
               <RowActions
                 onView={() => setViewKey(p.key)}
@@ -778,14 +791,14 @@ const Doctors = () => {
                 // The key leads, as on a hospital's Doctors page.
                 before={
                   <button type="button" onClick={() => onKey(p)} disabled={loginBusy === p.key}
-                    title={p.has_login ? "View this doctor's login" : "Create a login for this doctor"}
+                    title={p.has_login ? t("viewLoginTitle") : t("createLoginTitle")}
                     className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 disabled:opacity-50">
                     {loginBusy === p.key ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
                   </button>
                 }
                 extra={p.has_login && (
                   <button type="button" onClick={() => setPendingActive({ person: p, active: !p.is_active })}
-                    title={p.is_active ? "Suspend login" : "Reactivate login"}
+                    title={p.is_active ? t("suspendLogin") : t("reactivateLogin")}
                     className={`p-1.5 rounded-lg ${p.is_active ? "hover:bg-destructive/10 text-destructive" : "hover:bg-muted text-foreground/70"}`}>
                     {p.is_active ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
                   </button>
@@ -797,28 +810,28 @@ const Doctors = () => {
       </Card>
 
       {/* View */}
-      <Drawer open={!!viewing} onClose={() => setViewKey(null)} title="Doctor">
+      <Drawer open={!!viewing} onClose={() => setViewKey(null)} title={t("drawerTitle")}>
         {viewing && (
           <div className="space-y-6">
             <div className="flex items-center gap-4">
               <Avatar src={viewing.photo_url} name={viewing.name} className="h-16 w-16" />
               <div className="min-w-0">
                 <p className="font-display text-2xl text-primary truncate">{viewing.name}</p>
-                <p className="text-sm text-muted-foreground">{viewing.specialty || "No specialty"}</p>
+                <p className="text-sm text-muted-foreground">{viewing.specialty || t("noSpecialty")}</p>
                 <div className="mt-1"><Pill tone={loginState(viewing).tone}>{loginState(viewing).label}</Pill></div>
               </div>
             </div>
             <dl className="grid grid-cols-[120px_1fr] gap-y-2 text-sm">
               {([
-                ["Email", viewing.email],
-                ["Phone", viewing.phone],
-                ["BMDC no.", viewing.bmdc_number],
-                ["Education", viewing.education],
-                ["Experience", viewing.experience_years != null ? `${viewing.experience_years} years` : null],
-                ["Gender", GENDERS.find(g => g.value === viewing.gender)?.label ?? null],
-                ["Languages", viewing.languages],
-                ["Expertise", viewing.expertise],
-                ["Listed since", formatDate(viewing.joined_at)],
+                [t("view.email"), viewing.email],
+                [t("view.phone"), viewing.phone],
+                [t("view.bmdc"), viewing.bmdc_number],
+                [t("view.education"), viewing.education],
+                [t("view.experience"), viewing.experience_years != null ? t("view.years", { count: viewing.experience_years }) : null],
+                [t("view.gender"), genderLabel(viewing.gender)],
+                [t("view.languages"), viewing.languages],
+                [t("view.expertise"), viewing.expertise],
+                [t("view.since"), formatDate(viewing.joined_at)],
               ] as const).map(([label, value]) => (
                 <div key={label} className="contents">
                   <dt className="text-muted-foreground">{label}</dt>
@@ -829,20 +842,18 @@ const Doctors = () => {
             {viewing.bio && <p className="text-sm text-foreground/80 whitespace-pre-line">{viewing.bio}</p>}
             <div>
               <p className="font-display text-lg text-primary mb-2">
-                {viewing.hospitals.length === 1 ? "Hospital" : viewing.hospitals.length === 0 ? "Hospitals" : `${viewing.hospitals.length} hospitals`}
+                {t("view.hospitals", { count: viewing.hospitals.length })}
               </p>
               {viewing.hospitals.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  Not at any hospital yet. A hospital that adds them by this email or BMDC number is linked to this doctor.
-                </p>
+                <p className="text-sm text-muted-foreground">{t("view.noHospitals")}</p>
               )}
               <div className="space-y-2">
                 {viewing.hospitals.map(h => (
                   <div key={h.doctor_id} className="flex items-center justify-between gap-3 rounded-xl bg-muted/30 border border-border/40 px-3 py-2.5">
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-primary truncate">{h.name}</p>
-                      <p className="text-xs text-muted-foreground capitalize">{h.status.replace("_", " ")}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{availabilityLabel(h.availability) ?? "No hours set"}</p>
+                      <p className="text-xs text-muted-foreground">{statusLabel(h.status)}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{availabilityLabel(h.availability, locale) ?? noHours}</p>
                     </div>
                     <span className="text-sm font-semibold text-primary shrink-0">
                       {h.consultation_fee == null ? "—" : formatCurrency(Number(h.consultation_fee))}
@@ -854,16 +865,16 @@ const Doctors = () => {
             {viewing.chambers.length > 0 && (
               <div>
                 <p className="font-display text-lg text-primary mb-2">
-                  {viewing.chambers.length === 1 ? "Chamber" : `${viewing.chambers.length} chambers`}
+                  {t("view.chambers", { count: viewing.chambers.length })}
                 </p>
                 <div className="space-y-2">
                   {viewing.chambers.map(c => (
                     <div key={c.id} className="flex items-center justify-between gap-3 rounded-xl bg-muted/30 border border-border/40 px-3 py-2.5">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-primary truncate">{c.name}</p>
-                        <p className="text-xs text-muted-foreground">{c.open ? "Taking bookings" : "Closed to bookings"}</p>
+                        <p className="text-xs text-muted-foreground">{c.open ? t("view.taking") : t("cards.closed")}</p>
                         {chamberPlace(c) && <p className="text-xs text-muted-foreground mt-0.5">{chamberPlace(c)}</p>}
-                        <p className="text-xs text-muted-foreground mt-0.5">{availabilityLabel(c.availability) ?? "No hours set"}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{availabilityLabel(c.availability, locale) ?? noHours}</p>
                       </div>
                       <span className="text-sm font-semibold text-primary shrink-0">
                         {c.consultation_fee == null ? "—" : formatCurrency(Number(c.consultation_fee))}
@@ -874,15 +885,15 @@ const Doctors = () => {
               </div>
             )}
             <div className="flex gap-2">
-              <Btn variant="outline" onClick={() => { setViewKey(null); openEdit(viewing); }}>Edit</Btn>
+              <Btn variant="outline" onClick={() => { setViewKey(null); openEdit(viewing); }}>{tc("edit")}</Btn>
               <Btn variant="outline" onClick={() => onKey(viewing)} disabled={loginBusy === viewing.key}>
                 {loginBusy === viewing.key ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
-                {viewing.has_login ? "View login" : "Create login"}
+                {viewing.has_login ? t("viewLogin") : t("createLogin")}
               </Btn>
               {viewing.has_login && (
                 <Btn variant={viewing.is_active ? "danger" : "primary"}
                   onClick={() => setPendingActive({ person: viewing, active: !viewing.is_active })}>
-                  {viewing.is_active ? "Suspend login" : "Reactivate login"}
+                  {viewing.is_active ? t("suspendLogin") : t("reactivateLogin")}
                 </Btn>
               )}
             </div>
@@ -891,11 +902,12 @@ const Doctors = () => {
       </Drawer>
 
       {/* Edit */}
-      <Modal open={!!editing} onClose={() => !saving && setEditing(null)} title={`Edit ${editing?.name ?? "doctor"}`} size="lg"
+      <Modal open={!!editing} onClose={() => !saving && setEditing(null)}
+        title={editing?.name ? t("editTitle", { name: editing.name }) : t("editTitleAnon")} size="lg"
         footer={<>
-          <Btn variant="outline" onClick={() => setEditing(null)} disabled={saving}>Cancel</Btn>
+          <Btn variant="outline" onClick={() => setEditing(null)} disabled={saving}>{tc("cancel")}</Btn>
           <Btn onClick={() => void saveEdit()} disabled={saving || photoUploading}>
-            {(saving || photoUploading) && <Loader2 className="h-4 w-4 animate-spin" />} {photoUploading ? "Uploading photo…" : "Save"}
+            {(saving || photoUploading) && <Loader2 className="h-4 w-4 animate-spin" />} {photoUploading ? t("uploadingPhoto") : tc("save")}
           </Btn>
         </>}>
         {editing && (
@@ -910,19 +922,17 @@ const Doctors = () => {
                 onChange: v => setEditDraft(d => ({ ...d, photo_url: v })),
                 onUploading: setPhotoUploading,
               }}
-              note={editing.hospitals.length > 1
-                ? `Personal details are the doctor's own — saving updates all ${editing.hospitals.length} hospitals that list them.`
-                : undefined}
+              note={editing.hospitals.length > 1 ? t("notes.sharedDetails", { count: editing.hospitals.length }) : undefined}
             />
 
             {/* Where they work, and when — each hospital's own fee and hours,
                 and hospitals to add. Their own hours are their chambers', below. */}
             <HospitalsSection
               note={editing.hospitals.length === 0 && editAdds.length === 0
-                ? "Not at any hospital yet. Add one here — or a hospital can add them later by email or BMDC number."
+                ? t("notes.noHospital")
                 : !editing.has_login && editing.hospitals.length - editRemovals.length > 0
-                  ? "Each hospital has its own fee and hours. To add another hospital, give them a login first — it makes them one doctor at every hospital."
-                  : "Each hospital has its own fee and hours. Patients booking there are held to them."}
+                  ? t("notes.loginForMore")
+                  : t("notes.eachHospital")}
               onAdd={editCards.add}
               canAdd={
                 // Without a login, one hospital at a time — one being removed frees the place.
@@ -935,22 +945,21 @@ const Doctors = () => {
                 <div key={`${editing.key}:${h.doctor_id}`}
                   className="flex items-start justify-between gap-3 rounded-2xl border border-dashed border-destructive/40 bg-destructive/5 p-4">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-primary">{h.name} — removed on save</p>
+                    <p className="text-sm font-semibold text-primary">{t("removal.title", { name: h.name })}</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Their appointments, admissions and lab orders there keep their history without them; their shifts and
-                      performance records there are deleted.
+                      {t("removal.body")}
                       {editing.hospitals.length - editRemovals.length + editAdds.length === 0
-                        && " With no hospital left, they stay on HealthFlow at none, and keep their login."}
+                        && ` ${t("removal.none")}`}
                     </p>
                   </div>
                   <Btn variant="outline" className="shrink-0" onClick={() => setEditRemovals(list => list.filter(id => id !== h.doctor_id))}>
-                    Undo
+                    {t("removal.undo")}
                   </Btn>
                 </div>
               ) : (
                 <HospitalCard
                   key={`${editing.key}:${h.doctor_id}`}
-                  title="Hospital"
+                  title={t("cards.hospital")}
                   hospital={h.name}
                   fee={editExisting[h.doctor_id]?.fee ?? ""}
                   onFee={v => setEditExisting(m => ({ ...m, [h.doctor_id]: { ...m[h.doctor_id], fee: v } }))}
@@ -963,7 +972,7 @@ const Doctors = () => {
               {editAdds.map((a, i) => (
                 <HospitalCard
                   key={a.key}
-                  title={editAdds.length > 1 ? `New hospital ${i + 1}` : "New hospital"}
+                  title={editAdds.length > 1 ? t("cards.newHospitalN", { n: i + 1 }) : t("cards.newHospital")}
                   hospital={a.tenant_id ? hospitalName(a.tenant_id) : undefined}
                   select={{
                     value: a.tenant_id,
@@ -983,10 +992,10 @@ const Doctors = () => {
                 chamber is run from the doctor's panel, so it needs a login. */}
             <ChambersSection
               note={!editing.has_login
-                ? "A chamber is run from the doctor's own panel — give them a login first."
+                ? t("notes.chamberNeedsLogin")
                 : editing.chambers.length + editChamberAdds.length === 0
-                  ? "Where they practise for themselves. Patients book them there, with its own fee and hours."
-                  : "Each chamber has its own fee and hours. Patients booking there are held to them."}
+                  ? t("notes.chamberIntro")
+                  : t("notes.eachChamber")}
               onAdd={chamberCards.add}
               canAdd={editing.has_login}
             >
@@ -1005,7 +1014,7 @@ const Doctors = () => {
               {editChamberAdds.map((a, i) => (
                 <ChamberCard
                   key={a.key}
-                  title={a.draft.name || (editChamberAdds.length > 1 ? `New chamber ${i + 1}` : "New chamber")}
+                  title={a.draft.name || (editChamberAdds.length > 1 ? t("cards.newChamberN", { n: i + 1 }) : t("cards.newChamber"))}
                   draft={a.draft}
                   onChange={patch => chamberCards.update(a.key, patch)}
                   resetKey={a.key}
@@ -1019,17 +1028,15 @@ const Doctors = () => {
             <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 p-3 text-sm">
               <span>
                 <span className="font-semibold text-primary">
-                  {!editing.has_login ? "No login yet" : editing.is_active ? "Has a login" : "Login suspended"}
+                  {!editing.has_login ? t("loginBox.none") : editing.is_active ? t("loginBox.has") : t("loginBox.suspended")}
                 </span>
                 <span className="block text-xs text-muted-foreground">
-                  {editing.has_login
-                    ? "View their email and password, or generate a new one."
-                    : "If their email or BMDC number already belongs to a doctor on HealthFlow, they're linked to that account instead of getting a second one."}
+                  {editing.has_login ? t("loginBox.hasHint") : t("loginBox.linkHint")}
                 </span>
               </span>
               <Btn variant="outline" className="shrink-0 whitespace-nowrap" onClick={() => onKey(editing)} disabled={loginBusy === editing.key}>
                 {loginBusy === editing.key ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
-                {editing.has_login ? "View login" : "Create login"}
+                {editing.has_login ? t("viewLogin") : t("createLogin")}
               </Btn>
             </div>
           </>
@@ -1037,11 +1044,11 @@ const Doctors = () => {
       </Modal>
 
       {/* Create */}
-      <Modal open={creating} onClose={() => !saving && setCreating(false)} title="Add Doctor" size="lg"
+      <Modal open={creating} onClose={() => !saving && setCreating(false)} title={t("add")} size="lg"
         footer={<>
-          <Btn variant="outline" onClick={() => setCreating(false)} disabled={saving}>Cancel</Btn>
+          <Btn variant="outline" onClick={() => setCreating(false)} disabled={saving}>{tc("cancel")}</Btn>
           <Btn onClick={() => void saveCreate()} disabled={saving || photoUploading}>
-            {(saving || photoUploading) && <Loader2 className="h-4 w-4 animate-spin" />} {photoUploading ? "Uploading photo…" : "Add Doctor"}
+            {(saving || photoUploading) && <Loader2 className="h-4 w-4 animate-spin" />} {photoUploading ? t("uploadingPhoto") : t("add")}
           </Btn>
         </>}>
         <DoctorDetails
@@ -1058,16 +1065,14 @@ const Doctors = () => {
         {/* Where they work, and when. Each hospital sets its own fee and
             hours (0077); the doctor's own are their chambers'. */}
         <HospitalsSection
-          note={assignments.length === 0
-            ? "Not at any hospital yet. Add one here — or a hospital can add them later by email or BMDC number."
-            : "Each hospital has its own fee and hours. Patients booking there are held to them."}
+          note={assignments.length === 0 ? t("notes.noHospital") : t("notes.eachHospital")}
           onAdd={createCards.add}
           canAdd={assignments.length < hospitalOptions.length}
         >
           {assignments.map((a, i) => (
             <HospitalCard
               key={a.key}
-              title={assignments.length > 1 ? `Hospital ${i + 1}` : "Hospital"}
+              title={assignments.length > 1 ? t("cards.hospitalN", { n: i + 1 }) : t("cards.hospital")}
               hospital={a.tenant_id ? hospitalName(a.tenant_id) : undefined}
               select={{ value: a.tenant_id, options: freeHospitals(assignments, a.key), onChange: id => createCards.update(a.key, { tenant_id: id }) }}
               fee={a.consultation_fee}
@@ -1081,45 +1086,43 @@ const Doctors = () => {
 
         {/* Same place as on Edit. A chamber belongs to a login, which this
             form makes only once the doctor is saved. */}
-        <ChambersSection
-          note="Their own practice, with its own address, fee and hours. Add it from Edit once the doctor has a login."
-          canAdd={false}
-        />
+        <ChambersSection note={t("notes.chamberAfterCreate")} canAdd={false} />
         <label className="flex items-start gap-3 rounded-xl bg-muted/40 p-3 text-sm cursor-pointer">
           <input type="checkbox" checked={withLogin} onChange={e => setWithLogin(e.target.checked)} className="mt-0.5" />
           <span>
-            <span className="font-semibold text-primary">Give them a login</span>
-            <span className="block text-xs text-muted-foreground">
-              If this email or BMDC number already belongs to a doctor on HealthFlow, they&apos;re linked to that account instead of getting a second one.
-            </span>
+            <span className="font-semibold text-primary">{t("loginBox.give")}</span>
+            <span className="block text-xs text-muted-foreground">{t("loginBox.linkHint")}</span>
           </span>
         </label>
       </Modal>
 
       {/* A login's credentials — new, viewed, or reset */}
-      <Modal open={!!creds} onClose={() => setCreds(null)} title="Doctor login"
+      <Modal open={!!creds} onClose={() => setCreds(null)} title={t("credsTitle")}
         footer={<>
           {creds?.person && (
             <Btn variant="outline" onClick={() => { const person = creds.person!; setCreds(null); setPendingReset({ person, missing: false }); }}>
-              <KeyRound className="h-4 w-4" /> Generate new password
+              <KeyRound className="h-4 w-4" /> {t("generatePassword")}
             </Btn>
           )}
-          <Btn onClick={() => setCreds(null)}>Done</Btn>
+          <Btn onClick={() => setCreds(null)}>{t("done")}</Btn>
         </>}>
         {creds && (
           <div className="space-y-4">
             <div className="flex items-start gap-3 rounded-xl bg-muted/40 p-4">
               <KeyRound className="h-5 w-5 text-primary mt-0.5 shrink-0" />
               <p className="text-sm text-muted-foreground">
-                Login for <span className="font-semibold text-primary">{creds.name}</span>. {creds.note}
+                {t.rich("credsFor", {
+                  name: creds.name,
+                  b: chunks => <span className="font-semibold text-primary">{chunks}</span>,
+                })} {creds.note}
               </p>
             </div>
-            {[{ label: "Email", value: creds.email }, { label: "Password", value: creds.password }].map(({ label, value }) => (
+            {[{ label: t("fields.email"), value: creds.email }, { label: t("password"), value: creds.password }].map(({ label, value }) => (
               <Field key={label} label={label}>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 bg-muted/40 rounded-lg px-3 py-2 text-sm font-mono break-all">{value}</code>
-                  <button type="button" onClick={() => { void navigator.clipboard.writeText(value); toast.success(`${label} copied`); }}
-                    className="p-2 rounded-lg border border-border hover:bg-muted" title={`Copy ${label}`}>
+                  <button type="button" onClick={() => { void navigator.clipboard.writeText(value); toast.success(t("copied", { label })); }}
+                    className="p-2 rounded-lg border border-border hover:bg-muted" title={t("copy", { label })}>
                     <Copy className="h-4 w-4" />
                   </button>
                 </div>
@@ -1133,10 +1136,10 @@ const Doctors = () => {
         open={!!pendingCreate}
         onClose={() => setPendingCreate(null)}
         onConfirm={() => pendingCreate && void createLogin(pendingCreate)}
-        title="Create doctor login?"
+        title={t("confirm.createTitle")}
         description={
           pendingCreate
-            ? `If ${pendingCreate.email || "their email"} or their BMDC number already belongs to a doctor on HealthFlow, they're linked to that account and keep their own details. Otherwise a new login is created for ${pendingCreate.name}.`
+            ? t("confirm.createBody", { email: pendingCreate.email || t("confirm.theirEmail"), name: pendingCreate.name })
             : undefined
         }
       />
@@ -1145,12 +1148,12 @@ const Doctors = () => {
         open={!!pendingReset}
         onClose={() => setPendingReset(null)}
         onConfirm={() => pendingReset && void resetLogin(pendingReset.person)}
-        title={pendingReset?.missing ? "Reset this doctor's password?" : "Generate a new password?"}
+        title={pendingReset?.missing ? t("confirm.resetTitle") : t("confirm.newTitle")}
         description={
           pendingReset
             ? pendingReset.missing
-              ? `${pendingReset.person.name} has a login, but no password was saved for it — it predates this feature, or saving it failed. It can't be recovered, only replaced. Resetting sets a new one you can view here from now on, and stops the old one working.`
-              : `This replaces ${pendingReset.person.name}'s password at every hospital they sign in to. The old one stops working at once, so share the new one with them.`
+              ? t("confirm.resetBody", { name: pendingReset.person.name })
+              : t("confirm.newBody", { name: pendingReset.person.name })
             : undefined
         }
       />
@@ -1159,12 +1162,12 @@ const Doctors = () => {
         open={!!pendingActive}
         onClose={() => setPendingActive(null)}
         onConfirm={() => pendingActive && void setActive(pendingActive.person, pendingActive.active)}
-        title={pendingActive?.active ? "Reactivate this login?" : "Suspend this login?"}
+        title={pendingActive?.active ? t("confirm.reactivateTitle") : t("confirm.suspendTitle")}
         description={
           pendingActive
             ? pendingActive.active
-              ? `${pendingActive.person.name} will be able to sign in again at every hospital that lists them.`
-              : `${pendingActive.person.name} is signed out now and can't use HealthFlow at any hospital until reactivated. Their records stay.`
+              ? t("confirm.reactivateBody", { name: pendingActive.person.name })
+              : t("confirm.suspendBody", { name: pendingActive.person.name })
             : undefined
         }
       />

@@ -7,6 +7,7 @@ import {
   BadgeCheck,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useLocale, useTranslations } from "next-intl";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
 import { mediaUrl, MAX_IMAGE_BYTES, ALLOWED_IMAGE_TYPES } from "@/lib/media";
 import { IdentityDocumentField, type IdentityDoc } from "@/components/patient/IdentityDocumentField";
@@ -39,22 +40,13 @@ type HistoryEntry = {
 
 // No Documents tab: a patient's medical paperwork lives with their records on
 // /patient/medical-records (0076), beside the visits it belongs with.
-type Tab = "General" | "Clinical" | "Insurance" | "Family";
-const TABS: Tab[] = ["General", "Clinical", "Insurance", "Family"];
+type Tab = "general" | "clinical" | "insurance" | "family";
+const TABS = ["general", "clinical", "insurance", "family"] as const satisfies readonly Tab[];
 
-const GENDERS = [
-  { value: "female", label: "Female" },
-  { value: "male", label: "Male" },
-  { value: "other", label: "Other" },
-];
+const GENDERS = ["female", "male", "other"] as const;
+const MARITAL = ["single", "married", "divorced", "widowed"] as const;
 
-const MARITAL = [
-  { value: "single", label: "Single" },
-  { value: "married", label: "Married" },
-  { value: "divorced", label: "Divorced" },
-  { value: "widowed", label: "Widowed" },
-];
-
+/** Blood groups read the same in both languages, so they are not translated. */
 const BLOOD_GROUPS = [
   { value: "o_positive", label: "O+" }, { value: "o_negative", label: "O−" },
   { value: "a_positive", label: "A+" }, { value: "a_negative", label: "A−" },
@@ -62,20 +54,18 @@ const BLOOD_GROUPS = [
   { value: "ab_positive", label: "AB+" }, { value: "ab_negative", label: "AB−" },
 ];
 
-const LISTS: { kind: HistoryKind; title: string; blurb: string; placeholder: string }[] = [
-  { kind: "allergy", title: "Allergies", blurb: "Anything you react to — drugs, food, materials.", placeholder: "Penicillin" },
-  { kind: "illness", title: "Ongoing Conditions", blurb: "Long-term conditions you are managing.", placeholder: "Type 2 Diabetes" },
-  { kind: "medication", title: "Current Medication", blurb: "What you take regularly, including over the counter.", placeholder: "Metformin 500mg" },
-  { kind: "procedure", title: "Past Procedures", blurb: "Operations and procedures you have had.", placeholder: "Appendectomy" },
-];
+const LISTS = ["allergy", "illness", "medication", "procedure"] as const satisfies readonly HistoryKind[];
 
-const labelFor = (options: { value: string; label: string }[], value: string | null | undefined) =>
-  options.find(o => o.value === value)?.label ?? "—";
+const bloodLabel = (value: string | null | undefined) =>
+  BLOOD_GROUPS.find(o => o.value === value)?.label ?? "—";
 
-const dateLabel = (iso: string | null | undefined) => {
+/** Month names in the page's language; digits stay Western (see appSettings). */
+const dateLabel = (iso: string | null | undefined, locale: string) => {
   if (!iso) return "—";
   const d = new Date(`${iso}T00:00:00`);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
+  return Number.isNaN(d.getTime())
+    ? iso
+    : d.toLocaleDateString(locale === "bn" ? "bn-BD-u-nu-latn" : "en-US", { day: "numeric", month: "short", year: "numeric" });
 };
 
 const SectionHead = ({ icon: Icon, title, action }: { icon: typeof User; title: string; action?: React.ReactNode }) => (
@@ -105,7 +95,7 @@ const inputClass =
  * document list, a family tree, an insurance plan. Accepting input that goes
  * nowhere is worse than saying so.
  */
-const NotYet = ({ icon: Icon, title, reason }: { icon: typeof User; title: string; reason: string }) => (
+const NotYet = ({ icon: Icon, title, reason, note }: { icon: typeof User; title: string; reason: string; note: string }) => (
   <div className="rounded-3xl bg-card border border-border/60 p-10 shadow-soft text-center">
     <div className="h-12 w-12 rounded-2xl bg-chip grid place-items-center text-primary mx-auto">
       <Icon className="h-5 w-5" />
@@ -113,13 +103,17 @@ const NotYet = ({ icon: Icon, title, reason }: { icon: typeof User; title: strin
     <h2 className="font-display text-2xl text-primary mt-4">{title}</h2>
     <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">{reason}</p>
     <p className="text-[10px] tracking-widest font-bold text-muted-foreground mt-5 inline-flex items-center gap-1.5">
-      <Lock className="h-3 w-3" /> NOT AVAILABLE YET
+      <Lock className="h-3 w-3" /> {note}
     </p>
   </div>
 );
 
 const Profile = () => {
-  const [tab, setTab] = useState<Tab>("General");
+  const t = useTranslations("patient.profile");
+  const tc = useTranslations("common");
+  const tr = useTranslations("rxSheet");
+  const locale = useLocale();
+  const [tab, setTab] = useState<Tab>("general");
   const [profile, setProfile] = useState<Patient | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [hospitals, setHospitals] = useState<HospitalLink[]>([]);
@@ -159,7 +153,7 @@ const Profile = () => {
       const body = await res.json().catch(() => null);
       if (!res.ok) {
         setFailed(true);
-        toast.error(body?.error?.message || "Couldn't load your profile.");
+        toast.error(body?.error?.message || t("loadFailed"));
         return;
       }
       setProfile(body.data.profile);
@@ -168,7 +162,7 @@ const Profile = () => {
       setHistory(body.data.history ?? []);
     } catch {
       setFailed(true);
-      toast.error("Couldn't reach the server.");
+      toast.error(tc("networkError"));
     } finally {
       setLoading(false);
     }
@@ -200,14 +194,14 @@ const Profile = () => {
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        toast.error(body?.error?.message || "Couldn't save your emergency contact.");
+        toast.error(body?.error?.message || t("ecSaveFailed"));
         return;
       }
       setProfile(body.data);
       setEditingEc(false);
-      toast.success("Emergency contact saved");
+      toast.success(t("ecSaved"));
     } catch {
-      toast.error("Couldn't reach the server.");
+      toast.error(tc("networkError"));
     } finally {
       setSavingEc(false);
     }
@@ -223,11 +217,11 @@ const Profile = () => {
     if (!file) return;
 
     if (!(ALLOWED_IMAGE_TYPES as readonly string[]).includes(file.type)) {
-      toast.error("That is not an image we take — PNG, JPG, WebP, AVIF or SVG.");
+      toast.error(t("badImage"));
       return;
     }
     if (file.size > MAX_IMAGE_BYTES) {
-      toast.error(`That image is ${(file.size / 1024 / 1024).toFixed(1)}MB — the limit is 5MB.`);
+      toast.error(t("imageTooBig", { size: (file.size / 1024 / 1024).toFixed(1) }));
       return;
     }
 
@@ -239,11 +233,11 @@ const Profile = () => {
         body: JSON.stringify({ folder: "avatars", contentType: file.type, size: file.size }),
       });
       const body = await permission.json().catch(() => null);
-      if (!permission.ok) throw new Error(body?.error?.message || "Could not start the upload.");
+      if (!permission.ok) throw new Error(body?.error?.message || t("startFailed"));
 
       const { key, uploadUrl } = body.data;
       const put = await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
-      if (!put.ok) throw new Error("Cloudflare refused the upload.");
+      if (!put.ok) throw new Error(t("uploadRefused"));
 
       const saved = await fetch("/api/v1/patient/profile", {
         method: "PATCH",
@@ -251,12 +245,12 @@ const Profile = () => {
         body: JSON.stringify({ avatar_url: key }),
       });
       const savedBody = await saved.json().catch(() => null);
-      if (!saved.ok) throw new Error(savedBody?.error?.message || "Could not save that picture.");
+      if (!saved.ok) throw new Error(savedBody?.error?.message || t("pictureSaveFailed"));
 
       setProfile(savedBody.data);
-      toast.success("Profile picture updated");
+      toast.success(t("pictureUpdated"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not upload that picture.");
+      toast.error(err instanceof Error ? err.message : t("pictureUploadFailed"));
     } finally {
       setAvatarBusy(false);
       if (avatarRef.current) avatarRef.current.value = "";
@@ -274,21 +268,21 @@ const Profile = () => {
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        toast.error(body?.error?.message || "Couldn't save your details.");
+        toast.error(body?.error?.message || t("saveFailed"));
         return;
       }
       setProfile(body.data);
       setEditing(false);
-      toast.success("Profile updated");
+      toast.success(t("saved"));
     } catch {
-      toast.error("Couldn't reach the server.");
+      toast.error(tc("networkError"));
     } finally {
       setSaving(false);
     }
   };
 
   const addEntry = async (kind: HistoryKind) => {
-    if (!newLabel.trim()) { toast.error("Give it a name first"); return; }
+    if (!newLabel.trim()) { toast.error(t("nameFirst")); return; }
     try {
       const res = await fetch("/api/v1/patient/profile", {
         method: "POST",
@@ -297,14 +291,14 @@ const Profile = () => {
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        toast.error(body?.error?.message || "Couldn't add that.");
+        toast.error(body?.error?.message || t("addFailed"));
         return;
       }
       setHistory(h => [body.data, ...h]);
       setNewLabel(""); setNewDetail(""); setAdding(null);
-      toast.success("Added");
+      toast.success(t("added"));
     } catch {
-      toast.error("Couldn't reach the server.");
+      toast.error(tc("networkError"));
     }
   };
 
@@ -313,13 +307,13 @@ const Profile = () => {
       const res = await fetch(`/api/v1/patient/profile?id=${entry.id}`, { method: "DELETE" });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        toast.error(body?.error?.message || "Couldn't remove that.");
+        toast.error(body?.error?.message || t("removeFailed"));
         return;
       }
       setHistory(h => h.filter(e => e.id !== entry.id));
-      toast.success("Removed");
+      toast.success(t("removedToast"));
     } catch {
-      toast.error("Couldn't reach the server.");
+      toast.error(tc("networkError"));
     }
   };
 
@@ -337,7 +331,7 @@ const Profile = () => {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               src={mediaUrl(profile?.avatar_url) as string}
-              alt={profile?.full_name ?? "Profile picture"}
+              alt={profile?.full_name ?? t("picture")}
               loading="lazy"
               width={160}
               height={160}
@@ -352,7 +346,7 @@ const Profile = () => {
           <button
             onClick={() => avatarRef.current?.click()}
             disabled={avatarBusy}
-            aria-label="Change profile picture"
+            aria-label={t("changePicture")}
             className="absolute bottom-2 right-2 h-9 w-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-glow hover:opacity-90 transition disabled:opacity-60"
           >
             <Pencil className="h-4 w-4" />
@@ -360,22 +354,22 @@ const Profile = () => {
         </div>
 
         <div className="flex-1 min-w-[260px]">
-          <p className="text-[10px] tracking-widest font-bold text-muted-foreground">MY RECORD</p>
+          <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("kicker")}</p>
           <h1 className="font-display text-5xl text-primary mt-2 flex items-center gap-2">
-            {profile?.full_name ?? "Profile"}
+            {profile?.full_name ?? t("title")}
             {/* Icon only, no label — it means the same thing everywhere and a
                 word beside it would only take up room. */}
             {idDocs.some(d => d.holder === "self" && d.status === "verified") && (
-              <BadgeCheck className="h-7 w-7 text-primary-glow shrink-0" aria-label="Identity verified" />
+              <BadgeCheck className="h-7 w-7 text-primary-glow shrink-0" aria-label={t("verified")} />
             )}
           </h1>
           {hospitals.length > 0 && (
             <p className="text-sm text-muted-foreground mt-2">
-              Registered at{" "}
+              {t("registeredAt")}{" "}
               {hospitals.map((h, i) => (
                 <span key={h.id}>
                   {i > 0 && ", "}
-                  {h.tenants?.name ?? "a hospital"}
+                  {h.tenants?.name ?? t("aHospital")}
                   {h.mrn && <> · <span className="font-mono text-primary">{h.mrn}</span></>}
                 </span>
               ))}
@@ -387,16 +381,16 @@ const Profile = () => {
       {/* Tabs, centred under the header with the highlight sliding between. */}
       <div className="flex justify-center mt-10">
         <div className="bg-muted/40 rounded-full p-1.5 flex gap-1 flex-wrap">
-          {TABS.map(t => (
-            <button key={t} onClick={() => setTab(t)} className="relative px-5 py-2.5 text-sm font-semibold rounded-full">
-              {tab === t && (
+          {TABS.map(key => (
+            <button key={key} onClick={() => setTab(key)} className="relative px-5 py-2.5 text-sm font-semibold rounded-full">
+              {tab === key && (
                 <motion.div
                   layoutId="patient-profile-tab"
                   className="absolute inset-0 bg-card shadow-soft rounded-full"
                   transition={{ type: "spring", stiffness: 400, damping: 32 }}
                 />
               )}
-              <span className={`relative ${tab === t ? "text-primary" : "text-muted-foreground"}`}>{t}</span>
+              <span className={`relative ${tab === key ? "text-primary" : "text-muted-foreground"}`}>{t(`tabs.${key}`)}</span>
             </button>
           ))}
         </div>
@@ -404,77 +398,75 @@ const Profile = () => {
 
       <div className="mt-10 max-w-6xl mx-auto">
         {loading ? (
-          <p className="text-sm text-muted-foreground py-16 text-center">Loading your profile…</p>
+          <p className="text-sm text-muted-foreground py-16 text-center">{t("loading")}</p>
         ) : failed ? (
-          <p className="text-sm text-destructive py-16 text-center">
-            Your profile couldn&apos;t be loaded. Reload the page to try again.
-          </p>
+          <p className="text-sm text-destructive py-16 text-center">{t("failed")}</p>
         ) : !profile ? (
-          <p className="text-sm text-muted-foreground py-16 text-center">Loading your profile…</p>
-        ) : tab === "General" ? (
+          <p className="text-sm text-muted-foreground py-16 text-center">{t("loading")}</p>
+        ) : tab === "general" ? (
           <div className="space-y-6">
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
             className="rounded-3xl bg-card border border-border/60 p-7 shadow-soft">
             <SectionHead
               icon={User}
-              title="Personal Details"
+              title={t("personal")}
               action={editing ? (
                 <div className="flex gap-2">
                   <button onClick={() => setEditing(false)} disabled={saving}
                     className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-primary inline-flex items-center gap-1.5">
-                    <X className="h-3.5 w-3.5" /> Cancel
+                    <X className="h-3.5 w-3.5" /> {tc("cancel")}
                   </button>
                   <button onClick={save} disabled={saving}
                     className="rounded-full bg-gradient-dark text-surface-dark-foreground px-4 py-2 text-xs font-semibold shadow-glow inline-flex items-center gap-1.5 disabled:opacity-60">
-                    <Save className="h-3.5 w-3.5" /> {saving ? "Saving…" : "Save"}
+                    <Save className="h-3.5 w-3.5" /> {saving ? tc("saving") : tc("save")}
                   </button>
                 </div>
               ) : (
                 <button onClick={startEdit}
                   className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-primary inline-flex items-center gap-1.5 hover:bg-chip">
-                  <Pencil className="h-3.5 w-3.5" /> Edit
+                  <Pencil className="h-3.5 w-3.5" /> {tc("edit")}
                 </button>
               )}
             />
 
             {editing ? (
               <div className="mt-6 grid md:grid-cols-2 gap-4">
-                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">FULL NAME</span>
+                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("fields.fullName")}</span>
                   <input className={inputClass} value={draft.full_name ?? ""} onChange={e => upd({ full_name: e.target.value })} /></label>
-                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">DATE OF BIRTH</span>
+                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("fields.dob")}</span>
                   <input type="date" className={inputClass} value={draft.date_of_birth ?? ""} onChange={e => upd({ date_of_birth: e.target.value })} /></label>
-                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">GENDER</span>
+                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("fields.gender")}</span>
                   <select className={inputClass} value={draft.gender ?? ""} onChange={e => upd({ gender: (e.target.value || null) as Patient["gender"] })}>
                     <option value="">—</option>
-                    {GENDERS.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+                    {GENDERS.map(g => <option key={g} value={g}>{t(`genders.${g}`)}</option>)}
                   </select></label>
-                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">MARITAL STATUS</span>
+                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("fields.marital")}</span>
                   <select className={inputClass} value={draft.marital_status ?? ""} onChange={e => upd({ marital_status: (e.target.value || null) as Patient["marital_status"] })}>
                     <option value="">—</option>
-                    {MARITAL.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                    {MARITAL.map(m => <option key={m} value={m}>{t(`maritalStatuses.${m}`)}</option>)}
                   </select></label>
-                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">NID / PASSPORT</span>
+                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("fields.nid")}</span>
                   <input className={inputClass} value={draft.national_id ?? ""} onChange={e => upd({ national_id: e.target.value })} /></label>
                 {/* Read-only: it is the address this account signs in with, and
                     the API ignores it. Shown here so the form is complete. */}
-                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">EMAIL</span>
+                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("fields.email")}</span>
                   <input type="email" className={`${inputClass} opacity-60 cursor-not-allowed`} value={profile.email ?? ""} readOnly disabled
-                    title="Your sign-in email can't be changed here" /></label>
-                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">PHONE</span>
+                    title={t("emailLocked")} /></label>
+                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("fields.phone")}</span>
                   <input className={inputClass} value={draft.phone ?? ""} onChange={e => upd({ phone: e.target.value })} /></label>
-                <label className="space-y-1.5 md:col-span-2"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">ADDRESS</span>
+                <label className="space-y-1.5 md:col-span-2"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("fields.address")}</span>
                   <input className={inputClass} value={draft.address ?? ""} onChange={e => upd({ address: e.target.value })} /></label>
               </div>
             ) : (
               <div className="mt-6 grid md:grid-cols-3 gap-5">
-                <ReadField label="FULL NAME" value={profile.full_name} />
-                <ReadField label="DATE OF BIRTH" value={dateLabel(profile.date_of_birth)} />
-                <ReadField label="GENDER" value={labelFor(GENDERS, profile.gender)} />
-                <ReadField label="MARITAL STATUS" value={labelFor(MARITAL, profile.marital_status)} />
-                <ReadField label="NID / PASSPORT" value={profile.national_id ?? ""} />
-                <ReadField label="EMAIL" value={profile.email ?? ""} />
-                <ReadField label="PHONE" value={profile.phone ?? ""} />
-                <div className="md:col-span-2"><ReadField label="ADDRESS" value={profile.address ?? ""} /></div>
+                <ReadField label={t("fields.fullName")} value={profile.full_name} />
+                <ReadField label={t("fields.dob")} value={dateLabel(profile.date_of_birth, locale)} />
+                <ReadField label={t("fields.gender")} value={profile.gender ? t(`genders.${profile.gender}`) : "—"} />
+                <ReadField label={t("fields.marital")} value={profile.marital_status ? t(`maritalStatuses.${profile.marital_status}`) : "—"} />
+                <ReadField label={t("fields.nid")} value={profile.national_id ?? ""} />
+                <ReadField label={t("fields.email")} value={profile.email ?? ""} />
+                <ReadField label={t("fields.phone")} value={profile.phone ?? ""} />
+                <div className="md:col-span-2"><ReadField label={t("fields.address")} value={profile.address ?? ""} /></div>
               </div>
             )}
 
@@ -482,8 +474,8 @@ const Profile = () => {
               holder="self"
               docs={idDocs}
               onChanged={loadIdDocs}
-              title="IDENTITY DOCUMENT"
-              note="Upload one legal document and we will check it. Once verified, a badge appears beside your name — and if you are ever brought in unable to speak for yourself, the hospital can be told who you are."
+              title={t("idTitle")}
+              note={t("idNote")}
             />
           </motion.div>
 
@@ -493,58 +485,56 @@ const Profile = () => {
             className="rounded-3xl bg-card border border-border/60 p-7 shadow-soft">
             <SectionHead
               icon={UserSquare2}
-              title="Emergency Contact"
+              title={t("emergency")}
               action={editingEc ? (
                 <div className="flex gap-2">
                   <button onClick={() => setEditingEc(false)} disabled={savingEc}
                     className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-primary inline-flex items-center gap-1.5">
-                    <X className="h-3.5 w-3.5" /> Cancel
+                    <X className="h-3.5 w-3.5" /> {tc("cancel")}
                   </button>
                   <button onClick={saveEc} disabled={savingEc}
                     className="rounded-full bg-gradient-dark text-surface-dark-foreground px-4 py-2 text-xs font-semibold shadow-glow inline-flex items-center gap-1.5 disabled:opacity-60">
-                    <Save className="h-3.5 w-3.5" /> {savingEc ? "Saving…" : "Save"}
+                    <Save className="h-3.5 w-3.5" /> {savingEc ? tc("saving") : tc("save")}
                   </button>
                 </div>
               ) : (
                 <button onClick={startEditEc}
                   className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-primary inline-flex items-center gap-1.5 hover:bg-chip">
-                  <Pencil className="h-3.5 w-3.5" /> Edit
+                  <Pencil className="h-3.5 w-3.5" /> {tc("edit")}
                 </button>
               )}
             />
 
             {editingEc ? (
               <div className="mt-6 grid md:grid-cols-3 gap-4">
-                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">NAME</span>
+                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("fields.name")}</span>
                   <input className={inputClass} value={ecDraft.emergency_contact_name ?? ""}
                     onChange={e => setEcDraft(d => ({ ...d, emergency_contact_name: e.target.value }))} /></label>
-                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">RELATIONSHIP</span>
-                  <input className={inputClass} placeholder="Brother, spouse…" value={ecDraft.emergency_contact_relation ?? ""}
+                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("fields.relationship")}</span>
+                  <input className={inputClass} placeholder={t("relationPlaceholder")} value={ecDraft.emergency_contact_relation ?? ""}
                     onChange={e => setEcDraft(d => ({ ...d, emergency_contact_relation: e.target.value }))} /></label>
-                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">PHONE</span>
+                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("fields.phone")}</span>
                   <input className={inputClass} value={ecDraft.emergency_contact_phone ?? ""}
                     onChange={e => setEcDraft(d => ({ ...d, emergency_contact_phone: e.target.value }))} /></label>
-                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">EMAIL</span>
-                  <input className={inputClass} type="email" placeholder="Where to write if a call does not connect"
+                <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("fields.email")}</span>
+                  <input className={inputClass} type="email" placeholder={t("ecEmailPlaceholder")}
                     value={ecDraft.emergency_contact_email ?? ""}
                     onChange={e => setEcDraft(d => ({ ...d, emergency_contact_email: e.target.value }))} /></label>
-                <label className="space-y-1.5 md:col-span-2"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">ADDRESS</span>
-                  <input className={inputClass} placeholder="Where that person can be found"
+                <label className="space-y-1.5 md:col-span-2"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("fields.address")}</span>
+                  <input className={inputClass} placeholder={t("ecAddressPlaceholder")}
                     value={ecDraft.emergency_contact_address ?? ""}
                     onChange={e => setEcDraft(d => ({ ...d, emergency_contact_address: e.target.value }))} /></label>
               </div>
             ) : profile.emergency_contact_name || profile.emergency_contact_phone ? (
               <div className="mt-6 grid md:grid-cols-3 gap-5">
-                <ReadField label="NAME" value={profile.emergency_contact_name ?? ""} />
-                <ReadField label="RELATIONSHIP" value={profile.emergency_contact_relation ?? ""} />
-                <ReadField label="PHONE" value={profile.emergency_contact_phone ?? ""} />
-                <ReadField label="EMAIL" value={profile.emergency_contact_email ?? ""} />
-                <ReadField label="ADDRESS" value={profile.emergency_contact_address ?? ""} />
+                <ReadField label={t("fields.name")} value={profile.emergency_contact_name ?? ""} />
+                <ReadField label={t("fields.relationship")} value={profile.emergency_contact_relation ?? ""} />
+                <ReadField label={t("fields.phone")} value={profile.emergency_contact_phone ?? ""} />
+                <ReadField label={t("fields.email")} value={profile.emergency_contact_email ?? ""} />
+                <ReadField label={t("fields.address")} value={profile.emergency_contact_address ?? ""} />
               </div>
             ) : (
-              <p className="mt-6 text-sm text-muted-foreground">
-                Nobody listed yet. Add the person a hospital should call if you cannot answer for yourself.
-              </p>
+              <p className="mt-6 text-sm text-muted-foreground">{t("noEmergency")}</p>
             )}
 
             <IdentityDocumentField
@@ -554,81 +544,81 @@ const Profile = () => {
             />
           </motion.div>
           </div>
-        ) : tab === "Clinical" ? (
+        ) : tab === "clinical" ? (
           <div className="space-y-6">
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
               className="rounded-3xl bg-card border border-border/60 p-7 shadow-soft">
               <SectionHead
                 icon={HeartPulse}
-                title="Vitals"
+                title={t("vitals")}
                 action={!editing && (
                   <button onClick={startEdit}
                     className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-primary inline-flex items-center gap-1.5 hover:bg-chip">
-                    <Pencil className="h-3.5 w-3.5" /> Edit
+                    <Pencil className="h-3.5 w-3.5" /> {tc("edit")}
                   </button>
                 )}
               />
               {editing ? (
                 <div className="mt-6 grid md:grid-cols-4 gap-4 items-end">
-                  <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">BLOOD GROUP</span>
+                  <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("fields.bloodGroup")}</span>
                     <select className={inputClass} value={draft.blood_group ?? ""} onChange={e => upd({ blood_group: (e.target.value || null) as Patient["blood_group"] })}>
                       <option value="">—</option>
                       {BLOOD_GROUPS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
                     </select></label>
-                  <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">HEIGHT (FT)</span>
+                  <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("fields.heightFt")}</span>
                     <input type="number" min={0} max={9} className={inputClass} value={draft.height_feet ?? ""} onChange={e => upd({ height_feet: e.target.value === "" ? null : Number(e.target.value) })} /></label>
-                  <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">HEIGHT (IN)</span>
+                  <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("fields.heightIn")}</span>
                     <input type="number" min={0} max={11} className={inputClass} value={draft.height_inches ?? ""} onChange={e => upd({ height_inches: e.target.value === "" ? null : Number(e.target.value) })} /></label>
-                  <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">WEIGHT (KG)</span>
+                  <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("fields.weightKg")}</span>
                     <input type="number" min={0} step="0.1" className={inputClass} value={draft.weight_kg ?? ""} onChange={e => upd({ weight_kg: e.target.value === "" ? null : Number(e.target.value) })} /></label>
                   <div className="md:col-span-4 flex gap-2">
                     <button onClick={() => setEditing(false)} disabled={saving}
-                      className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-primary">Cancel</button>
+                      className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-primary">{tc("cancel")}</button>
                     <button onClick={save} disabled={saving}
                       className="rounded-full bg-gradient-dark text-surface-dark-foreground px-4 py-2 text-xs font-semibold shadow-glow disabled:opacity-60">
-                      {saving ? "Saving…" : "Save"}
+                      {saving ? tc("saving") : tc("save")}
                     </button>
                   </div>
                 </div>
               ) : (
                 <div className="mt-6 grid md:grid-cols-3 gap-5">
-                  <ReadField label="BLOOD GROUP" value={labelFor(BLOOD_GROUPS, profile.blood_group)} />
-                  <ReadField label="HEIGHT" value={height} />
-                  <ReadField label="WEIGHT" value={profile.weight_kg != null ? `${profile.weight_kg} kg` : ""} />
+                  <ReadField label={t("fields.bloodGroup")} value={bloodLabel(profile.blood_group)} />
+                  <ReadField label={t("fields.height")} value={height} />
+                  <ReadField label={t("fields.weight")} value={profile.weight_kg != null ? tr("kg", { value: profile.weight_kg }) : ""} />
                 </div>
               )}
             </motion.div>
 
-            {LISTS.map(list => {
-              const entries = history.filter(h => h.kind === list.kind);
+            {LISTS.map(kind => {
+              const entries = history.filter(h => h.kind === kind);
               return (
-                <motion.div key={list.kind} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                <motion.div key={kind} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   className="rounded-3xl bg-card border border-border/60 p-7 shadow-soft">
                   <SectionHead
                     icon={HeartPulse}
-                    title={list.title}
+                    title={t(`lists.${kind}.title`)}
                     action={
-                      <button onClick={() => { setAdding(adding === list.kind ? null : list.kind); setNewLabel(""); setNewDetail(""); }}
+                      <button onClick={() => { setAdding(adding === kind ? null : kind); setNewLabel(""); setNewDetail(""); }}
                         className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-primary inline-flex items-center gap-1.5 hover:bg-chip">
-                        <Plus className="h-3.5 w-3.5" /> Add
+                        <Plus className="h-3.5 w-3.5" /> {tc("add")}
                       </button>
                     }
                   />
-                  <p className="text-xs text-muted-foreground mt-2">{list.blurb}</p>
+                  <p className="text-xs text-muted-foreground mt-2">{t(`lists.${kind}.blurb`)}</p>
 
-                  {adding === list.kind && (
+                  {adding === kind && (
                     <div className="mt-4 grid md:grid-cols-[1fr_1fr_auto] gap-2">
-                      <input className={inputClass} placeholder={list.placeholder} value={newLabel} onChange={e => setNewLabel(e.target.value)} />
-                      <input className={inputClass} placeholder="Detail (optional)" value={newDetail} onChange={e => setNewDetail(e.target.value)} />
-                      <button onClick={() => addEntry(list.kind)}
+                      <input className={inputClass} placeholder={t(`lists.${kind}.placeholder`)} value={newLabel} onChange={e => setNewLabel(e.target.value)} />
+                      <input className={inputClass} placeholder={t("detailOptional")} value={newDetail} onChange={e => setNewDetail(e.target.value)} />
+                      <button onClick={() => addEntry(kind)}
                         className="rounded-full bg-gradient-dark text-surface-dark-foreground px-5 py-2.5 text-xs font-semibold shadow-glow">
-                        Add
+                        {tc("add")}
                       </button>
                     </div>
                   )}
 
                   {entries.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-6 text-center">Nothing recorded.</p>
+                    <p className="text-sm text-muted-foreground py-6 text-center">{t("nothingRecorded")}</p>
                   ) : (
                     <div className="mt-4 space-y-2">
                       {entries.map(e => (
@@ -637,7 +627,7 @@ const Profile = () => {
                             <p className="font-semibold text-primary">{e.label}</p>
                             {e.detail && <p className="text-xs text-muted-foreground">{e.detail}</p>}
                           </div>
-                          <button onClick={() => removeEntry(e)} aria-label={`Remove ${e.label}`}
+                          <button onClick={() => removeEntry(e)} aria-label={t("removeEntry", { label: e.label })}
                             className="ml-auto text-muted-foreground hover:text-destructive">
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -649,17 +639,19 @@ const Profile = () => {
               );
             })}
           </div>
-        ) : tab === "Insurance" ? (
+        ) : tab === "insurance" ? (
           <NotYet
             icon={ShieldCheck}
-            title="Insurance"
-            reason="This tab showed a plan that did not exist. Recording a real one needs a decision first: whether a patient has one insurer or a history of them, since people change provider. Until that is settled, nothing here would be true."
+            title={t("insurance.title")}
+            reason={t("insurance.reason")}
+            note={t("notAvailable")}
           />
         ) : (
           <NotYet
             icon={Users}
-            title="Family Management"
-            reason="Linking family members needs more than a list: a rule about who may see whose medical record, and a way to consent to it. That is being designed separately rather than guessed at here."
+            title={t("family.title")}
+            reason={t("family.reason")}
+            note={t("notAvailable")}
           />
         )}
       </div>

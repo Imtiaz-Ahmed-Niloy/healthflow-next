@@ -5,16 +5,16 @@ import { NavLink } from "@/components/NavLink";
 import { useRouter } from "next/navigation";
 import { LayoutGrid, Calendar, Users, CreditCard, FileText, User, LogOut, Bell, Settings, BookOpen, Heart, Hospital } from "lucide-react";
 import { toast } from "sonner";
-import { useTranslation } from "react-i18next";
+import { useTranslations } from "next-intl";
 import LanguageSwitcher from "@/components/site/LanguageSwitcher";
 import { HeaderClock } from "@/components/common/HeaderClock";
 import { useSession, displayName } from "@/lib/auth/useSession";
-import { roleLabel } from "@/lib/auth/permissions";
+import { useRoleLabel } from "@/i18n/useRoleLabel";
 import { BRAND_INFO } from "@/constants/brand";
 import { Avatar } from "@/components/common/Avatar";
 
 export const PatientSidebar = () => {
-  const { t } = useTranslation();
+  const t = useTranslations();
   const links = [
     { to: "/patient/dashboard", icon: LayoutGrid, label: t("sidebar.dashboard") },
     { to: "/patient/find-hospitals", icon: Hospital, label: t("sidebar.findHospitals") },
@@ -53,7 +53,8 @@ export const PatientSidebar = () => {
 export const PatientTopbar = () => {
   const router = useRouter();
   const { user, signOut } = useSession();
-  const { t } = useTranslation();
+  const t = useTranslations();
+  const roleLabel = useRoleLabel();
   return (
     <header className="bg-card border-b border-border/50">
       <div className="flex items-center justify-between px-8 py-4">
@@ -61,9 +62,9 @@ export const PatientTopbar = () => {
         <div className="flex items-center gap-5">
           <HeaderClock />
           <LanguageSwitcher compact />
-          <button className="text-foreground/70 hover:text-primary"><Bell className="h-5 w-5" /></button>
-          <button className="text-foreground/70 hover:text-primary"><Settings className="h-5 w-5" /></button>
-          <NavLink to="/patient/profile" className={({ isActive }) => `text-foreground/70 hover:text-primary transition ${isActive ? "text-primary" : ""}`}>
+          <button className="text-foreground/70 hover:text-primary" aria-label={t("common.notifications")}><Bell className="h-5 w-5" /></button>
+          <button className="text-foreground/70 hover:text-primary" aria-label={t("common.settings")}><Settings className="h-5 w-5" /></button>
+          <NavLink to="/patient/profile" aria-label={t("common.profile")} className={({ isActive }) => `text-foreground/70 hover:text-primary transition ${isActive ? "text-primary" : ""}`}>
             <User className="h-5 w-5" />
           </NavLink>
           <div className="flex items-center gap-3 border-l border-border/60 pl-5">
@@ -73,7 +74,7 @@ export const PatientTopbar = () => {
             </div>
             <Avatar src={user?.avatarUrl} name={displayName(user)} />
           </div>
-          <button onClick={async () => { await signOut(); toast.success("Signed out"); router.replace("/signin"); router.refresh(); }}
+          <button onClick={async () => { await signOut(); toast.success(t("common.signedOut")); router.replace("/signin"); router.refresh(); }}
             className="flex items-center gap-2 text-sm font-semibold text-foreground/70 hover:text-destructive">
             <LogOut className="h-4 w-4" /> {t("sidebar.signOut")}
           </button>

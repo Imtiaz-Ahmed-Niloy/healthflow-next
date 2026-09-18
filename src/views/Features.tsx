@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import * as Icons from "lucide-react";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 const dashboard = "/assets/feature-dashboard.jpg";
@@ -19,6 +20,8 @@ const Ico = ({ name, className }: { name: string; className?: string }) => {
 };
 
 const Features = ({ hero, content }: { hero: CmsHeroFields; content: FeaturesContent }) => {
+  const t = useTranslations("featuresPage");
+  // The page's words are the CMS's (/super/cms); only the picture's label is here.
   const { architecture, logic, core } = content;
   const [active, setActive] = useState(architecture.tabs[0] ?? "");
 
@@ -38,7 +41,7 @@ const Features = ({ hero, content }: { hero: CmsHeroFields; content: FeaturesCon
               </div>
             </motion.div>
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8, delay: 0.2 }} className="relative">
-              <img src={dashboard} alt="HealthFlow precision dashboard" width={1280} height={1024} className="rounded-2xl shadow-card w-full object-cover aspect-[4/3]" />
+              <img src={dashboard} alt={t("dashboardAlt")} width={1280} height={1024} className="rounded-2xl shadow-card w-full object-cover aspect-[4/3]" />
             </motion.div>
           </div>
         </section>
@@ -52,9 +55,9 @@ const Features = ({ hero, content }: { hero: CmsHeroFields; content: FeaturesCon
           {architecture.tabs.length > 0 && (
             <div className="flex justify-center mt-8 overflow-x-auto">
               <div className="inline-flex rounded-full bg-muted p-1.5 gap-1">
-                {architecture.tabs.map(t => (
-                  <button key={t} onClick={() => setActive(t)} className={`px-4 py-2 rounded-full text-xs md:text-sm font-medium whitespace-nowrap transition-all ${active === t ? "bg-primary text-primary-foreground" : "text-foreground/70 hover:text-primary"}`}>
-                    {t}
+                {architecture.tabs.map(tab => (
+                  <button key={tab} onClick={() => setActive(tab)} className={`px-4 py-2 rounded-full text-xs md:text-sm font-medium whitespace-nowrap transition-all ${active === tab ? "bg-primary text-primary-foreground" : "text-foreground/70 hover:text-primary"}`}>
+                    {tab}
                   </button>
                 ))}
               </div>

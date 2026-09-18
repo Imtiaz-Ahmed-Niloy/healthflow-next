@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Calendar } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Avatar } from "@/components/common/Avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -33,6 +34,9 @@ export const BookAppointmentDialog = ({ doctor, onClose }: {
   doctor: UIDoctor | null;
   onClose: () => void;
 }) => {
+  const t = useTranslations("booking");
+  const tc = useTranslations("common");
+  const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const { user, isLoading: sessionLoading } = useSession();
@@ -61,8 +65,8 @@ export const BookAppointmentDialog = ({ doctor, onClose }: {
   /** What is wrong with the picked slot, if anything — shown under the fields as they are filled. */
   const slotProblem = (() => {
     if (!doctor || !form.date) return null;
-    if (form.date < clock.today) return "That date has already passed. Pick today or a later date.";
-    const dayOrHours = outsideAvailabilityReason(schedule, form.date, form.time, doctor.name);
+    if (form.date < clock.today) return t("datePassed");
+    const dayOrHours = outsideAvailabilityReason(schedule, form.date, form.time, doctor.name, locale);
     if (dayOrHours) return dayOrHours;
     return form.time ? clock.pastSlotReason(form.date, form.time) : null;
   })();
@@ -88,11 +92,11 @@ export const BookAppointmentDialog = ({ doctor, onClose }: {
     e.preventDefault();
     if (!doctor || !place) return;
     if (!form.date || !form.time) {
-      toast.error("Please pick a date and time.");
+      toast.error(t("pickDateTime"));
       return;
     }
     const problem = clock.pastSlotReason(form.date, form.time)
-      ?? outsideAvailabilityReason(schedule, form.date, form.time, doctor.name);
+      ?? outsideAvailabilityReason(schedule, form.date, form.time, doctor.name, locale);
     if (problem) {
       toast.error(problem);
       return;
@@ -112,7 +116,7 @@ export const BookAppointmentDialog = ({ doctor, onClose }: {
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        const message = body?.error?.message || "Couldn't book that appointment. Please try again.";
+        const message = body?.error?.message || t("failed");
         // A refusal about the slot itself belongs on the date and time fields.
         if (res.status === 409 || res.status === 422) setRefused({ key: slotKey, message });
         toast.error(message);
@@ -121,12 +125,12 @@ export const BookAppointmentDialog = ({ doctor, onClose }: {
 
       // Read as a calendar date at noon UTC, then printed in UTC: `new Date("2026-09-12")`
       // is midnight UTC, which a browser west of UTC would print as the 11th.
-      const dateLabel = new Date(`${form.date}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric", timeZone: "UTC" });
-      toast.success(`Appointment requested with ${doctor.name} at ${place.name} on ${dateLabel} at ${form.time}`);
+      const dateLabel = new Date(`${form.date}T12:00:00Z`).toLocaleDateString(locale === "bn" ? "bn-BD" : "en-US", { month: "short", day: "2-digit", year: "numeric", timeZone: "UTC" });
+      toast.success(t("requested", { doctor: doctor.name, place: place.name, date: dateLabel, time: form.time }));
       onClose();
       router.push("/patient/appointments");
     } catch {
-      toast.error("Couldn't reach the server. Please try again.");
+      toast.error(tc("networkError"));
     } finally {
       setSubmitting(false);
     }
@@ -138,20 +142,20 @@ export const BookAppointmentDialog = ({ doctor, onClose }: {
     <Dialog open={!!doctor} onOpenChange={o => !o && !submitting && onClose()}>
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
-          <DialogTitle className="font-display text-2xl text-primary">Book Appointment</DialogTitle>
+          <DialogTitle className="font-display text-2xl text-primary">{t("title")}</DialogTitle>
           <DialogDescription>
-            {doctor ? `Schedule a consultation with ${doctor.name} (${doctor.specialty}).` : ""}
+            {doctor ? t("description", { doctor: doctor.name, specialty: doctor.specialty }) : ""}
           </DialogDescription>
         </DialogHeader>
 
         {doctor && !sessionLoading && !user && (
           // Signed out: sign in, and land back here with this form open.
           <div className="space-y-4 mt-2">
-            <p className="text-sm text-muted-foreground">Sign in to your patient account to book {doctor.name}.</p>
+            <p className="text-sm text-muted-foreground">{t("signInToBook", { doctor: doctor.name })}</p>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={onClose}>{tc("cancel")}</Button>
               <Button asChild>
-                <Link href={`/signin?next=${encodeURIComponent(`${pathname}?book=1`)}`}>Sign in to book</Link>
+                <Link href={`/signin?next=${encodeURIComponent(`${pathname}?book=1`)}`}>{t("signInButton")}</Link>
               </Button>
             </DialogFooter>
           </div>
@@ -159,11 +163,9 @@ export const BookAppointmentDialog = ({ doctor, onClose }: {
 
         {doctor && user && !isPatient && (
           <div className="space-y-4 mt-2">
-            <p className="text-sm text-muted-foreground">
-              Appointments are booked from a patient account. You&apos;re signed in as staff.
-            </p>
+            <p className="text-sm text-muted-foreground">{t("staffNotice")}</p>
             <DialogFooter>
-              <Button type="button" onClick={onClose}>OK</Button>
+              <Button type="button" onClick={onClose}>{t("ok")}</Button>
             </DialogFooter>
           </div>
         )}
@@ -177,14 +179,14 @@ export const BookAppointmentDialog = ({ doctor, onClose }: {
                 <p className="text-xs text-primary-glow">{doctor.specialty} · {place?.name ?? doctor.hospital.name}</p>
                 {place?.availability && (
                   <p className="text-xs text-foreground/70 mt-1 flex items-center gap-1">
-                    <Calendar className="h-3 w-3" /> Available {availabilityLabel(place.availability)}
+                    <Calendar className="h-3 w-3" /> {t("available", { hours: availabilityLabel(place.availability, locale) ?? "" })}
                   </p>
                 )}
               </div>
             </div>
             {doctor.places.length > 1 && (
               <div className="space-y-1.5">
-                <Label required>Where</Label>
+                <Label required>{t("where")}</Label>
                 <div className="grid gap-2">
                   {doctor.places.map(p => (
                     <label key={p.id}
@@ -194,9 +196,9 @@ export const BookAppointmentDialog = ({ doctor, onClose }: {
                       <span className="min-w-0">
                         <span className="block font-semibold text-primary">{p.name}</span>
                         <span className="block text-xs text-muted-foreground">
-                          {p.kind === "chamber" ? "Their own chamber" : "Hospital"}{p.location ? ` · ${p.location}` : ""}
+                          {p.kind === "chamber" ? t("ownChamber") : t("hospital")}{p.location ? ` · ${p.location}` : ""}
                         </span>
-                        <span className="block text-xs text-muted-foreground">{p.available || "Hours not set"}</span>
+                        <span className="block text-xs text-muted-foreground">{p.available || t("hoursNotSet")}</span>
                       </span>
                     </label>
                   ))}
@@ -205,12 +207,12 @@ export const BookAppointmentDialog = ({ doctor, onClose }: {
             )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label required>Date</Label>
+                <Label required>{t("date")}</Label>
                 <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} min={clock.today} required
                   aria-invalid={!!fieldProblem} aria-describedby={fieldProblem ? "slot-problem" : undefined} className={fieldClass} />
               </div>
               <div className="space-y-1.5">
-                <Label required>Time</Label>
+                <Label required>{t("time")}</Label>
                 {/* Bounded by the doctor's hours, and by now when the date is today. */}
                 <Input type="time" value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))}
                   min={[dayHours?.start, form.date === clock.today ? clock.nowTime : undefined].filter(Boolean).sort().pop()}
@@ -221,17 +223,17 @@ export const BookAppointmentDialog = ({ doctor, onClose }: {
             </div>
             {schedule && !fieldProblem && (
               <p className="text-xs text-muted-foreground -mt-2">
-                {doctor.name} sees patients {describeSchedule(schedule)}.
+                {t("seesPatients", { doctor: doctor.name, schedule: describeSchedule(schedule, locale) })}
               </p>
             )}
             {fieldProblem && <p id="slot-problem" role="alert" className="text-xs font-semibold text-destructive -mt-2">{fieldProblem}</p>}
             <div className="space-y-1.5">
-              <Label>Reason for visit (optional)</Label>
-              <Textarea value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} placeholder="Briefly describe your symptoms or reason..." rows={3} />
+              <Label>{t("reason")}</Label>
+              <Textarea value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} placeholder={t("reasonPlaceholder")} rows={3} />
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
-              <Button type="submit" disabled={submitting || !!fieldProblem}>{submitting ? "Booking..." : "Confirm Booking"}</Button>
+              <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>{tc("cancel")}</Button>
+              <Button type="submit" disabled={submitting || !!fieldProblem}>{submitting ? t("booking") : t("confirm")}</Button>
             </DialogFooter>
           </form>
         )}

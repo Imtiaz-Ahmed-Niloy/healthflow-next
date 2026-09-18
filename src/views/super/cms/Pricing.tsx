@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { SuperLayout } from "@/components/super/SuperLayout";
 import { Card, SectionTitle, Btn } from "@/components/admin/ui";
 import { Input } from "@/components/ui/input";
@@ -15,7 +16,14 @@ import { usePricingContent } from "@/data/usePricingContent";
 const describeError = (cause: unknown, fallback: string) =>
   (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? fallback;
 
+/**
+ * The controls translate; the plans, specs and FAQs typed into them are stored
+ * as written. New rows start from English placeholder text, which is content
+ * to overwrite rather than interface.
+ */
 const CmsPricing = () => {
+  const t = useTranslations("super.cmsEditor");
+  const tp = useTranslations("super.cmsEditor.pricing");
   const { content, save, reset } = usePricingContent();
   const [data, setData] = useState<PricingContent>(content);
   const [dirty, setDirty] = useState(false);
@@ -99,40 +107,40 @@ const CmsPricing = () => {
     try {
       await save(data);
       setDirty(false);
-      toast.success("Pricing page updated — changes are live");
+      toast.success(tp("updated"));
     } catch (cause) {
-      toast.error(describeError(cause, "Could not save pricing page"));
+      toast.error(describeError(cause, tp("saveFailed")));
     }
   };
   const handleReset = async () => {
     try {
       await reset();
       setDirty(false);
-      toast.info("Pricing reset to defaults");
+      toast.info(tp("reset"));
     } catch (cause) {
-      toast.error(describeError(cause, "Could not reset pricing page"));
+      toast.error(describeError(cause, tp("resetFailed")));
     }
   };
 
   return (
-    <SuperLayout title="Pricing Page" subtitle="Edit content shown on /pricing">
+    <SuperLayout title={t("pages.pricing.title")} subtitle={t("pages.pricing.subtitle")}>
       <div className="flex flex-wrap gap-2 justify-end mb-4">
-        <Btn variant="outline" onClick={handleReset}><RotateCcw className="h-4 w-4" />Reset to default</Btn>
-        <Btn onClick={handleSave}><Save className="h-4 w-4" />Save & publish</Btn>
+        <Btn variant="outline" onClick={handleReset}><RotateCcw className="h-4 w-4" />{tp("resetDefault")}</Btn>
+        <Btn onClick={handleSave}><Save className="h-4 w-4" />{tp("savePublish")}</Btn>
       </div>
 
       {/* Hero */}
       <Card className="p-6 mb-6">
-        <SectionTitle title="Hero section" />
+        <SectionTitle title={t("heroSection")} />
         <div className="grid md:grid-cols-3 gap-4 mt-4">
           <div>
           </div>
           <div className="md:col-span-2">
-            <Label>Title</Label>
+            <Label>{t("title")}</Label>
             <Input value={data.hero.title} onChange={e => updateHero({ title: e.target.value })} />
           </div>
           <div className="md:col-span-3">
-            <Label>Subtitle</Label>
+            <Label>{t("subtitle")}</Label>
             <Textarea value={data.hero.subtitle} onChange={e => updateHero({ subtitle: e.target.value })} rows={2} />
           </div>
         </div>
@@ -141,42 +149,42 @@ const CmsPricing = () => {
       {/* Plans */}
       <Card className="p-6 mb-6">
         <div className="flex items-center justify-between">
-          <SectionTitle title="Plans" />
-          <Btn onClick={addPlan}><Plus className="h-4 w-4" />Add plan</Btn>
+          <SectionTitle title={tp("plans")} />
+          <Btn onClick={addPlan}><Plus className="h-4 w-4" />{tp("addPlan")}</Btn>
         </div>
         <div className="grid lg:grid-cols-3 gap-4 mt-4">
           {data.plans.map((p, pi) => (
             <Card key={pi} className="p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-muted-foreground">PLAN #{pi + 1}</span>
-                <button onClick={() => removePlan(pi)} className="text-destructive hover:opacity-70"><Trash2 className="h-4 w-4" /></button>
+                <span className="text-xs font-semibold text-muted-foreground uppercase">{tp("planN", { n: pi + 1 })}</span>
+                <button onClick={() => removePlan(pi)} aria-label={tp("removePlan")} className="text-destructive hover:opacity-70"><Trash2 className="h-4 w-4" /></button>
               </div>
               <div>
-                <Label>Name</Label>
+                <Label>{t("name")}</Label>
                 <Input value={p.name} onChange={e => updatePlan(pi, { name: e.target.value })} />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <Label>Price</Label>
+                  <Label>{tp("price")}</Label>
                   <Input value={p.price} onChange={e => updatePlan(pi, { price: e.target.value })} />
                 </div>
                 <div>
-                  <Label>CTA label</Label>
+                  <Label>{tp("cta")}</Label>
                   <Input value={p.cta} onChange={e => updatePlan(pi, { cta: e.target.value })} />
                 </div>
               </div>
               <div>
-                <Label>Tagline</Label>
+                <Label>{tp("tagline")}</Label>
                 <Input value={p.tag} onChange={e => updatePlan(pi, { tag: e.target.value })} />
               </div>
               <div className="flex items-center gap-2">
                 <Switch checked={p.featured} onCheckedChange={v => updatePlan(pi, { featured: v })} />
-                <Label className="m-0">Featured / Most Popular</Label>
+                <Label className="m-0">{tp("featured")}</Label>
               </div>
               <div>
                 <div className="flex items-center justify-between">
-                  <Label>Features</Label>
-                  <button onClick={() => addFeature(pi)} className="text-xs text-primary hover:underline">+ add</button>
+                  <Label>{tp("features")}</Label>
+                  <button onClick={() => addFeature(pi)} className="text-xs text-primary hover:underline">{tp("addFeature")}</button>
                 </div>
                 <div className="space-y-2 mt-1">
                   {p.features.map((f, fi) => (
@@ -196,17 +204,17 @@ const CmsPricing = () => {
       {/* Compare */}
       <Card className="p-6 mb-6">
         <div className="flex items-center justify-between">
-          <SectionTitle title="Compare table" />
-          <Btn onClick={addRow}><Plus className="h-4 w-4" />Add row</Btn>
+          <SectionTitle title={tp("compare")} />
+          <Btn onClick={addRow}><Plus className="h-4 w-4" />{tp("addRow")}</Btn>
         </div>
-        <p className="text-xs text-muted-foreground mt-1">One column per plan — columns follow the plans above.</p>
+        <p className="text-xs text-muted-foreground mt-1">{tp("compareHint")}</p>
         <div className="overflow-x-auto mt-4">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-muted-foreground">
-                <th className="py-2 pr-2 min-w-[160px]">Spec</th>
+                <th className="py-2 pr-2 min-w-[160px]">{tp("spec")}</th>
                 {data.plans.map((p, pi) => (
-                  <th key={pi} className="py-2 pr-2 min-w-[140px]">{p.name || `Plan ${pi + 1}`}</th>
+                  <th key={pi} className="py-2 pr-2 min-w-[140px]">{p.name || tp("planName", { n: pi + 1 })}</th>
                 ))}
                 <th />
               </tr>
@@ -231,26 +239,26 @@ const CmsPricing = () => {
       {/* FAQ */}
       <Card className="p-6 mb-6">
         <div className="flex items-center justify-between">
-          <SectionTitle title="FAQs" />
-          <Btn onClick={addFaq}><Plus className="h-4 w-4" />Add FAQ</Btn>
+          <SectionTitle title={tp("faqs")} />
+          <Btn onClick={addFaq}><Plus className="h-4 w-4" />{tp("addFaq")}</Btn>
         </div>
         <div className="space-y-4 mt-4">
           {data.faqs.map((f, i) => (
             <Card key={i} className="p-4 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-muted-foreground">FAQ #{i + 1}</span>
-                <button onClick={() => removeFaq(i)} className="text-destructive hover:opacity-70"><Trash2 className="h-4 w-4" /></button>
+                <span className="text-xs font-semibold text-muted-foreground uppercase">{tp("faqN", { n: i + 1 })}</span>
+                <button onClick={() => removeFaq(i)} aria-label={tp("removeFaq")} className="text-destructive hover:opacity-70"><Trash2 className="h-4 w-4" /></button>
               </div>
-              <Input value={f.q} onChange={e => updateFaq(i, { q: e.target.value })} placeholder="Question" />
-              <Textarea value={f.a} onChange={e => updateFaq(i, { a: e.target.value })} rows={2} placeholder="Answer" />
+              <Input value={f.q} onChange={e => updateFaq(i, { q: e.target.value })} placeholder={tp("question")} />
+              <Textarea value={f.a} onChange={e => updateFaq(i, { a: e.target.value })} rows={2} placeholder={tp("answer")} />
             </Card>
           ))}
         </div>
       </Card>
 
       <div className="flex justify-end gap-2">
-        <Btn variant="outline" onClick={handleReset}><RotateCcw className="h-4 w-4" />Reset</Btn>
-        <Btn onClick={handleSave}><Save className="h-4 w-4" />Save & publish</Btn>
+        <Btn variant="outline" onClick={handleReset}><RotateCcw className="h-4 w-4" />{t("reset")}</Btn>
+        <Btn onClick={handleSave}><Save className="h-4 w-4" />{tp("savePublish")}</Btn>
       </div>
     </SuperLayout>
   );

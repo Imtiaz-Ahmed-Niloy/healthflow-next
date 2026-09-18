@@ -6,7 +6,9 @@ import { CheckCircle2, Clock, ArrowRightLeft, Plus, SlidersHorizontal, ArrowRigh
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { PortalLayout } from "@/components/portal/PortalLayout";
+import { displayTime } from "@/lib/availability";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -47,16 +49,10 @@ type ApiQueueResponse = {
 type FilterKey = "ALL" | Priority;
 const FILTERS: FilterKey[] = ["ALL", "high", "standard", "routine"];
 
-const priorityMeta: Record<Priority, { label: string; priorityClass: string; dot: string }> = {
-  high: { label: "HIGH PRIORITY", priorityClass: "bg-destructive/15 text-destructive", dot: "bg-destructive" },
-  standard: { label: "STANDARD", priorityClass: "bg-chip text-primary", dot: "bg-primary-glow" },
-  routine: { label: "ROUTINE", priorityClass: "bg-muted text-foreground/60", dot: "bg-muted-foreground" },
-};
-
-const formatTime = (t: string) => {
-  const [hh, mm] = t.split(":");
-  const h = parseInt(hh, 10);
-  return `${((h + 11) % 12 + 1)}:${mm} ${h >= 12 ? "PM" : "AM"}`;
+const priorityMeta: Record<Priority, { priorityClass: string; dot: string }> = {
+  high: { priorityClass: "bg-destructive/15 text-destructive", dot: "bg-destructive" },
+  standard: { priorityClass: "bg-chip text-primary", dot: "bg-primary-glow" },
+  routine: { priorityClass: "bg-muted text-foreground/60", dot: "bg-muted-foreground" },
 };
 
 /**
@@ -64,25 +60,29 @@ const formatTime = (t: string) => {
  * wants, not the date itself. Years, or months and then days for a baby, the
  * same units the prescription pad uses.
  */
-const ageLabel = (iso: string | null) => {
-  if (!iso) return "—";
+const ageOf = (iso: string | null) => {
+  if (!iso) return null;
   const dob = new Date(`${iso}T00:00:00`);
   const now = new Date();
   let months = (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth());
   if (now.getDate() < dob.getDate()) months -= 1;
-  if (months >= 12) {
-    const years = Math.floor(months / 12);
-    return `${years} ${years === 1 ? "year" : "years"}`;
-  }
-  if (months >= 1) return `${months} ${months === 1 ? "month" : "months"}`;
-  const days = Math.max(0, Math.floor((now.getTime() - dob.getTime()) / 86_400_000));
-  return `${days} ${days === 1 ? "day" : "days"}`;
+  if (months >= 12) return { unit: "years", count: Math.floor(months / 12) } as const;
+  if (months >= 1) return { unit: "months", count: months } as const;
+  return { unit: "days", count: Math.max(0, Math.floor((now.getTime() - dob.getTime()) / 86_400_000)) } as const;
 };
 
 const initials = (name: string) =>
   name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
 
 const Queue = () => {
+  const t = useTranslations("portal.queue");
+  const tc = useTranslations("common");
+  const locale = useLocale();
+  const formatTime = (time: string) => displayTime(time, locale);
+  const ageLabel = (iso: string | null) => {
+    const age = ageOf(iso);
+    return age ? t(`ages.${age.unit}`, { count: age.count }) : "—";
+  };
   const router = useRouter();
   const [queue, setQueue] = useState<ApiQueueEntry[]>([]);
   const [completed, setCompleted] = useState<ApiCompletedEntry[]>([]);
@@ -103,7 +103,7 @@ const Queue = () => {
       const res = await fetch("/api/v1/portal/queue");
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        toast.error(body?.error?.message || "Couldn't load today's queue.");
+        toast.error(body?.error?.message || t("loadFailed"));
         return;
       }
       setQueue(body.data.queue ?? []);
@@ -116,7 +116,7 @@ const Queue = () => {
       if (here && list.some(h => h.id === here)) setForm(f => (f.hospital_id ? f : { ...f, hospital_id: here }));
       setStats(body.data.stats ?? { seen: 0, remaining: 0, total: 0, avg_wait_minutes: 0 });
     } catch {
-      toast.error("Couldn't reach the server.");
+      toast.error(tc("networkError"));
     } finally {
       setLoading(false);
     }
@@ -158,7 +158,7 @@ const Queue = () => {
 
   const handleAddWalkIn = async () => {
     if (!form.name.trim()) {
-      toast.error("Please enter the patient's name");
+      toast.error(t("nameRequired"));
       return;
     }
     const hospitalId = form.hospital_id || hospitals[0]?.id;
@@ -178,15 +178,15 @@ const Queue = () => {
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        toast.error(body?.error?.message || "Couldn't add that walk-in.");
+        toast.error(body?.error?.message || t("walkInFailed"));
         return;
       }
-      toast.success(`${form.name.trim()} added to the queue`);
+      toast.success(t("walkInAdded", { name: form.name.trim() }));
       setForm({ name: "", dob: "", phone: "", reason: "", priority: "standard", hospital_id: form.hospital_id });
       setWalkInOpen(false);
       void load();
     } catch {
-      toast.error("Couldn't reach the server.");
+      toast.error(tc("networkError"));
     } finally {
       setSubmitting(false);
     }
@@ -212,30 +212,30 @@ const Queue = () => {
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        toast.error(body?.error?.message || "Couldn't start that consultation.");
+        toast.error(body?.error?.message || t("startFailed"));
         return;
       }
       router.push(`/portal/prescription?appointment=${entry.id}`);
     } catch {
-      toast.error("Couldn't reach the server.");
+      toast.error(tc("networkError"));
     } finally {
       setStartingId(null);
     }
   };
 
   const statCards = [
-    { label: "PATIENTS SEEN", value: String(shownStats.seen), suffix: `/ ${shownStats.total}`, icon: CheckCircle2 },
-    { label: "AVG WAIT TIME", value: String(shownStats.avg_wait_minutes), suffix: "mins", icon: Clock },
-    { label: "REMAINING", value: String(shownStats.remaining), suffix: "appointments", icon: ArrowRightLeft },
+    { label: t("stats.seen"), value: String(shownStats.seen), suffix: `/ ${shownStats.total}`, icon: CheckCircle2 },
+    { label: t("stats.avgWait"), value: String(shownStats.avg_wait_minutes), suffix: t("stats.mins"), icon: Clock },
+    { label: t("stats.remaining"), value: String(shownStats.remaining), suffix: t("stats.appointments"), icon: ArrowRightLeft },
   ];
 
   return (
     <PortalLayout>
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
-          <h1 className="font-display text-4xl text-primary">Today&apos;s Queue</h1>
+          <h1 className="font-display text-4xl text-primary">{t("title")}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+            {new Date().toLocaleDateString(locale === "bn" ? "bn-BD-u-nu-latn" : "en-US", { weekday: "long", month: "long", day: "numeric" })}
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -251,7 +251,7 @@ const Queue = () => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL">All hospitals & chambers</SelectItem>
+                <SelectItem value="ALL">{t("allPlaces")}</SelectItem>
                 {hospitals.map(h => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -259,23 +259,23 @@ const Queue = () => {
           <Popover>
             <PopoverTrigger asChild>
               <button className="flex items-center gap-2 rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-primary hover:bg-chip transition-colors">
-                <SlidersHorizontal className="h-4 w-4" /> Filter View
+                <SlidersHorizontal className="h-4 w-4" /> {t("filterView")}
                 {filter !== "ALL" && <span className="ml-1 rounded-full bg-primary text-primary-foreground text-[10px] px-2 py-0.5">1</span>}
               </button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-56 p-2">
-              <p className="text-[10px] tracking-widest font-bold text-muted-foreground px-2 py-1.5">FILTER BY PRIORITY</p>
+              <p className="text-[10px] tracking-widest font-bold text-muted-foreground px-2 py-1.5">{t("filterByPriority")}</p>
               <div className="flex flex-col">
                 {FILTERS.map((f) => (
                   <button
                     key={f}
                     onClick={() => {
                       setFilter(f);
-                      toast.info(f === "ALL" ? "Showing all patients" : `Filtered: ${priorityMeta[f].label}`);
+                      toast.info(f === "ALL" ? t("showingAll") : t("filtered", { priority: t(`priority.${f}`) }));
                     }}
                     className="flex items-center justify-between rounded-md px-2 py-2 text-sm text-primary hover:bg-chip transition-colors"
                   >
-                    <span>{f === "ALL" ? "All Patients" : priorityMeta[f].label.charAt(0) + priorityMeta[f].label.slice(1).toLowerCase()}</span>
+                    <span>{f === "ALL" ? t("allPatients") : t(`priority.${f}`)}</span>
                     {filter === f && <Check className="h-4 w-4 text-primary" />}
                   </button>
                 ))}
@@ -286,17 +286,17 @@ const Queue = () => {
           <Dialog open={walkInOpen} onOpenChange={(o) => !submitting && setWalkInOpen(o)}>
             <DialogTrigger asChild>
               <button className="flex items-center gap-2 rounded-full bg-gradient-dark text-surface-dark-foreground px-5 py-2.5 text-sm font-semibold hover:opacity-90 shadow-glow">
-                <Plus className="h-4 w-4" /> Walk-in Patient
+                <Plus className="h-4 w-4" /> {t("walkIn")}
               </button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle className="font-display text-2xl text-primary">Add Walk-in Patient</DialogTitle>
+                <DialogTitle className="font-display text-2xl text-primary">{t("addWalkIn")}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-2">
                 {multiHospital && (
                   <div className="space-y-1.5">
-                    <Label>Where</Label>
+                    <Label>{t("where")}</Label>
                     <Select value={form.hospital_id || hospitals[0]?.id} onValueChange={(v) => { rememberPlace(v); setForm({ ...form, hospital_id: v }); }}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -308,38 +308,38 @@ const Queue = () => {
                   </div>
                 )}
                 <div className="space-y-1.5">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input id="phone" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+1 (555) 000-0000" />
+                  <Label htmlFor="phone">{t("phone")}</Label>
+                  <Input id="phone" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="01…" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="name">Patient Name</Label>
-                  <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Jane Doe" />
+                  <Label htmlFor="name">{t("patientName")}</Label>
+                  <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t("namePlaceholder")} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="dob">Date of Birth</Label>
+                  <Label htmlFor="dob">{t("dob")}</Label>
                   <Input id="dob" type="date" value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })}
                     max={new Date().toISOString().split("T")[0]} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="reason">Reason for Visit <span className="text-muted-foreground font-normal">(optional)</span></Label>
-                  <Input id="reason" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Chest discomfort" />
+                  <Label htmlFor="reason">{t("reasonLabel")} <span className="text-muted-foreground font-normal">{t("optional")}</span></Label>
+                  <Input id="reason" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder={t("reasonPlaceholder")} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Priority</Label>
+                  <Label>{t("priorityLabel")}</Label>
                   <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v as Priority })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="high">High Priority</SelectItem>
-                      <SelectItem value="standard">Standard</SelectItem>
-                      <SelectItem value="routine">Routine</SelectItem>
+                      <SelectItem value="high">{t("priority.high")}</SelectItem>
+                      <SelectItem value="standard">{t("priority.standard")}</SelectItem>
+                      <SelectItem value="routine">{t("priority.routine")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <DialogFooter>
-                <button onClick={() => setWalkInOpen(false)} disabled={submitting} className="rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-primary hover:bg-chip transition-colors">Cancel</button>
+                <button onClick={() => setWalkInOpen(false)} disabled={submitting} className="rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-primary hover:bg-chip transition-colors">{tc("cancel")}</button>
                 <button onClick={handleAddWalkIn} disabled={submitting} className="rounded-full bg-gradient-dark text-surface-dark-foreground px-5 py-2.5 text-sm font-semibold hover:opacity-90 shadow-glow disabled:opacity-60">
-                  {submitting ? "Adding..." : "Add to Queue"}
+                  {submitting ? t("adding") : t("addToQueue")}
                 </button>
               </DialogFooter>
             </DialogContent>
@@ -364,11 +364,11 @@ const Queue = () => {
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
             <div className="h-5 w-1 rounded-full bg-primary-glow" />
-            <h2 className="font-display text-xl text-primary">Currently Waiting</h2>
+            <h2 className="font-display text-xl text-primary">{t("waiting")}</h2>
           </div>
           {filter !== "ALL" && (
             <button onClick={() => setFilter("ALL")} className="text-xs font-semibold text-muted-foreground hover:text-primary transition-colors">
-              Clear filter ({priorityMeta[filter].label})
+              {t("clearFilter", { priority: t(`priority.${filter}`) })}
             </button>
           )}
         </div>
@@ -380,10 +380,10 @@ const Queue = () => {
           ) : visible.length === 0 ? (
             <div className="rounded-2xl bg-card border border-border/60 p-8 text-center text-sm text-muted-foreground">
               {queue.length === 0
-                ? "No patients scheduled today."
+                ? t("noneToday")
                 : place !== "ALL" && !queue.some(inPlace)
-                  ? `No patients waiting at ${hospitals.find(h => h.id === place)?.name ?? "this place"} today.`
-                  : "No patients match this filter."}
+                  ? t("noneHere", { place: hospitals.find(h => h.id === place)?.name ?? t("thisPlace") })
+                  : t("noneMatch")}
             </div>
           ) : (
             visible.map((p, i) => {
@@ -398,30 +398,30 @@ const Queue = () => {
                     <span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-card ${p.in_consultation ? "bg-primary-glow" : meta.dot}`} />
                   </div>
                   <div className="min-w-[180px]">
-                    <p className="font-semibold text-primary">{p.patient?.full_name ?? "Patient"}</p>
-                    <p className="text-xs text-muted-foreground">Age: {ageLabel(p.patient?.date_of_birth ?? null)}</p>
+                    <p className="font-semibold text-primary">{p.patient?.full_name ?? t("patient")}</p>
+                    <p className="text-xs text-muted-foreground">{t("age", { age: ageLabel(p.patient?.date_of_birth ?? null) })}</p>
                     {multiHospital && <p className="text-xs font-semibold text-primary-glow mt-0.5">{p.hospital.name}</p>}
                   </div>
                   <div className="hidden md:block min-w-[120px]">
-                    <p className="text-[10px] tracking-widest font-bold text-muted-foreground">TIME</p>
+                    <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("time")}</p>
                     <p className="text-sm font-semibold text-primary mt-0.5">{formatTime(p.scheduled_time)}</p>
                   </div>
                   <div className="flex-1 hidden lg:block">
-                    <p className="text-[10px] tracking-widest font-bold text-muted-foreground">REASON</p>
+                    <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("reason")}</p>
                     <p className="text-sm font-semibold text-primary mt-0.5">{p.reason || "—"}</p>
                   </div>
-                  <span className={`hidden sm:inline-flex rounded-full px-3 py-1 text-[10px] font-bold tracking-wider ${meta.priorityClass}`}>{meta.label}</span>
+                  <span className={`hidden sm:inline-flex rounded-full px-3 py-1 text-[10px] font-bold tracking-wider ${meta.priorityClass}`}>{t(`priority.${p.priority}`)}</span>
                   {p.in_consultation ? (
-                    <span className="text-xs font-semibold text-primary-glow">IN CONSULTATION</span>
+                    <span className="text-xs font-semibold text-primary-glow">{t("inConsultation")}</span>
                   ) : (
-                    <span className="text-xs text-muted-foreground">WAITING{p.waited_minutes > 0 ? ` - ${p.waited_minutes}M` : ""}</span>
+                    <span className="text-xs text-muted-foreground">{p.waited_minutes > 0 ? t("waitingFor", { minutes: p.waited_minutes }) : t("waitingLabel")}</span>
                   )}
                   <button
                     onClick={() => handleStartConsult(p)}
                     disabled={startingId === p.id}
                     className="flex items-center gap-1 rounded-full bg-gradient-dark text-surface-dark-foreground px-4 py-2 text-xs font-semibold hover:opacity-90 shadow-glow disabled:opacity-60"
                   >
-                    {startingId === p.id ? "Starting..." : p.in_consultation ? "In Consult" : "Start Consult"} <ArrowRight className="h-3 w-3" />
+                    {startingId === p.id ? t("starting") : p.in_consultation ? t("inConsult") : t("startConsult")} <ArrowRight className="h-3 w-3" />
                   </button>
                 </motion.div>
               );
@@ -434,7 +434,7 @@ const Queue = () => {
         <div className="mt-10">
           <div className="flex items-center gap-3 mb-5">
             <div className="h-5 w-1 rounded-full bg-muted-foreground/40" />
-            <h2 className="font-display text-xl text-primary">Seen Today</h2>
+            <h2 className="font-display text-xl text-primary">{t("seenToday")}</h2>
             <span className="rounded-full bg-muted text-muted-foreground text-[10px] font-bold px-2 py-0.5">{completedHere.length}</span>
           </div>
           <div className="space-y-2">
@@ -445,22 +445,22 @@ const Queue = () => {
                   {initials(p.patient?.full_name ?? "?")}
                 </div>
                 <div className="min-w-[180px]">
-                  <p className="font-semibold text-primary">{p.patient?.full_name ?? "Patient"}</p>
-                  <p className="text-xs text-muted-foreground">Age: {ageLabel(p.patient?.date_of_birth ?? null)}</p>
+                  <p className="font-semibold text-primary">{p.patient?.full_name ?? t("patient")}</p>
+                  <p className="text-xs text-muted-foreground">{t("age", { age: ageLabel(p.patient?.date_of_birth ?? null) })}</p>
                   {multiHospital && <p className="text-xs font-semibold text-muted-foreground mt-0.5">{p.hospital.name}</p>}
                 </div>
                 <div className="hidden md:block min-w-[120px]">
-                  <p className="text-[10px] tracking-widest font-bold text-muted-foreground">TIME</p>
+                  <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("time")}</p>
                   <p className="text-sm font-semibold text-primary mt-0.5">{formatTime(p.scheduled_time)}</p>
                 </div>
                 <div className="flex-1 hidden lg:block">
-                  <p className="text-[10px] tracking-widest font-bold text-muted-foreground">REASON</p>
+                  <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("reason")}</p>
                   <p className="text-sm font-semibold text-primary mt-0.5">{p.reason || "—"}</p>
                 </div>
-                <span className="text-xs font-semibold text-muted-foreground">COMPLETED</span>
+                <span className="text-xs font-semibold text-muted-foreground">{t("completed")}</span>
                 <Link href={`/portal/prescription?appointment=${p.id}`}
                   className="flex items-center gap-1 rounded-full border border-border px-4 py-2 text-xs font-semibold text-primary hover:bg-chip transition-colors">
-                  View <ArrowRight className="h-3 w-3" />
+                  {t("view")} <ArrowRight className="h-3 w-3" />
                 </Link>
               </motion.div>
             ))}

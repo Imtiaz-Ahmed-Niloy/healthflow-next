@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/i18n/config";
 import { supabase } from "@/lib/supabase/client";
 import { mediaUrl } from "@/lib/media";
 import { availabilityLabel } from "@/lib/availability";
@@ -126,8 +128,36 @@ export type UIDoctor = {
   };
 };
 
-/** What a doctor at no hospital shows where a hospital's name would go. */
-export const INDEPENDENT_LABEL = "Independent practice";
+/**
+ * The words this hook fills gaps with — a chamber with no name, a doctor at
+ * no hospital — in the page's language (messages: doctorData).
+ */
+type Words = {
+  chamber: string;
+  partnerHospital: string;
+  general: string;
+  independent: string;
+  seesAt: (place: string) => string;
+  practicingAt: (place: string) => string;
+  independentBlurb: string;
+  noHours: string;
+  languages: string[];
+};
+
+const useWords = (): Words => {
+  const t = useTranslations("doctorData");
+  return {
+    chamber: t("chamber"),
+    partnerHospital: t("partnerHospital"),
+    general: t("general"),
+    independent: t("independent"),
+    seesAt: place => t("seesAt", { place }),
+    practicingAt: place => t("practicingAt", { place }),
+    independentBlurb: t("independentBlurb"),
+    noHours: t("noHours"),
+    languages: [t("english"), t("bangla")],
+  };
+};
 
 
 /**
@@ -142,11 +172,11 @@ const placeLocation = (d: DBDoctor) => {
   return parts.filter((p, i) => parts.findIndex(q => q.toLowerCase() === p.toLowerCase()) === i).join(", ");
 };
 
-const toPlace = (d: DBDoctor): DoctorPlace => ({
+const toPlace = (d: DBDoctor, w: Words, locale: Locale): DoctorPlace => ({
   id: d.id,
   slug: d.slug,
   kind: d.practice_kind === "chamber" ? "chamber" : "hospital",
-  name: d.hospital_name || (d.practice_kind === "chamber" ? "Chamber" : "Partner Hospital"),
+  name: d.hospital_name || (d.practice_kind === "chamber" ? w.chamber : w.partnerHospital),
   hospitalSlug: d.hospital_slug || "",
   location: placeLocation(d),
   division: d.division,
@@ -156,7 +186,7 @@ const toPlace = (d: DBDoctor): DoctorPlace => ({
   phone: d.practice_phone,
   fee: Number(d.consultation_fee) || 500,
   availability: d.availability,
-  available: availabilityLabel(d.availability) || "",
+  available: availabilityLabel(d.availability, locale) || "",
 });
 
 /**
@@ -164,10 +194,10 @@ const toPlace = (d: DBDoctor): DoctorPlace => ({
  * are the same on every row (0077's sync), so any row gives them; each row
  * with a hospital or chamber adds a place.
  */
-const toDoctor = (rows: DBDoctor[]): UIDoctor => {
+const toDoctor = (rows: DBDoctor[], w: Words, locale: Locale): UIDoctor => {
   const places = rows
     .filter(r => r.tenant_id)
-    .map(r => ({ row: r, place: toPlace(r) }))
+    .map(r => ({ row: r, place: toPlace(r, w, locale) }))
     // Hospitals first, then chambers; each in the order they were added.
     .sort((a, b) =>
       (a.place.kind === b.place.kind ? 0 : a.place.kind === "hospital" ? -1 : 1)
@@ -184,7 +214,7 @@ const toDoctor = (rows: DBDoctor[]): UIDoctor => {
   return {
     id: d.id,
     name: d.name,
-    specialty: d.specialty || "General Practitioner",
+    specialty: d.specialty || w.general,
     // Their specialty exactly as chosen from the specialties list (0093) —
     // what the filters match. It used to be guessed from keywords in free
     // text ("dent" in anything made a dentist).
@@ -194,9 +224,9 @@ const toDoctor = (rows: DBDoctor[]): UIDoctor => {
     reviews: Math.floor(rating * 20),
     blurb: d.bio || (first
       ? first.kind === "chamber" && places.length === 1
-        ? `Sees patients at ${first.name}.`
-        : `Experienced specialist practicing at ${first.name}.`
-      : "Experienced specialist in independent practice."),
+        ? w.seesAt(first.name)
+        : w.practicingAt(first.name)
+      : w.independentBlurb),
     bio: d.bio?.trim() || null,
     expertise: d.expertise ? d.expertise.split(",").map(s => s.trim()).filter(Boolean) : [],
     bmdc: d.bmdc_number?.trim() || null,
@@ -207,18 +237,18 @@ const toDoctor = (rows: DBDoctor[]): UIDoctor => {
     experience: d.experience_years ?? null,
     fee: first?.fee ?? (Number(d.consultation_fee) || 500),
     // Described, not raw: a week from the editor is JSON (src/lib/availability.ts).
-    available: first?.available || availabilityLabel(d.availability) || "Mon-Fri",
+    available: first?.available || availabilityLabel(d.availability, locale) || w.noHours,
     availability: first ? first.availability : d.availability,
     photo,
     // As they entered it, or nothing. A default degree would be a
     // qualification nobody claimed, printed on their card.
     education: d.education?.trim() || null,
-    languages: d.languages ? d.languages.split(",").map(s => s.trim()).filter(Boolean) : ["English", "Bengali"],
+    languages: d.languages ? d.languages.split(",").map(s => s.trim()).filter(Boolean) : w.languages,
     patients: d.patients_treated || 100,
     independent: places.length === 0,
     places: places.map(p => p.place),
     hospital: {
-      name: first?.name ?? INDEPENDENT_LABEL,
+      name: first?.name ?? w.independent,
       slug: first?.hospitalSlug ?? "",
       location: first?.location || placeLocation(d) || "Bangladesh",
     },
@@ -226,7 +256,7 @@ const toDoctor = (rows: DBDoctor[]): UIDoctor => {
 };
 
 /** Rows grouped into doctors, in the order each doctor first appears. */
-export const doctorsFromRows = (rows: DBDoctor[]): UIDoctor[] => {
+const doctorsFromRows = (rows: DBDoctor[], w: Words, locale: Locale): UIDoctor[] => {
   const people = new Map<string, DBDoctor[]>();
   for (const row of rows) {
     const key = row.person_slug || row.slug;
@@ -234,12 +264,19 @@ export const doctorsFromRows = (rows: DBDoctor[]): UIDoctor[] => {
     if (list) list.push(row);
     else people.set(key, [row]);
   }
-  return [...people.values()].map(toDoctor);
+  return [...people.values()].map(group => toDoctor(group, w, locale));
 };
 
 export const useDoctors = () => {
-  const [doctors, setDoctors] = useState<UIDoctor[]>([]);
+  // The rows as fetched; the doctors are built from them for the page's
+  // language, so a switch relabels them without a refetch.
+  const [rows, setRows] = useState<DBDoctor[]>([]);
   const [loading, setLoading] = useState(true);
+  const locale = useLocale();
+  const w = useWords();
+  // `w` is rebuilt each render; the words only change with the language.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const doctors = useMemo(() => doctorsFromRows(rows, w, locale), [rows, locale]);
 
   useEffect(() => {
     let active = true;
@@ -256,7 +293,7 @@ export const useDoctors = () => {
         }
 
         if (active && data) {
-          setDoctors(doctorsFromRows(data as DBDoctor[]));
+          setRows(data as DBDoctor[]);
         }
       } catch (err) {
         console.error("Failed to load doctors:", err);

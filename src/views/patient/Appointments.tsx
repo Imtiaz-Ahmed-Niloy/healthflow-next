@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Calendar, Clock, Stethoscope, Building2, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
 import { useBookingClock } from "@/lib/appSettings";
@@ -27,11 +27,7 @@ type ApiAppointment = {
   hospital: { name: string | null } | null;
 };
 
-const tabs: { label: string; bucket: Bucket }[] = [
-  { label: "Upcoming Appointments", bucket: "upcoming" },
-  { label: "Past Appointments", bucket: "past" },
-  { label: "Cancelled Appointments", bucket: "cancelled" },
-];
+const tabs: Bucket[] = ["upcoming", "past", "cancelled"];
 
 const bucketOf = (a: ApiAppointment): Bucket => {
   if (a.status === "cancelled") return "cancelled";
@@ -42,14 +38,18 @@ const bucketOf = (a: ApiAppointment): Bucket => {
   return "upcoming";
 };
 
-const statusMeta: Record<ApiAppointment["status"], { label: string; className: string }> = {
-  scheduled: { label: "SCHEDULED", className: "bg-chip text-primary" },
-  completed: { label: "COMPLETED", className: "bg-muted text-muted-foreground" },
-  cancelled: { label: "CANCELLED", className: "bg-destructive/15 text-destructive" },
+// The badge's label is patient.appointments.status.<status>.
+const statusClass: Record<ApiAppointment["status"], string> = {
+  scheduled: "bg-chip text-primary",
+  completed: "bg-muted text-muted-foreground",
+  cancelled: "bg-destructive/15 text-destructive",
 };
 
-const formatDate = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
+/** Month names in the page's language; digits stay Western (see appSettings). */
+const dateLocale = (locale: string) => (locale === "bn" ? "bn-BD-u-nu-latn" : "en-US");
+
+const formatDate = (iso: string, locale: string) =>
+  new Date(`${iso}T00:00:00`).toLocaleDateString(dateLocale(locale), { month: "short", day: "2-digit", year: "numeric" });
 
 const formatTime = (t: string) => {
   const [hh, mm] = t.split(":");
@@ -57,9 +57,13 @@ const formatTime = (t: string) => {
   return `${((h + 11) % 12 + 1).toString().padStart(2, "0")}:${mm} ${h >= 12 ? "PM" : "AM"}`;
 };
 
-const days = ["M", "T", "W", "T", "F", "S", "S"];
-
 const Appointments = () => {
+  const t = useTranslations("patient.appointments");
+  const tc = useTranslations("common");
+  const tb = useTranslations("booking");
+  const locale = useLocale();
+  // Monday first, one letter each, in the page's language.
+  const days = t("weekLetters").split(",");
   // The hospital's calendar (global settings timezone), for the reschedule
   // form's earliest date and time.
   const clock = useBookingClock();
@@ -79,9 +83,9 @@ const Appointments = () => {
   );
   const rescheduleProblem = (() => {
     if (!rescheduling || !rescheduleForm.date) return null;
-    if (rescheduleForm.date < clock.today) return "That date has already passed. Pick today or a later date.";
+    if (rescheduleForm.date < clock.today) return tb("datePassed");
     const dayOrHours = outsideAvailabilityReason(
-      rescheduleSchedule, rescheduleForm.date, rescheduleForm.time, rescheduling.doctor?.name,
+      rescheduleSchedule, rescheduleForm.date, rescheduleForm.time, rescheduling.doctor?.name, locale,
     );
     if (dayOrHours) return dayOrHours;
     return rescheduleForm.time ? clock.pastSlotReason(rescheduleForm.date, rescheduleForm.time) : null;
@@ -107,12 +111,12 @@ const Appointments = () => {
       const res = await fetch("/api/v1/patient/appointments");
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        toast.error(body?.error?.message || "Couldn't load your appointments.");
+        toast.error(body?.error?.message || t("loadFailed"));
         return;
       }
       setAppointments(body.data ?? []);
     } catch {
-      toast.error("Couldn't reach the server.");
+      toast.error(tc("networkError"));
     } finally {
       setLoading(false);
     }
@@ -132,13 +136,13 @@ const Appointments = () => {
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        toast.error(body?.error?.message || "Couldn't cancel that appointment.");
+        toast.error(body?.error?.message || t("cancelFailed"));
         return;
       }
       setAppointments(prev => prev.map(a => (a.id === id ? { ...a, status: "cancelled" } : a)));
-      toast.success(`Cancelled appointment with ${doctorName}`);
+      toast.success(t("cancelled", { doctor: doctorName }));
     } catch {
-      toast.error("Couldn't reach the server.");
+      toast.error(tc("networkError"));
     } finally {
       setCancellingId(null);
     }
@@ -153,11 +157,11 @@ const Appointments = () => {
     e.preventDefault();
     if (!rescheduling) return;
     if (!rescheduleForm.date || !rescheduleForm.time) {
-      toast.error("Please pick a date and time.");
+      toast.error(tb("pickDateTime"));
       return;
     }
     const problem = clock.pastSlotReason(rescheduleForm.date, rescheduleForm.time)
-      ?? outsideAvailabilityReason(rescheduleSchedule, rescheduleForm.date, rescheduleForm.time, rescheduling.doctor?.name);
+      ?? outsideAvailabilityReason(rescheduleSchedule, rescheduleForm.date, rescheduleForm.time, rescheduling.doctor?.name, locale);
     if (problem) {
       toast.error(problem);
       return;
@@ -177,7 +181,7 @@ const Appointments = () => {
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        const message = body?.error?.message || "Couldn't reschedule that appointment.";
+        const message = body?.error?.message || t("rescheduleFailed");
         // A refusal about the slot itself belongs on the date and time fields.
         if (res.status === 409 || res.status === 422) setRescheduleRefused({ key: rescheduleKey, message });
         toast.error(message);
@@ -190,10 +194,10 @@ const Appointments = () => {
             : a,
         ),
       );
-      toast.success(`Rescheduled appointment with ${rescheduling.doctor?.name ?? "the doctor"}`);
+      toast.success(t("rescheduled", { doctor: rescheduling.doctor?.name ?? t("theDoctor") }));
       setRescheduling(null);
     } catch {
-      toast.error("Couldn't reach the server.");
+      toast.error(tc("networkError"));
     } finally {
       setSavingReschedule(false);
     }
@@ -211,21 +215,21 @@ const Appointments = () => {
         <div>
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div className="max-w-xl">
-              <h1 className="font-display text-5xl text-primary">Appointments</h1>
-              <p className="text-sm text-muted-foreground mt-3">Manage your consultations and screenings.</p>
+              <h1 className="font-display text-5xl text-primary">{t("title")}</h1>
+              <p className="text-sm text-muted-foreground mt-3">{t("subtitle")}</p>
             </div>
             <Link href="/patient/find-doctors"
               className="flex items-center justify-center gap-3 rounded-2xl bg-gradient-dark text-surface-dark-foreground px-10 py-5 font-semibold shadow-glow hover:opacity-90 w-full sm:w-auto sm:min-w-[280px]">
-              <Plus className="h-5 w-5" /> Book New Appointment
+              <Plus className="h-5 w-5" /> {t("bookNew")}
             </Link>
           </div>
 
           <div className="mt-8 flex gap-8 border-b border-border">
-            {tabs.map((t, i) => (
-              <button key={t.bucket} onClick={() => setTab(i)}
+            {tabs.map((bucket, i) => (
+              <button key={bucket} onClick={() => setTab(i)}
                 className={`pb-3 text-sm font-semibold transition-colors relative flex items-center gap-2 ${tab === i ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
-                {t.label}
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${tab === i ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{grouped[t.bucket].length}</span>
+                {t(`tabs.${bucket}`)}
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${tab === i ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{grouped[bucket].length}</span>
                 {tab === i && <motion.span layoutId="apptab" className="absolute -bottom-px left-0 right-0 h-0.5 bg-primary-glow rounded-full" />}
               </button>
             ))}
@@ -236,18 +240,15 @@ const Appointments = () => {
               <div className="flex items-center justify-center py-16">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
               </div>
-            ) : grouped[tabs[tab].bucket].length === 0 ? (
+            ) : grouped[tabs[tab]].length === 0 ? (
               <div className="rounded-2xl border border-dashed border-border/60 p-10 text-center">
-                <p className="font-display text-lg text-primary">No {tabs[tab].label.toLowerCase()}</p>
+                <p className="font-display text-lg text-primary">{t(`empty.${tabs[tab]}`)}</p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  {tabs[tab].bucket === "upcoming"
-                    ? "Book a doctor to see it here."
-                    : "Nothing to show here yet."}
+                  {tabs[tab] === "upcoming" ? t("emptyUpcomingHint") : t("emptyHint")}
                 </p>
               </div>
             ) : (
-              grouped[tabs[tab].bucket].map((a, i) => {
-                const meta = statusMeta[a.status];
+              grouped[tabs[tab]].map((a, i) => {
                 return (
                   <motion.div key={a.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
                     whileHover={{ y: -2 }} className="rounded-2xl bg-card border border-border/60 p-5 flex items-center gap-5 shadow-soft">
@@ -256,12 +257,12 @@ const Appointments = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 flex-wrap">
-                        <p className="font-semibold text-primary text-lg">{a.doctor?.name ?? "Doctor"}</p>
-                        <span className={`rounded-full px-3 py-0.5 text-[10px] font-bold tracking-wider ${meta.className}`}>{meta.label}</span>
+                        <p className="font-semibold text-primary text-lg">{a.doctor?.name ?? t("doctor")}</p>
+                        <span className={`rounded-full px-3 py-0.5 text-[10px] font-bold tracking-wider ${statusClass[a.status]}`}>{t(`status.${a.status}`)}</span>
                       </div>
-                      <p className="text-sm text-muted-foreground">{a.department || a.doctor?.specialty || "General"}</p>
+                      <p className="text-sm text-muted-foreground">{a.department || a.doctor?.specialty || t("general")}</p>
                       <div className="flex flex-wrap items-center gap-5 mt-3 text-xs text-foreground/70">
-                        <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> {formatDate(a.scheduled_date)}</span>
+                        <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> {formatDate(a.scheduled_date, locale)}</span>
                         <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> {formatTime(a.scheduled_time)}</span>
                         {a.hospital?.name && (
                           <span className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" /> {a.hospital.name}</span>
@@ -271,11 +272,11 @@ const Appointments = () => {
                     {bucketOf(a) === "upcoming" && (
                       <div className="flex items-center gap-2 shrink-0">
                         <Button size="sm" variant="outline" onClick={() => openReschedule(a)}>
-                          Reschedule
+                          {t("reschedule")}
                         </Button>
                         <Button size="sm" variant="outline" disabled={cancellingId === a.id}
-                          onClick={() => handleCancel(a.id, a.doctor?.name ?? "the doctor")}>
-                          {cancellingId === a.id ? "Cancelling..." : "Cancel"}
+                          onClick={() => handleCancel(a.id, a.doctor?.name ?? t("theDoctor"))}>
+                          {cancellingId === a.id ? t("cancelling") : t("cancel")}
                         </Button>
                       </div>
                     )}
@@ -290,7 +291,7 @@ const Appointments = () => {
           <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}
             className="rounded-3xl bg-card border border-border/60 p-5 shadow-soft">
             {(() => {
-              const monthLabel = calMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+              const monthLabel = calMonth.toLocaleDateString(dateLocale(locale), { month: "long", year: "numeric" });
               const year = calMonth.getFullYear();
               const month = calMonth.getMonth();
               const firstDay = new Date(year, month, 1);
@@ -317,7 +318,7 @@ const Appointments = () => {
                 setSelectedDate(picked);
                 const matches = appointments.filter(a => isSameDay(new Date(`${a.scheduled_date}T00:00:00`), picked));
                 if (matches.length) {
-                  toast.success(`${matches.length} appointment${matches.length > 1 ? "s" : ""} on ${picked.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`);
+                  toast.success(t("onDay", { count: matches.length, date: picked.toLocaleDateString(dateLocale(locale), { month: "short", day: "numeric" }) }));
                 }
               };
               return (
@@ -325,8 +326,8 @@ const Appointments = () => {
                   <div className="flex items-center justify-between">
                     <p className="font-display text-lg text-primary">{monthLabel}</p>
                     <div className="flex gap-1">
-                      <button onClick={() => setCalMonth(new Date(year, month - 1, 1))} aria-label="Previous month" className="h-7 w-7 rounded-full hover:bg-chip flex items-center justify-center"><ChevronLeft className="h-4 w-4" /></button>
-                      <button onClick={() => setCalMonth(new Date(year, month + 1, 1))} aria-label="Next month" className="h-7 w-7 rounded-full hover:bg-chip flex items-center justify-center"><ChevronRight className="h-4 w-4" /></button>
+                      <button onClick={() => setCalMonth(new Date(year, month - 1, 1))} aria-label={t("prevMonth")} className="h-7 w-7 rounded-full hover:bg-chip flex items-center justify-center"><ChevronLeft className="h-4 w-4" /></button>
+                      <button onClick={() => setCalMonth(new Date(year, month + 1, 1))} aria-label={t("nextMonth")} className="h-7 w-7 rounded-full hover:bg-chip flex items-center justify-center"><ChevronRight className="h-4 w-4" /></button>
                     </div>
                   </div>
                   <div className="grid grid-cols-7 gap-1 mt-4 text-[10px] tracking-widest font-bold text-muted-foreground text-center">
@@ -363,7 +364,7 @@ const Appointments = () => {
                   </div>
                   {selectedDate && (
                     <button onClick={() => setSelectedDate(null)} className="mt-3 w-full text-[10px] tracking-widest font-bold text-muted-foreground hover:text-primary">
-                      CLEAR SELECTION
+                      {t("clearSelection")}
                     </button>
                   )}
                 </>
@@ -376,16 +377,16 @@ const Appointments = () => {
       <Dialog open={!!rescheduling} onOpenChange={(o) => !o && !savingReschedule && setRescheduling(null)}>
         <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
-            <DialogTitle className="font-display text-2xl text-primary">Reschedule Appointment</DialogTitle>
+            <DialogTitle className="font-display text-2xl text-primary">{t("rescheduleTitle")}</DialogTitle>
             <DialogDescription>
-              {rescheduling ? `Pick a new date and time with ${rescheduling.doctor?.name ?? "the doctor"}.` : ""}
+              {rescheduling ? t("rescheduleBody", { doctor: rescheduling.doctor?.name ?? t("theDoctor") }) : ""}
             </DialogDescription>
           </DialogHeader>
           {rescheduling && (
             <form onSubmit={handleReschedule} className="space-y-4 mt-2">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label required>Date</Label>
+                  <Label required>{tb("date")}</Label>
                   <Input type="date" value={rescheduleForm.date}
                     onChange={e => setRescheduleForm(f => ({ ...f, date: e.target.value }))}
                     min={clock.today} required
@@ -393,7 +394,7 @@ const Appointments = () => {
                     className={rescheduleFieldClass} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label required>Time</Label>
+                  <Label required>{tb("time")}</Label>
                   <Input type="time" value={rescheduleForm.time}
                     onChange={e => setRescheduleForm(f => ({ ...f, time: e.target.value }))}
                     min={[rescheduleHours?.start, rescheduleForm.date === clock.today ? clock.nowTime : undefined].filter(Boolean).sort().pop()}
@@ -405,15 +406,15 @@ const Appointments = () => {
               </div>
               {rescheduling.doctor?.availability && !rescheduleFieldProblem && (
                 <p className="text-xs text-muted-foreground -mt-2">
-                  {rescheduling.doctor.name} is available {availabilityLabel(rescheduling.doctor.availability)}.
+                  {t("isAvailable", { doctor: rescheduling.doctor.name, hours: availabilityLabel(rescheduling.doctor.availability, locale) ?? "" })}
                 </p>
               )}
               {rescheduleFieldProblem && (
                 <p id="reschedule-problem" role="alert" className="text-xs font-semibold text-destructive -mt-2">{rescheduleFieldProblem}</p>
               )}
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setRescheduling(null)} disabled={savingReschedule}>Cancel</Button>
-                <Button type="submit" disabled={savingReschedule || !!rescheduleFieldProblem}>{savingReschedule ? "Saving..." : "Save New Time"}</Button>
+                <Button type="button" variant="outline" onClick={() => setRescheduling(null)} disabled={savingReschedule}>{tc("cancel")}</Button>
+                <Button type="submit" disabled={savingReschedule || !!rescheduleFieldProblem}>{savingReschedule ? tc("saving") : t("saveNewTime")}</Button>
               </DialogFooter>
             </form>
           )}

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { useLocale, useTranslations } from "next-intl";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, Kpi, SectionTitle, Pill, Btn } from "@/components/admin/ui";
 import { useFormatters } from "@/lib/appSettings";
@@ -60,16 +61,18 @@ const COLORS = [
   "hsl(var(--chip))", "hsl(var(--muted))",
 ];
 
-const LEAVE_LABEL: Record<string, string> = {
-  sick: "Sick", casual: "Casual", vacation: "Vacation",
-  maternity: "Maternity", unpaid: "Unpaid",
-};
+const LEAVE_TYPES = ["sick", "casual", "vacation", "maternity", "unpaid"] as const;
 
 /** Inclusive, because a one-day leave runs start = end. */
 const days = (from: string, to: string) =>
   Math.round((new Date(to).getTime() - new Date(from).getTime()) / 86400000) + 1;
 
 const HRPage = () => {
+  const t = useTranslations("admin.hr");
+  const tc = useTranslations("common");
+  const locale = useLocale();
+  const leaveLabel = (value: string) =>
+    (LEAVE_TYPES as readonly string[]).includes(value) ? t(`leaveTypes.${value as (typeof LEAVE_TYPES)[number]}`) : value;
   const { formatDate, formatCurrency } = useFormatters();
   const [data, setData] = useState<HrDashboard | null>(null);
   const [loading, setLoading] = useState(true);
@@ -81,17 +84,17 @@ const HRPage = () => {
       const res = await fetch("/api/v1/hr/dashboard");
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(body?.error?.message || "Couldn't load the HR dashboard.");
+        setError(body?.error?.message || t("loadFailed"));
         return;
       }
       setError(null);
       setData(body.data);
     } catch {
-      setError("Couldn't reach the server.");
+      setError(tc("networkError"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t, tc]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -105,13 +108,13 @@ const HRPage = () => {
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        toast.error(body?.error?.message || "Couldn't record that decision.");
+        toast.error(body?.error?.message || t("decisionFailed"));
         return;
       }
-      toast.success(status === "approved" ? "Leave approved" : "Leave rejected");
+      toast.success(status === "approved" ? t("leaveApproved") : t("leaveRejected"));
       await load();
     } catch {
-      toast.error("Couldn't reach the server.");
+      toast.error(tc("networkError"));
     } finally {
       setDeciding(null);
     }
@@ -119,19 +122,19 @@ const HRPage = () => {
 
   if (loading) {
     return (
-      <AdminLayout title="HR Dashboard" subtitle="People · Attendance · Payroll">
-        <Card className="p-10 text-center text-sm text-muted-foreground">Loading…</Card>
+      <AdminLayout title={t("title")} subtitle={t("subtitle")}>
+        <Card className="p-10 text-center text-sm text-muted-foreground">{tc("loading")}</Card>
       </AdminLayout>
     );
   }
 
   if (error || !data) {
     return (
-      <AdminLayout title="HR Dashboard" subtitle="People · Attendance · Payroll">
+      <AdminLayout title={t("title")} subtitle={t("subtitle")}>
         <Card className="p-10 text-center">
           <ShieldAlert className="h-6 w-6 text-destructive mx-auto mb-3" />
-          <p className="text-sm text-foreground/80">{error ?? "No data."}</p>
-          <Btn variant="outline" className="mt-4" onClick={() => { setLoading(true); void load(); }}>Try again</Btn>
+          <p className="text-sm text-foreground/80">{error ?? t("noData")}</p>
+          <Btn variant="outline" className="mt-4" onClick={() => { setLoading(true); void load(); }}>{t("tryAgain")}</Btn>
         </Card>
       </AdminLayout>
     );
@@ -140,28 +143,28 @@ const HRPage = () => {
   const { headcount, departments, attendance_week, pending_leave, upcoming_holidays, last_payroll_run } = data;
   const week = attendance_week.map(d => ({
     ...d,
-    label: new Date(d.date).toLocaleDateString("en-US", { weekday: "short" }),
+    label: new Date(d.date).toLocaleDateString(locale === "bn" ? "bn-BD-u-nu-latn" : "en-US", { weekday: "short" }),
   }));
   const clockedThisWeek = week.some(d => d.present + d.late + d.leave + d.absent + d.half_day > 0);
 
   return (
-    <AdminLayout title="HR Dashboard" subtitle="People · Attendance · Payroll">
+    <AdminLayout title={t("title")} subtitle={t("subtitle")}>
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-        <Kpi icon={Users2} label="On the payroll" value={String(headcount.total)} />
-        <Kpi icon={CheckCircle2} label="Active" value={String(headcount.active)} tone="accent" />
-        <Kpi icon={UserPlus} label="Onboarding" value={String(headcount.onboarding)} tone="chip" />
-        <Kpi icon={Clock3} label="On leave today" value={String(headcount.on_leave_today)} tone="chip" />
-        <Kpi icon={CalendarCheck2} label="Leave to decide" value={String(pending_leave.length)}
+        <Kpi icon={Users2} label={t("kpi.payroll")} value={String(headcount.total)} />
+        <Kpi icon={CheckCircle2} label={t("kpi.active")} value={String(headcount.active)} tone="accent" />
+        <Kpi icon={UserPlus} label={t("kpi.onboarding")} value={String(headcount.onboarding)} tone="chip" />
+        <Kpi icon={Clock3} label={t("kpi.onLeave")} value={String(headcount.on_leave_today)} tone="chip" />
+        <Kpi icon={CalendarCheck2} label={t("kpi.leaveToDecide")} value={String(pending_leave.length)}
           tone={pending_leave.length ? "destructive" : "primary"} />
-        <Kpi icon={Wallet} label="Monthly salary bill" value={formatCurrency(data.monthly_salary_bill)} />
+        <Kpi icon={Wallet} label={t("kpi.salaryBill")} value={formatCurrency(data.monthly_salary_bill)} />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4 mt-6">
         <Card className="p-5 lg:col-span-2">
           <SectionTitle
-            title="This week's attendance"
+            title={t("weekAttendance")}
             action={<Link href="/admin/attendance" className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1">
-              Attendance & Leave <ArrowRight className="h-3.5 w-3.5" />
+              {t("attendanceLink")} <ArrowRight className="h-3.5 w-3.5" />
             </Link>}
           />
           {clockedThisWeek ? (
@@ -173,23 +176,23 @@ const HRPage = () => {
                   <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} allowDecimals={false} />
                   <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 12 }} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="present" stackId="a" fill="hsl(var(--primary))" name="Present" />
-                  <Bar dataKey="late" stackId="a" fill="hsl(var(--primary-glow))" name="Late" />
-                  <Bar dataKey="half_day" stackId="a" fill="hsl(var(--accent))" name="Half day" />
-                  <Bar dataKey="leave" stackId="a" fill="hsl(var(--chip))" name="Leave" />
-                  <Bar dataKey="absent" stackId="a" fill="hsl(var(--destructive))" name="Absent" />
+                  <Bar dataKey="present" stackId="a" fill="hsl(var(--primary))" name={t("attendance.present")} />
+                  <Bar dataKey="late" stackId="a" fill="hsl(var(--primary-glow))" name={t("attendance.late")} />
+                  <Bar dataKey="half_day" stackId="a" fill="hsl(var(--accent))" name={t("attendance.halfDay")} />
+                  <Bar dataKey="leave" stackId="a" fill="hsl(var(--chip))" name={t("attendance.leave")} />
+                  <Bar dataKey="absent" stackId="a" fill="hsl(var(--destructive))" name={t("attendance.absent")} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           ) : (
             <p className="py-16 text-center text-sm text-muted-foreground">
-              Nobody has been clocked in or out in the last seven days.
+              {t("noClockIns")}
             </p>
           )}
         </Card>
 
         <Card className="p-5">
-          <SectionTitle title="Department mix" />
+          <SectionTitle title={t("departmentMix")} />
           {departments.length ? (
             <>
               <div className="h-48">
@@ -215,7 +218,7 @@ const HRPage = () => {
               </ul>
             </>
           ) : (
-            <p className="py-16 text-center text-sm text-muted-foreground">No employees on the register yet.</p>
+            <p className="py-16 text-center text-sm text-muted-foreground">{t("noEmployees")}</p>
           )}
         </Card>
       </div>
@@ -223,18 +226,17 @@ const HRPage = () => {
       <div className="grid lg:grid-cols-3 gap-4 mt-6">
         <Card className="p-5 lg:col-span-2">
           <SectionTitle
-            title="Leave to decide"
-            action={pending_leave.length ? <Pill tone="warn">{pending_leave.length} pending</Pill> : <Pill tone="ok">Nothing waiting</Pill>}
+            title={t("kpi.leaveToDecide")}
+            action={pending_leave.length ? <Pill tone="warn">{t("pendingCount", { count: pending_leave.length })}</Pill> : <Pill tone="ok">{t("nothingWaiting")}</Pill>}
           />
           {pending_leave.length ? (
             <div className="divide-y divide-border/40">
               {pending_leave.map(l => (
                 <div key={l.id} className="py-3 flex items-center justify-between gap-4">
                   <div className="min-w-0">
-                    <p className="font-semibold text-primary truncate">{l.employees?.name ?? "Unknown employee"}</p>
+                    <p className="font-semibold text-primary truncate">{l.employees?.name ?? t("unknownEmployee")}</p>
                     <p className="text-xs text-muted-foreground">
-                      {LEAVE_LABEL[l.type] ?? l.type} · {formatDate(l.start_date)} – {formatDate(l.end_date)} · {days(l.start_date, l.end_date)} day
-                      {days(l.start_date, l.end_date) === 1 ? "" : "s"}
+                      {leaveLabel(l.type)} · {formatDate(l.start_date)} – {formatDate(l.end_date)} · {t("days", { count: days(l.start_date, l.end_date) })}
                       {l.employees?.department ? ` · ${l.employees.department}` : ""}
                     </p>
                     {l.reason && <p className="text-xs text-foreground/70 mt-0.5 truncate">{l.reason}</p>}
@@ -242,57 +244,57 @@ const HRPage = () => {
                   <div className="flex items-center gap-2 shrink-0">
                     <button type="button" disabled={deciding === l.id} onClick={() => decide(l.id, "approved")}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground disabled:opacity-60">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Approve
+                      <CheckCircle2 className="h-3.5 w-3.5" /> {t("approve")}
                     </button>
                     <button type="button" disabled={deciding === l.id} onClick={() => decide(l.id, "rejected")}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-border disabled:opacity-60">
-                      <XCircle className="h-3.5 w-3.5" /> Reject
+                      <XCircle className="h-3.5 w-3.5" /> {t("reject")}
                     </button>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="py-10 text-center text-sm text-muted-foreground">No leave requests are waiting on a decision.</p>
+            <p className="py-10 text-center text-sm text-muted-foreground">{t("noLeaveWaiting")}</p>
           )}
         </Card>
 
         <div className="space-y-4">
           <Card className="p-5">
             <SectionTitle
-              title="Last payroll run"
+              title={t("lastPayroll")}
               action={<Link href="/admin/payroll" className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1">
-                Payroll <ArrowRight className="h-3.5 w-3.5" />
+                {t("payrollLink")} <ArrowRight className="h-3.5 w-3.5" />
               </Link>}
             />
             {last_payroll_run ? (
               <div className="space-y-2 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Period</span>
+                  <span className="text-muted-foreground">{t("period")}</span>
                   <span className="font-semibold text-primary">{last_payroll_run.period}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Status</span>
+                  <span className="text-muted-foreground">{t("status")}</span>
                   <Pill tone={last_payroll_run.status === "paid" ? "ok" : last_payroll_run.status === "approved" ? "info" : "warn"}>
                     {last_payroll_run.status}
                   </Pill>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Staff paid</span>
+                  <span className="text-muted-foreground">{t("staffPaid")}</span>
                   <span className="font-semibold text-primary">{last_payroll_run.headcount}</span>
                 </div>
                 <div className="flex items-center justify-between border-t border-border/40 pt-2">
-                  <span className="text-muted-foreground">Net paid</span>
+                  <span className="text-muted-foreground">{t("netPaid")}</span>
                   <span className="font-semibold text-primary">{formatCurrency(Number(last_payroll_run.net_total))}</span>
                 </div>
               </div>
             ) : (
-              <p className="py-8 text-center text-sm text-muted-foreground">No payroll run yet.</p>
+              <p className="py-8 text-center text-sm text-muted-foreground">{t("noPayrollRun")}</p>
             )}
           </Card>
 
           <Card className="p-5">
-            <SectionTitle title="Upcoming holidays" action={<CalendarDays className="h-4 w-4 text-primary-glow" />} />
+            <SectionTitle title={t("upcomingHolidays")} action={<CalendarDays className="h-4 w-4 text-primary-glow" />} />
             {upcoming_holidays.length ? (
               <ul className="space-y-2">
                 {upcoming_holidays.map(h => (
@@ -303,7 +305,7 @@ const HRPage = () => {
                 ))}
               </ul>
             ) : (
-              <p className="py-8 text-center text-sm text-muted-foreground">Nothing on the calendar.</p>
+              <p className="py-8 text-center text-sm text-muted-foreground">{t("noHolidays")}</p>
             )}
           </Card>
         </div>

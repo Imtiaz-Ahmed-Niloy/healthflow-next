@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Clock, Loader2, MapPin, Pencil, Phone, Plus, Store } from "lucide-react";
 import { toast } from "sonner";
+import { useLocale, useTranslations } from "next-intl";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { Modal, ConfirmDialog } from "@/components/admin/crud";
 import { Btn, Pill } from "@/components/admin/ui";
@@ -27,6 +28,9 @@ import { chamberPlace, type Chamber } from "@/lib/chambers";
 const errorOf = async (res: Response) => (await res.json().catch(() => null))?.error?.message as string | undefined;
 
 const Chambers = () => {
+  const t = useTranslations("portal.chambers");
+  const tc = useTranslations("common");
+  const locale = useLocale();
   const { formatCurrency } = useFormatters();
   const [chambers, setChambers] = useState<Chamber[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,10 +46,10 @@ const Chambers = () => {
     try {
       const res = await fetch("/api/v1/chambers");
       const body = await res.json().catch(() => null);
-      if (!res.ok) { toast.error(body?.error?.message || "Couldn't load your chambers."); return; }
+      if (!res.ok) { toast.error(body?.error?.message || t("loadFailed")); return; }
       setChambers(body.data ?? []);
     } catch {
-      toast.error("Couldn't reach the server.");
+      toast.error(tc("networkError"));
     } finally {
       setLoading(false);
     }
@@ -70,7 +74,7 @@ const Chambers = () => {
 
   const save = async () => {
     if (!editing) return;
-    if (draft.has_name && !draft.name.trim()) { toast.error("Give the chamber a name, or turn off “has a name”"); return; }
+    if (draft.has_name && !draft.name.trim()) { toast.error(t("needsName")); return; }
     setSaving(true);
     try {
       const adding = editing === "new";
@@ -79,12 +83,12 @@ const Chambers = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...chamberPayload(draft), ...(adding ? {} : { id: editing.id }) }),
       });
-      if (!res.ok) { toast.error("Couldn't save the chamber", { description: await errorOf(res) }); return; }
+      if (!res.ok) { toast.error(t("saveFailed"), { description: await errorOf(res) }); return; }
       // A new chamber is a new place this login works. The session's token
       // lists those places, so it is refreshed now rather than whenever it
       // next expires — until then the queue wouldn't show the chamber's patients.
       if (adding) await supabase.auth.refreshSession().catch(() => null);
-      toast.success(adding ? "Chamber added — patients can book you there now" : "Chamber saved");
+      toast.success(adding ? t("addedToast") : t("savedToast"));
       setEditing(null);
       void load();
     } finally {
@@ -100,8 +104,8 @@ const Chambers = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: c.id, open: value }),
       });
-      if (!res.ok) { toast.error(value ? "Couldn't reopen it" : "Couldn't close it", { description: await errorOf(res) }); return; }
-      toast.success(value ? `${c.name} is taking bookings again` : `${c.name} is closed to new bookings`);
+      if (!res.ok) { toast.error(value ? t("reopenFailed") : t("closeFailed"), { description: await errorOf(res) }); return; }
+      toast.success(value ? t("reopened", { name: c.name }) : t("closed", { name: c.name }));
       void load();
     } finally {
       setBusy(null);
@@ -112,12 +116,10 @@ const Chambers = () => {
     <PortalLayout>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-4xl text-primary">My Chambers</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Where you practise for yourself. Patients book you here, and they come into your queue like a hospital&apos;s.
-          </p>
+          <h1 className="font-display text-4xl text-primary">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("subtitle")}</p>
         </div>
-        <Btn onClick={() => open("new")}><Plus className="h-4 w-4" /> Add chamber</Btn>
+        <Btn onClick={() => open("new")}><Plus className="h-4 w-4" /> {t("add")}</Btn>
       </div>
 
       {loading ? (
@@ -129,11 +131,9 @@ const Chambers = () => {
           <div className="mx-auto h-12 w-12 rounded-full bg-chip flex items-center justify-center text-primary">
             <Store className="h-5 w-5" />
           </div>
-          <p className="font-display text-2xl text-primary mt-4">No chamber yet</p>
-          <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-            Add your chamber&apos;s address, fee and hours, and patients can find you and book you there.
-          </p>
-          <Btn className="mt-5" onClick={() => open("new")}><Plus className="h-4 w-4" /> Add chamber</Btn>
+          <p className="font-display text-2xl text-primary mt-4">{t("emptyTitle")}</p>
+          <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">{t("emptyBody")}</p>
+          <Btn className="mt-5" onClick={() => open("new")}><Plus className="h-4 w-4" /> {t("add")}</Btn>
         </div>
       ) : (
         <div className="grid md:grid-cols-2 gap-5 mt-8">
@@ -152,35 +152,35 @@ const Chambers = () => {
                       </p>
                     )}
                   </div>
-                  <Pill tone={c.open ? "ok" : "default"}>{c.open ? "Taking bookings" : "Closed"}</Pill>
+                  <Pill tone={c.open ? "ok" : "default"}>{c.open ? t("takingBookings") : t("closedPill")}</Pill>
                 </div>
 
                 <dl className="mt-5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-                  <dt className="text-muted-foreground flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" /> Phone</dt>
+                  <dt className="text-muted-foreground flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" /> {t("phone")}</dt>
                   <dd className="text-right font-semibold text-primary">{c.phone || "—"}</dd>
-                  <dt className="text-muted-foreground">Fee</dt>
+                  <dt className="text-muted-foreground">{t("fee")}</dt>
                   <dd className="text-right font-semibold text-primary">
                     {c.consultation_fee == null ? "—" : formatCurrency(Number(c.consultation_fee))}
                   </dd>
-                  <dt className="text-muted-foreground flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> Hours</dt>
+                  <dt className="text-muted-foreground flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> {t("hours")}</dt>
                   <dd className="text-right">
-                    {week ? summariseWeek(week).map(row => (
+                    {week ? summariseWeek(week, locale).map(row => (
                       <span key={row.days} className="block text-primary">
                         <span className="font-semibold">{row.days}</span> · {row.hours}
                       </span>
-                    )) : <span className="text-muted-foreground">Not set</span>}
+                    )) : <span className="text-muted-foreground">{t("notSet")}</span>}
                   </dd>
                 </dl>
 
                 <div className="mt-6 flex flex-wrap gap-2">
-                  <Btn variant="outline" onClick={() => open(c)}><Pencil className="h-4 w-4" /> Edit</Btn>
+                  <Btn variant="outline" onClick={() => open(c)}><Pencil className="h-4 w-4" /> {tc("edit")}</Btn>
                   {c.open ? (
                     <Btn variant="ghost" onClick={() => setClosing(c)} disabled={busy === c.id}>
-                      {busy === c.id && <Loader2 className="h-4 w-4 animate-spin" />} Close to bookings
+                      {busy === c.id && <Loader2 className="h-4 w-4 animate-spin" />} {t("closeToBookings")}
                     </Btn>
                   ) : (
                     <Btn variant="ghost" onClick={() => void setOpen(c, true)} disabled={busy === c.id}>
-                      {busy === c.id && <Loader2 className="h-4 w-4 animate-spin" />} Reopen
+                      {busy === c.id && <Loader2 className="h-4 w-4 animate-spin" />} {t("reopen")}
                     </Btn>
                   )}
                 </div>
@@ -191,11 +191,11 @@ const Chambers = () => {
       )}
 
       <Modal open={!!editing} onClose={() => !saving && setEditing(null)}
-        title={editing === "new" ? "Add chamber" : `Edit ${editing?.name ?? "chamber"}`} size="lg"
+        title={editing === "new" ? t("add") : t("editNamed", { name: editing?.name ?? t("chamber") })} size="lg"
         footer={<>
-          <Btn variant="outline" onClick={() => setEditing(null)} disabled={saving}>Cancel</Btn>
+          <Btn variant="outline" onClick={() => setEditing(null)} disabled={saving}>{tc("cancel")}</Btn>
           <Btn onClick={() => void save()} disabled={saving}>
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />} {editing === "new" ? "Add chamber" : "Save"}
+            {saving && <Loader2 className="h-4 w-4 animate-spin" />} {editing === "new" ? t("add") : tc("save")}
           </Btn>
         </>}>
         <ChamberForm draft={draft} onChange={patch => setDraft(d => ({ ...d, ...patch }))} resetKey={formKey} doctorName={doctorName} />
@@ -205,10 +205,8 @@ const Chambers = () => {
         open={!!closing}
         onClose={() => setClosing(null)}
         onConfirm={() => closing && void setOpen(closing, false)}
-        title="Close this chamber to bookings?"
-        description={closing
-          ? `Patients won't be able to book you at ${closing.name}. Appointments already booked stay in your queue. You can reopen it any time.`
-          : undefined}
+        title={t("confirmCloseTitle")}
+        description={closing ? t("confirmCloseBody", { name: closing.name }) : undefined}
       />
     </PortalLayout>
   );

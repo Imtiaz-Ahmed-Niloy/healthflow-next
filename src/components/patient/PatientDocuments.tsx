@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Eye, FileText, FolderOpen, Image as ImageIcon, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { ALLOWED_IDENTITY_TYPES, MAX_DOCUMENT_BYTES } from "@/lib/media";
 import { useFormatters } from "@/lib/appSettings";
 import { ConfirmDialog } from "@/components/admin/crud";
@@ -22,16 +23,7 @@ import { ConfirmDialog } from "@/components/admin/crud";
 
 type Kind = "prescription" | "lab_report" | "imaging" | "discharge_summary" | "vaccination" | "insurance" | "other";
 
-const KINDS: { value: Kind; label: string }[] = [
-  { value: "prescription", label: "Prescription" },
-  { value: "lab_report", label: "Test / lab report" },
-  { value: "imaging", label: "X-ray / scan" },
-  { value: "discharge_summary", label: "Discharge summary" },
-  { value: "vaccination", label: "Vaccination record" },
-  { value: "insurance", label: "Insurance" },
-  { value: "other", label: "Other" },
-];
-const kindLabel = (k: string) => KINDS.find(x => x.value === k)?.label ?? "Other";
+const KINDS = ["prescription", "lab_report", "imaging", "discharge_summary", "vaccination", "insurance", "other"] as const satisfies readonly Kind[];
 
 type Doc = {
   id: string;
@@ -50,9 +42,12 @@ const sizeLabel = (bytes: number | null) =>
   bytes == null ? "" : bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
 /** "Blood report.pdf" → "Blood report" — a sensible starting title. */
-const titleFromFile = (name: string) => name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim() || "Document";
+const titleFromFile = (name: string) => name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
 
 export const PatientDocuments = () => {
+  const t = useTranslations("patient.documents");
+  const tc = useTranslations("common");
+  const kindLabel = (k: string) => t(`kinds.${(KINDS as readonly string[]).includes(k) ? (k as Kind) : "other"}`);
   const { formatDate } = useFormatters();
   const [docs, setDocs] = useState<Doc[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,25 +65,25 @@ export const PatientDocuments = () => {
     try {
       const res = await fetch("/api/v1/patient-documents?limit=100");
       const body = await res.json().catch(() => null);
-      if (!res.ok) { toast.error(body?.error?.message || "Couldn't load your documents."); return; }
+      if (!res.ok) { toast.error(body?.error?.message || t("loadFailed")); return; }
       setDocs(body.data ?? []);
     } catch {
-      toast.error("Couldn't reach the server.");
+      toast.error(tc("networkError"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t, tc]);
 
   useEffect(() => { void load(); }, [load]);
 
   const upload = async (file: File) => {
     // A drop skips the picker's `accept` filter, so check here too.
     if (!(ALLOWED_IDENTITY_TYPES as readonly string[]).includes(file.type)) {
-      toast.error("Upload a photo or a PDF.");
+      toast.error(t("wrongType"));
       return;
     }
     if (file.size > MAX_DOCUMENT_BYTES) {
-      toast.error(`That file is ${(file.size / 1024 / 1024).toFixed(1)}MB — the limit is 10MB.`);
+      toast.error(t("tooBig", { size: (file.size / 1024 / 1024).toFixed(1) }));
       return;
     }
 
@@ -100,18 +95,18 @@ export const PatientDocuments = () => {
         body: JSON.stringify({ folder: "records", contentType: file.type, size: file.size }),
       });
       const permissionBody = await permission.json().catch(() => null);
-      if (!permission.ok) throw new Error(permissionBody?.error?.message || "Could not start the upload.");
+      if (!permission.ok) throw new Error(permissionBody?.error?.message || t("startFailed"));
 
       const { key, uploadUrl } = permissionBody.data;
       const put = await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
-      if (!put.ok) throw new Error("The upload was refused. Try again.");
+      if (!put.ok) throw new Error(t("refused"));
 
       const res = await fetch("/api/v1/patient-documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           kind,
-          title: title.trim() || titleFromFile(file.name),
+          title: title.trim() || titleFromFile(file.name) || t("document"),
           file_key: key,
           file_name: file.name,
           content_type: file.type,
@@ -120,14 +115,14 @@ export const PatientDocuments = () => {
         }),
       });
       const body = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(body?.error?.message || "Could not save that document.");
+      if (!res.ok) throw new Error(body?.error?.message || t("saveFailed"));
 
-      toast.success(`${kindLabel(kind)} added`);
+      toast.success(t("added", { kind: kindLabel(kind) }));
       setTitle("");
       setDocDate("");
       await load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not upload that document.");
+      toast.error(err instanceof Error ? err.message : t("uploadFailed"));
     } finally {
       setBusy(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -137,22 +132,22 @@ export const PatientDocuments = () => {
   const remove = async (doc: Doc) => {
     const res = await fetch(`/api/v1/patient-documents/${doc.id}`, { method: "DELETE" });
     const body = await res.json().catch(() => null);
-    if (!res.ok) { toast.error(body?.error?.message || "Couldn't remove that document."); return; }
-    toast.success("Document removed");
+    if (!res.ok) { toast.error(body?.error?.message || t("removeFailed")); return; }
+    toast.success(t("removed"));
     setDocs(d => d.filter(x => x.id !== doc.id));
   };
 
   const shown = filter === "all" ? docs : docs.filter(d => d.kind === filter);
-  const present = KINDS.filter(k => docs.some(d => d.kind === k.value));
+  const present = KINDS.filter(k => docs.some(d => d.kind === k)).map(k => ({ value: k, label: kindLabel(k) }));
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
       className="mt-8 rounded-3xl bg-card border border-border/60 p-7 shadow-soft">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h2 className="font-display text-2xl text-primary">Documents</h2>
+        <h2 className="font-display text-2xl text-primary">{t("title")}</h2>
         {present.length > 1 && (
           <div className="flex gap-2 flex-wrap">
-            {[{ value: "all" as const, label: "All" }, ...present].map(k => (
+            {[{ value: "all" as const, label: t("all") }, ...present].map(k => (
               <button key={k.value} onClick={() => setFilter(k.value)}
                 className={`rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
                   filter === k.value ? "bg-primary text-primary-foreground" : "bg-chip text-primary hover:bg-chip/70"
@@ -163,26 +158,24 @@ export const PatientDocuments = () => {
           </div>
         )}
       </div>
-      <p className="text-sm text-muted-foreground mt-2">
-        Prescriptions, test reports and scans from anywhere you have been treated. Only you can see them.
-      </p>
+      <p className="text-sm text-muted-foreground mt-2">{t("subtitle")}</p>
 
       {/* Add one */}
       <div className="mt-5 grid sm:grid-cols-3 gap-3">
         <label className="space-y-1.5">
-          <span className="text-[10px] tracking-widest font-bold text-muted-foreground">TYPE</span>
+          <span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("type")}</span>
           <select value={kind} onChange={e => setKind(e.target.value as Kind)}
             className="w-full bg-muted/40 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary text-sm">
-            {KINDS.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}
+            {KINDS.map(k => <option key={k} value={k}>{kindLabel(k)}</option>)}
           </select>
         </label>
         <label className="space-y-1.5">
-          <span className="text-[10px] tracking-widest font-bold text-muted-foreground">NAME</span>
-          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. CBC report, Popular Diagnostic"
+          <span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("name")}</span>
+          <input value={title} onChange={e => setTitle(e.target.value)} placeholder={t("namePlaceholder")}
             className="w-full bg-muted/40 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary text-sm" />
         </label>
         <label className="space-y-1.5">
-          <span className="text-[10px] tracking-widest font-bold text-muted-foreground">DATE ON THE DOCUMENT</span>
+          <span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("date")}</span>
           <input type="date" value={docDate} onChange={e => setDocDate(e.target.value)}
             className="w-full bg-muted/40 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary text-sm" />
         </label>
@@ -203,21 +196,21 @@ export const PatientDocuments = () => {
       >
         <Upload className="h-5 w-5 text-primary" />
         <span className="text-sm font-semibold text-primary">
-          {busy ? "Uploading…" : "Drag the file here, or click to choose"}
+          {busy ? t("uploading") : t("drop")}
         </span>
-        <span className="text-xs text-muted-foreground">A photo or a PDF, up to 10MB.</span>
+        <span className="text-xs text-muted-foreground">{t("limits")}</span>
         <input ref={fileRef} type="file" className="hidden" accept={(ALLOWED_IDENTITY_TYPES as readonly string[]).join(",")}
           onChange={e => { const file = e.target.files?.[0]; if (file) void upload(file); }} />
       </label>
 
       {/* What is on file */}
       {loading ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">Loading your documents…</p>
+        <p className="text-sm text-muted-foreground py-8 text-center">{t("loading")}</p>
       ) : docs.length === 0 ? (
         <div className="py-10 text-center">
           <FolderOpen className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-          <p className="text-sm font-semibold text-primary">No documents yet</p>
-          <p className="text-xs text-muted-foreground mt-1">Add a prescription or a report and it will be kept here.</p>
+          <p className="text-sm font-semibold text-primary">{t("emptyTitle")}</p>
+          <p className="text-xs text-muted-foreground mt-1">{t("emptyBody")}</p>
         </div>
       ) : (
         <div className="mt-5 space-y-2">
@@ -229,15 +222,15 @@ export const PatientDocuments = () => {
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-primary text-sm truncate">{d.title}</p>
                 <p className="text-xs text-muted-foreground">
-                  {[kindLabel(d.kind), d.document_date ? formatDate(d.document_date) : `Added ${formatDate(d.created_at)}`, sizeLabel(d.size_bytes)]
+                  {[kindLabel(d.kind), d.document_date ? formatDate(d.document_date) : t("addedOn", { date: formatDate(d.created_at) }), sizeLabel(d.size_bytes)]
                     .filter(Boolean).join(" · ")}
                 </p>
               </div>
               <a href={`/api/v1/documents?key=${encodeURIComponent(d.file_key)}`} target="_blank" rel="noreferrer"
                 className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-primary hover:bg-chip">
-                <Eye className="h-3.5 w-3.5" /> View
+                <Eye className="h-3.5 w-3.5" /> {t("view")}
               </a>
-              <button onClick={() => setRemoving(d)} aria-label={`Remove ${d.title}`}
+              <button onClick={() => setRemoving(d)} aria-label={t("remove", { title: d.title })}
                 className="p-2 rounded-lg text-destructive hover:bg-destructive/10">
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -250,8 +243,8 @@ export const PatientDocuments = () => {
         open={!!removing}
         onClose={() => setRemoving(null)}
         onConfirm={() => { if (removing) void remove(removing); }}
-        title={removing ? `Remove "${removing.title}"?` : "Remove this document?"}
-        description="It will no longer be kept with your records."
+        title={t("confirmTitle", { title: removing?.title ?? t("document") })}
+        description={t("confirmBody")}
       />
     </motion.div>
   );

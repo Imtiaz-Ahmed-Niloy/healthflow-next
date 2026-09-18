@@ -2,27 +2,32 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { BRAND_INFO } from "@/constants/brand";
+import LanguageSwitcher from "@/components/site/LanguageSwitcher";
 
-export const PromoBar = () => (
-  <div className="bg-gradient-dark text-surface-dark-foreground">
-    <div className="container mx-auto py-2.5 flex items-center justify-center gap-4 text-xs flex-wrap">
-      <span className="font-bold tracking-widest">FLASH SALE</span>
-      <span className="opacity-80">Get 30% Off All Medical Supplies</span>
-      <button className="rounded-full bg-accent text-primary px-4 py-1.5 font-bold tracking-wider text-[10px] hover:bg-accent/80 transition-colors">CLAIM NOW</button>
+export const PromoBar = () => {
+  const t = useTranslations("auth.layout");
+  return (
+    <div className="bg-gradient-dark text-surface-dark-foreground">
+      <div className="container mx-auto py-2.5 flex items-center justify-center gap-4 text-xs flex-wrap">
+        <span className="font-bold tracking-widest">{t("flashSale")}</span>
+        <span className="opacity-80">{t("promo")}</span>
+        <button className="rounded-full bg-accent text-primary px-4 py-1.5 font-bold tracking-wider text-[10px] hover:bg-accent/80 transition-colors">{t("claim")}</button>
+      </div>
     </div>
-  </div>
-);
-
-const navLinks = [
-  { label: "Features", to: "/features" },
-  { label: "Pricing", to: "/pricing" },
-  { label: "About Us", to: "/about" },
-  { label: "Contact", to: "/contact" },
-];
+  );
+};
 
 export const AuthHeader = () => {
   const pathname = usePathname();
+  const t = useTranslations();
+  const navLinks = [
+    { label: t("nav.features"), to: "/features" },
+    { label: t("nav.pricing"), to: "/pricing" },
+    { label: t("nav.about"), to: "/about" },
+    { label: t("nav.contact"), to: "/contact" },
+  ];
   return (
     <header className="bg-background border-b border-border/50">
       <nav className="container mx-auto flex items-center justify-between py-4">
@@ -39,25 +44,31 @@ export const AuthHeader = () => {
             </li>
           ))}
         </ul>
-        <Link href="/signup" className="rounded-full bg-gradient-dark text-surface-dark-foreground px-6 py-2.5 text-xs font-bold tracking-wider hover:opacity-90 transition-opacity">GET STARTED</Link>
+        <div className="flex items-center gap-3">
+          <LanguageSwitcher compact />
+          <Link href="/signup" className="rounded-full bg-gradient-dark text-surface-dark-foreground px-6 py-2.5 text-xs font-bold tracking-wider hover:opacity-90 transition-opacity">{t("nav.getStarted").toUpperCase()}</Link>
+        </div>
       </nav>
     </header>
   );
 };
 
-export const AuthFooter = () => (
-  <footer className="border-t border-border/50 mt-auto bg-background">
-    <div className="container mx-auto py-5 flex flex-wrap items-center justify-between gap-4 text-[11px] tracking-widest font-semibold text-muted-foreground">
-      <p>{BRAND_INFO.copyrightUppercase}</p>
-      <ul className="flex flex-wrap gap-6">
-        <li><Link href="/privacy" className="hover:text-primary">PRIVACY POLICY</Link></li>
-        <li><Link href="/terms" className="hover:text-primary">TERMS OF SERVICE</Link></li>
-        <li><Link href="/data-use" className="hover:text-primary">DATA USE POLICY</Link></li>
-        <li><Link href="/cookies" className="hover:text-primary">COOKIE SETTINGS</Link></li>
-      </ul>
-    </div>
-  </footer>
-);
+export const AuthFooter = () => {
+  const t = useTranslations("auth.layout");
+  return (
+    <footer className="border-t border-border/50 mt-auto bg-background">
+      <div className="container mx-auto py-5 flex flex-wrap items-center justify-between gap-4 text-[11px] tracking-widest font-semibold text-muted-foreground">
+        <p>{BRAND_INFO.copyrightUppercase}</p>
+        <ul className="flex flex-wrap gap-6">
+          <li><Link href="/privacy" className="hover:text-primary">{t("privacy")}</Link></li>
+          <li><Link href="/terms" className="hover:text-primary">{t("terms")}</Link></li>
+          <li><Link href="/data-use" className="hover:text-primary">{t("dataUse")}</Link></li>
+          <li><Link href="/cookies" className="hover:text-primary">{t("cookies")}</Link></li>
+        </ul>
+      </div>
+    </footer>
+  );
+};
 
 export const AuthLayout = ({ children }: { children: React.ReactNode }) => (
   <div className="min-h-screen flex flex-col bg-gradient-hero">
@@ -67,4 +78,3 @@ export const AuthLayout = ({ children }: { children: React.ReactNode }) => (
     <AuthFooter />
   </div>
 );
-

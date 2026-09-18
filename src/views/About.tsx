@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion, useScroll, useSpring } from "framer-motion";
 import { useRef } from "react";
+import { useTranslations } from "next-intl";
 import * as Icons from "lucide-react";
 import { Quote } from "lucide-react";
 import Navbar from "@/components/site/Navbar";
@@ -108,6 +109,8 @@ const SectionHeader = ({ title, subtitle, centered = true, light = false }: { ti
 );
 
 const About = ({ hero, content }: { hero: CmsHeroFields; content: AboutContent }) => {
+  const t = useTranslations("aboutPage");
+  // The page's words are the CMS's (/super/cms); only its fixed labels are here.
   const { pillars, journey, ceoMessage, vision, mission, objectives } = content;
 
   return (
@@ -118,7 +121,7 @@ const About = ({ hero, content }: { hero: CmsHeroFields; content: AboutContent }
         <section className="container mx-auto pt-8">
           <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8 }}
             className="relative rounded-3xl overflow-hidden">
-            <img src={heroImg} alt="HealthFlow clinical environment" width={1600} height={900} className="w-full h-[460px] object-cover" />
+            <img src={heroImg} alt={t("heroAlt")} width={1600} height={900} className="w-full h-[460px] object-cover" />
             <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/70 to-background/10" />
             <div className="absolute inset-0 p-8 md:p-14 flex flex-col justify-center max-w-2xl">
               <h1 className="font-display text-4xl md:text-6xl text-primary mt-4 leading-tight">{hero.title}</h1>
@@ -129,7 +132,7 @@ const About = ({ hero, content }: { hero: CmsHeroFields; content: AboutContent }
 
         {/* Vision & Mission - dual cards */}
         <section className="container mx-auto py-20">
-          <SectionHeader title="Why We Exist" />
+          <SectionHeader title={t("whyWeExist")} />
           <div className="grid md:grid-cols-2 gap-6 mt-12">
             <TiltCard maxTilt={6} lift={5}
               className="relative flex flex-col overflow-hidden rounded-3xl bg-gradient-dark text-surface-dark-foreground p-8 md:p-10">
@@ -139,7 +142,7 @@ const About = ({ hero, content }: { hero: CmsHeroFields; content: AboutContent }
               <p className="mt-4 text-sm leading-relaxed text-white/80 whitespace-pre-line">{vision.statement}</p>
               <div className="mt-auto pt-6 flex items-center gap-2 text-accent/80">
                 <Icons.Eye className="h-5 w-5" />
-                <span className="text-xs font-semibold tracking-wide">LOOKING AHEAD</span>
+                <span className="text-xs font-semibold tracking-wide">{t("lookingAhead")}</span>
               </div>
             </TiltCard>
             <TiltCard maxTilt={6} lift={5} delay={0.1}
@@ -150,7 +153,7 @@ const About = ({ hero, content }: { hero: CmsHeroFields; content: AboutContent }
               <p className="mt-4 text-sm leading-relaxed text-muted-foreground whitespace-pre-line">{mission.statement}</p>
               <div className="mt-auto pt-6 flex items-center gap-2 text-primary-glow/80">
                 <Icons.Target className="h-5 w-5" />
-                <span className="text-xs font-semibold tracking-wide">DRIVEN BY PURPOSE</span>
+                <span className="text-xs font-semibold tracking-wide">{t("drivenByPurpose")}</span>
               </div>
             </TiltCard>
           </div>

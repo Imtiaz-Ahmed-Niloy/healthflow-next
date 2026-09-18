@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { SuperLayout } from "@/components/super/SuperLayout";
 import { Btn, Pill } from "@/components/admin/ui";
 import {
@@ -17,16 +18,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
-type StatusFilter = "all" | "published" | "draft";
+const FILTERS = ["all", "published", "draft"] as const;
+type StatusFilter = (typeof FILTERS)[number];
 
 const describeError = (cause: unknown, fallback: string) =>
   (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? fallback;
 
-const formatUpdated = (iso: string) => {
+const formatUpdated = (iso: string, locale: string) => {
   const date = new Date(iso);
   return Number.isNaN(date.getTime())
     ? "—"
-    : date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+    : date.toLocaleDateString(locale === "bn" ? "bn-BD-u-nu-latn" : "en-US", { day: "numeric", month: "short", year: "numeric" });
 };
 
 const StatTile = ({
@@ -34,7 +36,7 @@ const StatTile = ({
 }: { icon: typeof Files; label: string; value: number | string; accent: string }) => (
   <div className="rounded-2xl bg-card border border-border/60 shadow-soft p-5 flex items-start justify-between">
     <div>
-      <p className="text-[11px] tracking-widest font-bold text-muted-foreground">{label.toUpperCase()}</p>
+      <p className="text-[11px] tracking-widest font-bold text-muted-foreground uppercase">{label}</p>
       <p className="font-display text-3xl text-primary mt-1.5">{value}</p>
     </div>
     <div className={`h-10 w-10 rounded-xl grid place-items-center ${accent}`}>
@@ -43,7 +45,14 @@ const StatTile = ({
   </div>
 );
 
+/**
+ * Page titles are what the super admin named each page, stored in the
+ * database — they show as typed. Everything around them is translated.
+ */
 const CMS = () => {
+  const t = useTranslations("super.cms");
+  const tc = useTranslations("common");
+  const locale = useLocale();
   const { pages, isLoading, isError, setPublished, rename } = useSitePages();
   const [editing, setEditing] = useState<SitePage | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
@@ -59,22 +68,22 @@ const CMS = () => {
     const next = !page.published;
     try {
       await setPublished(page, next);
-      toast.success(`${page.title} ${next ? "published" : "unpublished"}`);
+      toast.success(next ? t("publishedToast", { title: page.title }) : t("unpublishedToast", { title: page.title }));
     } catch (cause) {
-      toast.error(describeError(cause, `Could not ${next ? "publish" : "unpublish"} ${page.title}`));
+      toast.error(describeError(cause, next ? t("publishFailed", { title: page.title }) : t("unpublishFailed", { title: page.title })));
     }
   };
 
   const saveTitle = async () => {
     if (!editing) return;
     const title = draftTitle.trim();
-    if (!title) { toast.error("A page needs a title"); return; }
+    if (!title) { toast.error(t("needsTitle")); return; }
     try {
       await rename(editing, title);
-      toast.success("Page saved");
+      toast.success(t("saved"));
       setEditing(null);
     } catch (cause) {
-      toast.error(describeError(cause, "Could not save the page"));
+      toast.error(describeError(cause, t("saveFailed")));
     }
   };
 
@@ -93,14 +102,14 @@ const CMS = () => {
   });
 
   return (
-    <SuperLayout title="CMS Management" subtitle="Pages, posts & marketing content">
+    <SuperLayout title={t("title")} subtitle={t("subtitle")}>
       <div className="space-y-6">
         {/* KPI tiles */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatTile icon={Files} label="Total Pages" value={stats.total} accent="bg-primary/10 text-primary" />
-          <StatTile icon={CheckCircle2} label="Published" value={stats.published} accent="bg-accent/40 text-accent-foreground" />
-          <StatTile icon={FileEdit} label="Drafts" value={stats.drafts} accent="bg-chip text-chip-foreground" />
-          <StatTile icon={Lock} label="Always On" value={stats.protected} accent="bg-muted text-foreground/70" />
+          <StatTile icon={Files} label={t("stats.total")} value={stats.total} accent="bg-primary/10 text-primary" />
+          <StatTile icon={CheckCircle2} label={t("stats.published")} value={stats.published} accent="bg-accent/40 text-accent-foreground" />
+          <StatTile icon={FileEdit} label={t("stats.drafts")} value={stats.drafts} accent="bg-chip text-chip-foreground" />
+          <StatTile icon={Lock} label={t("alwaysOn")} value={stats.protected} accent="bg-muted text-foreground/70" />
         </div>
 
         {/* Toolbar */}
@@ -109,14 +118,14 @@ const CMS = () => {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by title or path…"
+                placeholder={t("searchPlaceholder")}
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 className="pl-9 bg-muted/40 border-border/60"
               />
             </div>
             <div className="flex items-center gap-1 rounded-full bg-muted/50 p-1">
-              {(["all", "published", "draft"] as StatusFilter[]).map(f => (
+              {FILTERS.map(f => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
@@ -124,7 +133,7 @@ const CMS = () => {
                     filter === f ? "bg-card text-primary shadow-soft" : "text-muted-foreground hover:text-primary"
                   }`}
                 >
-                  {f}
+                  {t(`filters.${f}`)}
                 </button>
               ))}
             </div>
@@ -134,12 +143,12 @@ const CMS = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="text-[10px] tracking-widest font-bold text-muted-foreground bg-muted/30">
-                  <th className="px-6 py-3.5">PAGE</th>
-                  <th className="px-6 py-3.5 hidden md:table-cell">PATH</th>
-                  <th className="px-6 py-3.5">STATUS</th>
-                  <th className="px-6 py-3.5 hidden lg:table-cell">UPDATED</th>
-                  <th className="px-6 py-3.5 text-right">ACTIONS</th>
+                <tr className="text-[10px] tracking-widest font-bold text-muted-foreground bg-muted/30 uppercase">
+                  <th className="px-6 py-3.5">{t("columns.page")}</th>
+                  <th className="px-6 py-3.5 hidden md:table-cell">{t("columns.path")}</th>
+                  <th className="px-6 py-3.5">{t("columns.status")}</th>
+                  <th className="px-6 py-3.5 hidden lg:table-cell">{t("columns.updated")}</th>
+                  <th className="px-6 py-3.5 text-right">{t("columns.actions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
@@ -153,7 +162,7 @@ const CMS = () => {
                         <div className="min-w-0">
                           <p className="font-semibold text-primary truncate">{p.title}</p>
                           {p.protected && (
-                            <p className="text-[10px] tracking-widest font-bold text-primary-glow mt-0.5">ALWAYS ON</p>
+                            <p className="text-[10px] tracking-widest font-bold text-primary-glow mt-0.5 uppercase">{t("alwaysOn")}</p>
                           )}
                         </div>
                       </div>
@@ -167,16 +176,14 @@ const CMS = () => {
                       <button
                         onClick={() => togglePublished(p)}
                         disabled={p.protected}
-                        title={p.protected
-                          ? "Sign-in and sign-up stay published — unpublishing one would lock everyone out"
-                          : "Toggle publish status"}
+                        title={p.protected ? t("protectedHint") : t("toggleHint")}
                         className="disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        <Pill tone={p.published ? "ok" : "warn"}>{p.published ? "published" : "draft"}</Pill>
+                        <Pill tone={p.published ? "ok" : "warn"}>{p.published ? t("filters.published") : t("filters.draft")}</Pill>
                       </button>
                     </td>
                     <td className="px-6 py-4 hidden lg:table-cell text-xs text-muted-foreground">
-                      {formatUpdated(p.updated_at)}
+                      {formatUpdated(p.updated_at, locale)}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-1">
@@ -185,14 +192,14 @@ const CMS = () => {
                           target="_blank"
                           rel="noreferrer"
                           className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
-                          title="Open in new tab"
+                          title={t("openNewTab")}
                         >
                           <ExternalLink className="h-4 w-4" />
                         </a>
                         <button
                           onClick={() => openEditor(p)}
                           className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
-                          title="Rename"
+                          title={t("rename")}
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
@@ -203,7 +210,7 @@ const CMS = () => {
                 {isLoading && pages.length === 0 && (
                   <tr>
                     <td colSpan={5} className="px-6 py-16 text-center text-sm text-muted-foreground">
-                      Loading pages…
+                      {t("loading")}
                     </td>
                   </tr>
                 )}
@@ -211,8 +218,8 @@ const CMS = () => {
                   <tr>
                     <td colSpan={5} className="px-6 py-16 text-center">
                       <AlertTriangle className="h-10 w-10 text-destructive/60 mx-auto mb-3" />
-                      <p className="text-sm font-semibold text-primary">Could not load pages</p>
-                      <p className="text-xs text-muted-foreground mt-1">Reload the page to try again.</p>
+                      <p className="text-sm font-semibold text-primary">{t("loadFailed")}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{t("reload")}</p>
                     </td>
                   </tr>
                 )}
@@ -220,10 +227,8 @@ const CMS = () => {
                   <tr>
                     <td colSpan={5} className="px-6 py-16 text-center">
                       <FileText className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
-                      <p className="text-sm font-semibold text-primary">No pages found</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Try a different search or filter.
-                      </p>
+                      <p className="text-sm font-semibold text-primary">{t("noneFound")}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{t("tryAnother")}</p>
                     </td>
                   </tr>
                 )}
@@ -232,38 +237,38 @@ const CMS = () => {
           </div>
 
           <div className="px-6 py-3 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
-            <span>Showing <span className="font-bold text-primary">{filtered.length}</span> of {pages.length} pages</span>
-            <span className="hidden sm:inline">Click a status pill to publish or unpublish</span>
+            <span>
+              {t.rich("showing", {
+                shown: filtered.length,
+                total: pages.length,
+                b: chunks => <span className="font-bold text-primary">{chunks}</span>,
+              })}
+            </span>
+            <span className="hidden sm:inline">{t("pillHint")}</span>
           </div>
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          Every page here is a route built into the app, so the list is fixed — a page can be renamed
-          or unpublished, never deleted. An unpublished page returns &quot;not found&quot; to visitors
-          and drops out of the site navigation.
-        </p>
+        <p className="text-xs text-muted-foreground">{t("footnote")}</p>
       </div>
 
       <Dialog open={!!editing} onOpenChange={o => !o && setEditing(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rename page</DialogTitle>
+            <DialogTitle>{t("renameTitle")}</DialogTitle>
           </DialogHeader>
           {editing && (
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <Label>Title</Label>
+                <Label>{t("fields.title")}</Label>
                 <Input value={draftTitle} onChange={e => setDraftTitle(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label>Path</Label>
+                <Label>{t("fields.path")}</Label>
                 <Input value={editing.path} disabled />
-                <p className="text-xs text-muted-foreground">
-                  The route is wired into the app and can&apos;t be changed here.
-                </p>
+                <p className="text-xs text-muted-foreground">{t("fields.pathHint")}</p>
               </div>
               <div className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2">
-                <Label htmlFor="pub">Published</Label>
+                <Label htmlFor="pub">{t("fields.published")}</Label>
                 <Switch
                   id="pub"
                   checked={editing.published}
@@ -275,16 +280,13 @@ const CMS = () => {
                 />
               </div>
               {editing.protected && (
-                <p className="text-xs text-muted-foreground">
-                  This page always stays published — unpublishing sign-in would lock everyone out,
-                  including you.
-                </p>
+                <p className="text-xs text-muted-foreground">{t("fields.protectedNote")}</p>
               )}
             </div>
           )}
           <DialogFooter>
-            <Btn variant="ghost" onClick={() => setEditing(null)}>Cancel</Btn>
-            <Btn onClick={saveTitle}>Save</Btn>
+            <Btn variant="ghost" onClick={() => setEditing(null)}>{tc("cancel")}</Btn>
+            <Btn onClick={saveTitle}>{tc("save")}</Btn>
           </DialogFooter>
         </DialogContent>
       </Dialog>

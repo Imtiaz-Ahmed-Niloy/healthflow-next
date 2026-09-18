@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { LocateFixed, Map as MapIcon, MapPin } from "lucide-react";
 import { SearchSelect, type SearchSelectOption } from "@/components/common/SearchSelect";
 import { useBdLocations, type BdDivision } from "@/hooks/useBdLocations";
@@ -28,14 +29,19 @@ const resolve = <T extends BdDivision>(list: T[], v: string) => {
   return list.find(x => norm(x.name) === n || (x.bn_name && norm(x.bn_name) === n) || x.aliases.some(a => norm(a) === n));
 };
 
-const toOption = (x: BdDivision, group?: string): SearchSelectOption => ({
+// Shown by its Bangla name on a Bangla page (0096 carries one for every
+// division, district and upazila; a Dhaka thana falls back to English). The
+// value is always the English name — what hospitals are saved with.
+const toOption = (x: BdDivision, bangla: boolean, group?: string): SearchSelectOption => ({
   value: x.name,
-  label: x.name,
-  keywords: [...x.aliases, ...(x.bn_name ? [x.bn_name] : [])],
+  label: bangla && x.bn_name ? x.bn_name : x.name,
+  keywords: [x.name, ...x.aliases, ...(x.bn_name ? [x.bn_name] : [])],
   group,
 });
 
 export const useLocationFilter = (initial: { division?: string | null; district?: string | null; upazila?: string | null } = {}) => {
+  const t = useTranslations("locationPickers");
+  const bangla = useLocale() === "bn";
   const { divisions, districts, upazilas } = useBdLocations();
   const [division, setDivision] = useState(initial.division ?? "");
   const [district, setDistrict] = useState(initial.district ?? "");
@@ -50,16 +56,18 @@ export const useLocationFilter = (initial: { division?: string | null; district?
   );
   const upazilaRow = resolve(districtUpazilas, upazila);
 
-  const divisionOptions = useMemo(() => divisions.map(d => toOption(d)), [divisions]);
+  const divisionOptions = useMemo(() => divisions.map(d => toOption(d, bangla)), [divisions, bangla]);
   const districtOptions = useMemo(
-    () => districts.filter(d => !divisionRow || d.division_id === divisionRow.id).map(d => toOption(d)),
-    [districts, divisionRow],
+    () => districts.filter(d => !divisionRow || d.division_id === divisionRow.id).map(d => toOption(d, bangla)),
+    [districts, divisionRow, bangla],
   );
   // Dhaka lists its city thanas apart from its upazilas.
+  const thanasLabel = t("cityThanas");
+  const upazilasLabel = t("upazilas");
   const upazilaOptions = useMemo(() => {
     const withThanas = districtUpazilas.some(u => u.kind === "thana");
-    return districtUpazilas.map(u => toOption(u, withThanas ? (u.kind === "thana" ? "City thanas" : "Upazilas") : undefined));
-  }, [districtUpazilas]);
+    return districtUpazilas.map(u => toOption(u, bangla, withThanas ? (u.kind === "thana" ? thanasLabel : upazilasLabel) : undefined));
+  }, [districtUpazilas, bangla, thanasLabel, upazilasLabel]);
 
   const pickDivision = (v: string) => {
     setDivision(v);
@@ -89,8 +97,16 @@ export const useLocationFilter = (initial: { division?: string | null; district?
     upazila: upazilaRow?.name ?? upazila,
   };
 
+  // The same, as a person reads them — the Bangla name on a Bangla page.
+  const label = (row: BdDivision | undefined, fallback: string) => (bangla && row?.bn_name) || fallback;
+
   return {
     want,
+    labels: {
+      division: label(divisionRow, want.division),
+      district: label(districtRow, want.district),
+      upazila: label(upazilaRow, want.upazila),
+    },
     active: !!(want.division || want.district || want.upazila),
     picked: { division: divisionRow?.name ?? "", district: districtRow?.name ?? "", upazila: upazilaRow?.name ?? "" },
     hasDistrict: !!districtRow,
@@ -112,41 +128,44 @@ export const placeMatches = (want: LocationFilter["want"], p: Placed) => {
 
 const ICON = "h-4 w-4 shrink-0 text-muted-foreground";
 
-export const LocationPickers = ({ filter, className }: { filter: LocationFilter; className: string }) => (
-  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-    <SearchSelect
-      value={filter.picked.division}
-      onChange={filter.pickDivision}
-      options={filter.options.division}
-      allLabel="All divisions"
-      searchPlaceholder="Search divisions…"
-      emptyText="No division found."
-      icon={<MapIcon className={ICON} />}
-      className={className}
-      aria-label="Division"
-    />
-    <SearchSelect
-      value={filter.picked.district}
-      onChange={filter.pickDistrict}
-      options={filter.options.district}
-      allLabel="All districts"
-      searchPlaceholder="Search districts…"
-      emptyText="No district found."
-      icon={<MapPin className={ICON} />}
-      className={className}
-      aria-label="District"
-    />
-    <SearchSelect
-      value={filter.picked.upazila}
-      onChange={filter.pickUpazila}
-      options={filter.options.upazila}
-      allLabel={filter.hasDistrict ? "All upazilas & thanas" : "Pick a district first"}
-      searchPlaceholder="Search upazilas…"
-      emptyText="No upazila found."
-      icon={<LocateFixed className={ICON} />}
-      className={className}
-      disabled={!filter.hasDistrict}
-      aria-label="Upazila or thana"
-    />
-  </div>
-);
+export const LocationPickers = ({ filter, className }: { filter: LocationFilter; className: string }) => {
+  const t = useTranslations("locationPickers");
+  return (
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+      <SearchSelect
+        value={filter.picked.division}
+        onChange={filter.pickDivision}
+        options={filter.options.division}
+        allLabel={t("allDivisions")}
+        searchPlaceholder={t("searchDivisions")}
+        emptyText={t("noDivision")}
+        icon={<MapIcon className={ICON} />}
+        className={className}
+        aria-label={t("division")}
+      />
+      <SearchSelect
+        value={filter.picked.district}
+        onChange={filter.pickDistrict}
+        options={filter.options.district}
+        allLabel={t("allDistricts")}
+        searchPlaceholder={t("searchDistricts")}
+        emptyText={t("noDistrict")}
+        icon={<MapPin className={ICON} />}
+        className={className}
+        aria-label={t("district")}
+      />
+      <SearchSelect
+        value={filter.picked.upazila}
+        onChange={filter.pickUpazila}
+        options={filter.options.upazila}
+        allLabel={filter.hasDistrict ? t("allUpazilas") : t("pickDistrict")}
+        searchPlaceholder={t("searchUpazilas")}
+        emptyText={t("noUpazila")}
+        icon={<LocateFixed className={ICON} />}
+        className={className}
+        disabled={!filter.hasDistrict}
+        aria-label={t("upazila")}
+      />
+    </div>
+  );
+};

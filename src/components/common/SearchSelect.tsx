@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
@@ -35,9 +36,10 @@ type SearchSelectProps = {
 };
 
 export const SearchSelect = ({
-  value, onChange, options, allLabel, searchPlaceholder = "Search…", emptyText = "Nothing found.",
+  value, onChange, options, allLabel, searchPlaceholder, emptyText,
   icon, className, disabled, "aria-label": ariaLabel,
 }: SearchSelectProps) => {
+  const t = useTranslations("pickers");
   const [open, setOpen] = useState(false);
   const current = options.find(o => o.value === value);
   const groups = [...new Set(options.map(o => o.group ?? ""))];
@@ -61,9 +63,9 @@ export const SearchSelect = ({
       </PopoverTrigger>
       <PopoverContent align="start" className="z-[70] w-[var(--radix-popover-trigger-width)] min-w-56 p-0">
         <Command>
-          <CommandInput placeholder={searchPlaceholder} />
+          <CommandInput placeholder={searchPlaceholder ?? t("search")} />
           <CommandList>
-            <CommandEmpty>{emptyText}</CommandEmpty>
+            <CommandEmpty>{emptyText ?? t("nothingFound")}</CommandEmpty>
             <CommandGroup>
               <CommandItem value="__all__" onSelect={() => choose("")}>
                 <Check className={`h-4 w-4 ${value ? "opacity-0" : "opacity-100"}`} />

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { BadgeCheck, Clock3, Save, Upload, X } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { ALLOWED_IDENTITY_TYPES, MAX_DOCUMENT_BYTES } from "@/lib/media";
 
 /**
@@ -29,20 +30,10 @@ export type IdentityDoc = {
   review_note: string | null;
 };
 
-export const ID_KINDS: { value: IdentityDoc["kind"]; label: string }[] = [
-  { value: "nid", label: "National ID (NID)" },
-  { value: "passport", label: "Passport" },
-  { value: "birth_certificate", label: "Birth certificate" },
-];
+export const ID_KINDS = ["nid", "passport", "birth_certificate"] as const satisfies readonly IdentityDoc["kind"][];
 
 const inputClass =
   "w-full bg-card border border-border rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary";
-
-const STATUS_LABEL: Record<IdentityDoc["status"], string> = {
-  verified: "VERIFIED",
-  rejected: "REJECTED",
-  pending: "BEING CHECKED",
-};
 
 export const IdentityDocumentField = ({ holder, docs, title, note, onChanged }: {
   holder: IdentityDoc["holder"];
@@ -57,6 +48,7 @@ export const IdentityDocumentField = ({ holder, docs, title, note, onChanged }: 
   note?: string;
   onChanged: () => void | Promise<void>;
 }) => {
+  const t = useTranslations("patient.identityDoc");
   const [kind, setKind] = useState<IdentityDoc["kind"]>("nid");
   const [number, setNumber] = useState("");
   const [busy, setBusy] = useState(false);
@@ -77,11 +69,11 @@ export const IdentityDocumentField = ({ holder, docs, title, note, onChanged }: 
   const upload = async (file: File) => {
     // A drop bypasses the picker's `accept` filter entirely, so check here.
     if (!(ALLOWED_IDENTITY_TYPES as readonly string[]).includes(file.type)) {
-      toast.error("Upload a photo or a PDF of the document.");
+      toast.error(t("wrongType"));
       return;
     }
     if (file.size > MAX_DOCUMENT_BYTES) {
-      toast.error(`That file is ${(file.size / 1024 / 1024).toFixed(1)}MB — the limit is 10MB.`);
+      toast.error(t("tooBig", { size: (file.size / 1024 / 1024).toFixed(1) }));
       return;
     }
 
@@ -93,11 +85,11 @@ export const IdentityDocumentField = ({ holder, docs, title, note, onChanged }: 
         body: JSON.stringify({ folder: "identity", contentType: file.type, size: file.size }),
       });
       const permissionBody = await permission.json().catch(() => null);
-      if (!permission.ok) throw new Error(permissionBody?.error?.message || "Could not start the upload.");
+      if (!permission.ok) throw new Error(permissionBody?.error?.message || t("startFailed"));
 
       const { key, uploadUrl } = permissionBody.data;
       const put = await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
-      if (!put.ok) throw new Error("Cloudflare refused the upload.");
+      if (!put.ok) throw new Error(t("uploadRefused"));
 
       // Uploading again replaces what is on file, and the database sends it
       // back for review because the thing that was checked is gone.
@@ -116,12 +108,12 @@ export const IdentityDocumentField = ({ holder, docs, title, note, onChanged }: 
         },
       );
       const body = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(body?.error?.message || "Could not save that document.");
+      if (!res.ok) throw new Error(body?.error?.message || t("saveFailed"));
 
-      toast.success("Document uploaded — a reviewer will check it");
+      toast.success(t("uploaded"));
       await onChanged();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not upload that document.");
+      toast.error(err instanceof Error ? err.message : t("uploadFailed"));
     } finally {
       setBusy(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -139,11 +131,11 @@ export const IdentityDocumentField = ({ holder, docs, title, note, onChanged }: 
         body: JSON.stringify({ document_number: number.trim() || null }),
       });
       const body = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(body?.error?.message || "Could not save that number.");
-      toast.success("Number saved — the document goes back for review");
+      if (!res.ok) throw new Error(body?.error?.message || t("numberSaveFailed"));
+      toast.success(t("numberSaved"));
       await onChanged();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not save that number.");
+      toast.error(err instanceof Error ? err.message : t("numberSaveFailed"));
     } finally {
       setBusy(false);
     }
@@ -183,16 +175,16 @@ export const IdentityDocumentField = ({ holder, docs, title, note, onChanged }: 
 
       <div className={`grid gap-4 sm:grid-cols-2 max-w-xl ${title || note ? "mt-4" : ""}`}>
         <label className="space-y-1.5">
-          <span className="text-[10px] tracking-widest font-bold text-muted-foreground">DOCUMENT TYPE</span>
+          <span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("type")}</span>
           <select className={inputClass} value={kind} onChange={e => setKind(e.target.value as IdentityDoc["kind"])}>
-            {ID_KINDS.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}
+            {ID_KINDS.map(k => <option key={k} value={k}>{t(`kinds.${k}`)}</option>)}
           </select>
         </label>
 
         <label className="space-y-1.5">
-          <span className="text-[10px] tracking-widest font-bold text-muted-foreground">DOCUMENT NUMBER</span>
+          <span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("number")}</span>
           <input className={inputClass} value={number} onChange={e => setNumber(e.target.value)}
-            placeholder={kind === "passport" ? "e.g. BQ0123456" : "The number on the document"} />
+            placeholder={kind === "passport" ? t("passportPlaceholder") : t("numberPlaceholder")} />
         </label>
       </div>
 
@@ -201,7 +193,7 @@ export const IdentityDocumentField = ({ holder, docs, title, note, onChanged }: 
       {existing && number.trim() !== (existing.document_number ?? "") && (
         <button type="button" onClick={() => void saveNumber()} disabled={busy}
           className="mt-3 rounded-full bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold inline-flex items-center gap-1.5 disabled:opacity-60">
-          <Save className="h-3.5 w-3.5" /> Save number
+          <Save className="h-3.5 w-3.5" /> {t("saveNumber")}
         </button>
       )}
 
@@ -218,9 +210,9 @@ export const IdentityDocumentField = ({ holder, docs, title, note, onChanged }: 
         <input ref={fileRef} type="file" accept={ALLOWED_IDENTITY_TYPES.join(",")} className="hidden" onChange={onPick} />
         <Upload className="h-5 w-5 text-muted-foreground mx-auto" />
         <p className="text-sm font-semibold text-primary mt-2">
-          {busy ? "Uploading…" : dragging ? "Drop it here." : "Drag the document here, or click to choose"}
+          {busy ? t("uploading") : dragging ? t("dropHere") : t("drop")}
         </p>
-        <p className="text-[11px] text-muted-foreground mt-1">A photo or a PDF, up to 10MB.</p>
+        <p className="text-[11px] text-muted-foreground mt-1">{t("limits")}</p>
       </div>
 
       {mine.length > 0 && (
@@ -229,11 +221,11 @@ export const IdentityDocumentField = ({ holder, docs, title, note, onChanged }: 
             <div key={doc.id} className="py-3 flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="font-semibold text-primary text-sm">
-                  {ID_KINDS.find(k => k.value === doc.kind)?.label ?? doc.kind}
+                  {t(`kinds.${doc.kind}`)}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
-                  {doc.document_number ? `No. ${doc.document_number} · ` : ""}
-                  {doc.file_name ?? "Document"}
+                  {doc.document_number ? `${t("no", { number: doc.document_number })} · ` : ""}
+                  {doc.file_name ?? t("document")}
                 </p>
                 {doc.status === "rejected" && doc.review_note && (
                   <p className="text-xs text-destructive mt-1">{doc.review_note}</p>
@@ -247,7 +239,7 @@ export const IdentityDocumentField = ({ holder, docs, title, note, onChanged }: 
                 {doc.status === "verified" ? <BadgeCheck className="h-3.5 w-3.5" />
                   : doc.status === "rejected" ? <X className="h-3.5 w-3.5" />
                   : <Clock3 className="h-3.5 w-3.5" />}
-                {STATUS_LABEL[doc.status]}
+                {t(`status.${doc.status}`)}
               </span>
             </div>
           ))}

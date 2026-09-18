@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Printer, Stethoscope, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 /**
  * The printed prescription — one sheet, two readers.
@@ -41,6 +42,7 @@ export type PrescriptionSheetData = {
 };
 
 export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionSheetData; onClose: () => void }) => {
+  const t = useTranslations("rxSheet");
   const { hospital, doctor, patientBar, complaints, examination, investigation, diagnosis, medicines, advice } = sheet;
 
   return (
@@ -58,12 +60,12 @@ export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionShe
             the global print visibility rule) so it doesn't leave a blank
             gap at the top of the PDF where it used to sit. */}
         <div className="sticky top-0 z-10 flex items-center justify-between bg-white/95 backdrop-blur border-b border-slate-200 px-6 py-3 rounded-t-2xl print:hidden">
-          <p className="text-sm font-semibold text-slate-700">Prescription Preview</p>
+          <p className="text-sm font-semibold text-slate-700">{t("preview")}</p>
           <div className="flex items-center gap-2">
             <button onClick={() => window.print()} className="flex items-center gap-2 rounded-full bg-slate-900 text-white px-4 py-2 text-xs font-semibold hover:opacity-90">
-              <Printer className="h-3.5 w-3.5" /> Print
+              <Printer className="h-3.5 w-3.5" /> {t("print")}
             </button>
-            <button onClick={onClose} className="rounded-full border border-slate-300 p-2 hover:bg-slate-100" aria-label="Close">
+            <button onClick={onClose} className="rounded-full border border-slate-300 p-2 hover:bg-slate-100" aria-label={t("close")}>
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -80,7 +82,7 @@ export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionShe
                 <div>
                   <h1 className="text-2xl font-bold tracking-tight text-emerald-800">{hospital.name}</h1>
                   <p className="text-[11px] text-slate-500 italic">
-                    {[hospital.address, hospital.contact_phone].filter(Boolean).join(" • ") || "Address not on file"}
+                    {[hospital.address, hospital.contact_phone].filter(Boolean).join(" • ") || t("noAddress")}
                   </p>
                 </div>
               </div>
@@ -94,7 +96,7 @@ export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionShe
               <h2 className="text-lg font-bold text-slate-900">{doctor.name}</h2>
               {doctor.education && <p className="text-[11px] text-slate-600 italic">{doctor.education}</p>}
               {doctor.specialty && <p className="text-[11px] text-slate-600">{doctor.specialty}</p>}
-              {doctor.bmdc_number && <p className="text-[11px] text-slate-600">BMDC Reg. No. {doctor.bmdc_number}</p>}
+              {doctor.bmdc_number && <p className="text-[11px] text-slate-600">{t("bmdc", { number: doctor.bmdc_number })}</p>}
             </div>
           </div>
 
@@ -119,10 +121,10 @@ export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionShe
             {/* LEFT */}
             <div className="md:pr-6 md:border-r print:pr-6 print:border-r border-slate-300 py-5 space-y-5">
               {([
-                ["C/O", "Chief Complaints", complaints],
-                ["O/E", "On Examination", examination],
-                ["Inv", "Investigation", investigation],
-                ["Dx", "Diagnosis", diagnosis],
+                ["C/O", t("complaints"), complaints],
+                ["O/E", t("examination"), examination],
+                ["Inv", t("investigation"), investigation],
+                ["Dx", t("diagnosis"), diagnosis],
               ] as const).map(([abbr, title, items]) => (
                 <div key={title}>
                   <div className="flex items-baseline gap-2 mb-1.5">
@@ -146,12 +148,12 @@ export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionShe
             <div className="md:pl-6 print:pl-6 py-5 flex flex-col">
               <div className="flex items-end gap-2 -mb-1">
                 <span className="text-6xl italic font-bold text-emerald-800 leading-none">℞</span>
-                <span className="text-[10px] tracking-widest font-semibold text-slate-500 uppercase pb-2">Prescription</span>
+                <span className="text-[10px] tracking-widest font-semibold text-slate-500 uppercase pb-2">{t("prescription")}</span>
               </div>
 
               <div className="mt-4 flex-1">
                 {medicines.length === 0 ? (
-                  <p className="text-xs italic text-slate-400">No medicines prescribed.</p>
+                  <p className="text-xs italic text-slate-400">{t("noMedicines")}</p>
                 ) : (
                   <ol className="space-y-3">
                     {medicines.map((m, i) => (
@@ -166,8 +168,8 @@ export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionShe
                             {m.dose && <span className="text-[11px] text-slate-600 italic">({m.dose})</span>}
                           </div>
                           <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-[12px] text-slate-700 pl-1">
-                            {m.frequency && <span><span className="text-slate-400">Sig:</span> <span className="font-semibold tracking-wider">{m.frequency}</span></span>}
-                            {m.days && <span><span className="text-slate-400">Duration:</span> <span className="font-semibold">{m.days}</span></span>}
+                            {m.frequency && <span><span className="text-slate-400">{t("sig")}</span> <span className="font-semibold tracking-wider">{m.frequency}</span></span>}
+                            {m.days && <span><span className="text-slate-400">{t("duration")}</span> <span className="font-semibold">{m.days}</span></span>}
                             {m.meal && <span className="italic text-slate-600">— {m.meal}</span>}
                           </div>
                         </div>
@@ -179,7 +181,7 @@ export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionShe
 
               {/* Advice */}
               <div className="mt-6 pt-4 border-t border-dashed border-slate-300">
-                <p className="text-[11px] tracking-widest font-semibold text-slate-500 uppercase mb-2">Advice & Follow-up</p>
+                <p className="text-[11px] tracking-widest font-semibold text-slate-500 uppercase mb-2">{t("advice")}</p>
                 {advice.length === 0 ? (
                   <p className="text-xs italic text-slate-400">—</p>
                 ) : (
@@ -196,14 +198,14 @@ export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionShe
           {/* Footer / signature */}
           <div className="mt-6 pt-4 border-t-2 border-slate-800 flex items-end justify-between">
             <div className="text-[10px] text-slate-500 italic max-w-xs">
-              Please consult your doctor before any dose changes.
+              {t("disclaimer")}
             </div>
             <div className="text-right">
               {/* Room above the line for the doctor's own signature. */}
               <div aria-hidden className="h-6" />
               <div className="border-t border-slate-400 w-52 mt-1 pt-1 text-[11px] text-slate-600">
                 <span className="font-semibold text-slate-900">{doctor.name}</span>
-                <div className="text-[10px] text-slate-500">Signed</div>
+                <div className="text-[10px] text-slate-500">{t("signed")}</div>
               </div>
             </div>
           </div>

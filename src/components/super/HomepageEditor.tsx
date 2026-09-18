@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Card, SectionTitle, Btn } from "@/components/admin/ui";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RotateCcw, Save } from "lucide-react";
 import TestimonialsManager from "@/components/super/TestimonialsManager";
 
+/** The controls translate; the homepage copy typed into them is stored as written. */
 const HomepageEditor = () => {
+  const t = useTranslations("super.cmsEditor");
   const { content, save, reset } = useHomeContent();
   const [draft, setDraft] = useState<HomeContent>(content);
   const [dirty, setDirty] = useState(false);
@@ -35,22 +38,22 @@ const HomepageEditor = () => {
     try {
       await save(draft);
       setDirty(false);
-      toast.success("Homepage updated");
+      toast.success(t("home.updated"));
     } catch (cause) {
       const message =
         (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ??
-        "Could not save homepage";
+        t("home.saveFailed");
       toast.error(message);
     }
   };
   const onReset = async () => {
     try {
       await reset();
-      toast.success("Restored defaults");
+      toast.success(t("restored"));
     } catch (cause) {
       const message =
         (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ??
-        "Could not reset homepage";
+        t("home.resetFailed");
       toast.error(message);
     }
   };
@@ -60,15 +63,15 @@ const HomepageEditor = () => {
   return (
     <Card className="p-5 mt-4">
       <SectionTitle
-        title="Homepage Sections"
+        title={t("home.sections")}
         action={
           tab !== "testimonials" ? (
             <div className="flex items-center gap-2">
               <Btn variant="ghost" onClick={onReset}>
-                <span className="inline-flex items-center gap-1"><RotateCcw className="h-4 w-4" /> Reset</span>
+                <span className="inline-flex items-center gap-1"><RotateCcw className="h-4 w-4" /> {t("reset")}</span>
               </Btn>
               <Btn onClick={onSave} className={dirty ? "" : "opacity-60"}>
-                <span className="inline-flex items-center gap-1"><Save className="h-4 w-4" /> Save</span>
+                <span className="inline-flex items-center gap-1"><Save className="h-4 w-4" /> {t("save")}</span>
               </Btn>
             </div>
           ) : undefined
@@ -77,34 +80,34 @@ const HomepageEditor = () => {
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="w-full">
         <TabsList className="grid w-full max-w-xl grid-cols-3">
-          <TabsTrigger value="hero">Hero Section</TabsTrigger>
-          <TabsTrigger value="stats">Stats Section</TabsTrigger>
-          <TabsTrigger value="testimonials">Testimonials</TabsTrigger>
+          <TabsTrigger value="hero">{t("heroSection")}</TabsTrigger>
+          <TabsTrigger value="stats">{t("home.stats")}</TabsTrigger>
+          <TabsTrigger value="testimonials">{t("home.testimonials")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="hero" className="mt-5 space-y-3">
           <div className="space-y-1.5">
-            <Label>Headline</Label>
+            <Label>{t("headline")}</Label>
             {/* A textarea, not an input: the hero keeps the line breaks typed
                 here, so where the headline wraps is a decision made here. */}
             <Textarea rows={2} value={draft.heroTitle1} onChange={e => set("heroTitle1", e.target.value)} />
-            <p className="text-xs text-muted-foreground">Line breaks are kept exactly as you type them.</p>
+            <p className="text-xs text-muted-foreground">{t("home.lineBreaks")}</p>
           </div>
           <div className="space-y-1.5">
-            <Label>Headline accent (italic)</Label>
-            <Input value={draft.heroTitle2} onChange={e => set("heroTitle2", e.target.value)} placeholder="Optional" />
+            <Label>{t("home.accent")}</Label>
+            <Input value={draft.heroTitle2} onChange={e => set("heroTitle2", e.target.value)} placeholder={t("optional")} />
           </div>
           <div className="space-y-1.5">
-            <Label>Description</Label>
+            <Label>{t("description")}</Label>
             <Textarea rows={4} value={draft.heroDesc} onChange={e => set("heroDesc", e.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Primary button</Label>
+              <Label>{t("primaryButton")}</Label>
               <Input value={draft.heroBookCta} onChange={e => set("heroBookCta", e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label>Secondary button</Label>
+              <Label>{t("secondaryButton")}</Label>
               <Input value={draft.heroExploreCta} onChange={e => set("heroExploreCta", e.target.value)} />
             </div>
           </div>
@@ -114,10 +117,10 @@ const HomepageEditor = () => {
           {draft.stats.map((s, i) => (
             <div key={i} className="grid grid-cols-[110px_1fr] gap-2">
               <Input value={s.value} onChange={e => setStat(i, { value: e.target.value })} placeholder="500+" />
-              <Input value={s.label} onChange={e => setStat(i, { label: e.target.value })} placeholder="Label" />
+              <Input value={s.label} onChange={e => setStat(i, { label: e.target.value })} placeholder={t("label")} />
             </div>
           ))}
-          <p className="text-xs text-muted-foreground">Edits go live on the homepage as soon as you save.</p>
+          <p className="text-xs text-muted-foreground">{t("home.liveOnSave")}</p>
         </TabsContent>
 
         <TabsContent value="testimonials" className="mt-5">
@@ -129,4 +132,3 @@ const HomepageEditor = () => {
 };
 
 export default HomepageEditor;
-

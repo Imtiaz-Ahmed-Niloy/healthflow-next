@@ -1,4 +1,6 @@
 import { DAYS as WEEK_DAYS, defaultWeek, parseWeek, type WeekHours } from "@/lib/hours";
+import type { Locale } from "@/i18n/config";
+import { libWords } from "@/i18n/libText";
 
 /**
  * When a doctor sees patients, read from `doctors.availability`.
@@ -23,15 +25,19 @@ import { DAYS as WEEK_DAYS, defaultWeek, parseWeek, type WeekHours } from "@/lib
  *
  * Shared by the booking form and the API that re-checks it, so the two can
  * never disagree about whether a slot is open.
+ *
+ * What it says to a person comes out in their language: the functions that
+ * return text take a `locale` (English when left out; words in
+ * src/i18n/libText.ts).
  */
 
+// The English short names are also what the old free text was typed in, so
+// they stay the keys; a day is shown through libWords().daysShort.
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 type Day = (typeof DAYS)[number];
 
-const DAY_NAMES: Record<Day, string> = {
-  Sun: "Sundays", Mon: "Mondays", Tue: "Tuesdays", Wed: "Wednesdays",
-  Thu: "Thursdays", Fri: "Fridays", Sat: "Saturdays",
-};
+const dayShort = (d: Day, locale?: Locale) => libWords(locale).daysShort[DAYS.indexOf(d)];
+const dayOn = (d: Day, locale?: Locale) => libWords(locale).daysOn[DAYS.indexOf(d)];
 
 /** One day's hours. HH:MM, 24-hour; the end is exclusive, and "24:00" is midnight. */
 export type Span = { start: string; end: string };
@@ -152,16 +158,19 @@ export const weekFromAvailability = (text: unknown): WeekHours => {
 const weekdayOf = (date: string): Day => DAYS[new Date(`${date}T00:00:00Z`).getUTCDay()];
 
 /** "9:00 AM" from "09:00"; "midnight" for the end of a day that runs to it. */
-export const displayTime = (hhmmValue: string) => {
-  if (hhmmValue === "24:00") return "midnight";
+export const displayTime = (hhmmValue: string, locale?: Locale) => {
+  const w = libWords(locale);
+  if (hhmmValue === "24:00") return w.midnight;
   const [h, m] = hhmmValue.split(":").map(Number);
-  const suffix = h >= 12 ? "PM" : "AM";
+  const suffix = h >= 12 ? w.pm : w.am;
   const hour = h % 12 === 0 ? 12 : h % 12;
   return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
 };
 
-const spanLabel = (span: Span) =>
-  span.start === "00:00" && span.end === "24:00" ? "all day" : `${displayTime(span.start)}–${displayTime(span.end)}`;
+const spanLabel = (span: Span, locale?: Locale) =>
+  span.start === "00:00" && span.end === "24:00"
+    ? libWords(locale).allDay
+    : `${displayTime(span.start, locale)}–${displayTime(span.end, locale)}`;
 
 const sameSpan = (a: Span | undefined, b: Span | undefined) =>
   !!a && !!b && a.start === b.start && a.end === b.end;
@@ -170,7 +179,7 @@ const sameSpan = (a: Span | undefined, b: Span | undefined) =>
  * Consecutive days that share hours, as runs: "Sun–Thu", "Sat". The week is a
  * cycle, so Sat–Wed stays one run rather than splitting at Sunday.
  */
-const runs = (schedule: Schedule, sameHours: boolean): { label: string; span: Span }[] => {
+const runs = (schedule: Schedule, sameHours: boolean, locale?: Locale): { label: string; span: Span }[] => {
   const on = (i: number) => schedule.hours[DAYS[((i % 7) + 7) % 7]];
   // Day i continues the run of the day before it.
   const joins = (i: number) => {
@@ -184,7 +193,7 @@ const runs = (schedule: Schedule, sameHours: boolean): { label: string; span: Sp
   const start = [0, 1, 2, 3, 4, 5, 6].find(i => on(i) && !joins(i));
   if (start === undefined) {
     const first = on(0);
-    return first ? [{ label: "every day", span: first }] : [];
+    return first ? [{ label: libWords(locale).everyDay, span: first }] : [];
   }
 
   const out: { label: string; span: Span }[] = [];
@@ -196,28 +205,28 @@ const runs = (schedule: Schedule, sameHours: boolean): { label: string; span: Sp
     while (k + len < 7 && on(i + len) && joins(i + len)) len += 1;
     const from = DAYS[i % 7];
     const to = DAYS[(i + len - 1) % 7];
-    out.push({ label: len === 1 ? from : `${from}–${to}`, span });
+    out.push({ label: len === 1 ? dayShort(from, locale) : `${dayShort(from, locale)}–${dayShort(to, locale)}`, span });
     k += len;
   }
   return out;
 };
 
 /** "Sun–Thu 9:00 AM–5:00 PM · Sat 10:00 AM–2:00 PM", for messages and cards. */
-export const describeSchedule = (schedule: Schedule) =>
+export const describeSchedule = (schedule: Schedule, locale?: Locale) =>
   schedule.days.length === 0
-    ? "no days at the moment"
-    : runs(schedule, true).map(r => `${r.label} ${spanLabel(r.span)}`).join(" · ");
+    ? libWords(locale).noDaysNow
+    : runs(schedule, true, locale).map(r => `${r.label} ${spanLabel(r.span, locale)}`).join(" · ");
 
 /**
  * How to show a doctor's availability anywhere a person reads it. A week is
  * described; free text is shown as typed, since that is what someone meant.
  */
-export const availabilityLabel = (text: string | null | undefined): string | null => {
+export const availabilityLabel = (text: string | null | undefined, locale?: Locale): string | null => {
   if (!text) return null;
   const week = parseWeek(text);
   if (!week) return text;
   const schedule = fromWeek(week);
-  return schedule.days.length ? describeSchedule(schedule) : "Not taking appointments";
+  return schedule.days.length ? describeSchedule(schedule, locale) : libWords(locale).notTakingAppointments;
 };
 
 /** The hours on a date, or null on a day off — for bounding a time picker. */
@@ -234,22 +243,25 @@ export const outsideAvailabilityReason = (
   schedule: Schedule | null,
   date: string,
   time: string,
-  doctorName = "The doctor",
+  doctorName?: string,
+  locale?: Locale,
 ) => {
   if (!schedule) return null;
+  const w = libWords(locale);
+  const doctor = doctorName || w.theDoctor;
   const day = weekdayOf(date);
   const span = schedule.hours[day];
   if (!span) {
-    if (schedule.days.length === 0) return `${doctorName} isn't taking appointments at the moment.`;
-    const days = runs(schedule, false).map(r => r.label).join(", ");
-    return `${doctorName} doesn't see patients on ${DAY_NAMES[day]}. Available ${days}.`;
+    if (schedule.days.length === 0) return w.notTakingNow(doctor);
+    const days = runs(schedule, false, locale).map(r => r.label).join(", ");
+    return w.offDay(doctor, dayOn(day, locale), days);
   }
   if (!time) return null;
   const t = time.slice(0, 5);
   if (t < span.start || t >= span.end) {
     // Name the day only when the hours differ from day to day.
     const varies = runs(schedule, true).length > 1;
-    return `${doctorName} sees patients between ${displayTime(span.start)} and ${displayTime(span.end)}${varies ? ` on ${DAY_NAMES[day]}` : ""}.`;
+    return w.outsideHours(doctor, displayTime(span.start, locale), displayTime(span.end, locale), varies ? dayOn(day, locale) : null);
   }
   return null;
 };

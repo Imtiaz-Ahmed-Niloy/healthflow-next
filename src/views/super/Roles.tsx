@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { SuperLayout } from "@/components/super/SuperLayout";
 import { Card, SectionTitle, Btn, Pill } from "@/components/admin/ui";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -32,6 +33,8 @@ import { useGetRoleStatsQuery } from "@/redux/api/superApi";
  * User counts come from /api/v1/super/role-stats and are read-only. The screen
  * used to let you type one in, which could only ever disagree with the number
  * of profiles actually pointing at the role.
+ *
+ * A role's own name is what was typed when it was made, and shows as typed.
  */
 
 type Scope = "Platform" | "Tenant" | "Clinical" | "Self";
@@ -42,7 +45,16 @@ const ALL_PATHS = new Set(PANELS.flatMap((panel) => panel.pages.map((page) => pa
 const scopeTone = (scope: string) =>
   scope === "Platform" ? "bad" : scope === "Clinical" ? "ok" : scope === "Self" ? "default" : "info";
 
+/** Scope values are stored in English; this is only their label. */
+const useScopeLabel = () => {
+  const t = useTranslations("super.roles");
+  return (scope: string) =>
+    (SCOPES as string[]).includes(scope) ? t(`scopes.${scope as Scope}`) : scope;
+};
+
 const Roles = () => {
+  const t = useTranslations("super.roles");
+  const scopeLabel = useScopeLabel();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -125,29 +137,29 @@ const Roles = () => {
       // Deleted between the two screens, or the request failed. A dialog naming
       // an id nobody can read is worse than one that asks.
       setEditing(blankRole());
-      toast.error("Could not load that hospital", { description: "Pick it from the list instead." });
+      toast.error(t("hospitalLoadFailed"), { description: t("hospitalLoadFailedHint") });
     }
 
     router.replace(pathname, { scroll: false });
-  }, [hospitalParam, paramHospital.data, paramHospital.isLoading, blankRole, router, pathname]);
+  }, [hospitalParam, paramHospital.data, paramHospital.isLoading, blankRole, router, pathname, t]);
 
   const remove = async (role: RoleRow) => {
     setPendingDelete(role.id);
     try {
       await removeRole(role.id).unwrap();
-      toast.success(`${role.label} removed`);
+      toast.success(t("removed", { name: role.label }));
     } catch {
-      toast.error("Could not remove role", { description: "Please try again." });
+      toast.error(t("removeFailed"), { description: t("tryAgain") });
     } finally {
       setPendingDelete(null);
     }
   };
 
   return (
-    <SuperLayout title="User Role Management" subtitle="Assign panel pages to each role">
+    <SuperLayout title={t("title")} subtitle={t("subtitle")}>
       <Card className="p-5">
         <SectionTitle
-          title="Roles & Permissions"
+          title={t("section")}
           action={
             <div className="flex items-center gap-2">
               <div className="relative">
@@ -155,13 +167,13 @@ const Roles = () => {
                 <Input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search roles"
-                  aria-label="Search roles"
+                  placeholder={t("search")}
+                  aria-label={t("search")}
                   className="pl-9 w-56"
                 />
               </div>
               <Btn onClick={() => setEditing(blankRole())}>
-                <Plus className="h-4 w-4" /> New Role
+                <Plus className="h-4 w-4" /> {t("new")}
               </Btn>
             </div>
           }
@@ -176,11 +188,11 @@ const Roles = () => {
         ) : error ? (
           <div className="flex items-center gap-3 rounded-xl bg-destructive/10 text-destructive p-4">
             <AlertCircle className="h-5 w-5 shrink-0" />
-            <p className="text-sm font-semibold">Could not load roles. Refresh to try again.</p>
+            <p className="text-sm font-semibold">{t("loadFailed")}</p>
           </div>
         ) : filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">
-            {query ? `No roles match “${query}”.` : "No roles yet."}
+            {query ? t("noMatch", { query }) : t("none")}
           </p>
         ) : (
           <div className="grid md:grid-cols-2 gap-3">
@@ -191,12 +203,12 @@ const Roles = () => {
                * is unknown, and a real 0 means the role exists but is unused.
                */
               const userLabel = !role.role
-                ? "Not assignable yet"
+                ? t("notAssignable")
                 : counts
-                  ? `${counts[role.role].toLocaleString()} users`
+                  ? t("users", { count: counts[role.role] })
                   : statsLoading
-                    ? "Counting…"
-                    : "User count unavailable";
+                    ? t("counting")
+                    : t("countUnavailable");
 
               return (
                 <div key={role.id} className="rounded-xl bg-muted/40 p-4 flex items-center justify-between gap-3">
@@ -204,30 +216,26 @@ const Roles = () => {
                     <p className="font-semibold text-primary truncate flex items-center gap-1.5">
                       {role.label}
                       {role.is_system && (
-                        <Lock className="h-3 w-3 text-muted-foreground shrink-0" aria-label="System role" />
+                        <Lock className="h-3 w-3 text-muted-foreground shrink-0" aria-label={t("systemRole")} />
                       )}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1 truncate">
                       {/* System roles belong to no hospital by design, so they
                           say what they are rather than showing a blank. */}
-                      {role.is_system ? "All hospitals" : role.tenants?.name ?? "Unknown hospital"}
-                      {" · "}{userLabel} · {role.pages.length} pages
+                      {role.is_system ? t("allHospitals") : role.tenants?.name ?? t("unknownHospital")}
+                      {" · "}{userLabel} · {t("pages", { count: role.pages.length })}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <Pill tone={scopeTone(role.scope)}>{role.scope}</Pill>
+                    <Pill tone={scopeTone(role.scope)}>{scopeLabel(role.scope)}</Pill>
                     <Btn variant="ghost" onClick={() => setEditing(role)}>
-                      <Pencil className="h-4 w-4" /> Configure
+                      <Pencil className="h-4 w-4" /> {t("configure")}
                     </Btn>
                     <button
                       onClick={() => void remove(role)}
                       disabled={role.is_system || pendingDelete === role.id}
-                      title={
-                        role.is_system
-                          ? "System roles are part of the auth layer and cannot be deleted"
-                          : "Delete role"
-                      }
-                      aria-label={`Delete ${role.label}`}
+                      title={role.is_system ? t("systemNoDelete") : t("delete")}
+                      aria-label={t("deleteName", { name: role.label })}
                       className="p-2 rounded-full text-destructive hover:bg-destructive/10 disabled:opacity-30 disabled:pointer-events-none"
                     >
                       {pendingDelete === role.id ? (
@@ -271,6 +279,23 @@ const RoleEditor = ({
   users: string | null;
   onClose: () => void;
 }) => {
+  const t = useTranslations("super.roles");
+  const tc = useTranslations("common");
+  const scopeLabel = useScopeLabel();
+  /**
+   * The page catalogue (src/data/rolePages.ts) names pages in English; the
+   * label is looked up by that name so the catalogue itself stays one list.
+   * A page added there without a translation shows its English name.
+   */
+  const pageLabel = (label: string) => {
+    const key = `pageLabels.${label}` as Parameters<typeof t>[0];
+    return t.has(key) ? t(key) : label;
+  };
+  const panelLabel = (key: string, fallback: string) => {
+    const k = `panels.${key}` as Parameters<typeof t>[0];
+    return t.has(k) ? t(k) : fallback;
+  };
+
   const isNew = role.id === "";
   const [draft, setDraft] = useState(role);
   const [saving, setSaving] = useState(false);
@@ -331,14 +356,14 @@ const RoleEditor = ({
   const save = async () => {
     const label = draft.label.trim();
     if (!label) {
-      toast.error("Role name is required");
+      toast.error(t("nameRequired"));
       return;
     }
     // A custom role belongs to a hospital (0055). The API and the check
     // constraint both refuse one without; catching it here keeps the dialog
     // open with the page grants still ticked.
     if (isNew && !draft.tenant_id) {
-      toast.error("Select the hospital this role is for");
+      toast.error(t("hospitalRequired"));
       return;
     }
 
@@ -360,13 +385,13 @@ const RoleEditor = ({
     try {
       if (isNew) await createRole(body).unwrap();
       else await updateRole(draft.id, body).unwrap();
-      toast.success(`${label} saved`);
+      toast.success(t("saved", { name: label }));
       onClose();
     } catch (cause) {
       const message =
         (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ??
-        "Please try again.";
-      toast.error("Could not save role", { description: message });
+        t("tryAgain");
+      toast.error(t("saveFailed"), { description: message });
     } finally {
       setSaving(false);
     }
@@ -378,7 +403,7 @@ const RoleEditor = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-primary" />
-            {isNew ? "New Role" : "Configure Role"}
+            {isNew ? t("new") : t("configureTitle")}
           </DialogTitle>
         </DialogHeader>
 
@@ -389,15 +414,13 @@ const RoleEditor = ({
           it as a field.
         */}
         <div className="mt-2">
-          <Label htmlFor={pickHospital ? "role-hospital-search" : undefined}>Hospital</Label>
+          <Label htmlFor={pickHospital ? "role-hospital-search" : undefined}>{t("hospital")}</Label>
           {role.is_system ? (
-            <p className="h-9 flex items-center text-sm text-muted-foreground">
-              All hospitals — a system role is part of the auth layer.
-            </p>
+            <p className="h-9 flex items-center text-sm text-muted-foreground">{t("systemAllHospitals")}</p>
           ) : !pickHospital ? (
             <div className="flex items-center gap-2">
               <p className="h-9 flex-1 flex items-center text-sm font-semibold text-primary">
-                {role.tenants?.name ?? "Unknown hospital"}
+                {role.tenants?.name ?? t("unknownHospital")}
               </p>
               {/* Only while creating: the hospital on a saved role is fixed —
                   the API does not accept it on update. */}
@@ -406,7 +429,7 @@ const RoleEditor = ({
                   variant="ghost"
                   onClick={() => { setChangingHospital(true); setDraft({ ...draft, tenant_id: null }); }}
                 >
-                  Change
+                  {t("change")}
                 </Btn>
               )}
             </div>
@@ -416,14 +439,14 @@ const RoleEditor = ({
                 id="role-hospital-search"
                 value={hospitalQuery}
                 onChange={(e) => setHospitalQuery(e.target.value)}
-                placeholder="Search hospitals…"
+                placeholder={t("searchHospitals")}
                 className="mb-2"
               />
               <div className="max-h-36 overflow-y-auto rounded-lg border border-border divide-y divide-border/50">
                 {hospitals.isFetching ? (
-                  <p className="px-3 py-2 text-sm text-muted-foreground">Searching…</p>
+                  <p className="px-3 py-2 text-sm text-muted-foreground">{t("searching")}</p>
                 ) : hospitalRows.length === 0 ? (
-                  <p className="px-3 py-2 text-sm text-muted-foreground">No hospitals found.</p>
+                  <p className="px-3 py-2 text-sm text-muted-foreground">{t("noHospitals")}</p>
                 ) : (
                   hospitalRows.map((hospital) => {
                     const chosen = draft.tenant_id === hospital.id;
@@ -449,16 +472,16 @@ const RoleEditor = ({
 
         <div className="grid sm:grid-cols-3 gap-4 mt-4">
           <div>
-            <Label htmlFor="role-name">Role name</Label>
+            <Label htmlFor="role-name">{t("roleName")}</Label>
             <Input
               id="role-name"
               value={draft.label}
               onChange={(e) => setDraft({ ...draft, label: e.target.value })}
-              placeholder="e.g. Ward Manager"
+              placeholder={t("roleNamePlaceholder")}
             />
           </div>
           <div>
-            <Label htmlFor="role-scope">Scope</Label>
+            <Label htmlFor="role-scope">{t("scope")}</Label>
             <Select
               value={draft.scope}
               onValueChange={(v) => setDraft({ ...draft, scope: v })}
@@ -469,19 +492,19 @@ const RoleEditor = ({
               <SelectContent>
                 {SCOPES.map((s) => (
                   <SelectItem key={s} value={s}>
-                    {s}
+                    {scopeLabel(s)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div>
-            <Label>Users</Label>
+            <Label>{t("usersLabel")}</Label>
             {/* Read-only: this is however many profiles point at the role. */}
             <p className="h-9 flex items-center text-sm font-semibold text-primary">
               {users ?? (
                 <span className="text-muted-foreground font-normal">
-                  {role.role ? "Unavailable" : "Not assignable yet"}
+                  {role.role ? t("unavailable") : t("notAssignable")}
                 </span>
               )}
             </p>
@@ -491,36 +514,36 @@ const RoleEditor = ({
         {draft.is_system && (
           <p className="mt-3 text-xs text-muted-foreground flex items-center gap-1.5">
             <Lock className="h-3 w-3 shrink-0" />
-            System role. Its page access is editable; the role itself cannot be renamed away
-            from <code className="font-mono">{draft.role}</code> or deleted.
+            <span>
+              {t.rich("systemNote", {
+                role: draft.role ?? "",
+                code: chunks => <code className="font-mono">{chunks}</code>,
+              })}
+            </span>
           </p>
         )}
 
         {isNew && (
           <p className="mt-3 text-xs text-muted-foreground flex items-center gap-1.5">
             <AlertCircle className="h-3 w-3 shrink-0" />
-            A custom role stores page access but cannot be assigned to a user until it is added
-            to the auth layer.
+            {t("customNote")}
           </p>
         )}
 
         <div className="mt-4 space-y-4">
-          <p className="text-[11px] tracking-widest font-bold text-muted-foreground">
-            PAGE ACCESS BY PANEL
+          <p className="text-[11px] tracking-widest font-bold text-muted-foreground uppercase">
+            {t("pageAccess")}
           </p>
 
           {orphanedPages.length > 0 && (
             <div className="rounded-xl bg-yellow-100/60 text-yellow-900 p-3 text-xs">
-              <p className="font-semibold mb-1">
-                {orphanedPages.length} granted {orphanedPages.length === 1 ? "page is" : "pages are"}{" "}
-                no longer in the catalogue
-              </p>
+              <p className="font-semibold mb-1">{t("orphaned", { count: orphanedPages.length })}</p>
               <p className="font-mono break-all opacity-80">{orphanedPages.join(", ")}</p>
               <button
                 onClick={() => setDraft((d) => ({ ...d, pages: d.pages.filter((p) => ALL_PATHS.has(p)) }))}
                 className="mt-2 underline font-semibold"
               >
-                Remove them
+                {t("removeThem")}
               </button>
             </div>
           )}
@@ -532,14 +555,14 @@ const RoleEditor = ({
               <div key={panel.key} className="rounded-xl border border-border/60 bg-muted/20">
                 <div className="flex items-center justify-between p-3 border-b border-border/60">
                   <div>
-                    <p className="font-semibold text-primary">{panel.label}</p>
+                    <p className="font-semibold text-primary">{panelLabel(panel.key, panel.label)}</p>
                     <p className="text-xs text-muted-foreground">
-                      {selectedCount} / {panel.pages.length} pages enabled
+                      {t("enabled", { selected: selectedCount, total: panel.pages.length })}
                     </p>
                   </div>
                   <Label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
                     <Checkbox checked={allOn} onCheckedChange={(v) => togglePanel(panel.key, !!v)} />
-                    Select all
+                    {t("selectAll")}
                   </Label>
                 </div>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 p-3">
@@ -554,7 +577,7 @@ const RoleEditor = ({
                       >
                         <Checkbox checked={on} onCheckedChange={() => togglePage(page.path)} />
                         <div className="min-w-0">
-                          <p className="font-medium truncate">{page.label}</p>
+                          <p className="font-medium truncate">{pageLabel(page.label)}</p>
                           <p className="text-[10px] text-muted-foreground font-mono truncate">
                             {page.path}
                           </p>
@@ -570,11 +593,11 @@ const RoleEditor = ({
 
         <DialogFooter className="mt-4">
           <Btn variant="outline" onClick={onClose} disabled={saving}>
-            Cancel
+            {tc("cancel")}
           </Btn>
           <Btn onClick={() => void save()} disabled={saving}>
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            {saving ? "Saving…" : "Save Role"}
+            {saving ? tc("saving") : t("save")}
           </Btn>
         </DialogFooter>
       </DialogContent>

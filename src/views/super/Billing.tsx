@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import {
   Receipt, Wallet, AlertCircle, TrendingUp, Play, Printer, Search, X,
@@ -31,14 +32,6 @@ type Status = PlatformInvoiceRow["status"];
 
 type Outcome = "created" | "exists" | "no_prescriptions" | "not_approved" | "no_active_package";
 
-const OUTCOME_LABELS: Record<Outcome, string> = {
-  created: "Invoice raised",
-  exists: "Already invoiced",
-  no_prescriptions: "No prescriptions this month",
-  not_approved: "Hospital not approved",
-  no_active_package: "Package not active",
-};
-
 const OUTCOME_TONE: Record<Outcome, "ok" | "info" | "default" | "warn"> = {
   created: "ok",
   exists: "info",
@@ -63,17 +56,20 @@ type GenerateResult = {
   rows: GenerateRow[];
 };
 
+/** Platform billing is in dollars whatever the viewer's language. */
 const money = (value: number) =>
   `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const monthLabel = (isoDate: string) =>
-  new Date(`${isoDate.slice(0, 7)}-01T00:00:00`).toLocaleDateString("en-US", {
+const intlOf = (locale: string) => (locale === "bn" ? "bn-BD-u-nu-latn" : "en-US");
+
+const monthLabelIn = (locale: string) => (isoDate: string) =>
+  new Date(`${isoDate.slice(0, 7)}-01T00:00:00`).toLocaleDateString(intlOf(locale), {
     month: "long",
     year: "numeric",
   });
 
-const dayLabel = (isoDate: string) =>
-  new Date(`${isoDate}T00:00:00`).toLocaleDateString("en-US", {
+const dayLabelIn = (locale: string) => (isoDate: string) =>
+  new Date(`${isoDate}T00:00:00`).toLocaleDateString(intlOf(locale), {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -96,16 +92,22 @@ const invoiceNo = (invoice: PlatformInvoiceRow) =>
 const isOverdue = (invoice: PlatformInvoiceRow) =>
   invoice.status === "pending" && invoice.due_date < today();
 
-const statusPill = (invoice: PlatformInvoiceRow) => {
-  if (invoice.status === "paid") return <Pill tone="ok">Paid</Pill>;
-  if (invoice.status === "void") return <Pill tone="default">Void</Pill>;
-  return isOverdue(invoice) ? <Pill tone="bad">Overdue</Pill> : <Pill tone="warn">Pending</Pill>;
-};
-
 const Billing = () => {
+  const t = useTranslations("super.billing");
+  const locale = useLocale();
+  const monthLabel = monthLabelIn(locale);
+  const dayLabel = dayLabelIn(locale);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  const statusPill = (invoice: PlatformInvoiceRow) => {
+    if (invoice.status === "paid") return <Pill tone="ok">{t("statuses.paid")}</Pill>;
+    if (invoice.status === "void") return <Pill tone="default">{t("statuses.void")}</Pill>;
+    return isOverdue(invoice)
+      ? <Pill tone="bad">{t("statuses.overdue")}</Pill>
+      : <Pill tone="warn">{t("statuses.pending")}</Pill>;
+  };
 
   const [month, setMonth] = useState(thisMonth);
   const [search, setSearch] = useState("");
@@ -157,11 +159,11 @@ const Billing = () => {
     } else {
       // Deleted between the two screens, or the request failed. Filtering by an
       // id with no name behind it would empty the table and explain nothing.
-      toast.error("Could not load that hospital", { description: "Showing every invoice instead." });
+      toast.error(t("hospitalLoadFailed"), { description: t("hospitalLoadFailedHint") });
     }
 
     router.replace(pathname, { scroll: false });
-  }, [hospitalParam, paramHospital.isLoading, paramHospital.data, router, pathname]);
+  }, [hospitalParam, paramHospital.isLoading, paramHospital.data, router, pathname, t]);
 
   const linkedHospital = paramHospital.data?.data as { id: string; name: string } | undefined;
 
@@ -240,8 +242,8 @@ const Billing = () => {
       const body = await response.json();
 
       if (!response.ok) {
-        toast.error("Could not generate invoices", {
-          description: body?.error?.message ?? "Please try again.",
+        toast.error(t("generateFailed"), {
+          description: body?.error?.message ?? t("tryAgain"),
         });
         return;
       }
@@ -253,13 +255,11 @@ const Billing = () => {
       const created = result.summary.created ?? 0;
       const skipped = result.rows.length - created;
       toast.success(
-        created === 0
-          ? "Nothing to invoice"
-          : `${created} invoice${created === 1 ? "" : "s"} raised — ${money(result.billed)}`,
-        { description: skipped > 0 ? `${skipped} hospital${skipped === 1 ? "" : "s"} skipped. See the run below.` : undefined },
+        created === 0 ? t("nothingToInvoice") : t("raised", { count: created, amount: money(result.billed) }),
+        { description: skipped > 0 ? t("skipped", { count: skipped }) : undefined },
       );
     } catch {
-      toast.error("Could not generate invoices", { description: "The request failed. Please try again." });
+      toast.error(t("generateFailed"), { description: t("requestFailed") });
     } finally {
       setGenerating(false);
     }
@@ -269,12 +269,12 @@ const Billing = () => {
     setBusyId(invoice.id);
     try {
       await updateInvoice(invoice.id, { status }).unwrap();
-      toast.success(status === "paid" ? "Marked paid" : status === "void" ? "Invoice voided" : "Reopened");
+      toast.success(status === "paid" ? t("markedPaid") : status === "void" ? t("voided") : t("reopened"));
       if (viewing?.id === invoice.id) setViewing({ ...viewing, status });
     } catch (cause) {
       const message =
-        (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? "Please try again.";
-      toast.error("Could not update the invoice", { description: message });
+        (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? t("tryAgain");
+      toast.error(t("updateFailed"), { description: message });
     } finally {
       setBusyId(null);
     }
@@ -284,30 +284,30 @@ const Billing = () => {
     setBusyId(invoice.id);
     try {
       await removeInvoice(invoice.id).unwrap();
-      toast.success("Invoice deleted");
+      toast.success(t("deleted"));
     } catch {
-      toast.error("Could not delete the invoice", { description: "Please try again." });
+      toast.error(t("deleteFailed"), { description: t("tryAgain") });
     } finally {
       setBusyId(null);
     }
   };
 
   return (
-    <SuperLayout title="Billing" subtitle="Monthly usage invoices, per hospital">
+    <SuperLayout title={t("title")} subtitle={t("subtitle")}>
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Kpi icon={Receipt} label="Billed" value={money(kpis.billed)} />
-        <Kpi icon={Wallet} label="Collected" value={money(kpis.collected)} tone="accent" />
-        <Kpi icon={TrendingUp} label="Outstanding" value={money(kpis.outstanding)} tone="chip" />
-        <Kpi icon={AlertCircle} label="Overdue" value={money(kpis.overdue)} tone="destructive" />
+        <Kpi icon={Receipt} label={t("kpis.billed")} value={money(kpis.billed)} />
+        <Kpi icon={Wallet} label={t("kpis.collected")} value={money(kpis.collected)} tone="accent" />
+        <Kpi icon={TrendingUp} label={t("kpis.outstanding")} value={money(kpis.outstanding)} tone="chip" />
+        <Kpi icon={AlertCircle} label={t("statuses.overdue")} value={money(kpis.overdue)} tone="destructive" />
       </div>
 
       {/* ------------------------------------------------------ the run --- */}
       <Card className="p-5 mt-6">
-        <SectionTitle title="Generate monthly invoices" />
+        <SectionTitle title={t("run.title")} />
         <div className="flex flex-wrap items-end gap-3">
           <div>
-            <label htmlFor="billing-month" className="block text-[10px] tracking-widest font-bold text-muted-foreground mb-1.5">
-              MONTH
+            <label htmlFor="billing-month" className="block text-[10px] tracking-widest font-bold text-muted-foreground mb-1.5 uppercase">
+              {t("run.month")}
             </label>
             <input
               id="billing-month"
@@ -320,25 +320,25 @@ const Billing = () => {
           </div>
           <Btn onClick={() => void generate()} disabled={generating || !month}>
             {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-            {generating ? "Counting…" : "Generate invoices"}
+            {generating ? t("run.counting") : t("run.generate")}
           </Btn>
-          <p className="text-xs text-muted-foreground max-w-md">
-            Bills each approved hospital on an active package for the prescriptions its doctors
-            wrote that month, at the rate on its plan. Safe to run twice — a month already
-            invoiced is reported, not billed again.
-          </p>
+          <p className="text-xs text-muted-foreground max-w-md">{t("run.hint")}</p>
         </div>
 
         {report && (
           <div className="mt-5 rounded-xl border border-border/60 overflow-hidden">
             <div className="flex items-center justify-between gap-3 px-4 py-3 bg-muted/30">
               <p className="text-sm font-semibold text-primary">
-                {monthLabel(`${report.month}-01`)} — {report.summary.created ?? 0} raised, {money(report.billed)}
+                {t("run.summary", {
+                  month: monthLabel(`${report.month}-01`),
+                  count: report.summary.created ?? 0,
+                  amount: money(report.billed),
+                })}
               </p>
               <button
                 onClick={() => setReport(null)}
                 className="p-1.5 rounded-lg hover:bg-muted"
-                aria-label="Dismiss the run report"
+                aria-label={t("run.dismiss")}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -349,19 +349,17 @@ const Billing = () => {
                   <span className="text-sm truncate">{row.hospital}</span>
                   <span className="flex items-center gap-3 shrink-0">
                     {row.prescriptions !== null && (
-                      <span className="text-xs text-muted-foreground">{row.prescriptions} Rx</span>
+                      <span className="text-xs text-muted-foreground">{t("rx", { count: row.prescriptions })}</span>
                     )}
                     {row.total !== null && (
                       <span className="text-sm font-semibold text-primary">{money(Number(row.total))}</span>
                     )}
-                    <Pill tone={OUTCOME_TONE[row.outcome]}>{OUTCOME_LABELS[row.outcome]}</Pill>
+                    <Pill tone={OUTCOME_TONE[row.outcome]}>{t(`outcomes.${row.outcome}`)}</Pill>
                   </span>
                 </li>
               ))}
               {report.rows.length === 0 && (
-                <li className="px-4 py-6 text-center text-sm text-muted-foreground">
-                  No hospital is on a package yet, so there is nothing to bill.
-                </li>
+                <li className="px-4 py-6 text-center text-sm text-muted-foreground">{t("run.none")}</li>
               )}
             </ul>
           </div>
@@ -371,12 +369,12 @@ const Billing = () => {
       {/* ----------------------------------------------------- invoices --- */}
       <Card className="p-5 mt-6">
         <SectionTitle
-          title="Invoices"
+          title={t("invoices")}
           action={
             <p className="text-xs text-muted-foreground">
               {hasFilter
-                ? `${visible.length} of ${invoices.length} shown`
-                : `${invoices.length} total`}
+                ? t("shownOf", { shown: visible.length, total: invoices.length })
+                : t("total", { count: invoices.length })}
             </p>
           }
         />
@@ -387,8 +385,8 @@ const Billing = () => {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Hospital or invoice no."
-              aria-label="Search invoices"
+              placeholder={t("filters.searchPlaceholder")}
+              aria-label={t("filters.search")}
               className="h-9 w-56 pl-9 pr-3 rounded-lg border border-border bg-background text-sm"
             />
           </div>
@@ -396,10 +394,10 @@ const Billing = () => {
           <select
             value={hospitalFilter}
             onChange={(e) => setHospitalFilter(e.target.value)}
-            aria-label="Filter by hospital"
+            aria-label={t("filters.hospital")}
             className="h-9 max-w-[240px] rounded-lg border border-border bg-background px-3 text-sm"
           >
-            <option value="all">All hospitals</option>
+            <option value="all">{t("filters.allHospitals")}</option>
             {hospitalOptions.map((hospital) => (
               <option key={hospital.id} value={hospital.id}>{hospital.name}</option>
             ))}
@@ -414,7 +412,7 @@ const Billing = () => {
               value={fromMonth}
               max={toMonth || undefined}
               onChange={(e) => setFromMonth(e.target.value)}
-              aria-label="From month"
+              aria-label={t("filters.from")}
               className="bg-transparent text-sm outline-none"
             />
             <span className="text-xs text-muted-foreground">→</span>
@@ -423,7 +421,7 @@ const Billing = () => {
               value={toMonth}
               min={fromMonth || undefined}
               onChange={(e) => setToMonth(e.target.value)}
-              aria-label="To month"
+              aria-label={t("filters.to")}
               className="bg-transparent text-sm outline-none"
             />
           </div>
@@ -431,14 +429,14 @@ const Billing = () => {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-            aria-label="Filter by status"
+            aria-label={t("filters.status")}
             className="h-9 rounded-lg border border-border bg-background px-3 text-sm"
           >
-            <option value="all">All status</option>
-            <option value="pending">Pending</option>
-            <option value="overdue">Overdue</option>
-            <option value="paid">Paid</option>
-            <option value="void">Void</option>
+            <option value="all">{t("filters.allStatus")}</option>
+            <option value="pending">{t("statuses.pending")}</option>
+            <option value="overdue">{t("statuses.overdue")}</option>
+            <option value="paid">{t("statuses.paid")}</option>
+            <option value="void">{t("statuses.void")}</option>
           </select>
 
           {hasFilter && (
@@ -446,7 +444,7 @@ const Billing = () => {
               onClick={clearFilters}
               className="inline-flex items-center gap-1 h-9 px-3 rounded-lg border border-border text-sm font-semibold hover:bg-muted"
             >
-              <X className="h-3.5 w-3.5" /> Clear
+              <X className="h-3.5 w-3.5" /> {t("filters.clear")}
             </button>
           )}
         </div>
@@ -460,30 +458,28 @@ const Billing = () => {
         ) : error ? (
           <div className="flex items-center gap-3 rounded-xl bg-destructive/10 text-destructive p-4">
             <AlertCircle className="h-5 w-5 shrink-0" />
-            <p className="text-sm font-semibold">Could not load invoices. Refresh to try again.</p>
+            <p className="text-sm font-semibold">{t("loadFailed")}</p>
           </div>
         ) : visible.length === 0 ? (
           <div className="rounded-xl bg-muted/40 p-10 text-center">
             <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-sm text-muted-foreground">
-              {invoices.length === 0
-                ? "No invoices yet. Pick a month above and generate the first run."
-                : "No invoices match those filters."}
+              {invoices.length === 0 ? t("none") : t("noMatch")}
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[860px]">
-              <thead className="text-left text-[10px] tracking-widest text-muted-foreground bg-muted/30">
+              <thead className="text-left text-[10px] tracking-widest text-muted-foreground bg-muted/30 uppercase">
                 <tr>
-                  <th className="px-4 py-2.5">INVOICE</th>
-                  <th>HOSPITAL</th>
-                  <th>MONTH</th>
-                  <th className="text-right">RX</th>
-                  <th className="text-right">RATE</th>
-                  <th className="text-right">TOTAL</th>
-                  <th>DUE</th>
-                  <th>STATUS</th>
+                  <th className="px-4 py-2.5">{t("columns.invoice")}</th>
+                  <th>{t("columns.hospital")}</th>
+                  <th>{t("columns.month")}</th>
+                  <th className="text-right">{t("columns.rx")}</th>
+                  <th className="text-right">{t("columns.rate")}</th>
+                  <th className="text-right">{t("columns.total")}</th>
+                  <th>{t("columns.due")}</th>
+                  <th>{t("columns.status")}</th>
                   <th />
                 </tr>
               </thead>
@@ -495,7 +491,7 @@ const Billing = () => {
                     className="border-t border-border/40 cursor-pointer hover:bg-muted/30"
                   >
                     <td className="px-4 py-3 font-mono text-xs font-semibold text-primary">{invoiceNo(invoice)}</td>
-                    <td className="font-semibold">{invoice.tenants?.name ?? "Unknown hospital"}</td>
+                    <td className="font-semibold">{invoice.tenants?.name ?? t("unknownHospital")}</td>
                     <td>{monthLabel(invoice.billing_month)}</td>
                     <td className="text-right tabular-nums">{invoice.prescriptions}</td>
                     <td className="text-right tabular-nums">{money(Number(invoice.unit_price))}</td>
@@ -515,8 +511,8 @@ const Billing = () => {
                           <button
                             onClick={() => void setStatus(invoice, "paid")}
                             disabled={busyId === invoice.id}
-                            title="Mark paid"
-                            aria-label={`Mark ${invoiceNo(invoice)} paid`}
+                            title={t("actions.markPaid")}
+                            aria-label={t("actions.markPaidNo", { no: invoiceNo(invoice) })}
                             className="p-1.5 rounded-lg hover:bg-muted text-emerald-600 disabled:opacity-40"
                           >
                             {busyId === invoice.id
@@ -528,8 +524,8 @@ const Billing = () => {
                           <button
                             onClick={() => void setStatus(invoice, "pending")}
                             disabled={busyId === invoice.id}
-                            title="Reopen as pending"
-                            aria-label={`Reopen ${invoiceNo(invoice)}`}
+                            title={t("actions.reopen")}
+                            aria-label={t("actions.reopenNo", { no: invoiceNo(invoice) })}
                             className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 disabled:opacity-40"
                           >
                             <RotateCcw className="h-4 w-4" />
@@ -539,8 +535,8 @@ const Billing = () => {
                           <button
                             onClick={() => void setStatus(invoice, "void")}
                             disabled={busyId === invoice.id}
-                            title="Void — raised in error"
-                            aria-label={`Void ${invoiceNo(invoice)}`}
+                            title={t("actions.void")}
+                            aria-label={t("actions.voidNo", { no: invoiceNo(invoice) })}
                             className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 disabled:opacity-40"
                           >
                             <Ban className="h-4 w-4" />
@@ -549,8 +545,8 @@ const Billing = () => {
                         <button
                           onClick={() => setPendingDelete(invoice)}
                           disabled={busyId === invoice.id}
-                          title="Delete"
-                          aria-label={`Delete ${invoiceNo(invoice)}`}
+                          title={t("actions.delete")}
+                          aria-label={t("actions.deleteNo", { no: invoiceNo(invoice) })}
                           className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive disabled:opacity-40"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -571,10 +567,10 @@ const Billing = () => {
         open={!!pendingDelete}
         onClose={() => setPendingDelete(null)}
         onConfirm={() => pendingDelete && void remove(pendingDelete)}
-        title="Delete this invoice?"
+        title={t("deleteTitle")}
         description={
           pendingDelete
-            ? `${invoiceNo(pendingDelete)} for ${pendingDelete.tenants?.name ?? "this hospital"} would be gone for good, and the month would be free to bill again. If it was raised in error, void it instead — a cancelled invoice number is easier to explain than a missing one.`
+            ? t("deleteBody", { no: invoiceNo(pendingDelete), hospital: pendingDelete.tenants?.name ?? t("thisHospital") })
             : undefined
         }
       />
@@ -596,7 +592,7 @@ const Row = ({ label, value, strong = false }: { label: string; value: string; s
  * sent as-is. Printing it prints this element and nothing else — the rule
  * lives in globals.css next to the prescription's, and it works by printing
  * the page you are already looking at, so the preview and the paper cannot
- * disagree.
+ * disagree. It prints in the viewer's language, like the payslip.
  */
 const InvoiceDocument = ({
   invoice,
@@ -605,23 +601,29 @@ const InvoiceDocument = ({
   invoice: PlatformInvoiceRow | null;
   onClose: () => void;
 }) => {
+  const t = useTranslations("super.billing");
+  const tc = useTranslations("common");
+  const locale = useLocale();
   if (!invoice) return null;
 
+  const monthLabel = monthLabelIn(locale);
+  const dayLabel = dayLabelIn(locale);
   const gross = Number(invoice.prescriptions) * Number(invoice.unit_price);
   const discount = gross - Number(invoice.total ?? 0);
   const overdue = isOverdue(invoice);
+  const discountPct = Number(invoice.discount_pct);
 
   return (
     <Modal
       open
       onClose={onClose}
-      title={`Invoice ${invoiceNo(invoice)}`}
+      title={t("doc.title", { no: invoiceNo(invoice) })}
       size="lg"
       footer={
         <>
-          <Btn variant="outline" onClick={onClose}>Close</Btn>
+          <Btn variant="outline" onClick={onClose}>{tc("close")}</Btn>
           <Btn onClick={() => window.print()}>
-            <Printer className="h-4 w-4" /> Print
+            <Printer className="h-4 w-4" /> {t("doc.print")}
           </Btn>
         </>
       }
@@ -632,15 +634,15 @@ const InvoiceDocument = ({
           <div>
             <p className="font-display text-2xl text-primary leading-tight">HealthFlow</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Hospital management platform<br />Dhaka, Bangladesh
+              {t("doc.tagline")}<br />{t("doc.city")}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] tracking-widest font-bold text-muted-foreground">INVOICE</p>
+            <p className="text-[10px] tracking-widest font-bold text-muted-foreground uppercase">{t("doc.invoice")}</p>
             <p className="font-mono text-sm font-bold text-primary">{invoiceNo(invoice)}</p>
             <p className="mt-2 text-xs text-muted-foreground">
-              Issued {dayLabel(invoice.issued_on)}<br />
-              Due <span className={overdue ? "text-destructive font-semibold" : ""}>{dayLabel(invoice.due_date)}</span>
+              {t("doc.issued", { date: dayLabel(invoice.issued_on) })}<br />
+              {t("doc.due")} <span className={overdue ? "text-destructive font-semibold" : ""}>{dayLabel(invoice.due_date)}</span>
             </p>
           </div>
         </div>
@@ -648,41 +650,41 @@ const InvoiceDocument = ({
         {/* Parties and period */}
         <div className="grid sm:grid-cols-2 gap-6 py-5">
           <div>
-            <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1.5">BILLED TO</p>
-            <p className="font-semibold text-primary">{invoice.tenants?.name ?? "Unknown hospital"}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{invoice.package_name} plan</p>
+            <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1.5 uppercase">{t("doc.billedTo")}</p>
+            <p className="font-semibold text-primary">{invoice.tenants?.name ?? t("unknownHospital")}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{t("doc.plan", { plan: invoice.package_name })}</p>
           </div>
           <div className="sm:text-right">
-            <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1.5">BILLING PERIOD</p>
+            <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1.5 uppercase">{t("doc.period")}</p>
             <p className="font-semibold">{monthLabel(invoice.billing_month)}</p>
             <p className="text-xs text-muted-foreground mt-0.5">
               {invoice.status === "paid" && invoice.paid_at
-                ? `Paid ${dayLabel(invoice.paid_at.slice(0, 10))}`
+                ? t("doc.paidOn", { date: dayLabel(invoice.paid_at.slice(0, 10)) })
                 : invoice.status === "void"
-                  ? "Voided — not payable"
+                  ? t("doc.voided")
                   : overdue
-                    ? "Overdue"
-                    : "Payable on the due date"}
+                    ? t("statuses.overdue")
+                    : t("doc.payable")}
             </p>
           </div>
         </div>
 
         {/* Line items */}
         <table className="w-full text-sm">
-          <thead className="text-left text-[10px] tracking-widest text-muted-foreground border-y border-border/60">
+          <thead className="text-left text-[10px] tracking-widest text-muted-foreground border-y border-border/60 uppercase">
             <tr>
-              <th className="py-2">DESCRIPTION</th>
-              <th className="py-2 text-right">QTY</th>
-              <th className="py-2 text-right">RATE</th>
-              <th className="py-2 text-right">AMOUNT</th>
+              <th className="py-2">{t("doc.description")}</th>
+              <th className="py-2 text-right">{t("doc.qty")}</th>
+              <th className="py-2 text-right">{t("columns.rate")}</th>
+              <th className="py-2 text-right">{t("doc.amount")}</th>
             </tr>
           </thead>
           <tbody>
             <tr className="border-b border-border/40">
               <td className="py-3">
-                <p className="font-semibold">Prescriptions written</p>
+                <p className="font-semibold">{t("doc.lineTitle")}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Completed consultations carrying at least one medicine, {monthLabel(invoice.billing_month)}
+                  {t("doc.lineDetail", { month: monthLabel(invoice.billing_month) })}
                 </p>
               </td>
               <td className="py-3 text-right tabular-nums align-top">{invoice.prescriptions}</td>
@@ -695,27 +697,27 @@ const InvoiceDocument = ({
         {/* Totals */}
         <div className="flex justify-end pt-4">
           <div className="w-full sm:w-72">
-            <Row label="Subtotal" value={money(gross)} />
-            {Number(invoice.discount_pct) > 0 && (
-              <Row label={`Discount (${Number(invoice.discount_pct)}%)`} value={`−${money(discount)}`} />
+            <Row label={t("doc.subtotal")} value={money(gross)} />
+            {discountPct > 0 && (
+              <Row label={t("doc.discount", { pct: discountPct })} value={`−${money(discount)}`} />
             )}
             <div className="border-t border-border/60 mt-1.5 pt-1.5">
-              <Row label="Total due" value={money(Number(invoice.total ?? 0))} strong />
+              <Row label={t("doc.totalDue")} value={money(Number(invoice.total ?? 0))} strong />
             </div>
           </div>
         </div>
 
         {invoice.notes && (
           <div className="mt-5 pt-4 border-t border-border/40">
-            <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1">NOTES</p>
+            <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1 uppercase">{t("doc.notes")}</p>
             <p className="text-sm text-muted-foreground whitespace-pre-wrap">{invoice.notes}</p>
           </div>
         )}
 
         <p className="mt-6 pt-4 border-t border-border/40 text-[11px] text-muted-foreground">
-          Charged on usage: prescriptions written x the rate on the {invoice.package_name} plan
-          {Number(invoice.discount_pct) > 0 ? `, less the ${Number(invoice.discount_pct)}% agreed discount` : ""}.
-          Questions about this invoice go to the support desk on /super/tickets.
+          {discountPct > 0
+            ? t("doc.footerDiscount", { plan: invoice.package_name, pct: discountPct })
+            : t("doc.footer", { plan: invoice.package_name })}
         </p>
       </div>
     </Modal>

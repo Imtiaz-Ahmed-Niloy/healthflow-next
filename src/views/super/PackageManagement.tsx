@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { SuperLayout } from "@/components/super/SuperLayout";
 import { toast } from "sonner";
 import {
@@ -25,7 +26,8 @@ import { Label } from "@/components/ui/label";
  * distribution stays correct without this screen touching it.
  *
  * Money is shown in USD because that is what the screen has always shown;
- * `packages` stores no currency, so nothing here can infer one.
+ * `packages` stores no currency, so nothing here can infer one. Plan names and
+ * offer labels are stored values and show as typed.
  */
 
 type PackageStatus = "active" | "trial" | "suspended" | "expired";
@@ -49,6 +51,17 @@ const monthlyValue = (row: Pick<HospitalPackageRow, "base_price" | "discount_pct
 const money = (value: number) =>
   value.toLocaleString("en-US", { maximumFractionDigits: 0 });
 
+/** Package status and billing cycle labels, shared by the page and its editor. */
+const usePackageWords = () => {
+  const t = useTranslations("super.packages");
+  return {
+    t,
+    statusLabel: (s: string) =>
+      (STATUSES as string[]).includes(s) ? t(`statuses.${s as PackageStatus}`) : s,
+    cycleLabel: (c: string) => (c === "monthly" || c === "yearly" ? t(`cycles.${c}`) : c),
+  };
+};
+
 /**
  * Tailwind cannot see a class name built at runtime, so the tone of a stat
  * tile is a full class string rather than an interpolated fragment. The
@@ -57,7 +70,7 @@ const money = (value: number) =>
  */
 const Stat = ({ label, value, tone = "text-primary" }: { label: string; value: string; tone?: string }) => (
   <div className="bg-card rounded-2xl border border-border/60 p-5">
-    <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{label}</p>
+    <p className="text-[10px] tracking-widest font-bold text-muted-foreground uppercase">{label}</p>
     <p className={`mt-1 font-display text-2xl ${tone}`}>{value}</p>
   </div>
 );
@@ -81,6 +94,7 @@ const SortHead = ({
   onSort: (key: SortKey) => void;
   align?: "left" | "right";
 }) => {
+  const t = useTranslations("super.packages");
   const active = sort.key === sortKey;
   const Icon = !active ? ChevronsUpDown : sort.asc ? ArrowUp : ArrowDown;
   return (
@@ -88,7 +102,7 @@ const SortHead = ({
       aria-sort={active ? (sort.asc ? "ascending" : "descending") : "none"}>
       <button
         onClick={() => onSort(sortKey)}
-        aria-label={`Sort by ${label}`}
+        aria-label={t("sortBy", { label })}
         className={`inline-flex items-center gap-1 hover:text-primary transition ${active ? "text-primary" : ""} ${align === "right" ? "flex-row-reverse" : ""}`}
       >
         {label}
@@ -113,6 +127,7 @@ const SortHead = ({
 const SHOW_OFFERS_SECTION = false;
 
 const PackageManagement = () => {
+  const { t, statusLabel, cycleLabel } = usePackageWords();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -253,23 +268,23 @@ const PackageManagement = () => {
         // editor on an id with no name behind it would show a hospital field
         // that names nothing, so it opens unset and says why.
         setEditing(blankAssignment());
-        toast.error("Could not load that hospital", { description: "Pick it from the list instead." });
+        toast.error(t("hospitalLoadFailed"), { description: t("hospitalLoadFailedHint") });
       }
     }
 
     router.replace(pathname, { scroll: false });
   }, [
     assignTenantId, assignHospital.data, assignHospital.isLoading, rows,
-    plansQuery.isLoading, packagesQuery.isLoading, blankAssignment, router, pathname,
+    plansQuery.isLoading, packagesQuery.isLoading, blankAssignment, router, pathname, t,
   ]);
 
   const deleteAssignment = async (row: HospitalPackageRow) => {
     setRemoving(row.id);
     try {
       await removePackage(row.id).unwrap();
-      toast.success("Package removed");
+      toast.success(t("removed"));
     } catch {
-      toast.error("Could not remove package", { description: "Please try again." });
+      toast.error(t("removeFailed"), { description: t("tryAgain") });
     } finally {
       setRemoving(null);
     }
@@ -279,13 +294,13 @@ const PackageManagement = () => {
     setRemoving(offer.id);
     try {
       await removeOffer(offer.id).unwrap();
-      toast.success("Offer deleted");
+      toast.success(t("offers.deleted"));
     } catch (cause) {
       // An offer still attached to an assignment is set null there, not
       // blocked — so a failure here is genuinely unexpected.
       const message =
-        (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? "Please try again.";
-      toast.error("Could not delete offer", { description: message });
+        (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? t("tryAgain");
+      toast.error(t("offers.deleteFailed"), { description: message });
     } finally {
       setRemoving(null);
     }
@@ -293,20 +308,21 @@ const PackageManagement = () => {
 
   const loading = packagesQuery.isLoading || plansQuery.isLoading;
   const failed = packagesQuery.error || plansQuery.error || offersQuery.error;
+  const hospitalName = (row: HospitalPackageRow) => row.tenants?.name ?? t("hospital");
 
   return (
-    <SuperLayout title="Package Management" subtitle="Assign plans, apply discounts and offers per hospital">
+    <SuperLayout title={t("title")} subtitle={t("subtitle")}>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <Stat label="ACTIVE PACKAGES" value={String(activeCount)} />
-        <Stat label="TRIAL" value={String(trialCount)} tone="text-amber-600" />
-        <Stat label="MONTHLY REVENUE" value={`$${money(mrr)}`} tone="text-emerald-600" />
-        <Stat label="ACTIVE OFFERS" value={String(activeOffers)} tone="text-primary-glow" />
+        <Stat label={t("stats.active")} value={String(activeCount)} />
+        <Stat label={t("stats.trial")} value={String(trialCount)} tone="text-amber-600" />
+        <Stat label={t("stats.revenue")} value={`$${money(mrr)}`} tone="text-emerald-600" />
+        <Stat label={t("stats.offers")} value={String(activeOffers)} tone="text-primary-glow" />
       </div>
 
       {failed && (
         <div className="flex items-center gap-3 rounded-2xl bg-destructive/10 text-destructive p-4 mb-4">
           <AlertCircle className="h-5 w-5 shrink-0" />
-          <p className="text-sm font-semibold">Could not load package data. Refresh to try again.</p>
+          <p className="text-sm font-semibold">{t("loadFailed")}</p>
         </div>
       )}
 
@@ -317,18 +333,18 @@ const PackageManagement = () => {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search hospitals…"
-            aria-label="Search hospitals"
+            placeholder={t("searchHospitals")}
+            aria-label={t("searchHospitals")}
             className="w-full pl-9 pr-3 py-2 rounded-lg bg-background border border-border text-sm"
           />
         </div>
         <select
           value={planFilter}
           onChange={(e) => setPlanFilter(e.target.value)}
-          aria-label="Filter by plan"
+          aria-label={t("filterPlan")}
           className="px-3 py-2 rounded-lg bg-background border border-border text-sm"
         >
-          <option value="all">All plans</option>
+          <option value="all">{t("allPlans")}</option>
           {plans.map((p) => (
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
@@ -336,12 +352,12 @@ const PackageManagement = () => {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          aria-label="Filter by status"
+          aria-label={t("filterStatus")}
           className="px-3 py-2 rounded-lg bg-background border border-border text-sm"
         >
-          <option value="all">All status</option>
+          <option value="all">{t("allStatus")}</option>
           {STATUSES.map((s) => (
-            <option key={s} value={s} className="capitalize">{s[0].toUpperCase() + s.slice(1)}</option>
+            <option key={s} value={s}>{statusLabel(s)}</option>
           ))}
         </select>
         {hasFilter && (
@@ -349,16 +365,16 @@ const PackageManagement = () => {
             onClick={clearFilters}
             className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-border text-sm font-semibold hover:bg-muted"
           >
-            <X className="h-3.5 w-3.5" /> Clear
+            <X className="h-3.5 w-3.5" /> {t("clear")}
           </button>
         )}
         <button
           onClick={() => setEditing(blankAssignment())}
           disabled={plans.length === 0}
-          title={plans.length === 0 ? "Create a plan first" : undefined}
+          title={plans.length === 0 ? t("planFirst") : undefined}
           className="ml-auto inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 disabled:opacity-50 disabled:pointer-events-none"
         >
-          <Plus className="h-4 w-4" /> Assign Package
+          <Plus className="h-4 w-4" /> {t("assign")}
         </button>
       </div>
 
@@ -368,16 +384,16 @@ const PackageManagement = () => {
           <table className="w-full text-sm">
             <thead className="bg-chip/40 text-[11px] tracking-widest font-bold text-muted-foreground">
               <tr>
-                <SortHead label="Hospital" sortKey="hospital" sort={sort} onSort={toggleSort} />
-                <SortHead label="Plan" sortKey="plan" sort={sort} onSort={toggleSort} />
-                <th className="text-left px-4 py-3">Cycle</th>
-                <SortHead label="Base" sortKey="base" sort={sort} onSort={toggleSort} align="right" />
-                <th className="text-right px-4 py-3">Discount</th>
-                <SortHead label="Net" sortKey="net" sort={sort} onSort={toggleSort} align="right" />
-                <th className="text-left px-4 py-3">Offer</th>
-                <SortHead label="Status" sortKey="status" sort={sort} onSort={toggleSort} />
-                <SortHead label="Renews" sortKey="renew" sort={sort} onSort={toggleSort} />
-                <th className="text-right px-4 py-3">Actions</th>
+                <SortHead label={t("columns.hospital")} sortKey="hospital" sort={sort} onSort={toggleSort} />
+                <SortHead label={t("columns.plan")} sortKey="plan" sort={sort} onSort={toggleSort} />
+                <th className="text-left px-4 py-3">{t("columns.cycle")}</th>
+                <SortHead label={t("columns.base")} sortKey="base" sort={sort} onSort={toggleSort} align="right" />
+                <th className="text-right px-4 py-3">{t("columns.discount")}</th>
+                <SortHead label={t("columns.net")} sortKey="net" sort={sort} onSort={toggleSort} align="right" />
+                <th className="text-left px-4 py-3">{t("columns.offer")}</th>
+                <SortHead label={t("columns.status")} sortKey="status" sort={sort} onSort={toggleSort} />
+                <SortHead label={t("columns.renews")} sortKey="renew" sort={sort} onSort={toggleSort} />
+                <th className="text-right px-4 py-3">{t("columns.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -392,9 +408,7 @@ const PackageManagement = () => {
               ) : visible.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="px-4 py-10 text-center text-muted-foreground">
-                    {rows.length === 0
-                      ? "No hospital is on a package yet. Use “Assign Package” to put one on a plan."
-                      : "No packages match these filters."}
+                    {rows.length === 0 ? t("none") : t("noMatch")}
                   </td>
                 </tr>
               ) : (
@@ -405,10 +419,10 @@ const PackageManagement = () => {
                   return (
                     <tr key={row.id} className="border-t border-border/40 hover:bg-chip/20">
                       <td className="px-4 py-3 font-semibold text-primary">
-                        {row.tenants?.name ?? <span className="text-muted-foreground italic">Unknown hospital</span>}
+                        {row.tenants?.name ?? <span className="text-muted-foreground italic">{t("unknownHospital")}</span>}
                       </td>
                       <td className="px-4 py-3">{row.packages?.name ?? "—"}</td>
-                      <td className="px-4 py-3 capitalize">{row.billing_cycle}</td>
+                      <td className="px-4 py-3">{cycleLabel(row.billing_cycle)}</td>
                       <td className="px-4 py-3 text-right">${money(base)}</td>
                       <td className="px-4 py-3 text-right">
                         {discount > 0
@@ -421,7 +435,7 @@ const PackageManagement = () => {
                       </td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold uppercase ${STATUS_TONE[row.status as PackageStatus] ?? ""}`}>
-                          {row.status}
+                          {statusLabel(row.status)}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{row.renew_date ?? "—"}</td>
@@ -429,7 +443,7 @@ const PackageManagement = () => {
                         <div className="flex justify-end gap-1">
                           <button
                             onClick={() => setEditing(row)}
-                            aria-label={`Edit package for ${row.tenants?.name ?? "hospital"}`}
+                            aria-label={t("editFor", { name: hospitalName(row) })}
                             className="p-1.5 rounded hover:bg-primary/10 text-primary"
                           >
                             <Pencil className="h-4 w-4" />
@@ -437,7 +451,7 @@ const PackageManagement = () => {
                           <button
                             onClick={() => void deleteAssignment(row)}
                             disabled={removing === row.id}
-                            aria-label={`Remove package for ${row.tenants?.name ?? "hospital"}`}
+                            aria-label={t("removeFor", { name: hospitalName(row) })}
                             className="p-1.5 rounded hover:bg-destructive/10 text-destructive disabled:opacity-40"
                           >
                             {removing === row.id
@@ -461,7 +475,7 @@ const PackageManagement = () => {
         <div className="p-5 border-b border-border/50 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Gift className="h-5 w-5 text-primary" />
-            <h2 className="font-display text-xl text-primary">Discounts &amp; Offers</h2>
+            <h2 className="font-display text-xl text-primary">{t("offers.title")}</h2>
           </div>
           <button
             onClick={() => setEditingOffer({
@@ -470,20 +484,20 @@ const PackageManagement = () => {
             })}
             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90"
           >
-            <Plus className="h-4 w-4" /> New Offer
+            <Plus className="h-4 w-4" /> {t("offers.new")}
           </button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-chip/40 text-[11px] tracking-widest font-bold text-muted-foreground">
               <tr>
-                <th className="text-left px-4 py-3">Code</th>
-                <th className="text-left px-4 py-3">Label</th>
-                <th className="text-left px-4 py-3">Applies To</th>
-                <th className="text-right px-4 py-3">Discount</th>
-                <th className="text-left px-4 py-3">Valid Until</th>
-                <th className="text-left px-4 py-3">Status</th>
-                <th className="text-right px-4 py-3">Actions</th>
+                <th className="text-left px-4 py-3">{t("offers.code")}</th>
+                <th className="text-left px-4 py-3">{t("offers.label")}</th>
+                <th className="text-left px-4 py-3">{t("offers.appliesTo")}</th>
+                <th className="text-right px-4 py-3">{t("columns.discount")}</th>
+                <th className="text-left px-4 py-3">{t("offers.validUntil")}</th>
+                <th className="text-left px-4 py-3">{t("columns.status")}</th>
+                <th className="text-right px-4 py-3">{t("columns.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -491,9 +505,7 @@ const PackageManagement = () => {
                 <tr><td colSpan={7} className="px-4 py-6"><div className="h-4 bg-muted/60 rounded animate-pulse" /></td></tr>
               ) : offers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
-                    No offers yet. Create one to discount a plan.
-                  </td>
+                  <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">{t("offers.none")}</td>
                 </tr>
               ) : (
                 offers.map((offer) => {
@@ -502,25 +514,25 @@ const PackageManagement = () => {
                     <tr key={offer.id} className="border-t border-border/40 hover:bg-chip/20">
                       <td className="px-4 py-3 font-mono font-bold text-primary">{offer.code}</td>
                       <td className="px-4 py-3">{offer.label || <span className="text-muted-foreground">—</span>}</td>
-                      <td className="px-4 py-3">{offer.packages?.name ?? "All plans"}</td>
+                      <td className="px-4 py-3">{offer.packages?.name ?? t("allPlans")}</td>
                       <td className="px-4 py-3 text-right text-emerald-600 font-semibold">-{Number(offer.discount_pct)}%</td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {offer.valid_until ?? "—"}
-                        {expired && <span className="ml-1 text-[10px] font-bold uppercase text-rose-600">expired</span>}
+                        {expired && <span className="ml-1 text-[10px] font-bold uppercase text-rose-600">{t("statuses.expired")}</span>}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold uppercase ${offer.active ? "bg-emerald-500/15 text-emerald-700" : "bg-muted text-muted-foreground"}`}>
-                          {offer.active ? "Active" : "Disabled"}
+                          {offer.active ? t("statuses.active") : t("offers.disabled")}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex justify-end gap-1">
-                          <button onClick={() => setEditingOffer(offer)} aria-label={`Edit offer ${offer.code}`}
+                          <button onClick={() => setEditingOffer(offer)} aria-label={t("offers.edit", { code: offer.code })}
                             className="p-1.5 rounded hover:bg-primary/10 text-primary">
                             <Pencil className="h-4 w-4" />
                           </button>
                           <button onClick={() => void deleteOffer(offer)} disabled={removing === offer.id}
-                            aria-label={`Delete offer ${offer.code}`}
+                            aria-label={t("offers.delete", { code: offer.code })}
                             className="p-1.5 rounded hover:bg-destructive/10 text-destructive disabled:opacity-40">
                             {removing === offer.id
                               ? <Loader2 className="h-4 w-4 animate-spin" />
@@ -568,6 +580,8 @@ const AssignmentEditor = ({
   takenTenantIds: string[];
   onClose: () => void;
 }) => {
+  const { t, statusLabel } = usePackageWords();
+  const tc = useTranslations("common");
   const isNew = row.id === "";
   const [draft, setDraft] = useState(row);
   const [hospitalQuery, setHospitalQuery] = useState("");
@@ -601,17 +615,17 @@ const AssignmentEditor = ({
 
   const save = async () => {
     if (!draft.tenant_id) {
-      toast.error("Select a hospital");
+      toast.error(t("editor.selectHospital"));
       return;
     }
     if (!draft.package_id) {
-      toast.error("Select a plan");
+      toast.error(t("editor.selectPlan"));
       return;
     }
     // Mirrors the hospital_packages_renew_after_start check constraint, so a
     // reversed pair is caught before the round trip.
     if (draft.renew_date && draft.renew_date < draft.start_date) {
-      toast.error("Renewal date cannot be before the start date");
+      toast.error(t("editor.renewBeforeStart"));
       return;
     }
 
@@ -632,14 +646,14 @@ const AssignmentEditor = ({
     try {
       if (isNew) await createAssignment(body).unwrap();
       else await updateAssignment(draft.id, body).unwrap();
-      toast.success(isNew ? "Package assigned" : "Package updated");
+      toast.success(isNew ? t("editor.assigned") : t("editor.updated"));
       onClose();
     } catch (cause) {
       const message =
-        (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? "Please try again.";
-      toast.error("Could not save package", {
+        (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? t("tryAgain");
+      toast.error(t("editor.saveFailed"), {
         // A unique violation on tenant_id is the one a super admin will hit.
-        description: message === "Already exists" ? "That hospital is already on a package." : message,
+        description: message === "Already exists" ? t("editor.alreadyOnPlan") : message,
       });
     } finally {
       setSaving(false);
@@ -647,23 +661,23 @@ const AssignmentEditor = ({
   };
 
   return (
-    <Modal onClose={onClose} title={isNew ? "Assign Package" : "Edit Package"}>
+    <Modal onClose={onClose} title={isNew ? t("assign") : t("editor.editTitle")}>
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Hospital" full>
+        <Field label={t("columns.hospital")} full>
           {pickHospital ? (
             <>
               <input
                 value={hospitalQuery}
                 onChange={(e) => setHospitalQuery(e.target.value)}
-                placeholder="Search hospitals…"
-                aria-label="Search hospitals"
+                placeholder={t("searchHospitals")}
+                aria-label={t("searchHospitals")}
                 className="w-full px-3 py-2 mb-2 rounded-lg bg-background border border-border text-sm"
               />
               <div className="max-h-40 overflow-y-auto rounded-lg border border-border divide-y divide-border/50">
                 {hospitals.isFetching ? (
-                  <p className="px-3 py-2 text-sm text-muted-foreground">Searching…</p>
+                  <p className="px-3 py-2 text-sm text-muted-foreground">{t("editor.searching")}</p>
                 ) : hospitalRows.length === 0 ? (
-                  <p className="px-3 py-2 text-sm text-muted-foreground">No hospitals found.</p>
+                  <p className="px-3 py-2 text-sm text-muted-foreground">{t("editor.noHospitals")}</p>
                 ) : (
                   hospitalRows.map((hospital) => {
                     const already = taken.has(hospital.id);
@@ -678,7 +692,7 @@ const AssignmentEditor = ({
                         } disabled:opacity-40 disabled:cursor-not-allowed`}
                       >
                         <span className="truncate">{hospital.name}</span>
-                        {already && <span className="text-[10px] uppercase font-bold shrink-0">on a plan</span>}
+                        {already && <span className="text-[10px] uppercase font-bold shrink-0">{t("editor.onAPlan")}</span>}
                       </button>
                     );
                   })
@@ -688,7 +702,7 @@ const AssignmentEditor = ({
           ) : (
             <div className="flex items-center gap-2">
               <p className="flex-1 px-3 py-2 rounded-lg bg-muted/40 text-sm font-semibold text-primary">
-                {row.tenants?.name ?? "Unknown hospital"}
+                {row.tenants?.name ?? t("unknownHospital")}
               </p>
               {/* Only while creating: the hospital on a saved assignment is
                   not editable here — moving a plan between hospitals is a
@@ -699,14 +713,14 @@ const AssignmentEditor = ({
                   onClick={() => { setChangingHospital(true); setDraft({ ...draft, tenant_id: "" }); }}
                   className="px-3 py-2 rounded-lg border border-border text-sm font-semibold hover:bg-muted"
                 >
-                  Change
+                  {t("editor.change")}
                 </button>
               )}
             </div>
           )}
         </Field>
 
-        <Field label="Plan">
+        <Field label={t("columns.plan")}>
           <select
             value={draft.package_id}
             onChange={(e) => {
@@ -729,7 +743,7 @@ const AssignmentEditor = ({
           </select>
         </Field>
 
-        <Field label="Base Price (USD)">
+        <Field label={t("editor.basePrice")}>
           <input
             type="number" min={0} step="0.01" value={draft.base_price}
             onChange={(e) => setDraft({ ...draft, base_price: Number(e.target.value) })}
@@ -737,7 +751,7 @@ const AssignmentEditor = ({
           />
         </Field>
 
-        <Field label="Discount (%)">
+        <Field label={t("editor.discount")}>
           <input
             type="number" min={0} max={100} value={draft.discount_pct}
             onChange={(e) => setDraft({ ...draft, discount_pct: Number(e.target.value) })}
@@ -745,30 +759,30 @@ const AssignmentEditor = ({
           />
         </Field>
 
-        <Field label="Billing Cycle">
+        <Field label={t("editor.cycle")}>
           <select
             value={draft.billing_cycle}
             onChange={(e) => setDraft({ ...draft, billing_cycle: e.target.value })}
             className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm"
           >
-            <option value="monthly">Monthly</option>
-            <option value="yearly">Yearly</option>
+            <option value="monthly">{t("cycles.monthly")}</option>
+            <option value="yearly">{t("cycles.yearly")}</option>
           </select>
         </Field>
 
-        <Field label="Status">
+        <Field label={t("columns.status")}>
           <select
             value={draft.status}
             onChange={(e) => setDraft({ ...draft, status: e.target.value })}
             className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm"
           >
             {STATUSES.map((s) => (
-              <option key={s} value={s}>{s[0].toUpperCase() + s.slice(1)}</option>
+              <option key={s} value={s}>{statusLabel(s)}</option>
             ))}
           </select>
         </Field>
 
-        <Field label="Start Date">
+        <Field label={t("editor.startDate")}>
           <input
             type="date" value={draft.start_date}
             onChange={(e) => setDraft({ ...draft, start_date: e.target.value })}
@@ -776,7 +790,7 @@ const AssignmentEditor = ({
           />
         </Field>
 
-        <Field label="Renews On">
+        <Field label={t("editor.renewsOn")}>
           <input
             type="date" value={draft.renew_date ?? ""} min={draft.start_date}
             onChange={(e) => setDraft({ ...draft, renew_date: e.target.value || null })}
@@ -784,7 +798,7 @@ const AssignmentEditor = ({
           />
         </Field>
 
-        <Field label="Applied Offer" full>
+        <Field label={t("editor.offer")} full>
           <select
             value={draft.offer_id ?? ""}
             onChange={(e) => {
@@ -797,18 +811,18 @@ const AssignmentEditor = ({
             }}
             className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm"
           >
-            <option value="">— None —</option>
+            <option value="">{t("editor.none")}</option>
             {offers
               .filter((o) => o.active && (!o.package_id || o.package_id === draft.package_id))
               .map((o) => (
                 <option key={o.id} value={o.id}>
-                  {o.code} — {o.label || "no label"} ({Number(o.discount_pct)}%)
+                  {o.code} — {o.label || t("editor.noLabel")} ({Number(o.discount_pct)}%)
                 </option>
               ))}
           </select>
         </Field>
 
-        <Field label="Notes" full>
+        <Field label={t("editor.notes")} full>
           <textarea
             value={draft.notes ?? ""} rows={3}
             onChange={(e) => setDraft({ ...draft, notes: e.target.value || null })}
@@ -819,20 +833,20 @@ const AssignmentEditor = ({
 
       <div className="flex justify-between items-center mt-5 pt-4 border-t border-border/50">
         <p className="text-sm">
-          <span className="text-muted-foreground">Net price:</span>{" "}
+          <span className="text-muted-foreground">{t("editor.netPrice")}</span>{" "}
           <span className="font-bold text-primary">
-            ${netPrice(base, discount).toFixed(2)} / {draft.billing_cycle === "yearly" ? "year" : "mo"}
+            ${netPrice(base, discount).toFixed(2)} / {draft.billing_cycle === "yearly" ? t("editor.perYear") : t("editor.perMonth")}
           </span>
         </p>
         <div className="flex gap-2">
           <button onClick={onClose} disabled={saving}
             className="px-4 py-2 rounded-lg border border-border text-sm font-semibold disabled:opacity-50">
-            Cancel
+            {tc("cancel")}
           </button>
           <button onClick={() => void save()} disabled={saving}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            {saving ? "Saving…" : "Save"}
+            {saving ? tc("saving") : tc("save")}
           </button>
         </div>
       </div>
@@ -847,6 +861,8 @@ const OfferEditor = ({
   plans: Plan[];
   onClose: () => void;
 }) => {
+  const t = useTranslations("super.packages");
+  const tc = useTranslations("common");
   const isNew = offer.id === "";
   const [draft, setDraft] = useState(offer);
   const [saving, setSaving] = useState(false);
@@ -857,7 +873,7 @@ const OfferEditor = ({
   const save = async () => {
     const code = draft.code.trim().toUpperCase();
     if (!code) {
-      toast.error("Code required");
+      toast.error(t("offers.codeRequired"));
       return;
     }
 
@@ -874,13 +890,13 @@ const OfferEditor = ({
     try {
       if (isNew) await createOffer(body).unwrap();
       else await updateOffer(draft.id, body).unwrap();
-      toast.success("Offer saved");
+      toast.success(t("offers.saved"));
       onClose();
     } catch (cause) {
       const message =
-        (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? "Please try again.";
-      toast.error("Could not save offer", {
-        description: message === "Already exists" ? `The code ${code} is already in use.` : message,
+        (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? t("tryAgain");
+      toast.error(t("offers.saveFailed"), {
+        description: message === "Already exists" ? t("offers.codeTaken", { code }) : message,
       });
     } finally {
       setSaving(false);
@@ -888,9 +904,9 @@ const OfferEditor = ({
   };
 
   return (
-    <Modal onClose={onClose} title="Offer / Discount Code">
+    <Modal onClose={onClose} title={t("offers.editorTitle")}>
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Code">
+        <Field label={t("offers.code")}>
           <input
             value={draft.code}
             onChange={(e) => setDraft({ ...draft, code: e.target.value.toUpperCase() })}
@@ -898,59 +914,59 @@ const OfferEditor = ({
             className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm font-mono"
           />
         </Field>
-        <Field label="Discount (%)">
+        <Field label={t("editor.discount")}>
           <input
             type="number" min={0} max={100} value={draft.discount_pct}
             onChange={(e) => setDraft({ ...draft, discount_pct: Number(e.target.value) })}
             className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm"
           />
         </Field>
-        <Field label="Label" full>
+        <Field label={t("offers.label")} full>
           <input
             value={draft.label}
             onChange={(e) => setDraft({ ...draft, label: e.target.value })}
-            placeholder="Welcome 20% off first year"
+            placeholder={t("offers.labelPlaceholder")}
             className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm"
           />
         </Field>
-        <Field label="Applies To">
+        <Field label={t("offers.appliesTo")}>
           <select
             value={draft.package_id ?? ""}
             onChange={(e) => setDraft({ ...draft, package_id: e.target.value || null })}
             className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm"
           >
-            <option value="">All Plans</option>
+            <option value="">{t("allPlans")}</option>
             {plans.map((p) => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
         </Field>
-        <Field label="Valid Until">
+        <Field label={t("offers.validUntil")}>
           <input
             type="date" value={draft.valid_until ?? ""}
             onChange={(e) => setDraft({ ...draft, valid_until: e.target.value || null })}
             className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm"
           />
         </Field>
-        <Field label="Status" full>
+        <Field label={t("columns.status")} full>
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox" checked={draft.active}
               onChange={(e) => setDraft({ ...draft, active: e.target.checked })}
             />
-            Offer is active
+            {t("offers.isActive")}
           </label>
         </Field>
       </div>
       <div className="flex justify-end gap-2 mt-5 pt-4 border-t border-border/50">
         <button onClick={onClose} disabled={saving}
           className="px-4 py-2 rounded-lg border border-border text-sm font-semibold disabled:opacity-50">
-          Cancel
+          {tc("cancel")}
         </button>
         <button onClick={() => void save()} disabled={saving}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50">
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-          {saving ? "Saving…" : "Save Offer"}
+          {saving ? tc("saving") : t("offers.save")}
         </button>
       </div>
     </Modal>
@@ -966,19 +982,22 @@ const Field = ({ label, children, full }: { label: string; children: React.React
   </div>
 );
 
-const Modal = ({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) => (
-  <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4" onClick={onClose} role="presentation">
-    <div className="bg-card rounded-2xl border border-border max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-      onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={title}>
-      <div className="flex items-center justify-between p-5 border-b border-border/50 sticky top-0 bg-card z-10">
-        <h3 className="font-display text-xl text-primary">{title}</h3>
-        <button onClick={onClose} aria-label="Close" className="p-1.5 rounded hover:bg-muted">
-          <X className="h-5 w-5" />
-        </button>
+const Modal = ({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) => {
+  const tc = useTranslations("common");
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4" onClick={onClose} role="presentation">
+      <div className="bg-card rounded-2xl border border-border max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={title}>
+        <div className="flex items-center justify-between p-5 border-b border-border/50 sticky top-0 bg-card z-10">
+          <h3 className="font-display text-xl text-primary">{title}</h3>
+          <button onClick={onClose} aria-label={tc("close")} className="p-1.5 rounded hover:bg-muted">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="p-5">{children}</div>
       </div>
-      <div className="p-5">{children}</div>
     </div>
-  </div>
-);
+  );
+};
 
 export default PackageManagement;

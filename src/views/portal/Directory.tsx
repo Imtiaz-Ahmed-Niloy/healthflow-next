@@ -4,7 +4,9 @@ import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { Search, AlertTriangle, Mail, Phone, FileText, Activity, ClipboardList, Pill, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { PortalLayout } from "@/components/portal/PortalLayout";
+import { displayTime } from "@/lib/availability";
 
 type Medicine = { name: string; dosage_form?: string; dose: string; frequency: string; days: string; meal?: string };
 
@@ -32,28 +34,29 @@ type DirectoryPatient = {
   open_appointment_id: string | null;
 };
 
-const tabs = ["All Patients", "Requires Action", "Upcoming"];
+const TABS = ["all", "action", "upcoming"] as const;
+type Tab = (typeof TABS)[number];
 const PAGE_SIZE = 8;
 
 const initials = (name: string) =>
   name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
 
-const formatDate = (iso: string | null) =>
-  iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : null;
-
-const formatTime = (t: string) => {
-  const [hh, mm] = t.split(":");
-  const h = parseInt(hh, 10);
-  return `${(h + 11) % 12 + 1}:${mm} ${h >= 12 ? "PM" : "AM"}`;
-};
-
-const formatAge = (age: DirectoryPatient["age"]) => (age ? `${age.value} ${age.unit}` : "Age unknown");
-const formatGender = (g: DirectoryPatient["gender"]) => (g ? g[0].toUpperCase() + g.slice(1) : null);
-
 const Directory = () => {
+  const t = useTranslations("portal.directory");
+  const tr = useTranslations("rxSheet");
+  const locale = useLocale();
+
+  const formatDate = (iso: string | null) =>
+    iso
+      ? new Date(`${iso}T00:00:00`).toLocaleDateString(locale === "bn" ? "bn-BD-u-nu-latn" : "en-US", { month: "short", day: "numeric", year: "numeric" })
+      : null;
+  const formatTime = (time: string) => displayTime(time, locale);
+  const formatAge = (age: DirectoryPatient["age"]) => (age ? t(`ages.${age.unit}`, { count: age.value }) : t("ageUnknown"));
+  const formatGender = (g: DirectoryPatient["gender"]) => (g ? tr(`gender.${g}`) : null);
+
   const [patients, setPatients] = useState<DirectoryPatient[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState(tabs[0]);
+  const [tab, setTab] = useState<Tab>("all");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -79,8 +82,8 @@ const Directory = () => {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return patients.filter((p) => {
-      if (tab === "Requires Action" && !p.high_priority) return false;
-      if (tab === "Upcoming" && !p.next_appointment) return false;
+      if (tab === "action" && !p.high_priority) return false;
+      if (tab === "upcoming" && !p.next_appointment) return false;
       if (!q) return true;
       return (
         p.full_name.toLowerCase().includes(q) ||
@@ -105,20 +108,20 @@ const Directory = () => {
         {/* Left list */}
         <div>
           <div className="flex items-center justify-between">
-            <h1 className="font-display text-2xl text-primary">Patients</h1>
-            <span className="text-[10px] tracking-widest font-bold text-muted-foreground">{patients.length} TOTAL</span>
+            <h1 className="font-display text-2xl text-primary">{t("title")}</h1>
+            <span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("total", { count: patients.length })}</span>
           </div>
           <div className="mt-4 flex gap-2 flex-wrap">
-            {tabs.map((t) => (
-              <button key={t} onClick={() => setTab(t)}
-                className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${tab === t ? "bg-gradient-dark text-surface-dark-foreground" : "bg-card border border-border text-foreground/70 hover:bg-chip"}`}>
-                {t}
+            {TABS.map((key) => (
+              <button key={key} onClick={() => setTab(key)}
+                className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${tab === key ? "bg-gradient-dark text-surface-dark-foreground" : "bg-card border border-border text-foreground/70 hover:bg-chip"}`}>
+                {t(`tabs.${key}`)}
               </button>
             ))}
           </div>
           <div className="mt-4 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search patients, conditions..." className="w-full bg-card border border-border/60 rounded-full pl-10 pr-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("searchPlaceholder")} aria-label={t("searchLabel")} className="w-full bg-card border border-border/60 rounded-full pl-10 pr-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary" />
           </div>
 
           <div className="mt-5 space-y-3">
@@ -128,7 +131,7 @@ const Directory = () => {
               </div>
             ) : pageItems.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">
-                {patients.length === 0 ? "No patients yet — they'll show up here once you have an appointment with them." : "No patients match your search."}
+                {patients.length === 0 ? t("empty") : t("noMatch")}
               </p>
             ) : (
               pageItems.map((p) => (
@@ -140,15 +143,15 @@ const Directory = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-primary truncate">{p.full_name}</p>
-                      <p className="text-[11px] text-muted-foreground">ID: {p.mrn} • {formatAge(p.age)}</p>
+                      <p className="text-[11px] text-muted-foreground">{t("id", { mrn: p.mrn })} • {formatAge(p.age)}</p>
                     </div>
-                    {p.high_priority && <span className="rounded-full px-2 py-0.5 text-[10px] font-bold bg-destructive/15 text-destructive">High Priority</span>}
+                    {p.high_priority && <span className="rounded-full px-2 py-0.5 text-[10px] font-bold bg-destructive/15 text-destructive">{t("highPriority")}</span>}
                   </div>
                   <p className="text-xs text-foreground/70 mt-3 flex items-center gap-1.5">
-                    <FileText className="h-3 w-3" /> {p.chief_complaint[0] || "No visit notes yet"}
+                    <FileText className="h-3 w-3" /> {p.chief_complaint[0] || t("noNotes")}
                   </p>
                   <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span>Last visit: {formatDate(p.last_visit) ?? "—"}</span>
+                    <span>{t("lastVisit", { date: formatDate(p.last_visit) ?? "—" })}</span>
                     {p.next_appointment && (
                       <span className="flex items-center gap-1 text-primary-glow font-semibold">
                         <CalendarDays className="h-3 w-3" /> {formatDate(p.next_appointment.scheduled_date)}, {formatTime(p.next_appointment.scheduled_time)}
@@ -162,13 +165,13 @@ const Directory = () => {
 
           {totalPages > 1 && (
             <div className="mt-6 flex items-center justify-center gap-2">
-              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} aria-label={t("prevPage")}
                 className="h-8 w-8 rounded-full border border-border flex items-center justify-center hover:bg-chip disabled:opacity-30 disabled:hover:bg-transparent"><ChevronLeft className="h-4 w-4" /></button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
                 <button key={n} onClick={() => setPage(n)}
                   className={`h-8 w-8 rounded-full text-xs font-semibold ${page === n ? "bg-gradient-dark text-surface-dark-foreground" : "border border-border hover:bg-chip"}`}>{n}</button>
               ))}
-              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} aria-label={t("nextPage")}
                 className="h-8 w-8 rounded-full border border-border flex items-center justify-center hover:bg-chip disabled:opacity-30 disabled:hover:bg-transparent"><ChevronRight className="h-4 w-4" /></button>
             </div>
           )}
@@ -177,7 +180,7 @@ const Directory = () => {
         {/* Right detail */}
         {!selected ? (
           <div className="rounded-2xl bg-card p-12 shadow-soft flex items-center justify-center text-sm text-muted-foreground">
-            {loading ? "Loading patients…" : "Select a patient to see their record."}
+            {loading ? t("loading") : t("pickPatient")}
           </div>
         ) : (
           <motion.div key={selected.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="space-y-5">
@@ -188,13 +191,15 @@ const Directory = () => {
               <div className="flex-1 min-w-[200px]">
                 <div className="flex items-center gap-3 flex-wrap">
                   <h2 className="font-display text-3xl text-primary">{selected.full_name}</h2>
-                  {selected.high_priority && <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-3 py-1 text-xs font-bold"><AlertTriangle className="h-3 w-3" /> High Priority</span>}
+                  {selected.high_priority && <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-3 py-1 text-xs font-bold"><AlertTriangle className="h-3 w-3" /> {t("highPriority")}</span>}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {formatDate(selected.date_of_birth) ? `DOB: ${formatDate(selected.date_of_birth)} (${formatAge(selected.age)})` : formatAge(selected.age)}
+                  {formatDate(selected.date_of_birth)
+                    ? t("dob", { date: formatDate(selected.date_of_birth) ?? "", age: formatAge(selected.age) })
+                    : formatAge(selected.age)}
                   {formatGender(selected.gender) && ` • ${formatGender(selected.gender)}`}
-                  {selected.blood_group && ` • Blood group: ${selected.blood_group}`}
-                  {` • ID: ${selected.mrn}`}
+                  {selected.blood_group && ` • ${t("bloodGroup", { group: selected.blood_group })}`}
+                  {` • ${t("id", { mrn: selected.mrn })}`}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -203,33 +208,33 @@ const Directory = () => {
                 <a href={selected.phone ? `tel:${selected.phone}` : undefined}
                   className={`h-10 w-10 rounded-full border border-border flex items-center justify-center text-primary ${selected.phone ? "hover:bg-chip" : "opacity-30 pointer-events-none"}`}><Phone className="h-4 w-4" /></a>
                 {selected.open_appointment_id && (
-                  <Link href={`/portal/prescription?appointment=${selected.open_appointment_id}`} className="rounded-full bg-gradient-dark text-surface-dark-foreground px-5 py-2.5 text-sm font-semibold hover:opacity-90 shadow-glow flex items-center gap-2"><FileText className="h-4 w-4" /> Clinical Notes</Link>
+                  <Link href={`/portal/prescription?appointment=${selected.open_appointment_id}`} className="rounded-full bg-gradient-dark text-surface-dark-foreground px-5 py-2.5 text-sm font-semibold hover:opacity-90 shadow-glow flex items-center gap-2"><FileText className="h-4 w-4" /> {t("clinicalNotes")}</Link>
                 )}
               </div>
             </div>
 
             <div className="grid md:grid-cols-[2fr_1fr] gap-5">
               <div className="rounded-2xl bg-card p-6 shadow-soft">
-                <h3 className="flex items-center gap-2 font-semibold text-primary"><Activity className="h-4 w-4" /> Recent Vitals</h3>
+                <h3 className="flex items-center gap-2 font-semibold text-primary"><Activity className="h-4 w-4" /> {t("recentVitals")}</h3>
                 {!selected.latest_bp && selected.weight_kg == null && selected.height_feet == null ? (
-                  <p className="text-sm text-muted-foreground mt-4">No vitals recorded yet.</p>
+                  <p className="text-sm text-muted-foreground mt-4">{t("noVitals")}</p>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
                     {selected.latest_bp && (
                       <div className="rounded-xl bg-muted/40 p-4">
-                        <p className="text-[10px] tracking-widest font-bold text-muted-foreground">BLOOD PRESSURE</p>
+                        <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("bloodPressure")}</p>
                         <p className="mt-2"><span className="font-display text-2xl text-primary">{selected.latest_bp.systolic}/{selected.latest_bp.diastolic}</span></p>
                       </div>
                     )}
                     {selected.weight_kg != null && (
                       <div className="rounded-xl bg-muted/40 p-4">
-                        <p className="text-[10px] tracking-widest font-bold text-muted-foreground">WEIGHT</p>
-                        <p className="mt-2"><span className="font-display text-2xl text-primary">{selected.weight_kg}</span> <span className="text-xs text-muted-foreground">kg</span></p>
+                        <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("weight")}</p>
+                        <p className="mt-2"><span className="font-display text-2xl text-primary">{selected.weight_kg}</span> <span className="text-xs text-muted-foreground">{t("kg")}</span></p>
                       </div>
                     )}
                     {selected.height_feet != null && (
                       <div className="rounded-xl bg-muted/40 p-4">
-                        <p className="text-[10px] tracking-widest font-bold text-muted-foreground">HEIGHT</p>
+                        <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("height")}</p>
                         <p className="mt-2"><span className="font-display text-2xl text-primary">{selected.height_feet}&apos;{selected.height_inches ?? 0}&quot;</span></p>
                       </div>
                     )}
@@ -238,10 +243,10 @@ const Directory = () => {
               </div>
 
               <div className="rounded-2xl bg-chip/40 p-6">
-                <h3 className="flex items-center gap-2 font-semibold text-primary"><ClipboardList className="h-4 w-4" /> Conditions</h3>
+                <h3 className="flex items-center gap-2 font-semibold text-primary"><ClipboardList className="h-4 w-4" /> {t("conditions")}</h3>
                 <div className="mt-4 space-y-3">
                   {selected.conditions.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No diagnosed conditions on record yet.</p>
+                    <p className="text-sm text-muted-foreground">{t("noConditions")}</p>
                   ) : (
                     selected.conditions.map((c) => (
                       <div key={c} className="rounded-xl bg-card p-3">
@@ -256,28 +261,28 @@ const Directory = () => {
             <div className="grid md:grid-cols-2 gap-5">
               <div className="rounded-2xl bg-gradient-dark text-surface-dark-foreground p-6">
                 <div className="flex items-center justify-between">
-                  <h3 className="flex items-center gap-2 font-semibold"><CalendarDays className="h-4 w-4 text-accent" /> Schedule</h3>
-                  <Link href="/portal/schedule" className="text-xs font-semibold text-accent">View All</Link>
+                  <h3 className="flex items-center gap-2 font-semibold"><CalendarDays className="h-4 w-4 text-accent" /> {t("schedule")}</h3>
+                  <Link href="/portal/schedule" className="text-xs font-semibold text-accent">{t("viewAll")}</Link>
                 </div>
                 {selected.next_appointment ? (
                   <div className="mt-4 rounded-xl bg-surface-dark-foreground/10 p-4">
-                    <p className="text-[10px] tracking-widest font-bold text-accent">NEXT APPOINTMENT</p>
+                    <p className="text-[10px] tracking-widest font-bold text-accent">{t("nextAppointment")}</p>
                     <p className="font-display text-lg mt-1">{formatDate(selected.next_appointment.scheduled_date)}</p>
                     <p className="text-xs opacity-70 mt-1">{formatTime(selected.next_appointment.scheduled_time)}</p>
                     <div className="flex gap-2 mt-4">
-                      <Link href={`/portal/prescription?appointment=${selected.next_appointment.id}`} className="rounded-full bg-accent text-primary px-4 py-1.5 text-xs font-bold hover:bg-accent/80">Start Visit</Link>
+                      <Link href={`/portal/prescription?appointment=${selected.next_appointment.id}`} className="rounded-full bg-accent text-primary px-4 py-1.5 text-xs font-bold hover:bg-accent/80">{t("startVisit")}</Link>
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm opacity-70 mt-4">No upcoming appointment scheduled.</p>
+                  <p className="text-sm opacity-70 mt-4">{t("noUpcoming")}</p>
                 )}
               </div>
 
               <div className="rounded-2xl bg-card p-6 shadow-soft">
-                <h3 className="flex items-center gap-2 font-semibold text-primary"><Pill className="h-4 w-4" /> Medications</h3>
+                <h3 className="flex items-center gap-2 font-semibold text-primary"><Pill className="h-4 w-4" /> {t("medications")}</h3>
                 <div className="mt-4 space-y-3">
                   {selected.medications.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No medications on record yet.</p>
+                    <p className="text-sm text-muted-foreground">{t("noMedications")}</p>
                   ) : (
                     selected.medications.map((m, i) => (
                       <div key={`${m.name}-${i}`} className="flex items-center gap-3 rounded-xl bg-muted/40 p-3">
@@ -294,16 +299,16 @@ const Directory = () => {
             </div>
 
             <div className="rounded-2xl bg-card p-6 shadow-soft">
-              <h3 className="flex items-center gap-2 font-semibold text-primary"><FileText className="h-4 w-4" /> Chief Complaint</h3>
+              <h3 className="flex items-center gap-2 font-semibold text-primary"><FileText className="h-4 w-4" /> {t("chiefComplaint")}</h3>
               <p className="text-sm text-foreground/80 mt-2">
-                {selected.chief_complaint.length ? selected.chief_complaint.join(", ") : "No complaint recorded yet."}
+                {selected.chief_complaint.length ? selected.chief_complaint.join(", ") : t("noComplaint")}
               </p>
             </div>
 
             <div className="rounded-2xl bg-card p-6 shadow-soft">
-              <h3 className="font-semibold text-primary">Recent Clinical Notes</h3>
+              <h3 className="font-semibold text-primary">{t("recentNotes")}</h3>
               {selected.recent_notes.length === 0 ? (
-                <p className="text-sm text-muted-foreground mt-4">No completed visits with notes yet.</p>
+                <p className="text-sm text-muted-foreground mt-4">{t("noRecentNotes")}</p>
               ) : (
                 <div className="mt-4 space-y-5">
                   {selected.recent_notes.map((n) => (
@@ -312,7 +317,7 @@ const Directory = () => {
                       <div className="flex-1 min-w-0">
                         <p className="text-[11px] text-muted-foreground">{formatDate(n.scheduled_date)}{n.department ? ` • ${n.department}` : ""}</p>
                         {n.notes && <p className="text-sm text-foreground/80 mt-2">{n.notes}</p>}
-                        {n.advice.length > 0 && <p className="text-sm text-foreground/80 mt-2">Advice: {n.advice.join(", ")}</p>}
+                        {n.advice.length > 0 && <p className="text-sm text-foreground/80 mt-2">{t("advice", { advice: n.advice.join(", ") })}</p>}
                       </div>
                     </div>
                   ))}

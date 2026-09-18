@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, Btn, Pill, SectionTitle } from "@/components/admin/ui";
 import { DataTable, Toolbar, Modal, Field, Input, Select, Chips, statusTone, RowActions, ConfirmDialog, exportCSV, type Column } from "@/components/admin/crud";
@@ -21,13 +22,7 @@ const LAB_CATEGORIES = [
 ];
 
 /** Stored lowercase to match doctors, nurses and support staff. */
-const CATALOG_STATUSES = [
-  { value: "active", label: "Active" },
-  { value: "inactive", label: "Inactive" },
-];
-
-const catalogStatusLabel = (value: string) =>
-  CATALOG_STATUSES.find(s => s.value === value)?.label ?? value;
+const CATALOG_STATUSES = ["active", "inactive"] as const;
 
 /**
  * An order, with the patient and doctor names the resource embeds (0047).
@@ -48,20 +43,13 @@ type DoctorOption = { id: string; name: string };
 const ORDER_FLOW = ["pending", "sample_collected", "processing", "reported"] as const;
 type OrderStatus = (typeof ORDER_FLOW)[number];
 
-const ORDER_STATUS_LABELS: Record<string, string> = {
-  pending: "Pending",
-  sample_collected: "Sample Collected",
-  processing: "Processing",
-  reported: "Reported",
-};
-const orderStatusLabel = (value: string) => ORDER_STATUS_LABELS[value] ?? value;
-
-const stamp = (iso: string | null) => {
+/** Month names in the reader's language; digits stay Western (see appSettings). */
+const stamp = (iso: string | null, locale: string) => {
   if (!iso) return "—";
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
     ? iso
-    : d.toLocaleString("en-US", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    : d.toLocaleString(locale === "bn" ? "bn-BD-u-nu-latn" : "en-US", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 };
 
 /** "L-1042", numbered within the hospital. The unique index catches a genuine clash. */
@@ -73,6 +61,18 @@ const suggestReference = (orders: LabOrder[]) => {
 };
 
 const Lab = () => {
+  const t = useTranslations("admin.lab");
+  const tc = useTranslations("common");
+  const locale = useLocale();
+
+  const orderStatusLabel = (value: string) =>
+    (ORDER_FLOW as readonly string[]).includes(value) ? t(`orderStatuses.${value as OrderStatus}`) : value;
+  const catalogStatusLabel = (value: string) =>
+    (CATALOG_STATUSES as readonly string[]).includes(value)
+      ? t(`catalogStatuses.${value as (typeof CATALOG_STATUSES)[number]}`)
+      : value;
+  const catalogStatuses = CATALOG_STATUSES.map(value => ({ value, label: catalogStatusLabel(value) }));
+
   const crud = useResourceCrud<LabOrder>("lab-orders");
   // Ordering needs three real lists: who it is for, what was ordered, and who
   // asked for it.
@@ -115,73 +115,72 @@ const Lab = () => {
     const next = ORDER_FLOW[i + 1];
     await crud.update(order.id, { status: next } as never);
     push({ title: `${order.reference} → ${orderStatusLabel(next)}`, tone: "info" });
+    // The arrow is punctuation, not a word: it reads the same in both languages.
   };
 
   const cols: Column<LabOrder>[] = [
-    { key: "reference", label: "Request", sortable: true, accessor: r => r.reference,
+    { key: "reference", label: t("columns.request"), sortable: true, accessor: r => r.reference,
       render: r => <span className="font-mono text-xs font-semibold text-primary">{r.reference}</span> },
-    { key: "patient", label: "Patient", sortable: true, accessor: r => r.patients?.full_name ?? "",
+    { key: "patient", label: t("columns.patient"), sortable: true, accessor: r => r.patients?.full_name ?? "",
       render: r => <span>{r.patients?.full_name ?? "—"}</span> },
-    { key: "test_name", label: "Test", accessor: r => r.test_name },
-    { key: "doctor", label: "Doctor", accessor: r => r.doctors?.name ?? "",
-      render: r => <span>{r.doctors?.name ?? <span className="text-muted-foreground">Walk-in</span>}</span> },
-    { key: "requested_at", label: "Requested", sortable: true, accessor: r => r.requested_at,
-      render: r => stamp(r.requested_at) },
-    { key: "status", label: "Status",
+    { key: "test_name", label: t("columns.test"), accessor: r => r.test_name },
+    { key: "doctor", label: t("columns.doctor"), accessor: r => r.doctors?.name ?? "",
+      render: r => <span>{r.doctors?.name ?? <span className="text-muted-foreground">{t("walkIn")}</span>}</span> },
+    { key: "requested_at", label: t("columns.requested"), sortable: true, accessor: r => r.requested_at,
+      render: r => stamp(r.requested_at, locale) },
+    { key: "status", label: t("columns.status"),
       render: r => <Pill tone={statusTone(r.status)}>{orderStatusLabel(r.status)}</Pill> },
   ];
 
   return (
-    <AdminLayout title="Laboratory Management" subtitle="Test request lifecycle Pending → Reported">
+    <AdminLayout title={t("title")} subtitle={t("subtitle")}>
       <Card className="p-5">
         <Toolbar
           search={q} onSearch={setQ}
-          onAdd={() => setAdd(true)} addLabel="Test Request"
+          onAdd={() => setAdd(true)} addLabel={t("addRequest")}
           onExport={() => exportCSV(rows as never, "lab-orders.csv")}
           bulkCount={sel.length} onBulkDelete={() => setBulk(true)}
           filters={<Chips value={status as never} onChange={setStatus as never}
-            options={[{ value: "all", label: "All" }, ...ORDER_FLOW.map(s => ({ value: s, label: orderStatusLabel(s) }))]} />}
+            options={[{ value: "all", label: t("all") }, ...ORDER_FLOW.map(s => ({ value: s, label: orderStatusLabel(s) }))]} />}
         />
 
         {crud.error ? (
           <div className="py-12 text-center">
-            <p className="text-sm font-semibold text-destructive">Could not load lab requests.</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              You may not have access to this module, or the request failed.
-            </p>
+            <p className="text-sm font-semibold text-destructive">{t("loadFailed")}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("loadFailedHint")}</p>
             <button type="button" onClick={() => crud.refetch()}
               className="mt-3 px-4 py-2 rounded-full text-xs font-semibold border border-border hover:bg-muted">
-              Try again
+              {t("tryAgain")}
             </button>
           </div>
         ) : crud.isLoading ? (
-          <div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>
+          <div className="py-12 text-center text-sm text-muted-foreground">{tc("loading")}</div>
         ) : (
           <DataTable<LabOrder>
             rows={rows}
             columns={cols}
             selected={sel}
             onSelect={setSel}
-            empty="No lab requests yet. Create one to get started."
+            empty={t("empty")}
             actions={r => <RowActions
               onDelete={() => setDel(r.id)}
               extra={<Btn variant="ghost" onClick={() => void advance(r)}>
-                {r.status === "reported" ? "Update Result" : r.status === "processing" ? "Enter Result" : "Advance →"}
+                {r.status === "reported" ? t("updateResult") : r.status === "processing" ? t("enterResult") : t("advance")}
               </Btn>}
             />}
           />
         )}
       </Card>
 
-      <Modal open={add} onClose={() => setAdd(false)} title="New test request"
-        footer={<><Btn variant="outline" onClick={() => setAdd(false)}>Cancel</Btn>
-          <button form="lab-form" type="submit" className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground">Submit</button></>}>
+      <Modal open={add} onClose={() => setAdd(false)} title={t("newRequest")}
+        footer={<><Btn variant="outline" onClick={() => setAdd(false)}>{tc("cancel")}</Btn>
+          <button form="lab-form" type="submit" className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground">{tc("submit")}</button></>}>
         <form id="lab-form" onSubmit={async e => {
           e.preventDefault();
           const fd = new FormData(e.currentTarget);
           const testId = String(fd.get("lab_test_id") || "");
           const test = activeTests.find(t => t.id === testId);
-          if (!test) { push({ title: "Pick a test first", tone: "warn" }); return; }
+          if (!test) { push({ title: t("pickTest"), tone: "warn" }); return; }
 
           const created = await crud.create({
             reference: String(fd.get("reference") || "").trim(),
@@ -193,47 +192,45 @@ const Lab = () => {
             doctor_id: String(fd.get("doctor_id") || "") || null,
           } as never);
           if (!created) return; // useResourceCrud has surfaced the error
-          push({ title: `New lab request: ${test.name}`, tone: "info" });
+          push({ title: t("newRequestToast", { test: test.name }), tone: "info" });
           setAdd(false);
         }}>
-          <Field label="Reference" required>
+          <Field label={t("fields.reference")} required>
             <Input name="reference" required defaultValue={suggestReference(orders)} />
           </Field>
-          <Field label="Patient" required>
+          <Field label={t("fields.patient")} required>
             <Select name="patient_id" required>
-              <option value="">Select a patient…</option>
+              <option value="">{t("selectPatient")}</option>
               {patients.items.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
             </Select>
           </Field>
-          <Field label="Test" required>
+          <Field label={t("fields.test")} required>
             <Select name="lab_test_id" required>
-              <option value="">Select a test…</option>
-              {activeTests.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              <option value="">{t("selectTest")}</option>
+              {activeTests.map(test => <option key={test.id} value={test.id}>{test.name}</option>)}
             </Select>
           </Field>
-          <Field label="Requesting doctor">
+          <Field label={t("fields.requestingDoctor")}>
             <Select name="doctor_id">
-              <option value="">Walk-in — no requesting doctor</option>
+              <option value="">{t("noRequestingDoctor")}</option>
               {doctors.items.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
             </Select>
           </Field>
           {activeTests.length === 0 && (
-            <p className="text-xs text-muted-foreground mt-2">
-              The catalogue below is empty. Add a test to it before requesting one.
-            </p>
+            <p className="text-xs text-muted-foreground mt-2">{t("catalogueEmpty")}</p>
           )}
         </form>
       </Modal>
 
-      <Modal open={!!result} onClose={() => setResult(null)} title={`Result for ${result?.reference ?? ""}`}
-        footer={<><Btn variant="outline" onClick={() => setResult(null)}>Cancel</Btn>
-          <button form="result-form" type="submit" className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground">Save</button></>}>
+      <Modal open={!!result} onClose={() => setResult(null)} title={t("resultFor", { reference: result?.reference ?? "" })}
+        footer={<><Btn variant="outline" onClick={() => setResult(null)}>{tc("cancel")}</Btn>
+          <button form="result-form" type="submit" className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground">{tc("save")}</button></>}>
         <form id="result-form" onSubmit={async e => {
           e.preventDefault();
           if (!result) return;
           const fd = new FormData(e.currentTarget);
           const text = String(fd.get("result") || "").trim();
-          if (!text) { push({ title: "Enter the result first", tone: "warn" }); return; }
+          if (!text) { push({ title: t("enterResultFirst"), tone: "warn" }); return; }
           // Result, timestamp and status move together — the table has a check
           // constraint tying the first two, and a reported order without a
           // result would be a lie.
@@ -242,10 +239,10 @@ const Lab = () => {
             reported_at: new Date().toISOString(),
             status: "reported",
           } as never);
-          push({ title: `Result published for ${result.reference}`, tone: "ok" });
+          push({ title: t("resultPublished", { reference: result.reference }), tone: "ok" });
           setResult(null);
         }}>
-          <Field label="Result">
+          <Field label={t("fields.result")}>
             <textarea name="result" rows={4} defaultValue={result?.result ?? ""}
               className="w-full bg-muted/40 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary text-sm" />
           </Field>
@@ -254,39 +251,39 @@ const Lab = () => {
 
       <ConfirmDialog open={!!del} onClose={() => setDel(null)}
         onConfirm={() => { if (del) void crud.remove(del); }}
-        title="Delete lab request"
-        description="This permanently removes the request and its result." />
+        title={t("deleteRequest")}
+        description={t("deleteRequestBody")} />
       <ConfirmDialog open={bulk} onClose={() => setBulk(false)}
         onConfirm={() => { void crud.bulkRemove(sel); setSel([]); }}
-        title={`Delete ${sel.length} requests?`} />
+        title={t("deleteMany", { count: sel.length })} />
 
       <div className="mt-8">
-        <SectionTitle title="Lab Tests & Pricing Catalog" />
+        <SectionTitle title={t("catalogueTitle")} />
         <ResourcePage<LabTestRow> config={{
           storeKey: "lab-catalog",
           resource: "lab-tests",
           searchFields: ["name", "category", "sample"],
-          statuses: CATALOG_STATUSES,
+          statuses: catalogStatuses,
           exportName: "lab-catalog",
           columns: [
-            { key: "name", label: "Test", sortable: true, accessor: r => r.name, render: r => <span className="font-semibold text-primary">{r.name}</span> },
-            { key: "category", label: "Category", sortable: true, accessor: r => r.category ?? "", render: r => <span>{r.category || "—"}</span> },
+            { key: "name", label: t("columns.test"), sortable: true, accessor: r => r.name, render: r => <span className="font-semibold text-primary">{r.name}</span> },
+            { key: "category", label: t("columns.category"), sortable: true, accessor: r => r.category ?? "", render: r => <span>{r.category || "—"}</span> },
             // numeric(10,2) arrives as a string from PostgREST, so sorting has
             // to coerce or "9" sorts after "320".
-            { key: "price", label: "Price (৳)", sortable: true, accessor: r => Number(r.price) },
-            { key: "turnaround", label: "Turnaround", render: r => <span>{r.turnaround || "—"}</span> },
-            { key: "sample", label: "Sample", render: r => <span>{r.sample || "—"}</span> },
-            { key: "status", label: "Status", render: r => <Pill tone={statusTone(r.status)}>{catalogStatusLabel(r.status)}</Pill> },
+            { key: "price", label: t("columns.price"), sortable: true, accessor: r => Number(r.price) },
+            { key: "turnaround", label: t("columns.turnaround"), render: r => <span>{r.turnaround || "—"}</span> },
+            { key: "sample", label: t("columns.sample"), render: r => <span>{r.sample || "—"}</span> },
+            { key: "status", label: t("columns.status"), render: r => <Pill tone={statusTone(r.status)}>{catalogStatusLabel(r.status)}</Pill> },
           ],
           fields: [
-            { name: "name", label: "Test name", type: "text", required: true },
-            { name: "category", label: "Category", type: "select", options: LAB_CATEGORIES },
-            { name: "price", label: "Price (৳)", type: "number", required: true, min: 0, numberStep: 0.01 },
-            { name: "turnaround", label: "Turnaround time", type: "text" },
-            { name: "sample", label: "Sample type", type: "text" },
-            { name: "prep", label: "Patient preparation", type: "text" },
-            { name: "status", label: "Status", type: "select", options: CATALOG_STATUSES },
-            { name: "description", label: "Description", type: "textarea" },
+            { name: "name", label: t("fields.testName"), type: "text", required: true },
+            { name: "category", label: t("fields.category"), type: "select", options: LAB_CATEGORIES },
+            { name: "price", label: t("fields.price"), type: "number", required: true, min: 0, numberStep: 0.01 },
+            { name: "turnaround", label: t("fields.turnaround"), type: "text" },
+            { name: "sample", label: t("fields.sample"), type: "text" },
+            { name: "prep", label: t("fields.prep"), type: "text" },
+            { name: "status", label: t("fields.status"), type: "select", options: catalogStatuses },
+            { name: "description", label: t("fields.description"), type: "textarea" },
           ],
         }} />
       </div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase/client";
 import { AUTH_NEXT_COOKIE, isSafeNext } from "@/lib/auth/authNext";
 
@@ -19,12 +20,13 @@ import { AUTH_NEXT_COOKIE, isSafeNext } from "@/lib/auth/authNext";
  * rather than on the redirect URL: Supabase only returns to redirect URLs on
  * its allow-list, and a query string can stop one matching.
  */
-export const GoogleAuthButton = ({ label = "Continue with Google", next, disabled = false, className = "" }: {
+export const GoogleAuthButton = ({ label, next, disabled = false, className = "" }: {
   label?: string;
   next?: string | null;
   disabled?: boolean;
   className?: string;
 }) => {
+  const t = useTranslations("auth.google");
   const [loading, setLoading] = useState(false);
 
   const start = async () => {
@@ -44,7 +46,7 @@ export const GoogleAuthButton = ({ label = "Continue with Google", next, disable
     // gets this far.
     if (error) {
       setLoading(false);
-      toast.error(error.message || "Could not start Google sign-in.");
+      toast.error(error.message || t("failed"));
     }
   };
 
@@ -63,7 +65,7 @@ export const GoogleAuthButton = ({ label = "Continue with Google", next, disable
         <path fill="#FBBC05" d="M10.4 28.7c-.5-1.4-.8-2.9-.8-4.4s.3-3 .8-4.4l-7.8-6.1C1 17 0 20.4 0 24s1 7 2.6 10.1l7.8-5.4z" />
         <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.1-5.5c-2 1.3-4.6 2.1-8.8 2.1-6.4 0-11.7-3.7-13.6-9.1l-7.8 5.4C6.5 42.6 14.6 48 24 48z" />
       </svg>
-      {loading ? "Opening Google…" : label}
+      {loading ? t("opening") : label ?? t("continue")}
     </button>
   );
 };

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MessageCircle, X, Send, Mic, MicOff, Volume2, VolumeX, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLocale, useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase/client";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
@@ -35,11 +36,15 @@ type SpeechWindow = Window & {
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 
 const Chatbot = () => {
+  const t = useTranslations("chatbot");
+  const locale = useLocale();
+  // Voice in and out in the page's language.
+  const speechLang = locale === "bn" ? "bn-BD" : "en-US";
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Msg[]>([
-    { role: "assistant", content: "Hi! I'm your HealthFlow assistant. Ask me about doctors, hospitals, bookings, or anything else. You can type or use the mic 🎙️" },
-  ]);
+  // The greeting isn't kept here: it's drawn from the messages, so it follows
+  // a language switch.
+  const [messages, setMessages] = useState<Msg[]>([]);
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
   const [voiceOn, setVoiceOn] = useState(false);
@@ -58,7 +63,7 @@ const Chatbot = () => {
     const r = new SR();
     r.continuous = false;
     r.interimResults = false;
-    r.lang = "en-US";
+    r.lang = speechLang;
     r.onresult = (e: SpeechResultEvent) => {
       const transcript = e.results[0][0].transcript;
       setInput("");
@@ -67,12 +72,14 @@ const Chatbot = () => {
     r.onend = () => setListening(false);
     r.onerror = () => setListening(false);
     recognitionRef.current = r;
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `send` is recreated every render; the recogniser only needs the latest language.
+  }, [speechLang]);
 
   const speak = (text: string) => {
     if (!voiceOn || !("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text.replace(/[*_`#>]/g, ""));
+    u.lang = speechLang;
     u.rate = 1.05;
     u.pitch = 1;
     window.speechSynthesis.speak(u);
@@ -80,7 +87,7 @@ const Chatbot = () => {
 
   const toggleMic = () => {
     if (!recognitionRef.current) {
-      toast.error("Voice input not supported in this browser. Try Chrome.");
+      toast.error(t("noVoice"));
       return;
     }
     if (listening) {
@@ -112,7 +119,7 @@ const Chatbot = () => {
       });
       if (!resp.ok || !resp.body) {
         const err = await resp.json().catch(() => ({}));
-        throw new Error(err.error || "Request failed");
+        throw new Error(err.error || t("requestFailed"));
       }
 
       const reader = resp.body.getReader();
@@ -147,8 +154,8 @@ const Chatbot = () => {
       }
       speak(assistant);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Chat failed");
-      setMessages((m) => [...m, { role: "assistant", content: "Sorry, I couldn't reach the assistant. Please try again." }]);
+      toast.error(e instanceof Error ? e.message : t("chatFailed"));
+      setMessages((m) => [...m, { role: "assistant", content: t("unreachable") }]);
     } finally {
       setLoading(false);
     }
@@ -161,7 +168,7 @@ const Chatbot = () => {
         animate={{ scale: 1 }}
         whileHover={{ scale: 1.05 }}
         onClick={() => setOpen((o) => !o)}
-        aria-label="Open chat"
+        aria-label={open ? t("closeChat") : t("openChat")}
         className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-elegant grid place-items-center hover:bg-primary-glow transition-colors"
       >
         {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
@@ -178,21 +185,21 @@ const Chatbot = () => {
           >
             <div className="flex items-center justify-between px-4 py-3 bg-gradient-dark text-surface-dark-foreground">
               <div>
-                <div className="font-display text-lg leading-tight">HealthFlow Assistant</div>
-                <div className="text-[11px] opacity-70">Online · Text & Voice</div>
+                <div className="font-display text-lg leading-tight">{t("title")}</div>
+                <div className="text-[11px] opacity-70">{t("status")}</div>
               </div>
               <button
                 onClick={() => setVoiceOn((v) => !v)}
-                aria-label="Toggle voice"
+                aria-label={t("toggleVoice")}
                 className="rounded-full p-2 hover:bg-surface-dark-foreground/10"
-                title={voiceOn ? "Voice replies on" : "Voice replies off"}
+                title={voiceOn ? t("voiceOn") : t("voiceOff")}
               >
                 {voiceOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
               </button>
             </div>
 
             <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-background">
-              {messages.map((m, i) => (
+              {[{ role: "assistant" as const, content: t("greeting") }, ...messages].map((m, i) => (
                 <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                   <div
                     className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm ${
@@ -209,7 +216,7 @@ const Chatbot = () => {
               ))}
               {loading && messages[messages.length - 1]?.role === "user" && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin" /> thinking…
+                  <Loader2 className="h-3 w-3 animate-spin" /> {t("thinking")}
                 </div>
               )}
             </div>
@@ -224,7 +231,7 @@ const Chatbot = () => {
               <button
                 type="button"
                 onClick={toggleMic}
-                aria-label="Voice input"
+                aria-label={t("voiceInput")}
                 className={`shrink-0 h-10 w-10 grid place-items-center rounded-full transition-colors ${
                   listening ? "bg-destructive text-destructive-foreground animate-pulse" : "bg-muted hover:bg-accent"
                 }`}
@@ -234,13 +241,13 @@ const Chatbot = () => {
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={listening ? "Listening…" : "Type a message…"}
+                placeholder={listening ? t("listening") : t("placeholder")}
                 className="flex-1 bg-muted rounded-full px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
               />
               <button
                 type="submit"
                 disabled={loading || !input.trim()}
-                aria-label="Send"
+                aria-label={t("send")}
                 className="shrink-0 h-10 w-10 grid place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-50 hover:bg-primary-glow"
               >
                 <Send className="h-4 w-4" />

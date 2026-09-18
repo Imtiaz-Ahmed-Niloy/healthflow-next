@@ -5,7 +5,8 @@ import Link from "next/link";
 import { ArrowRight, FilterX } from "lucide-react";
 import { useDoctors } from "@/hooks/useDoctors";
 import { DoctorCard } from "@/components/site/DoctorCard";
-import { GradientWords } from "@/components/site/GradientWords";
+import { useTranslations } from "next-intl";
+import { gradient } from "@/components/site/GradientWords";
 
 type SpecialistsProps = {
   division?: string;
@@ -16,6 +17,7 @@ type SpecialistsProps = {
 
 const Specialists = forwardRef<HTMLElement, SpecialistsProps>(
   ({ division, zilla, upazila, specialty }, ref) => {
+    const t = useTranslations("specialists");
     const { doctors, loading } = useDoctors();
 
     const visible = useMemo(() => {
@@ -46,15 +48,17 @@ const Specialists = forwardRef<HTMLElement, SpecialistsProps>(
     return (
       <section id="features" ref={ref} className="container mx-auto py-20">
         <div className="mb-10">
-          <h2 className="font-display text-3xl md:text-4xl text-primary"><GradientWords text="Find Your Specialist" last={1} /></h2>
+          <h2 className="font-display text-3xl md:text-4xl text-primary">{t.rich("heading", gradient)}</h2>
         </div>
 
         {activeFilterCount > 0 && (
           <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
             <FilterX className="h-4 w-4" />
             <span>
-              Showing {visible.length} result{visible.length !== 1 ? "s" : ""} for{" "}
-              {[specialty, upazila, zilla, division].filter(Boolean).join(" ")}
+              {t("showing", {
+                count: visible.length,
+                filters: [specialty, upazila, zilla, division].filter(Boolean).join(" "),
+              })}
             </span>
           </div>
         )}
@@ -65,7 +69,7 @@ const Specialists = forwardRef<HTMLElement, SpecialistsProps>(
           </div>
         ) : visible.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
-            No specialists match your filters.
+            {t("none")}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -75,7 +79,7 @@ const Specialists = forwardRef<HTMLElement, SpecialistsProps>(
           </div>
         )}
         <div className="mt-8 flex justify-end">
-          <Link href="/doctors" className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:gap-2 transition-all">View All Doctors <ArrowRight className="h-4 w-4" /></Link>
+          <Link href="/doctors" className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:gap-2 transition-all">{t("viewAll")} <ArrowRight className="h-4 w-4" /></Link>
         </div>
       </section>
     );

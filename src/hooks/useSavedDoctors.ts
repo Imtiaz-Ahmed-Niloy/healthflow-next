@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { useSession } from "@/lib/auth/useSession";
 import type { UIDoctor } from "@/hooks/useDoctors";
 
@@ -15,6 +16,8 @@ export type SavedDoctor = { id: string; doctor_id: string; created_at: string };
  * `canSave` is false.
  */
 export const useSavedDoctors = () => {
+  const t = useTranslations("patient.savedDoctors");
+  const tc = useTranslations("common");
   const { user, isLoading: sessionLoading } = useSession();
   const canSave = user?.role === "patient";
   const [fetched, setSaved] = useState<SavedDoctor[]>([]);
@@ -50,9 +53,9 @@ export const useSavedDoctors = () => {
     try {
       if (entry) {
         const res = await fetch(`/api/v1/saved-doctors/${entry.id}`, { method: "DELETE" });
-        if (!res.ok) { toast.error("Couldn't remove them from your saved doctors."); return; }
+        if (!res.ok) { toast.error(t("removeFailed")); return; }
         setSaved(list => list.filter(s => s.id !== entry.id));
-        toast.success(`${d.name} removed from your saved doctors`);
+        toast.success(t("removed", { name: d.name }));
       } else {
         const res = await fetch("/api/v1/saved-doctors", {
           method: "POST",
@@ -60,12 +63,12 @@ export const useSavedDoctors = () => {
           body: JSON.stringify({ doctor_id: d.id }),
         });
         const body = await res.json().catch(() => null);
-        if (!res.ok) { toast.error("Couldn't save this doctor.", { description: body?.error?.message }); return; }
+        if (!res.ok) { toast.error(t("saveFailed"), { description: body?.error?.message }); return; }
         setSaved(list => [body.data as SavedDoctor, ...list]);
-        toast.success(`${d.name} saved`, { description: "Find them under Saved Doctors in your panel." });
+        toast.success(t("savedToast", { name: d.name }), { description: t("savedHint") });
       }
     } catch {
-      toast.error("Couldn't reach the server.");
+      toast.error(tc("networkError"));
     } finally {
       setBusy(false);
     }

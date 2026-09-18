@@ -3,6 +3,7 @@
 import { ArrowRight, Search, SearchX, Stethoscope, UserRound, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { DoctorCard, DoctorCardNotBookable, DOCTOR_CARD_BUTTON } from "@/components/site/DoctorCard";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
 import { BookAppointmentDialog } from "@/components/booking/BookAppointmentDialog";
@@ -14,20 +15,11 @@ import { useDoctors, type UIDoctor } from "@/hooks/useDoctors";
 
 const ANY = "any";
 
-type Sort = "recommended" | "experience" | "fee-low" | "fee-high";
+type Sort = "recommended" | "experience" | "feeLow" | "feeHigh";
+const SORTS: Sort[] = ["recommended", "experience", "feeLow", "feeHigh"];
 
-const SORTS: { value: Sort; label: string }[] = [
-  { value: "recommended", label: "Recommended" },
-  { value: "experience", label: "Most experienced" },
-  { value: "fee-low", label: "Fee: low to high" },
-  { value: "fee-high", label: "Fee: high to low" },
-];
-
-const GENDERS = [
-  { value: ANY, label: "Any gender" },
-  { value: "female", label: "Female doctors" },
-  { value: "male", label: "Male doctors" },
-];
+const GENDERS = [ANY, "female", "male"] as const;
+type Gender = (typeof GENDERS)[number];
 
 const matchesQuery = (q: string, ...fields: string[]) => {
   const s = q.trim().toLowerCase();
@@ -37,12 +29,16 @@ const matchesQuery = (q: string, ...fields: string[]) => {
 
 const sortDoctors = (list: UIDoctor[], sort: Sort) => {
   if (sort === "experience") return [...list].sort((a, b) => (b.experience ?? -1) - (a.experience ?? -1));
-  if (sort === "fee-low") return [...list].sort((a, b) => a.fee - b.fee);
-  if (sort === "fee-high") return [...list].sort((a, b) => b.fee - a.fee);
+  if (sort === "feeLow") return [...list].sort((a, b) => a.fee - b.fee);
+  if (sort === "feeHigh") return [...list].sort((a, b) => b.fee - a.fee);
   return list;
 };
 
 const FindDoctors = () => {
+  const t = useTranslations("patient.findDoctors");
+  const tl = useTranslations("locationPickers");
+  const tc = useTranslations("common");
+  const tb = useTranslations("doctorCard");
   const { doctors, loading } = useDoctors();
   const searchParams = useSearchParams();
   // The home page's search bar sends its query, specialty and place along.
@@ -53,7 +49,7 @@ const FindDoctors = () => {
     district: searchParams?.get("zilla"),
     upazila: searchParams?.get("upazila"),
   });
-  const [gender, setGender] = useState(ANY);
+  const [gender, setGender] = useState<Gender>(ANY);
   const [sort, setSort] = useState<Sort>("recommended");
   // The doctor whose booking form is open — the shared one (BookAppointmentDialog).
   const [booking, setBooking] = useState<UIDoctor | null>(null);
@@ -82,10 +78,8 @@ const FindDoctors = () => {
   return (
     <PatientPortalLayout>
       <div className="max-w-2xl">
-        <h1 className="font-display text-5xl text-primary">Find Your Specialist</h1>
-        <p className="text-sm text-muted-foreground mt-3">
-          Search by name, specialty or area, then book a visit at the hospital or chamber that suits you.
-        </p>
+        <h1 className="font-display text-5xl text-primary">{t("title")}</h1>
+        <p className="text-sm text-muted-foreground mt-3">{t("subtitle")}</p>
       </div>
 
       <div className="mt-7 space-y-2 rounded-2xl border border-border bg-card p-2 shadow-sm">
@@ -96,12 +90,12 @@ const FindDoctors = () => {
               type="search"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Doctor, hospital or chamber name"
+              placeholder={t("searchPlaceholder")}
               className={`${FILTER_CONTROL} pl-10 pr-10 placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:appearance-none`}
-              aria-label="Search doctors"
+              aria-label={t("searchLabel")}
             />
             {query && (
-              <button onClick={() => setQuery("")} aria-label="Clear search" className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full hover:bg-chip">
+              <button onClick={() => setQuery("")} aria-label={tc("clearSearch")} className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full hover:bg-chip">
                 <X className="h-4 w-4 text-muted-foreground" />
               </button>
             )}
@@ -112,22 +106,22 @@ const FindDoctors = () => {
               <SpecialtySelect
                 value={specialty}
                 onChange={setSpecialty}
-                placeholder="All specialties"
-                noneLabel="All specialties"
+                placeholder={t("allSpecialties")}
+                noneLabel={t("allSpecialties")}
                 icon={<Stethoscope className={FILTER_ICON} />}
                 className={`${FILTER_CONTROL} flex items-center justify-between gap-2 text-left`}
               />
             </div>
 
-            <Select value={gender} onValueChange={setGender}>
-              <SelectTrigger className={`${FILTER_CONTROL} lg:w-44`} aria-label="Doctor's gender">
+            <Select value={gender} onValueChange={v => setGender(v as Gender)}>
+              <SelectTrigger className={`${FILTER_CONTROL} lg:w-44`} aria-label={t("genderLabel")}>
                 <div className="flex min-w-0 items-center gap-2">
                   <UserRound className={FILTER_ICON} />
                   <span className="truncate"><SelectValue /></span>
                 </div>
               </SelectTrigger>
               <SelectContent>
-                {GENDERS.map(g => <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>)}
+                {GENDERS.map(g => <SelectItem key={g} value={g}>{t(`genders.${g}`)}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -139,29 +133,27 @@ const FindDoctors = () => {
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <p className="mr-1 text-sm text-muted-foreground">
-            {loading ? "Loading doctors…" : (
-              <><span className="font-semibold text-foreground">{visible.length}</span> {visible.length === 1 ? "doctor" : "doctors"} found</>
-            )}
+            {loading ? t("loading") : t.rich("found", { count: visible.length, b: chunks => <span className="font-semibold text-foreground">{chunks}</span> })}
           </p>
           {specialty && <FilterChip label={specialty} onClear={() => setSpecialty("")} />}
-          {wantDivision && <FilterChip label={`${wantDivision} Division`} onClear={() => place.pickDivision("")} />}
-          {wantDistrict && <FilterChip label={wantDistrict} onClear={() => place.pickDistrict("")} />}
-          {wantUpazila && <FilterChip label={wantUpazila} onClear={() => place.pickUpazila("")} />}
-          {gender !== ANY && <FilterChip label={GENDERS.find(g => g.value === gender)?.label ?? gender} onClear={() => setGender(ANY)} />}
+          {wantDivision && <FilterChip label={tl("divisionChip", { name: place.labels.division })} onClear={() => place.pickDivision("")} />}
+          {wantDistrict && <FilterChip label={place.labels.district} onClear={() => place.pickDistrict("")} />}
+          {wantUpazila && <FilterChip label={place.labels.upazila} onClear={() => place.pickUpazila("")} />}
+          {gender !== ANY && <FilterChip label={t(`genders.${gender}`)} onClear={() => setGender(ANY)} />}
           {filtered && (
             <button type="button" onClick={clearAll} className="text-xs font-semibold text-muted-foreground underline-offset-4 hover:text-primary hover:underline">
-              Clear all
+              {tc("clearAll")}
             </button>
           )}
         </div>
 
         <Select value={sort} onValueChange={v => setSort(v as Sort)}>
-          <SelectTrigger className="h-9 w-auto gap-2 rounded-full border-border bg-card px-4 text-sm focus:ring-primary/30 focus:ring-offset-0" aria-label="Sort doctors">
-            <span className="text-muted-foreground">Sort:</span>
+          <SelectTrigger className="h-9 w-auto gap-2 rounded-full border-border bg-card px-4 text-sm focus:ring-primary/30 focus:ring-offset-0" aria-label={t("sortLabel")}>
+            <span className="text-muted-foreground">{tc("sortBy")}</span>
             <SelectValue />
           </SelectTrigger>
           <SelectContent align="end">
-            {SORTS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+            {SORTS.map(s => <SelectItem key={s} value={s}>{t(`sorts.${s}`)}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -176,11 +168,11 @@ const FindDoctors = () => {
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
               <SearchX className="h-5 w-5 text-muted-foreground" />
             </div>
-            <p className="mt-4 font-semibold text-foreground">No doctors match these filters</p>
-            <p className="mt-1 text-sm text-muted-foreground">Try another name, or widen the specialty or area.</p>
+            <p className="mt-4 font-semibold text-foreground">{t("noneTitle")}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t("noneBody")}</p>
             {filtered && (
               <button type="button" onClick={clearAll} className="mt-5 rounded-full border border-border px-5 py-2 text-sm font-semibold text-foreground hover:bg-chip">
-                Clear filters
+                {tc("clearFilters")}
               </button>
             )}
           </div>
@@ -196,7 +188,7 @@ const FindDoctors = () => {
                   <DoctorCardNotBookable />
                 ) : (
                   <button type="button" onClick={() => setBooking(d)} className={DOCTOR_CARD_BUTTON}>
-                    Book Appointment
+                    {tb("bookAppointment")}
                     <ArrowRight className="h-4 w-0 opacity-0 transition-all duration-300 group-hover:w-4 group-hover:opacity-100" />
                   </button>
                 )}

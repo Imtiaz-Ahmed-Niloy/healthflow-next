@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { Check, X } from "lucide-react";
-import { useTranslation } from "react-i18next";
+import { useTranslations } from "next-intl";
 import type { PricingPlan } from "@/data/pricingContent";
 import TiltCard from "@/components/site/TiltCard";
-import { GradientWords } from "@/components/site/GradientWords";
+import { gradientLight } from "@/components/site/GradientWords";
 
 /**
  * The plans, on the dark band.
@@ -15,7 +15,7 @@ import { GradientWords } from "@/components/site/GradientWords";
  * back rather than a competing block of white.
  */
 const Pricing = ({ plans }: { plans: PricingPlan[] }) => {
-  const { t } = useTranslation();
+  const t = useTranslations();
   return (
     <section id="pricing" className="relative overflow-hidden bg-gradient-dark text-surface-dark-foreground py-24 mt-12">
       {/* Colour under the cards, so the glass ones have something to hold. */}
@@ -32,7 +32,7 @@ const Pricing = ({ plans }: { plans: PricingPlan[] }) => {
         <div className="text-center max-w-2xl mx-auto mb-14">
           {/* Was text-7xl on phones and text-5xl above them — the wrong way
               round, and 72px on a 360px screen. */}
-          <h2 className="font-display text-4xl md:text-5xl"><GradientWords text={t("pricing.heading")} light /></h2>
+          <h2 className="font-display text-4xl md:text-5xl">{t.rich("pricing.heading", gradientLight)}</h2>
           <p className="opacity-70 mt-3 text-sm">{t("pricing.subheading")}</p>
         </div>
 
@@ -59,7 +59,7 @@ const Pricing = ({ plans }: { plans: PricingPlan[] }) => {
 
               <div className="mt-4 flex items-baseline gap-2">
                 <span className={`font-display text-5xl ${p.featured ? "text-primary" : ""}`}>৳{p.price}</span>
-                <span className={`text-sm ${p.featured ? "text-muted-foreground" : "opacity-60"}`}>Per Prescription</span>
+                <span className={`text-sm ${p.featured ? "text-muted-foreground" : "opacity-60"}`}>{t("pricing.perPrescription")}</span>
               </div>
 
               {/* A rule between the price and what you get for it. */}

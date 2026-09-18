@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Quote } from "lucide-react";
-import { useTranslation } from "react-i18next";
+import { useTranslations } from "next-intl";
 import { useTestimonials, type TestimonialAudience } from "@/data/testimonials";
 import TiltCard from "@/components/site/TiltCard";
-import { GradientWords } from "@/components/site/GradientWords";
+import { gradient } from "@/components/site/GradientWords";
 
 const TABS: TestimonialAudience[] = ["Patients", "Doctors", "Hospitals"];
 
@@ -18,7 +18,7 @@ const TABS: TestimonialAudience[] = ["Patients", "Doctors", "Hospitals"];
  * arithmetic stays whole numbers of slots.
  */
 const Testimonials = () => {
-  const { t: tr } = useTranslation();
+  const tr = useTranslations();
   const [tab, setTab] = useState<TestimonialAudience>("Patients");
   const { items } = useTestimonials();
 
@@ -66,7 +66,7 @@ const Testimonials = () => {
 
   return (
     <section className="container mx-auto py-24">
-      <h2 className="text-center font-display text-3xl md:text-4xl text-primary"><GradientWords text={tr("testimonials.heading")} /></h2>
+      <h2 className="text-center font-display text-3xl md:text-4xl text-primary">{tr.rich("testimonials.heading", gradient)}</h2>
 
       <div className="flex justify-center mt-6">
         {/* White, not muted: the section sits on the page's own off-white, and
@@ -83,7 +83,7 @@ const Testimonials = () => {
       </div>
 
       {total === 0 ? (
-        <p className="text-center text-sm text-muted-foreground mt-12">No testimonials yet.</p>
+        <p className="text-center text-sm text-muted-foreground mt-12">{tr("testimonials.none")}</p>
       ) : (
         <div
           className="relative group mt-10"
@@ -126,14 +126,14 @@ const Testimonials = () => {
           {total > perView && (
             <>
               <button
-                aria-label="Previous"
+                aria-label={tr("common.previous")}
                 onClick={() => go(index - 1)}
                 className="absolute -left-2 md:-left-5 top-1/2 -translate-y-1/2 h-11 w-11 grid place-items-center rounded-full bg-card text-primary shadow-card hover:bg-primary hover:text-primary-foreground transition opacity-0 group-hover:opacity-100"
               >
                 <ChevronLeft className="h-5 w-5" />
               </button>
               <button
-                aria-label="Next"
+                aria-label={tr("common.next")}
                 onClick={() => go(index + 1)}
                 className="absolute -right-2 md:-right-5 top-1/2 -translate-y-1/2 h-11 w-11 grid place-items-center rounded-full bg-card text-primary shadow-card hover:bg-primary hover:text-primary-foreground transition opacity-0 group-hover:opacity-100"
               >
@@ -144,7 +144,7 @@ const Testimonials = () => {
                 {Array.from({ length: maxIndex + 1 }).map((_, i) => (
                   <button
                     key={i}
-                    aria-label={`Go to slide ${i + 1}`}
+                    aria-label={tr("common.goToSlide", { n: i + 1 })}
                     onClick={() => setIndex(i)}
                     className={`h-1.5 rounded-full transition-all ${i === index ? "w-6 bg-primary" : "w-1.5 bg-primary/30 hover:bg-primary/60"}`}
                   />

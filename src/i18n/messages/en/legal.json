@@ -1,0 +1,186 @@
+{
+  "privacyPage": {
+    "onThisPage": "On this page",
+    "sections": {
+      "introduction": "Introduction",
+      "collection": "Information Collection",
+      "use": "How We Use Data",
+      "hipaa": "HIPAA Compliance",
+      "sharing": "Information Sharing",
+      "security": "Data Security",
+      "rights": "Your Rights"
+    },
+    "clarifyTitle": "Need clarification?",
+    "clarifyBody": "Our legal team is available to explain any part of this policy in plain language.",
+    "contactTeam": "Contact Privacy Team",
+    "introTitle": "1. Introduction",
+    "intro1": "Welcome to HealthFlow. We are committed to protecting your personal information and your right to privacy. If you have any questions or concerns about this privacy notice, or our practices with regards to your personal information, please contact us.",
+    "intro2": "When you use our services, you trust us with your personal health information. We take this responsibility seriously. This policy applies to all information collected through our website, mobile application, and any related services, sales, marketing, or events.",
+    "collectionTitle": "2. Information Collection",
+    "collectionBody": "We collect personal information that you voluntarily provide to us when you register on the Services, express an interest in obtaining information about us or our products and Services.",
+    "personalData": "Personal Data",
+    "personal1": "Legal name and contact information",
+    "personal2": "Biometric data (weight, age, gender)",
+    "personal3": "Insurance provider details",
+    "personal4": "Billing and payment information",
+    "healthInfo": "Health Information",
+    "health1": "Medical history and diagnosis",
+    "health2": "Prescription records",
+    "health3": "Lab test results and imaging",
+    "health4": "Provider consultation notes",
+    "useTitle": "3. How We Use Data",
+    "useBody": "We use personal information collected via our Services for a variety of business purposes described below. We process your personal information for these purposes in reliance on our legitimate business interests, in order to enter into or perform a contract with you, with your consent, and/or for compliance with our legal obligations.",
+    "uses": {
+      "delivery": { "title": "Service Delivery", "body": "To provide the restorative care services you requested and facilitate medical consultations." },
+      "improvement": { "title": "Service Improvement", "body": "Anonymized data is used to improve our clinical algorithms and patient outcomes." },
+      "protection": { "title": "Security & Protection", "body": "To protect our services and your data from fraudulent or malicious activities." }
+    },
+    "hipaaTitle": "4. HIPAA Compliance",
+    "hipaaBody": "HealthFlow is a “covered entity” under the Health Insurance Portability and Accountability Act (HIPAA). This means we are legally required to maintain the privacy of your protected health information (PHI) and to provide you with notice of our legal duties and privacy practices.",
+    "hipaaCertified": "Fully HIPAA Certified & Audited",
+    "hipaaAlt": "HIPAA compliance badge",
+    "sharingTitle": "5. Information Sharing",
+    "sharingBody": "We only share information with your consent, to comply with laws, to provide you with services, to protect your rights, or to fulfill business obligations. We never sell your personal data to advertisers.",
+    "securityTitle": "6. Data Security",
+    "securityBody": "We have implemented appropriate technical and organizational security measures designed to protect the security of any personal information we process. However, please also remember that we cannot guarantee that the internet itself is 100% secure.",
+    "securityItems": {
+      "encryption": "AES-256 Encryption",
+      "twoFactor": "2FA Mandatory",
+      "backups": "Cold Storage Backups"
+    },
+    "rightsTitle": "7. Your Rights",
+    "rightsBody": "Under certain jurisdictions (such as GDPR or CCPA), you have specific rights regarding your personal information. These may include the right to:",
+    "rights": {
+      "access": { "title": "Access & Review", "body": "Request a copy of the data we hold about you at any time." },
+      "rectification": { "title": "Rectification", "body": "Correct any inaccuracies in your personal or health records." },
+      "erasure": { "title": "Erasure", "body": "Request that we delete your personal data from our active systems." }
+    }
+  },
+  "termsPage": {
+    "toc": {
+      "acceptance": "Acceptance of Terms",
+      "definitions": "Definitions",
+      "use": "Use of Services",
+      "privacy": "Privacy & Data Protection",
+      "responsibilities": "User Responsibilities",
+      "payments": "Payments & Billing",
+      "liability": "Limitation of Liability",
+      "termination": "Termination"
+    },
+    "helpTitle": "Need help?",
+    "helpBody": "Our legal team is available for clarification regarding these Terms.",
+    "contactSupport": "Contact Support",
+    "acceptance1": "By accessing or using the HealthFlow platform, including our website, mobile applications, and telehealth services (collectively, the “Service”), you agree to be bound by these Terms and Conditions and our Privacy Policy. If you do not agree to all of these terms, you must not access or use the Service.",
+    "acceptance2": "We reserve the right to modify these terms at any time. Changes will be effective immediately upon posting to the website. Your continued use of the Service after changes are posted constitutes your acceptance of the modified terms.",
+    "definitions": {
+      "platform": { "term": "The Platform", "body": "Refers to the HealthFlow software infrastructure, interfaces, and proprietary algorithms used to connect patients and providers." },
+      "providers": { "term": "Providers", "body": "Refers to licensed medical professionals, clinics, and health practitioners utilizing our service to manage care." },
+      "users": { "term": "Users", "body": "Refers to individuals seeking medical consultation or care coordination through the HealthFlow ecosystem." },
+      "content": { "term": "Content", "body": "Includes all text, images, medical records, and interaction data generated within the secure platform environment." }
+    },
+    "useBody": "HealthFlow provides a technology platform to facilitate healthcare services. HealthFlow itself does not provide medical advice, diagnosis, or treatment. All medical decisions are made by the Providers who are independent contractors and not employees of HealthFlow.",
+    "emergencyTitle": "Emergency Notice",
+    "emergencyBody": "IF YOU ARE EXPERIENCING A MEDICAL EMERGENCY, CALL 999 OR YOUR LOCAL EMERGENCY SERVICES IMMEDIATELY. HEALTHFLOW IS NOT FOR EMERGENCY CARE.",
+    "privacyBody": "Your privacy is our highest priority. We comply with the Health Insurance Portability and Accountability Act (HIPAA) and utilize industry standard encryption to protect your Sensitive Health Information (SHI).",
+    "privacyPoints": {
+      "encryption": "Data is encrypted both in transit and at rest using AES-256 standards.",
+      "access": "Access to medical records is restricted to your authorized providers.",
+      "noSale": "We do not sell user health data to third-party advertisers."
+    },
+    "responsibilitiesBody": "To maintain a restorative and safe environment, users agree to:",
+    "responsibilities": {
+      "accurate": { "title": "Accurate Information", "body": "Provide complete and truthful health history and personal identity details." },
+      "security": { "title": "Account Security", "body": "Maintain the confidentiality of login credentials and notify us of any unauthorized access." },
+      "respect": { "title": "Respectful Interaction", "body": "Communicate with providers in a professional and respectful manner." }
+    },
+    "billingTitle": "Billing Cycles",
+    "billingBody": "Subscription fees are billed at the start of your cycle. One-time consultation fees are processed upon booking confirmation.",
+    "refundsTitle": "Refunds",
+    "refundsBody": "Cancellations made 24 hours before appointments are eligible for full refund. Subscription pro-rating applies for early termination.",
+    "liabilityBody": "To the maximum extent permitted by law, HealthFlow and its affiliates, officers, and employees shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits or revenues, whether incurred directly or indirectly.",
+    "terminationBody": "We may terminate or suspend your access to the Service immediately, without prior notice or liability, for any reason whatsoever, including without limitation if you breach the Terms.",
+    "acknowledge": "By clicking below, you acknowledge that you have read and understood these Terms.",
+    "agree": "I Agree to the Terms"
+  },
+  "cookiesPage": {
+    "kinds": {
+      "essential": { "title": "Essential", "body": "Strictly necessary for security, authentication, and core platform functions. These cannot be disabled." },
+      "functional": { "title": "Functional", "body": "Used to remember your personal preferences like language, region, and interface customization." },
+      "analytical": { "title": "Analytical", "body": "Help us understand how users interact with HealthFlow so we can improve the performance and usability." }
+    },
+    "alwaysActive": "Always Active",
+    "saved": "Preferences saved",
+    "savedDetail": "Your cookie settings have been updated.",
+    "save": "Save Preferences",
+    "questionsTitle": "Questions about Privacy?",
+    "questionsBody": "Our dedicated Privacy Officer is available to discuss your rights and help you manage your health record preferences.",
+    "contactOfficer": "Contact Privacy Officer",
+    "readFaq": "Read FAQ"
+  },
+  "dataUsePage": {
+    "sovereigntyTitle": "Data Sovereignty",
+    "sovereigntyBody": "You own your health records. HealthFlow acts as a secure custodian, ensuring your Protected Health Information (PHI) is never sold, leased, or shared with third-party advertisers. Your data remains yours, fully portable and accessible at any time.",
+    "portabilityTitle": "Portability",
+    "portabilityBody": "Export your records in industry-standard formats.",
+    "permanenceTitle": "Permanence",
+    "permanenceBody": "Your history is preserved with high-availability backups.",
+    "hipaaTitle": "HIPAA Compliant",
+    "hipaaBody": "We adhere to the highest regulatory standards for administrative, physical, and technical safeguards.",
+    "certified": "CERTIFIED SECURE ECOSYSTEM",
+    "safeguards": {
+      "encryption": { "title": "End-to-End Encryption", "body": "All data is encrypted in transit using TLS 1.3 and at rest using AES-256 standards. Even in the unlikely event of a breach, your data remains unreadable." },
+      "audit": { "title": "Audit Transparency", "body": "Every interaction with your health record is logged. You can request an accounting of disclosures at any time to see exactly who accessed your data." },
+      "consent": { "title": "Granular Consent", "body": "Control exactly which providers can see specific parts of your medical history. Toggle permissions on a per-visit or per-provider basis." }
+    },
+    "flowTitle": "How Your Information Moves",
+    "flow": {
+      "collection": { "title": "COLLECTION", "body": "We collect clinical data during visits, including symptoms, diagnoses, medications, and insurance details to facilitate care." },
+      "utilization": { "title": "UTILIZATION", "body": "Data is shared only with authorized specialists and pharmacists to provide integrated treatment and billing services." },
+      "retention": { "title": "RETENTION", "body": "We retain records for the duration required by law, typically 7-10 years, before secure deletion." }
+    },
+    "questionsTitle": "Questions about your data?",
+    "questionsBody": "Our dedicated Privacy Officer is available to discuss your rights and help you manage your health record preferences.",
+    "contactOfficer": "Contact Privacy Officer",
+    "readFaq": "Read FAQ"
+  },
+  "helpPage": {
+    "searchPlaceholder": "Search...",
+    "search": "SEARCH",
+    "popular": "Popular:",
+    "popularBooking": "Booking Appointments",
+    "popularTelehealth": "Telehealth Setup",
+    "popularInsurance": "Insurance Providers",
+    "categories": {
+      "appointments": { "title": "Appointments", "body": "Manage, reschedule, or book new physical and virtual visits." },
+      "profile": { "title": "My Profile", "body": "Updating your health records, personal data, and security." },
+      "billing": { "title": "Billing & Plans", "body": "Understanding wellness plans, payments, and insurance claims." },
+      "services": { "title": "Services", "body": "Details on diagnostic tests, organic treatments, and rehab." }
+    },
+    "articles": "{count, plural, one {# Article} other {# Articles}} →",
+    "stillTitle": "Still need help?",
+    "stillBody": "Our support team is available 24/7 for urgent care inquiries and platform assistance. Reach out via your preferred channel.",
+    "helpline": "24/7 Helpline",
+    "emailSupport": "Email Support",
+    "formTitle": "Send us a message",
+    "fullName": "FULL NAME",
+    "email": "EMAIL ADDRESS",
+    "subject": "SUBJECT",
+    "subjects": {
+      "technical": "Technical Issue",
+      "billing": "Billing Question",
+      "appointment": "Appointment Help"
+    },
+    "message": "MESSAGE",
+    "send": "Send Message",
+    "sent": "Message sent",
+    "sentDetail": "We'll respond within 24 hours.",
+    "faqBadge": "FREQUENTLY ASKED",
+    "faqTitle": "Common Questions",
+    "faqs": {
+      "telehealth": { "q": "How do I access my telehealth appointment?", "a": "Simply log into the Patient Portal 10 minutes before your scheduled time. You will see a Join Meeting button on your dashboard. Ensure your camera and microphone permissions are enabled on your browser or mobile app." },
+      "insurance": { "q": "Are your wellness plans covered by standard insurance?", "a": "Most major insurance providers cover our core wellness plans. Check with your provider or our billing team for specific coverage details." },
+      "refill": { "q": "How can I request a prescription refill?", "a": "Navigate to the Prescriptions tab in your dashboard, select the medication, and click Request Refill. Your provider will respond within 24 hours." },
+      "cancellation": { "q": "What is the cancellation policy for specialized therapy?", "a": "Cancellations made 24 hours in advance are fully refundable. Late cancellations may incur a fee of 50% of the session cost." }
+    }
+  }
+}

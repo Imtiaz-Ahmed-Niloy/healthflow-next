@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Copy, KeyRound, X, CalendarDays, MapPin, BadgeCheck, Loader2, Package, ShieldPlus, Receipt } from "lucide-react";
 import { SuperLayout } from "@/components/super/SuperLayout";
@@ -12,7 +13,7 @@ import { Modal, ConfirmDialog } from "@/components/admin/crud";
 import { statusTone } from "@/components/admin/crud";
 import { BD_DIVISIONS, BD_LOCATIONS } from "@/data/bdLocations";
 import { BD_UPAZILAS } from "@/data/bdUpazilas";
-import { HOSPITAL_FIELDS, HOSPITAL_STEPS } from "@/data/hospitalFields";
+import { useHospitalFields, useHospitalSteps } from "@/data/hospitalFields";
 import type { Database } from "@/lib/supabase/types";
 
 /**
@@ -23,6 +24,9 @@ import type { Database } from "@/lib/supabase/types";
  * /api/v1/hospitals. Approving a hospital provisions its admin login, which is
  * why credentials appear on approve rather than on create: most rows here are
  * directory listings that will never have a login.
+ *
+ * Division, district and upazila names are stored in English and filter by
+ * that value, so they show as stored.
  */
 
 type TenantRow = Database["public"]["Tables"]["tenants"]["Row"];
@@ -34,11 +38,7 @@ type H = Pick<
   | "subdistrict" | "beds" | "doctor_count" | "created_at" | "logo_url"
 > & { status: string };
 
-const STATUS_LABELS: Record<string, string> = {
-  pending: "Pending",
-  approved: "Approved",
-  suspended: "Suspended",
-};
+const STATUSES = ["pending", "approved", "suspended"] as const;
 
 type ApproveResult = {
   hospital: string;
@@ -54,6 +54,11 @@ type ApproveResult = {
 };
 
 const Page = () => {
+  const t = useTranslations("super.hospitals");
+  const statusLabel = (value: string) =>
+    (STATUSES as readonly string[]).includes(value) ? t(`statuses.${value as (typeof STATUSES)[number]}`) : value;
+  const HOSPITAL_FIELDS = useHospitalFields();
+  const HOSPITAL_STEPS = useHospitalSteps();
   const [creds, setCreds] = useState<ApproveResult | null>(null);
   const [approving, setApproving] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -90,46 +95,49 @@ const Page = () => {
   const hasFilter = !!(division || district || subdistrict || dateFrom || dateTo);
   const clearFilters = () => { setDivision(""); setDistrict(""); setSubdistrict(""); setDateFrom(""); setDateTo(""); };
 
+  const tryAgain = t("tryAgain");
+  const requestFailed = t("requestFailed");
+
   const extraFilters = (
     <div className="flex flex-wrap items-center gap-2">
       <div className="inline-flex items-center gap-1.5 bg-muted/40 rounded-full pl-3 pr-1 py-0.5">
         <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
         <select value={division} onChange={e => { setDivision(e.target.value); setDistrict(""); setSubdistrict(""); }}
-          className="h-7 bg-transparent text-xs outline-none pr-1" aria-label="Division">
-          <option value="">Division</option>
+          className="h-7 bg-transparent text-xs outline-none pr-1" aria-label={t("filters.division")}>
+          <option value="">{t("filters.division")}</option>
           {BD_DIVISIONS.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
         <select value={district} onChange={e => { setDistrict(e.target.value); setSubdistrict(""); }}
-          disabled={!division} aria-label="District"
+          disabled={!division} aria-label={t("filters.district")}
           className="h-7 bg-transparent text-xs outline-none pr-1 disabled:opacity-50">
-          <option value="">District</option>
+          <option value="">{t("filters.district")}</option>
           {districtOptions.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
         {upazilaOptions.length > 0 ? (
           <select value={subdistrict} onChange={e => setSubdistrict(e.target.value)}
-            disabled={!district} aria-label="Subdistrict"
+            disabled={!district} aria-label={t("filters.subdistrict")}
             className="h-7 bg-transparent text-xs outline-none pr-1 disabled:opacity-50">
-            <option value="">Subdistrict</option>
+            <option value="">{t("filters.subdistrict")}</option>
             {upazilaOptions.map(d => <option key={d} value={d}>{d}</option>)}
           </select>
         ) : (
           <input value={subdistrict} onChange={e => setSubdistrict(e.target.value)}
-            disabled={!district} placeholder="Subdistrict" aria-label="Subdistrict"
+            disabled={!district} placeholder={t("filters.subdistrict")} aria-label={t("filters.subdistrict")}
             className="h-7 w-28 bg-transparent text-xs outline-none disabled:opacity-50" />
         )}
       </div>
       <div className="inline-flex items-center gap-1.5 bg-muted/40 rounded-full pl-3 pr-2 py-0.5">
         <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
         <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-          className="h-7 bg-transparent text-xs outline-none" aria-label="From date" />
+          className="h-7 bg-transparent text-xs outline-none" aria-label={t("filters.from")} />
         <span className="text-xs text-muted-foreground">→</span>
         <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-          className="h-7 bg-transparent text-xs outline-none" aria-label="To date" />
+          className="h-7 bg-transparent text-xs outline-none" aria-label={t("filters.to")} />
       </div>
       {hasFilter && (
         <button onClick={clearFilters}
           className="inline-flex items-center gap-1 h-8 px-3 rounded-full text-xs font-semibold border border-border hover:bg-muted">
-          <X className="h-3.5 w-3.5" /> Clear
+          <X className="h-3.5 w-3.5" /> {t("filters.clear")}
         </button>
       )}
     </div>
@@ -151,7 +159,7 @@ const Page = () => {
       const body = await res.json();
 
       if (!res.ok) {
-        toast.error("Could not approve", { description: body?.error?.message ?? "Please try again." });
+        toast.error(t("approveFailed"), { description: body?.error?.message ?? tryAgain });
         return;
       }
 
@@ -159,16 +167,16 @@ const Page = () => {
       setRefreshKey(k => k + 1);
 
       if (result.alreadyProvisioned) {
-        toast.success("Hospital approved", {
-          description: `${result.email} already has the admin login for this hospital.`,
+        toast.success(t("approved"), {
+          description: t("alreadyProvisioned", { email: result.email }),
         });
         return;
       }
 
       setCreds(result);
-      toast.success("Approved and admin login created");
+      toast.success(t("approvedWithLogin"));
     } catch {
-      toast.error("Could not approve", { description: "The request failed. Please try again." });
+      toast.error(t("approveFailed"), { description: requestFailed });
     } finally {
       setApproving(null);
     }
@@ -197,12 +205,12 @@ const Page = () => {
           setPendingProvision(h);
           return;
         }
-        toast.error("Could not load login", { description: body?.error?.message ?? "Please try again." });
+        toast.error(t("loadFailed"), { description: body?.error?.message ?? tryAgain });
         return;
       }
       setCreds(body.data as ApproveResult);
     } catch {
-      toast.error("Could not load login", { description: "The request failed. Please try again." });
+      toast.error(t("loadFailed"), { description: requestFailed });
     } finally {
       setBusyId(null);
     }
@@ -214,13 +222,13 @@ const Page = () => {
       const res = await fetch(`/api/v1/hospitals/${h.id}/login`, { method: "PUT" });
       const body = await res.json();
       if (!res.ok) {
-        toast.error("Could not reset password", { description: body?.error?.message ?? "Please try again." });
+        toast.error(t("resetFailed"), { description: body?.error?.message ?? tryAgain });
         return;
       }
       setCreds(body.data as ApproveResult);
-      toast.success("Password reset");
+      toast.success(t("resetDone"));
     } catch {
-      toast.error("Could not reset password", { description: "The request failed. Please try again." });
+      toast.error(t("resetFailed"), { description: requestFailed });
     } finally {
       setBusyId(null);
     }
@@ -228,16 +236,16 @@ const Page = () => {
 
   const copy = (v: string, label: string) => {
     navigator.clipboard.writeText(v);
-    toast.success(`${label} copied`);
+    toast.success(t("copied", { label }));
   };
 
   return (
-    <SuperLayout title="Hospital Management" subtitle="Every hospital, filtered by status">
+    <SuperLayout title={t("title")} subtitle={t("subtitle")}>
       <ResourcePage<H> key={refreshKey} config={{
         storeKey: "super-hospitals",
         resource: "hospitals",
         searchFields: ["name", "region", "location"],
-        statuses: Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label })),
+        statuses: STATUSES.map(value => ({ value, label: statusLabel(value) })),
         extraFilters,
         filterFn,
         steps: HOSPITAL_STEPS,
@@ -251,17 +259,17 @@ const Page = () => {
                 type="button"
                 onClick={e => { e.stopPropagation(); void approve(h); }}
                 disabled={approving === h.id}
-                title="Approve and create the admin login"
+                title={t("approveTitle")}
                 className="inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-[11px] font-semibold border border-border hover:bg-muted disabled:opacity-50">
                 <BadgeCheck className="h-3.5 w-3.5" />
-                {approving === h.id ? "Approving…" : "Approve"}
+                {approving === h.id ? t("approving") : t("approve")}
               </button>
             ) : (
               <button
                 type="button"
                 onClick={e => { e.stopPropagation(); void viewLogin(h); }}
                 disabled={busyId === h.id}
-                title="View this hospital's admin login"
+                title={t("viewLogin")}
                 className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 disabled:opacity-50">
                 {busyId === h.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
               </button>
@@ -276,24 +284,24 @@ const Page = () => {
             <Link
               href={`/super/package-management?assign=${h.id}`}
               onClick={e => e.stopPropagation()}
-              title={`Assign a package to ${h.name}`}
-              aria-label={`Assign a package to ${h.name}`}
+              title={t("assignPackage", { name: h.name })}
+              aria-label={t("assignPackage", { name: h.name })}
               className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 inline-flex">
               <Package className="h-4 w-4" />
             </Link>
             <Link
               href={`/super/roles?hospital=${h.id}`}
               onClick={e => e.stopPropagation()}
-              title={`Create a role for ${h.name}`}
-              aria-label={`Create a role for ${h.name}`}
+              title={t("createRole", { name: h.name })}
+              aria-label={t("createRole", { name: h.name })}
               className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 inline-flex">
               <ShieldPlus className="h-4 w-4" />
             </Link>
             <Link
               href={`/super/billing?hospital=${h.id}`}
               onClick={e => e.stopPropagation()}
-              title={`Invoices for ${h.name}`}
-              aria-label={`Invoices for ${h.name}`}
+              title={t("invoicesFor", { name: h.name })}
+              aria-label={t("invoicesFor", { name: h.name })}
               className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 inline-flex">
               <Receipt className="h-4 w-4" />
             </Link>
@@ -301,7 +309,7 @@ const Page = () => {
         ),
         columns: [
           {
-            key: "name", label: "Hospital", sortable: true, accessor: r => r.name,
+            key: "name", label: t("columns.hospital"), sortable: true, accessor: r => r.name,
             // The logo rides in the name cell rather than taking a column of
             // its own — most hospitals have no logo yet, and a column of empty
             // squares reads as broken. Initial as the fallback.
@@ -319,14 +327,14 @@ const Page = () => {
               );
             },
           },
-          { key: "location", label: "Location", sortable: true, accessor: r => r.location || "" },
-          { key: "district", label: "District", accessor: r => r.district || "" },
+          { key: "location", label: t("columns.location"), sortable: true, accessor: r => r.location || "" },
+          { key: "district", label: t("filters.district"), accessor: r => r.district || "" },
           // accessor drives sorting, render drives display. A directory row
           // usually has no bed count, and showing "0" would claim it has none.
-          { key: "beds", label: "Beds", sortable: true, accessor: r => Number(r.beds ?? 0), render: r => r.beds ?? "—" },
-          { key: "doctor_count", label: "Doctors", accessor: r => Number(r.doctor_count ?? 0), render: r => r.doctor_count ?? "—" },
-          { key: "created_at", label: "Added", sortable: true, accessor: r => (r.created_at || "").slice(0, 10) },
-          { key: "status", label: "Status", render: r => <Pill tone={statusTone(r.status)}>{STATUS_LABELS[r.status] ?? r.status}</Pill> },
+          { key: "beds", label: t("columns.beds"), sortable: true, accessor: r => Number(r.beds ?? 0), render: r => r.beds ?? "—" },
+          { key: "doctor_count", label: t("columns.doctors"), accessor: r => Number(r.doctor_count ?? 0), render: r => r.doctor_count ?? "—" },
+          { key: "created_at", label: t("columns.added"), sortable: true, accessor: r => (r.created_at || "").slice(0, 10) },
+          { key: "status", label: t("columns.status"), render: r => <Pill tone={statusTone(r.status)}>{statusLabel(r.status)}</Pill> },
         ],
         fields: HOSPITAL_FIELDS,
       }} />
@@ -335,34 +343,26 @@ const Page = () => {
         open={!!pendingReset}
         onClose={() => setPendingReset(null)}
         onConfirm={() => pendingReset && void resetLogin(pendingReset)}
-        title="Reset this hospital admin's password?"
-        description={
-          pendingReset
-            ? `${pendingReset.name} was approved before its password could be stored, so there is nothing to show. The old password can't be recovered, only replaced. Resetting sets a new one you can view here from now on — and locks out whoever is using the old one.`
-            : undefined
-        }
+        title={t("resetTitle")}
+        description={pendingReset ? t("resetBody", { name: pendingReset.name }) : undefined}
       />
 
       <ConfirmDialog
         open={!!pendingProvision}
         onClose={() => setPendingProvision(null)}
         onConfirm={() => pendingProvision && void approve(pendingProvision)}
-        title="Create this hospital's admin login?"
-        description={
-          pendingProvision
-            ? `${pendingProvision.name} is already approved but never had an admin login created, so there is nothing to show. Creating one now generates the password you can view here from now on. It uses the hospital's main email — or the owner's — as the username, so add one first if neither is set.`
-            : undefined
-        }
+        title={t("provisionTitle")}
+        description={pendingProvision ? t("provisionBody", { name: pendingProvision.name }) : undefined}
       />
 
       <Modal
         open={!!creds}
         onClose={() => setCreds(null)}
-        title={creds?.saved === undefined ? "Hospital admin login" : "Management admin credentials generated"}
+        title={creds?.saved === undefined ? t("loginTitle") : t("generatedTitle")}
         footer={
           <button onClick={() => setCreds(null)}
             className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground">
-            Done
+            {t("done")}
           </button>
         }>
         {creds && (
@@ -370,27 +370,22 @@ const Page = () => {
             <div className="flex items-start gap-3 rounded-xl bg-muted/40 p-4">
               <KeyRound className="h-5 w-5 text-primary mt-0.5 shrink-0" />
               <p className="text-sm text-muted-foreground">
-                <span className="font-semibold text-primary">{creds.hospital}</span>&apos;s admin can sign
-                in with these. Share them securely —{" "}
-                {creds.saved === false ? (
-                  <>saving this password for later failed, so it is shown{" "}
-                    <span className="font-semibold text-primary">only once</span>. Copy it now, or use the
-                    key icon on the row to reset it.</>
-                ) : (
-                  <>you can come back to the key icon on this row and view them again at any time.</>
-                )}
+                {t.rich(creds.saved === false ? "credsOnce" : "credsSaved", {
+                  hospital: creds.hospital,
+                  b: chunks => <span className="font-semibold text-primary">{chunks}</span>,
+                })}
               </p>
             </div>
             {[
-              { label: "Email", value: creds.email },
-              { label: "Password", value: creds.password ?? "" },
+              { label: t("email"), value: creds.email },
+              { label: t("password"), value: creds.password ?? "" },
             ].map(({ label, value }) => (
               <div key={label}>
-                <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1.5">{label.toUpperCase()}</p>
+                <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1.5 uppercase">{label}</p>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 bg-muted/40 rounded-lg px-3 py-2 text-sm font-mono break-all">{value}</code>
                   <button onClick={() => copy(value, label)}
-                    className="p-2 rounded-lg border border-border hover:bg-muted" title={`Copy ${label}`}>
+                    className="p-2 rounded-lg border border-border hover:bg-muted" title={t("copy", { label })}>
                     <Copy className="h-4 w-4" />
                   </button>
                 </div>

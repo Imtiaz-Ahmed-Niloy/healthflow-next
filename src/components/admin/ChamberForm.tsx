@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { Field, Input, Select } from "@/components/admin/crud";
 import { Switch } from "@/components/ui/switch";
 import { WeeklyHoursField } from "@/components/admin/WeeklyHoursField";
@@ -75,6 +76,7 @@ export const ChamberForm = ({ draft, onChange, resetKey, doctorName }: {
   /** For showing what a chamber with no name will be called. */
   doctorName?: string;
 }) => {
+  const t = useTranslations("chamberForm");
   const districts = useMemo(() => (draft.division ? BD_LOCATIONS[draft.division] ?? [] : []), [draft.division]);
   const upazilas = useMemo(() => (draft.district ? BD_UPAZILAS[draft.district] ?? [] : []), [draft.district]);
   const set = (key: keyof ChamberDraft) =>
@@ -86,46 +88,46 @@ export const ChamberForm = ({ draft, onChange, resetKey, doctorName }: {
           them by their own. Then there is no name to type, and none prints. */}
       <label className="mb-4 flex items-center justify-between gap-4 rounded-xl bg-muted/40 p-3 cursor-pointer">
         <span>
-          <span className="block text-sm font-semibold text-primary">This chamber has a name</span>
+          <span className="block text-sm font-semibold text-primary">{t("hasName")}</span>
           <span className="block text-xs text-muted-foreground">
             {draft.has_name
-              ? "Its name heads the prescription, above the address and phone."
-              : `No name to give. Patients see it as “${madeChamberName(doctorName ?? "Dr. …", draft.location)}”, and prescriptions show just the address and phone under the doctor's name.`}
+              ? t("hasNameOn")
+              : t("hasNameOff", { name: madeChamberName(doctorName ?? "Dr. …", draft.location) })}
           </span>
         </span>
         <Switch checked={draft.has_name} onCheckedChange={has_name => onChange({ has_name })} />
       </label>
       <div className="grid sm:grid-cols-2 gap-x-4">
         {draft.has_name && (
-          <Field label="Chamber name" required>
-            <Input value={draft.name} onChange={set("name")} placeholder="Popular Diagnostic, Dhanmondi" />
+          <Field label={t("name")} required>
+            <Input value={draft.name} onChange={set("name")} placeholder={t("namePlaceholder")} />
           </Field>
         )}
-        <Field label="Phone for appointments">
+        <Field label={t("phone")}>
           <Input type="tel" value={draft.phone} onChange={set("phone")} placeholder="01…" />
         </Field>
       </div>
-      <Field label="Address">
-        <Input value={draft.address} onChange={set("address")} placeholder="House, road, building or floor" />
+      <Field label={t("address")}>
+        <Input value={draft.address} onChange={set("address")} placeholder={t("addressPlaceholder")} />
       </Field>
       <div className="grid sm:grid-cols-2 gap-x-4">
-        <Field label="Area">
+        <Field label={t("area")}>
           <Input value={draft.location} onChange={set("location")} placeholder="Dhanmondi" />
         </Field>
-        <Field label="Division">
+        <Field label={t("division")}>
           <Select value={draft.division} onChange={e => onChange({ division: e.target.value, district: "", subdistrict: "" })}>
             <option value="">—</option>
             {BD_DIVISIONS.map(d => <option key={d} value={d}>{d}</option>)}
           </Select>
         </Field>
-        <Field label="District">
+        <Field label={t("district")}>
           <Select value={draft.district} disabled={!draft.division}
             onChange={e => onChange({ district: e.target.value, subdistrict: "" })}>
             <option value="">—</option>
             {districts.map(d => <option key={d} value={d}>{d}</option>)}
           </Select>
         </Field>
-        <Field label="Upazila">
+        <Field label={t("upazila")}>
           {upazilas.length ? (
             <Select value={draft.subdistrict} onChange={set("subdistrict")} disabled={!draft.district}>
               <option value="">—</option>
@@ -135,12 +137,12 @@ export const ChamberForm = ({ draft, onChange, resetKey, doctorName }: {
             <Input value={draft.subdistrict} onChange={set("subdistrict")} disabled={!draft.district} />
           )}
         </Field>
-        <Field label="Consultation fee">
+        <Field label={t("fee")}>
           <Input type="number" min={0} step="0.01" value={draft.consultation_fee} onChange={set("consultation_fee")} />
         </Field>
       </div>
-      <Field label="Hours at this chamber">
-        <WeeklyHoursField key={resetKey} seed={() => draft.week} onChange={week => onChange({ week })} summaryLabel="Patients see" />
+      <Field label={t("hours")}>
+        <WeeklyHoursField key={resetKey} seed={() => draft.week} onChange={week => onChange({ week })} summaryLabel={t("patientsSee")} />
       </Field>
     </>
   );

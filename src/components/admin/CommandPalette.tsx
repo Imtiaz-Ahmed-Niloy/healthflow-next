@@ -3,20 +3,27 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Modal } from "./crud";
 import { adminNav } from "./AdminLayout";
 import { superNav } from "@/components/super/SuperLayout";
 
 export const CommandPalette = ({ open, onClose, scope }: { open: boolean; onClose: () => void; scope: "admin" | "super" }) => {
+  const t = useTranslations("adminNav");
+  const ts = useTranslations("superNav");
   const [q, setQ] = useState("");
   const router = useRouter();
-  const items = (scope === "admin" ? adminNav : superNav).filter(i => i.label.toLowerCase().includes(q.toLowerCase()));
+  // Search what the reader sees, not the English key underneath.
+  const labelled = scope === "admin"
+    ? adminNav.map(i => ({ to: i.to, icon: i.icon, label: t(`links.${i.key}`) }))
+    : superNav.map(i => ({ to: i.to, icon: i.icon, label: ts(`links.${i.key}`) }));
+  const items = labelled.filter(i => i.label.toLowerCase().includes(q.toLowerCase()));
   useEffect(() => { if (!open) setQ(""); }, [open]);
   return (
-    <Modal open={open} onClose={onClose} title="Quick navigate" size="md">
+    <Modal open={open} onClose={onClose} title={t("quickNavigate")} size="md">
       <div className="flex items-center gap-2 bg-muted/40 rounded-full px-4 py-2 mb-4">
         <Search className="h-4 w-4 text-muted-foreground" />
-        <input autoFocus value={q} onChange={e => setQ(e.target.value)} className="bg-transparent outline-none text-sm flex-1" placeholder="Jump to…" />
+        <input autoFocus value={q} onChange={e => setQ(e.target.value)} className="bg-transparent outline-none text-sm flex-1" placeholder={t("jumpTo")} />
       </div>
       <ul className="space-y-1 max-h-80 overflow-y-auto">
         {items.map(i => (

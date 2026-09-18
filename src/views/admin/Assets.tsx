@@ -1,6 +1,7 @@
 "use client";
 
 import { Boxes, CheckCircle2, Wrench, Archive } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ResourcePage } from "@/components/admin/ResourcePage";
 import { Kpi, Pill } from "@/components/admin/ui";
@@ -19,14 +20,7 @@ const ASSET_CATEGORIES = [
 ];
 
 /** Stored lowercase to match doctors, nurses, support staff and lab tests. */
-const ASSET_STATUSES = [
-  { value: "active", label: "Active" },
-  { value: "maintenance", label: "Maintenance" },
-  { value: "retired", label: "Retired" },
-];
-
-const assetStatusLabel = (value: string) =>
-  ASSET_STATUSES.find(s => s.value === value)?.label ?? value;
+const ASSET_STATUSES = ["active", "maintenance", "retired"] as const;
 
 /**
  * Every count comes from the server's `meta.total`, which is an exact count
@@ -50,6 +44,7 @@ const n = (value?: number) => (value === undefined ? "—" : String(value));
  * tiles with it.
  */
 const AssetSummary = () => {
+  const t = useTranslations("admin.assets");
   const total = useAssetCount();
   const active = useAssetCount("active");
   const maintenance = useAssetCount("maintenance");
@@ -57,42 +52,51 @@ const AssetSummary = () => {
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-      <Kpi icon={Boxes} label="Total Assets" value={n(total)} tone="primary" />
-      <Kpi icon={CheckCircle2} label="Active" value={n(active)} tone="accent" />
-      <Kpi icon={Wrench} label="In Maintenance" value={n(maintenance)} tone="destructive" />
-      <Kpi icon={Archive} label="Retired" value={n(retired)} tone="chip" />
+      <Kpi icon={Boxes} label={t("kpi.total")} value={n(total)} tone="primary" />
+      <Kpi icon={CheckCircle2} label={t("kpi.active")} value={n(active)} tone="accent" />
+      <Kpi icon={Wrench} label={t("kpi.maintenance")} value={n(maintenance)} tone="destructive" />
+      <Kpi icon={Archive} label={t("kpi.retired")} value={n(retired)} tone="chip" />
     </div>
   );
 };
 
-const Page = () => (
-  <AdminLayout title="Asset Management" subtitle="Equipment, devices and maintenance">
-    <AssetSummary />
-    <ResourcePage<AssetRow> config={{
-      storeKey: "assets",
-      resource: "assets",
-      searchFields: ["tag", "name", "location"],
-      statuses: ASSET_STATUSES,
-      columns: [
-        { key: "tag", label: "Tag", sortable: true, accessor: r => r.tag, render: r => <span className="font-mono text-xs">{r.tag}</span> },
-        { key: "name", label: "Asset", sortable: true, accessor: r => r.name, render: r => <span className="font-semibold text-primary">{r.name}</span> },
-        { key: "category", label: "Category", sortable: true, accessor: r => r.category ?? "", render: r => <span>{r.category || "—"}</span> },
-        { key: "location", label: "Location", render: r => <span>{r.location || "—"}</span> },
-        { key: "assignee", label: "Assignee", render: r => <span>{r.assignee || "—"}</span> },
-        { key: "purchased_at", label: "Purchased", sortable: true, accessor: r => r.purchased_at ?? "", render: r => <span>{r.purchased_at || "—"}</span> },
-        { key: "status", label: "Status", render: r => <Pill tone={statusTone(r.status)}>{assetStatusLabel(r.status)}</Pill> },
-      ],
-      fields: [
-        { name: "tag", label: "Asset tag", type: "text", required: true },
-        { name: "name", label: "Asset name", type: "text", required: true },
-        { name: "category", label: "Category", type: "select", options: ASSET_CATEGORIES },
-        { name: "location", label: "Location", type: "text" },
-        { name: "assignee", label: "Assignee", type: "text" },
-        { name: "purchased_at", label: "Purchase date", type: "date" },
-        { name: "status", label: "Status", type: "select", options: ASSET_STATUSES },
-        { name: "notes", label: "Notes", type: "textarea" },
-      ],
-    }} />
-  </AdminLayout>
-);
+const Page = () => {
+  const t = useTranslations("admin.assets");
+  const statusLabel = (value: string) =>
+    (ASSET_STATUSES as readonly string[]).includes(value)
+      ? t(`statuses.${value as (typeof ASSET_STATUSES)[number]}`)
+      : value;
+  const statuses = ASSET_STATUSES.map(value => ({ value, label: statusLabel(value) }));
+
+  return (
+    <AdminLayout title={t("title")} subtitle={t("subtitle")}>
+      <AssetSummary />
+      <ResourcePage<AssetRow> config={{
+        storeKey: "assets",
+        resource: "assets",
+        searchFields: ["tag", "name", "location"],
+        statuses,
+        columns: [
+          { key: "tag", label: t("columns.tag"), sortable: true, accessor: r => r.tag, render: r => <span className="font-mono text-xs">{r.tag}</span> },
+          { key: "name", label: t("columns.asset"), sortable: true, accessor: r => r.name, render: r => <span className="font-semibold text-primary">{r.name}</span> },
+          { key: "category", label: t("columns.category"), sortable: true, accessor: r => r.category ?? "", render: r => <span>{r.category || "—"}</span> },
+          { key: "location", label: t("columns.location"), render: r => <span>{r.location || "—"}</span> },
+          { key: "assignee", label: t("columns.assignee"), render: r => <span>{r.assignee || "—"}</span> },
+          { key: "purchased_at", label: t("columns.purchased"), sortable: true, accessor: r => r.purchased_at ?? "", render: r => <span>{r.purchased_at || "—"}</span> },
+          { key: "status", label: t("columns.status"), render: r => <Pill tone={statusTone(r.status)}>{statusLabel(r.status)}</Pill> },
+        ],
+        fields: [
+          { name: "tag", label: t("fields.tag"), type: "text", required: true },
+          { name: "name", label: t("fields.name"), type: "text", required: true },
+          { name: "category", label: t("fields.category"), type: "select", options: ASSET_CATEGORIES },
+          { name: "location", label: t("fields.location"), type: "text" },
+          { name: "assignee", label: t("fields.assignee"), type: "text" },
+          { name: "purchased_at", label: t("fields.purchased"), type: "date" },
+          { name: "status", label: t("fields.status"), type: "select", options: statuses },
+          { name: "notes", label: t("fields.notes"), type: "textarea" },
+        ],
+      }} />
+    </AdminLayout>
+  );
+};
 export default Page;

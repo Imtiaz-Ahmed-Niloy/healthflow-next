@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { HomeContent } from "@/data/homeContent";
 
 /**
@@ -18,12 +19,13 @@ import type { HomeContent } from "@/data/homeContent";
  * `<name>-2400.webp`, and keep nothing important near the top or bottom edge,
  * which is where the frame cuts on narrow screens.
  */
+// Each picture's description is in the messages, under hero.images.<name>.
 const HERO_IMAGES = [
-  { name: "diagnostic", alt: "A CT scanner in a hospital imaging room" },
-  { name: "microscope", alt: "A microscope and workstation on a clinical laboratory bench" },
-  { name: "infusion", alt: "A nurse setting the rate on an infusion pump beside a patient monitor" },
-  { name: "corridor", alt: "A bright hospital corridor lined with clinical departments" },
-];
+  { name: "diagnostic" },
+  { name: "microscope" },
+  { name: "infusion" },
+  { name: "corridor" },
+] as const;
 
 /** Both widths of one picture, as the `src`/`srcSet` pair an `img` wants. */
 const sources = (name: string) => ({
@@ -47,6 +49,7 @@ const CROSSFADE = { duration: 0.9, ease: "easeInOut" } as const;
 const SLIDE_MS = 5000;
 
 const Hero = ({ content }: { content: HomeContent }) => {
+  const t = useTranslations("hero");
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const reduceMotion = useReducedMotion();
@@ -135,7 +138,7 @@ const Hero = ({ content }: { content: HomeContent }) => {
                 key={active.name}
                 {...sources(active.name)}
                 sizes={SIZES}
-                alt={active.alt}
+                alt={t(`images.${active.name}`)}
                 width={1600}
                 height={1200}
                 // The first slide is the largest thing above the fold, so it is

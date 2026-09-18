@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Command as CommandPrimitive } from "cmdk";
 import { Plus } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 /**
  * A text box that suggests from a list as you type, and still takes free
@@ -33,6 +34,7 @@ const rank = (name: string, q: string, words: string[], wordStarts: RegExp[]) =>
 };
 
 export const SuggestInput = ({ value, onChange, onPick, suggestions, placeholder, limit = 8 }: SuggestInputProps) => {
+  const t = useTranslations("pickers");
   const [open, setOpen] = useState(true);
   const q = value.trim().toLowerCase();
 
@@ -91,7 +93,7 @@ export const SuggestInput = ({ value, onChange, onPick, suggestions, placeholder
               className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
             >
               <Plus className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">Add &ldquo;{value.trim()}&rdquo;</span>
+              <span className="truncate">{t("addTyped", { value: value.trim() })}</span>
             </CommandPrimitive.Item>
           )}
         </CommandPrimitive.List>

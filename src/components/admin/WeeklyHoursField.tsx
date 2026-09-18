@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { Copy } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import {
-  DAYS, defaultWeek, formatDay, parseWeek, serialiseWeek, summariseWeek,
+  DAYS, dayLabel, defaultWeek, formatDay, parseWeek, serialiseWeek, summariseWeek,
   type DayHours, type DayKey, type WeekHours,
 } from "@/lib/hours";
 
@@ -27,14 +28,17 @@ import {
  * hospital ends up claiming to be shut and open at once.
  */
 export const WeeklyHoursField = ({
-  name, defaultValue, seed, onChange, summaryLabel = "Visitors see",
+  name, defaultValue, seed, onChange, summaryLabel,
 }: {
   name?: string;
   defaultValue?: unknown;
   seed?: (value: unknown) => WeekHours;
   onChange?: (week: WeekHours) => void;
+  /** Defaults to "Visitors see", in the reader's language. */
   summaryLabel?: string;
 }) => {
+  const t = useTranslations("weeklyHours");
+  const locale = useLocale();
   const [week, setWeek] = useState<WeekHours>(() =>
     seed ? seed(defaultValue) : parseWeek(defaultValue) ?? defaultWeek());
 
@@ -45,7 +49,7 @@ export const WeeklyHoursField = ({
   const copyToAll = (key: DayKey) =>
     update(DAYS.reduce((next, d) => ({ ...next, [d.key]: week[key] }), {} as WeekHours));
 
-  const summary = summariseWeek(week);
+  const summary = summariseWeek(week, locale);
 
   return (
     <div className="space-y-3">
@@ -54,9 +58,10 @@ export const WeeklyHoursField = ({
       <div className="rounded-xl border border-border/60 divide-y divide-border/40 overflow-hidden">
         {DAYS.map(d => {
           const day = week[d.key];
+          const label = dayLabel(d.key, locale);
           return (
             <div key={d.key} className="flex flex-wrap items-center gap-2 px-3 py-2 hover:bg-muted/30">
-              <span className="w-24 shrink-0 text-sm font-medium text-foreground/80">{d.label}</span>
+              <span className="w-24 shrink-0 text-sm font-medium text-foreground/80">{label}</span>
 
               <select
                 value={day.mode}
@@ -73,9 +78,9 @@ export const WeeklyHoursField = ({
                 }}
                 className="bg-muted/40 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary"
               >
-                <option value="hours">Open</option>
-                <option value="24h">24 hours</option>
-                <option value="closed">Closed</option>
+                <option value="hours">{t("open")}</option>
+                <option value="24h">{t("open24")}</option>
+                <option value="closed">{t("closed")}</option>
               </select>
 
               {day.mode === "hours" ? (
@@ -86,7 +91,7 @@ export const WeeklyHoursField = ({
                     onChange={e => setDay(d.key, { ...day, open: e.target.value })}
                     className="bg-muted/40 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary"
                   />
-                  <span className="text-xs text-muted-foreground">to</span>
+                  <span className="text-xs text-muted-foreground">{t("to")}</span>
                   <input
                     type="time"
                     value={day.close}
@@ -95,16 +100,16 @@ export const WeeklyHoursField = ({
                   />
                 </div>
               ) : (
-                <span className="text-xs text-muted-foreground italic">{formatDay(day)}</span>
+                <span className="text-xs text-muted-foreground italic">{formatDay(day, locale)}</span>
               )}
 
               <button
                 type="button"
                 onClick={() => copyToAll(d.key)}
-                title={`Copy ${d.label} to every day`}
+                title={t("copyDay", { day: label })}
                 className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-muted-foreground border border-transparent hover:border-border hover:text-primary"
               >
-                <Copy className="h-3 w-3" /> Copy to all
+                <Copy className="h-3 w-3" /> {t("copyToAll")}
               </button>
             </div>
           );
@@ -114,7 +119,7 @@ export const WeeklyHoursField = ({
       {/* What a visitor will actually be shown. The editor is seven rows; the
           public page collapses them, so the admin should see that collapse. */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-        <span className="font-semibold uppercase tracking-wide">{summaryLabel}</span>
+        <span className="font-semibold uppercase tracking-wide">{summaryLabel ?? t("visitorsSee")}</span>
         {summary.map(row => (
           <span key={row.days} className="rounded-full bg-muted/50 px-2.5 py-1">
             <span className="font-medium text-foreground/70">{row.days}</span> · {row.hours}

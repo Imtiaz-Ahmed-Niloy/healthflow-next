@@ -5,7 +5,9 @@ import { useState, useEffect, useMemo } from "react";
 import { Calendar, ChevronLeft, ChevronRight, ClipboardList, Heart } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { useLocale, useTranslations } from "next-intl";
 import { PortalLayout } from "@/components/portal/PortalLayout";
+import { displayTime } from "@/lib/availability";
 
 type Appointment = {
   id: string;
@@ -24,11 +26,7 @@ type Appointment = {
   } | null;
 };
 
-const daysOfWeek = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
-const monthsList = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December"
-];
+const WEEK_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
 type ScheduleStats = {
   avgWaitMinutes: number | null;
@@ -44,16 +42,14 @@ const formatDateKey = (d: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-const formatTime = (t: string) => {
-  const [hh, mm] = t.split(":");
-  const h = parseInt(hh, 10);
-  return `${((h + 11) % 12 + 1)}:${mm} ${h >= 12 ? "PM" : "AM"}`;
-};
-
 const initials = (name: string) =>
   name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
 
 const Schedule = () => {
+  const t = useTranslations("portal.schedule");
+  const locale = useLocale();
+  const dateLocale = locale === "bn" ? "bn-BD-u-nu-latn" : "en-US";
+  const formatTime = (time: string) => displayTime(time, locale);
   const [view, setView] = useState<ViewMode>("split");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [stats, setStats] = useState<ScheduleStats>({ avgWaitMinutes: null, satisfaction: null });
@@ -140,18 +136,18 @@ const Schedule = () => {
     <PortalLayout>
       <div className="flex items-start justify-between flex-wrap gap-6">
         <div className="max-w-2xl">
-          <h1 className="font-display text-5xl text-primary">Schedule</h1>
-          <p className="text-sm text-muted-foreground mt-3">Manage your daily appointments and monthly availability at a glance. Review patient history before every consultation.</p>
+          <h1 className="font-display text-5xl text-primary">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground mt-3">{t("subtitle")}</p>
         </div>
         <div className="flex items-center rounded-full bg-chip p-1 border border-border/60">
           <button
-            onClick={() => { setView("split"); toast.info("Split view"); }}
+            onClick={() => { setView("split"); toast.info(t("splitView")); }}
             className={`rounded-full px-5 py-2 text-sm font-semibold transition-colors ${view === "split" ? "bg-card text-primary shadow-soft" : "text-foreground/60 hover:text-primary"}`}
-          >Split View</button>
+          >{t("splitView")}</button>
           <button
-            onClick={() => { setView("list"); toast.info("List view"); }}
+            onClick={() => { setView("list"); toast.info(t("listView")); }}
             className={`rounded-full px-5 py-2 text-sm font-semibold transition-colors ${view === "list" ? "bg-card text-primary shadow-soft" : "text-foreground/60 hover:text-primary"}`}
-          >List View</button>
+          >{t("listView")}</button>
         </div>
       </div>
 
@@ -166,10 +162,10 @@ const Schedule = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="font-display text-2xl text-primary">
-                  {selectedDateKey === todayKey ? "Today's Agenda" : "Agenda"}
+                  {selectedDateKey === todayKey ? t("todaysAgenda") : t("agenda")}
                 </h2>
                 <p className="text-[10px] tracking-widest font-bold text-primary-glow mt-1">
-                  {selectedDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }).toUpperCase()}
+                  {selectedDate.toLocaleDateString(dateLocale, { month: "long", day: "numeric", year: "numeric" }).toUpperCase()}
                 </p>
               </div>
               <div className="h-10 w-10 rounded-full bg-chip flex items-center justify-center text-primary"><Calendar className="h-5 w-5" /></div>
@@ -178,7 +174,7 @@ const Schedule = () => {
             <div className="mt-6 space-y-3 max-h-[500px] overflow-y-auto pr-1">
               {agendaAppointments.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground">
-                  No appointments scheduled for this day.
+                  {t("noneThisDay")}
                 </div>
               ) : (
                 agendaAppointments.map((a, i) => (
@@ -188,17 +184,17 @@ const Schedule = () => {
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-semibold text-primary bg-card px-2 py-0.5 rounded-md border border-border/40">{formatTime(a.scheduled_time)}</span>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${a.status === "completed" ? "bg-emerald-500/10 text-emerald-500" : a.status === "cancelled" ? "bg-destructive/15 text-destructive" : "bg-chip text-primary"}`}>
-                        {a.status}
+                        {t(`statuses.${a.status}`)}
                       </span>
                     </div>
-                    <p className="font-semibold text-primary mt-3">{a.patient?.full_name || "Unknown Patient"}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{a.reason || "No reason specified"}</p>
+                    <p className="font-semibold text-primary mt-3">{a.patient?.full_name || t("unknownPatient")}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{a.reason || t("noReason")}</p>
                     {multiHospital && <p className="text-xs font-semibold text-primary-glow mt-1">{a.hospital.name}</p>}
                     <div className="flex items-center gap-2 mt-3">
                       <div className="h-5 w-5 rounded-full bg-chip flex items-center justify-center font-display text-[9px] text-primary">
                         {initials(a.patient?.full_name ?? "?")}
                       </div>
-                      <span className="text-[11px] text-foreground/70 capitalize">{a.priority} Priority</span>
+                      <span className="text-[11px] text-foreground/70">{t(`priority.${a.priority}`)}</span>
                     </div>
                   </motion.div>
                 ))
@@ -206,7 +202,7 @@ const Schedule = () => {
             </div>
 
             <Link href="/portal/queue" className="mt-5 block text-center w-full rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-primary hover:bg-chip/40 transition-colors">
-              {todayAppointmentsCount > 0 ? `View All ${todayAppointmentsCount} Appointments` : "View Today's Queue"}
+              {todayAppointmentsCount > 0 ? t("viewAll", { count: todayAppointmentsCount }) : t("viewQueue")}
             </Link>
           </motion.div>
 
@@ -214,18 +210,18 @@ const Schedule = () => {
           <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="rounded-3xl bg-card border border-border/60 p-6 shadow-soft">
             <div className="flex items-center justify-between">
               <h2 className="font-display text-3xl text-primary">
-                {monthsList[currentDate.getMonth()]} {currentDate.getFullYear()}
+                {currentDate.toLocaleDateString(dateLocale, { month: "long", year: "numeric" })}
               </h2>
               <div className="flex items-center gap-2">
-                <button onClick={handlePrevMonth} className="h-9 w-9 rounded-full border border-border flex items-center justify-center hover:bg-chip"><ChevronLeft className="h-4 w-4" /></button>
-                <button onClick={handleToday} className="rounded-full bg-chip border border-border px-5 py-2 text-sm font-semibold text-primary">Today</button>
-                <button onClick={handleNextMonth} className="h-9 w-9 rounded-full border border-border flex items-center justify-center hover:bg-chip"><ChevronRight className="h-4 w-4" /></button>
+                <button onClick={handlePrevMonth} aria-label={t("prevMonth")} className="h-9 w-9 rounded-full border border-border flex items-center justify-center hover:bg-chip"><ChevronLeft className="h-4 w-4" /></button>
+                <button onClick={handleToday} className="rounded-full bg-chip border border-border px-5 py-2 text-sm font-semibold text-primary">{t("today")}</button>
+                <button onClick={handleNextMonth} aria-label={t("nextMonth")} className="h-9 w-9 rounded-full border border-border flex items-center justify-center hover:bg-chip"><ChevronRight className="h-4 w-4" /></button>
               </div>
             </div>
 
             <div className="mt-6 rounded-2xl bg-muted/30 p-4 border border-border/40">
               <div className="grid grid-cols-7 gap-2 text-[10px] tracking-widest font-bold text-muted-foreground pb-3 border-b border-border/50">
-                {daysOfWeek.map(d => <div key={d} className="text-center">{d}</div>)}
+                {WEEK_DAYS.map(d => <div key={d} className="text-center">{t(`weekDays.${d}`)}</div>)}
               </div>
               <div className="grid grid-cols-7 gap-2 mt-3">
                 {calendarGrid.map((date, i) => {
@@ -252,17 +248,17 @@ const Schedule = () => {
                       </p>
 
                       {isToday && !isSelected && (
-                        <div className="mt-1 text-[9px] bg-primary-glow/15 text-primary-glow font-semibold rounded px-1.5 py-0.5">Today</div>
+                        <div className="mt-1 text-[9px] bg-primary-glow/15 text-primary-glow font-semibold rounded px-1.5 py-0.5">{t("today")}</div>
                       )}
 
                       {activeAppts.length > 0 && (
                         <div className="mt-1 space-y-1">
                           <div className={`text-[9px] rounded px-1.5 py-0.5 font-semibold ${isSelected ? "bg-primary-foreground/20 text-primary-foreground" : "bg-chip text-primary-glow"}`}>
-                            {activeAppts.length} {activeAppts.length === 1 ? "slot" : "slots"}
+                            {t("slots", { count: activeAppts.length })}
                           </div>
                           {activeAppts.some(a => a.priority === "high") && (
                             <div className={`text-[9px] rounded px-1.5 py-0.5 font-semibold ${isSelected ? "bg-destructive text-white" : "bg-destructive/15 text-destructive"}`}>
-                              High
+                              {t("high")}
                             </div>
                           )}
                         </div>
@@ -275,11 +271,11 @@ const Schedule = () => {
 
             <div className="flex items-center justify-between mt-5 flex-wrap gap-3">
               <div className="flex items-center gap-5 text-xs text-foreground/70">
-                <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-primary" /> Selected</span>
-                <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-primary-glow" /> Available slots</span>
-                <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-destructive" /> High Priority</span>
+                <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-primary" /> {t("legend.selected")}</span>
+                <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-primary-glow" /> {t("legend.slots")}</span>
+                <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-destructive" /> {t("legend.high")}</span>
               </div>
-              <button onClick={() => toast.success("Calendar exported")} className="text-sm font-semibold text-primary hover:underline">↓ Export Calendar</button>
+              <button onClick={() => toast.success(t("exported"))} className="text-sm font-semibold text-primary hover:underline">{t("export")}</button>
             </div>
           </motion.div>
         </div>
@@ -287,15 +283,15 @@ const Schedule = () => {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-8 rounded-3xl bg-card border border-border/60 p-6 shadow-soft">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h2 className="font-display text-2xl text-primary">All Appointments</h2>
-              <p className="text-[10px] tracking-widest font-bold text-primary-glow mt-1">MONTHLY SCHEDULE</p>
+              <h2 className="font-display text-2xl text-primary">{t("allAppointments")}</h2>
+              <p className="text-[10px] tracking-widest font-bold text-primary-glow mt-1">{t("monthlySchedule")}</p>
             </div>
             <div className="h-10 w-10 rounded-full bg-chip flex items-center justify-center text-primary"><ClipboardList className="h-5 w-5" /></div>
           </div>
           <div className="divide-y divide-border/50 max-h-[600px] overflow-y-auto pr-2">
             {appointments.length === 0 ? (
               <div className="py-12 text-center text-sm text-muted-foreground">
-                No appointments found.
+                {t("noneFound")}
               </div>
             ) : (
               appointments.map((a, i) => (
@@ -309,14 +305,14 @@ const Schedule = () => {
                     {initials(a.patient?.full_name ?? "?")}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-primary">{a.patient?.full_name || "Unknown Patient"}</p>
-                    <p className="text-xs text-muted-foreground">{a.reason || "No reason specified"}{multiHospital && ` · ${a.hospital.name}`}</p>
+                    <p className="font-semibold text-primary">{a.patient?.full_name || t("unknownPatient")}</p>
+                    <p className="text-xs text-muted-foreground">{a.reason || t("noReason")}{multiHospital && ` · ${a.hospital.name}`}</p>
                   </div>
-                  <span className="hidden md:inline text-[11px] text-foreground/70 bg-muted/50 px-2 py-1 rounded-md capitalize">{a.priority} Priority</span>
+                  <span className="hidden md:inline text-[11px] text-foreground/70 bg-muted/50 px-2 py-1 rounded-md">{t(`priority.${a.priority}`)}</span>
                   <span className={`text-xs px-2 py-1 rounded-full font-bold uppercase ${a.status === "completed" ? "bg-emerald-500/10 text-emerald-500" : a.status === "cancelled" ? "bg-destructive/15 text-destructive" : "bg-chip text-primary"}`}>
-                    {a.status}
+                    {t(`statuses.${a.status}`)}
                   </span>
-                  <Link href={`/portal/prescription?appointment=${a.id}`} className="rounded-full bg-gradient-dark text-surface-dark-foreground px-4 py-2 text-xs font-semibold hover:opacity-90 shadow-glow">Open</Link>
+                  <Link href={`/portal/prescription?appointment=${a.id}`} className="rounded-full bg-gradient-dark text-surface-dark-foreground px-4 py-2 text-xs font-semibold hover:opacity-90 shadow-glow">{t("open")}</Link>
                 </motion.div>
               ))
             )}
@@ -326,15 +322,15 @@ const Schedule = () => {
 
       <div className="grid md:grid-cols-3 gap-5 mt-8">
         <div className="rounded-2xl bg-chip/60 p-6 flex items-center justify-between">
-          <div><p className="text-[10px] tracking-widest font-bold text-primary-glow">AVG WAITING TIME</p><p className="font-display text-4xl text-primary mt-2">{stats.avgWaitMinutes !== null ? `${stats.avgWaitMinutes} min` : "—"}</p></div>
+          <div><p className="text-[10px] tracking-widest font-bold text-primary-glow">{t("avgWait")}</p><p className="font-display text-4xl text-primary mt-2">{stats.avgWaitMinutes !== null ? t("minutes", { count: stats.avgWaitMinutes }) : "—"}</p></div>
           <div className="h-12 w-12 rounded-xl bg-card flex items-center justify-center text-primary"><Calendar className="h-5 w-5" /></div>
         </div>
         <div className="rounded-2xl bg-chip/60 p-6 flex items-center justify-between">
-          <div><p className="text-[10px] tracking-widest font-bold text-primary-glow">PATIENTS SEEN</p><p className="font-display text-4xl text-primary mt-2">{totalSeen}</p></div>
+          <div><p className="text-[10px] tracking-widest font-bold text-primary-glow">{t("patientsSeen")}</p><p className="font-display text-4xl text-primary mt-2">{totalSeen}</p></div>
           <div className="h-12 w-12 rounded-xl bg-card flex items-center justify-center text-primary"><ClipboardList className="h-5 w-5" /></div>
         </div>
         <div className="rounded-2xl bg-gradient-dark text-surface-dark-foreground p-6 flex items-center justify-between shadow-glow">
-          <div><p className="text-[10px] tracking-widest font-bold opacity-80">SATISFACTION</p><p className="font-display text-4xl mt-2">{stats.satisfaction !== null ? `${stats.satisfaction.toFixed(1)}/5` : "—"}</p></div>
+          <div><p className="text-[10px] tracking-widest font-bold opacity-80">{t("satisfaction")}</p><p className="font-display text-4xl mt-2">{stats.satisfaction !== null ? `${stats.satisfaction.toFixed(1)}/5` : "—"}</p></div>
           <div className="h-12 w-12 rounded-xl bg-surface-dark-foreground/10 flex items-center justify-center"><Heart className="h-5 w-5" /></div>
         </div>
       </div>

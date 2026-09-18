@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale } from "next-intl/server";
 import "./globals.css";
 import Providers from "@/components/providers";
 import ReduxProvider from "@/redux/provider";
@@ -35,10 +37,12 @@ export default async function RootLayout({
   // the ones a super admin has unpublished. Cached for 60s, so this does not
   // make every route in the app dynamic.
   const publishedPaths = await getPublishedPaths();
+  // Bangla or English, from the language cookie (src/i18n/request.ts).
+  const locale = await getLocale();
 
   return (
     <html
-      lang="en"
+      lang={locale}
       // globals.css scrolls smoothly for in-page links. This keeps page-to-page
       // navigation an instant jump to the top, which Next.js 16 no longer does
       // on its own.
@@ -46,11 +50,14 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <ReduxProvider>
-          <PublishedPathsProvider paths={publishedPaths}>
-            <Providers>{children}</Providers>
-          </PublishedPathsProvider>
-        </ReduxProvider>
+        {/* Hands the language and its messages to every client screen. */}
+        <NextIntlClientProvider>
+          <ReduxProvider>
+            <PublishedPathsProvider paths={publishedPaths}>
+              <Providers>{children}</Providers>
+            </PublishedPathsProvider>
+          </ReduxProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

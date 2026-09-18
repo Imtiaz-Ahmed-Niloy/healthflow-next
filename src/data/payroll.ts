@@ -110,7 +110,9 @@ export const processRun = async (runId: string) => {
   const response = await fetch(`/api/v1/payroll-runs/${runId}/process`, { method: "POST" });
   const body = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(body?.error?.message ?? "Could not process this payroll run");
+    // No fallback wording here: the caller's toast already says the run
+    // failed, in the admin's language. This carries only the server's reason.
+    throw new Error(body?.error?.message ?? "");
   }
   return body.data as { headcount: number; gross: number; net: number };
 };

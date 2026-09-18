@@ -1,6 +1,7 @@
 "use client";
 
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { admissionsApi, type AdmissionRow } from "@/redux/api/resources";
 import { useTransferBedMutation } from "@/redux/api/bedTransfers";
 import { useNotifications } from "@/components/admin/NotificationProvider";
@@ -52,6 +53,7 @@ export const useAdmitPatient = () => {
   const [createAdmission, createState] = admissionsApi.useCreate();
   const [transferBed, transferState] = useTransferBedMutation();
   const { notify } = useNotifications();
+  const t = useTranslations("admin.admissions.admit");
 
   const admit = async (input: AdmitInput): Promise<boolean> => {
     const { bed_id, cabin_id, patientName, ...fields } = input;
@@ -61,7 +63,7 @@ export const useAdmitPatient = () => {
       const result = await createAdmission(fields).unwrap();
       admission = result.data as AdmissionRow;
     } catch (cause) {
-      toast.error(errorMessage(cause, "Could not create the admission"));
+      toast.error(errorMessage(cause, t("createFailed")));
       return false;
     }
 
@@ -70,18 +72,18 @@ export const useAdmitPatient = () => {
         await transferBed({ admission_id: admission.id, bed_id, cabin_id }).unwrap();
       } catch (cause) {
         toast.error(
-          errorMessage(cause, "Admitted, but the bed/cabin could not be assigned — use Transfer to assign one"),
+          errorMessage(cause, t("placeFailed")),
         );
         return true;
       }
     }
 
-    toast.success("Patient admitted");
+    toast.success(t("done"));
     // News, not an acknowledgement: a bed changed hands, and the ward desk on
     // the next shift needs that whether or not they were watching this screen.
     void notify({
       kind: "patient.admitted",
-      title: patientName ? `${patientName} admitted` : "A patient was admitted",
+      title: patientName ? t("notice", { name: patientName }) : t("noticeAnon"),
       body: input.diagnosis || undefined,
       tone: "info",
       entity_type: "admissions",

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/i18n/config";
 import { hospitals as staticHospitals, baseLabTests, baseRooms, baseManagement, type Hospital, type Doctor } from "@/data/hospitals";
 import { slugify } from "@/lib/slug";
 import { mediaUrl } from "@/lib/media";
@@ -193,13 +195,28 @@ type PublicDoctor = {
  * submits every field as a string), so it is split back into the array the
  * card joins with bullets.
  */
-const mapPublicToDoctor = (r: PublicDoctor): Doctor => ({
-  name: r.name || "Unnamed doctor",
-  specialty: r.specialty || "General",
+/**
+ * The words the mapping fills gaps with, in the page's language (messages:
+ * hospitalData). The mapping runs for the current language each render, so a
+ * switch relabels the list without a refetch.
+ */
+type Words = {
+  unnamedDoctor: string;
+  general: string;
+  byAppointment: string;
+  untitled: string;
+  partner: string;
+  verified: string;
+  defaultHours: { day: string; time: string }[];
+};
+
+const mapPublicToDoctor = (r: PublicDoctor, w: Words, locale: Locale): Doctor => ({
+  name: r.name || w.unnamedDoctor,
+  specialty: r.specialty || w.general,
   experience: Number(r.experience_years) || 0,
   rating: Number(r.rating) || 0,
   fee: Number(r.consultation_fee) || 0,
-  available: availabilityLabel(r.availability) || "By appointment",
+  available: availabilityLabel(r.availability, locale) || w.byAppointment,
   photo: mediaUrl(r.photo_url),
   education: r.education || "",
   languages: splitList(r.languages),
@@ -218,15 +235,15 @@ const mapPublicToDoctor = (r: PublicDoctor): Doctor => ({
  * doctors on every hospital in the country, complete with fees and ratings, on
  * a page the public reads as the hospital's own roster.
  */
-const mapPublicToHospital = (r: PublicHospital, doctors: Doctor[] = []): Hospital => {
+const mapPublicToHospital = (r: PublicHospital, w: Words, locale: Locale, doctors: Doctor[] = []): Hospital => {
   const phones = contactList(r.contact_phone, r.additional_phones);
   const emails = contactList(r.contact_email, r.additional_emails);
   const websites = contactList(null, r.websites);
 
   return {
     slug: r.slug || slugify(r.name || r.id || ""),
-    name: r.name || "Untitled hospital",
-    tag: r.tagline || "Partner hospital",
+    name: r.name || w.untitled,
+    tag: r.tagline || w.partner,
     location: hospitalLocation(r),
     division: r.division,
     district: r.district,
@@ -238,7 +255,7 @@ const mapPublicToHospital = (r: PublicHospital, doctors: Doctor[] = []): Hospita
     doctors: Number(r.doctor_count) || 0,
     founded: Number(r.founded_year) || new Date().getFullYear(),
     specialties: splitList(r.specialties),
-    cert: "Verified partner",
+    cert: w.verified,
     phone: phones[0] ?? "",
     email: emails[0] ?? "",
     website: websites[0] ?? "",
@@ -265,12 +282,8 @@ const mapPublicToHospital = (r: PublicHospital, doctors: Doctor[] = []): Hospita
     // that is a product decision rather than part of this change.
     hours: (() => {
       const week = parseWeek(r.opening_hours);
-      if (week) return summariseWeek(week).map(row => ({ day: row.days, time: row.hours }));
-      return [
-        { day: "Mon – Fri", time: "9:00 AM – 6:00 PM" },
-        { day: "Sat – Sun", time: "10:00 AM – 4:00 PM" },
-        { day: "Emergency", time: "24 Hours" },
-      ];
+      if (week) return summariseWeek(week, locale).map(row => ({ day: row.days, time: row.hours }));
+      return w.defaultHours;
     })(),
     doctors_list: doctors,
     lab_tests: baseLabTests,
@@ -290,7 +303,9 @@ const mapPublicToHospital = (r: PublicHospital, doctors: Doctor[] = []): Hospita
  * Before 0008 this job was done by reading the super admin's localStorage, so
  * the public site only ever showed hospitals typed in the same browser.
  */
-const fetchApproved = async (): Promise<Hospital[]> => {
+type ApprovedRows = { hospitals: PublicHospital[]; doctors: PublicDoctor[] };
+
+const fetchApproved = async (): Promise<ApprovedRows> => {
   // Both views in parallel. `doctors_public` (0022) is already filtered to
   // active doctors at approved hospitals, so no extra guard is needed here —
   // and it carries hospital_slug, so the two are joined in memory rather than
@@ -300,21 +315,45 @@ const fetchApproved = async (): Promise<Hospital[]> => {
     supabase.from("doctors_public").select("*").order("rating", { ascending: false, nullsFirst: false }),
   ]);
 
-  if (hospitalRes.error || !hospitalRes.data) return [];
+  if (hospitalRes.error || !hospitalRes.data) return { hospitals: [], doctors: [] };
 
   // A failed doctor read must not blank the hospital list — the page is still
   // worth rendering without its roster.
+  return {
+    hospitals: hospitalRes.data.filter((r) => r.name),
+    doctors: (doctorRes.data ?? []) as PublicDoctor[],
+  };
+};
+
+/** The rows as hospitals, labelled in the page's language. */
+const buildHospitals = (rows: ApprovedRows, w: Words, locale: Locale): Hospital[] => {
   const bySlug = new Map<string, Doctor[]>();
-  for (const row of (doctorRes.data ?? []) as PublicDoctor[]) {
+  for (const row of rows.doctors) {
     if (!row.hospital_slug || !row.name) continue;
     const list = bySlug.get(row.hospital_slug);
-    if (list) list.push(mapPublicToDoctor(row));
-    else bySlug.set(row.hospital_slug, [mapPublicToDoctor(row)]);
+    if (list) list.push(mapPublicToDoctor(row, w, locale));
+    else bySlug.set(row.hospital_slug, [mapPublicToDoctor(row, w, locale)]);
   }
+  return rows.hospitals.map((r) => mapPublicToHospital(r, w, locale, r.slug ? bySlug.get(r.slug) ?? [] : []));
+};
 
-  return hospitalRes.data
-    .filter((r) => r.name)
-    .map((r) => mapPublicToHospital(r, r.slug ? bySlug.get(r.slug) ?? [] : []));
+const useWords = (): Words => {
+  const t = useTranslations("hospitalData");
+  return {
+    unnamedDoctor: t("unnamedDoctor"),
+    general: t("general"),
+    byAppointment: t("byAppointment"),
+    untitled: t("untitled"),
+    partner: t("partner"),
+    verified: t("verified"),
+    // Invented and always was: a hospital that never set its hours still
+    // shows these (see mapPublicToHospital).
+    defaultHours: [
+      { day: t("weekdays"), time: "9:00 AM – 6:00 PM" },
+      { day: t("weekend"), time: "10:00 AM – 4:00 PM" },
+      { day: t("emergency"), time: t("allDay") },
+    ],
+  };
 };
 
 /** Injects admin-managed doctors and lab tests into whichever hospitals match. */
@@ -352,15 +391,20 @@ export const getAllHospitals = (): Hospital[] =>
   withLocalExtras(dedupeBySlug([...staticHospitals]));
 
 const useApprovedHospitals = () => {
-  const [approved, setApproved] = useState<Hospital[]>([]);
+  const [rows, setRows] = useState<ApprovedRows>({ hospitals: [], doctors: [] });
   const [loading, setLoading] = useState(true);
   const [localTick, setLocalTick] = useState(0);
+  const locale = useLocale();
+  const w = useWords();
+  // `w` is rebuilt each render; the words only change with the language.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const approved = useMemo(() => buildHospitals(rows, w, locale), [rows, locale]);
 
   useEffect(() => {
     let active = true;
-    void fetchApproved().then((rows) => {
+    void fetchApproved().then((fetched) => {
       if (!active) return;
-      setApproved(rows);
+      setRows(fetched);
       setLoading(false);
     });
     return () => { active = false; };

@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Hotel, Calendar, BedDouble, ArrowRight, ShieldCheck, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import { Label } from "@/components/ui/label";
 const allRooms = hospitals.flatMap((h) => h.rooms.map((r) => ({ ...r, hospital: h })));
 
 const RoomReservation = () => {
+  const t = useTranslations("roomReservation");
   const params = useSearchParams();
   const initial = params?.get("room");
   const initialHospital = params?.get("hospital");
@@ -31,18 +33,18 @@ const RoomReservation = () => {
       <Navbar />
       <main className="container mx-auto py-12">
         <Link href="/hospitals" className="inline-flex items-center gap-1.5 text-sm text-primary mb-6">
-          <ArrowLeft className="h-4 w-4" /> Back to Hospitals
+          <ArrowLeft className="h-4 w-4" /> {t("back")}
         </Link>
 
         <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1 text-[11px] font-semibold uppercase tracking-wider">
-          <Hotel className="h-3 w-3" /> Reservation
+          <Hotel className="h-3 w-3" /> {t("badge")}
         </span>
-        <h1 className="font-display text-5xl text-primary mt-3">Reserve a Room</h1>
-        <p className="text-muted-foreground mt-2 max-w-2xl">Choose your room category, dates and confirm. We&apos;ll prepare your space and send a check-in pass.</p>
+        <h1 className="font-display text-5xl text-primary mt-3">{t("title")}</h1>
+        <p className="text-muted-foreground mt-2 max-w-2xl">{t("intro")}</p>
 
         <div className="grid lg:grid-cols-[1fr_380px] gap-8 mt-10">
           <div>
-            <h2 className="font-display text-2xl text-primary mb-4">Available Rooms</h2>
+            <h2 className="font-display text-2xl text-primary mb-4">{t("available")}</h2>
             <div className="grid sm:grid-cols-2 gap-4">
               {allRooms.map((r, i) => {
                 const active = selected.type === r.type && selected.hospital.slug === r.hospital.slug;
@@ -57,14 +59,14 @@ const RoomReservation = () => {
                       </div>
                       <div className="text-right shrink-0">
                         <p className="font-display text-xl text-primary">${r.price}</p>
-                        <p className="text-[10px] text-muted-foreground">/ night</p>
+                        <p className="text-[10px] text-muted-foreground">{t("perNight")}</p>
                       </div>
                     </div>
                     <div className="mt-3 text-[11px] text-muted-foreground inline-flex items-center gap-1.5"><BedDouble className="h-3 w-3" />{r.capacity} · {r.size}</div>
                     <p className="text-xs text-foreground/70 mt-2 line-clamp-2">{r.amenities}</p>
                     <div className="mt-3 flex items-center justify-between text-[11px]">
-                      <span className={r.available === 0 ? "text-destructive" : "text-primary"}>{r.available} of {r.total} available</span>
-                      {active && <span className="inline-flex items-center gap-1 text-primary font-semibold"><CheckCircle2 className="h-3 w-3" />Selected</span>}
+                      <span className={r.available === 0 ? "text-destructive" : "text-primary"}>{t("availableOf", { available: r.available, total: r.total })}</span>
+                      {active && <span className="inline-flex items-center gap-1 text-primary font-semibold"><CheckCircle2 className="h-3 w-3" />{t("selected")}</span>}
                     </div>
                   </motion.button>
                 );
@@ -73,33 +75,33 @@ const RoomReservation = () => {
           </div>
 
           <aside className="rounded-3xl bg-card border border-border/60 shadow-card p-6 sticky top-24 self-start">
-            <h2 className="font-display text-xl text-primary">Booking Summary</h2>
+            <h2 className="font-display text-xl text-primary">{t("summary")}</h2>
             <div className="mt-4 space-y-1">
               <p className="font-display text-2xl text-primary">{selected.type}</p>
               <p className="text-sm text-muted-foreground">{selected.hospital.name} · {selected.hospital.location}</p>
             </div>
 
-            <form onSubmit={(e) => { e.preventDefault(); if (selected.available === 0) return toast.error("Room is full"); toast.success("Reservation confirmed", { description: `${selected.type} · ${nights} nights · $${total}` }); }}
+            <form onSubmit={(e) => { e.preventDefault(); if (selected.available === 0) return toast.error(t("full")); toast.success(t("confirmed"), { description: t("confirmedDetail", { room: selected.type, nights, total }) }); }}
               className="mt-5 space-y-4">
               <div>
-                <Label className="text-[11px] uppercase tracking-widest font-bold text-muted-foreground" required>Check-in date</Label>
+                <Label className="text-[11px] uppercase tracking-widest font-bold text-muted-foreground" required>{t("checkIn")}</Label>
                 <Input required type="date" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} className="mt-2 rounded-xl" />
               </div>
               <div>
-                <Label className="text-[11px] uppercase tracking-widest font-bold text-muted-foreground" required>Nights</Label>
+                <Label className="text-[11px] uppercase tracking-widest font-bold text-muted-foreground" required>{t("nights")}</Label>
                 <Input required type="number" min={1} max={60} value={nights} onChange={(e) => setNights(Math.max(1, Number(e.target.value)))} className="mt-2 rounded-xl" />
               </div>
 
               <div className="rounded-2xl bg-accent/20 p-4 space-y-1.5 text-sm">
-                <div className="flex justify-between text-foreground/70"><span>Rate</span><span>${selected.price} × {nights}</span></div>
-                <div className="flex justify-between text-foreground/70"><span>Service fee</span><span>$0</span></div>
-                <div className="flex justify-between font-display text-primary text-lg pt-2 border-t border-border/40"><span>Total</span><span>${total}</span></div>
+                <div className="flex justify-between text-foreground/70"><span>{t("rate")}</span><span>${selected.price} × {nights}</span></div>
+                <div className="flex justify-between text-foreground/70"><span>{t("serviceFee")}</span><span>$0</span></div>
+                <div className="flex justify-between font-display text-primary text-lg pt-2 border-t border-border/40"><span>{t("total")}</span><span>${total}</span></div>
               </div>
 
               <button className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-glow inline-flex items-center justify-center gap-2">
-                Confirm Reservation <ArrowRight className="h-4 w-4" />
+                {t("confirm")} <ArrowRight className="h-4 w-4" />
               </button>
-              <p className="text-[11px] text-muted-foreground inline-flex items-center gap-1"><ShieldCheck className="h-3 w-3" />Free cancellation up to 48h before check-in</p>
+              <p className="text-[11px] text-muted-foreground inline-flex items-center gap-1"><ShieldCheck className="h-3 w-3" />{t("cancellation")}</p>
             </form>
           </aside>
         </div>

@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useSpecialties } from "@/hooks/useSpecialties";
@@ -20,7 +21,7 @@ import { useSpecialties } from "@/hooks/useSpecialties";
 /** The admin forms' input look (components/admin/crud). */
 const TRIGGER = "w-full flex items-center justify-between gap-2 bg-muted/40 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary text-sm text-left";
 
-export const SpecialtySelect = ({ value, onChange, name, defaultValue = "", placeholder = "Select a specialty…", className = TRIGGER, icon, noneLabel = "No specialty" }: {
+export const SpecialtySelect = ({ value, onChange, name, defaultValue = "", placeholder, className = TRIGGER, icon, noneLabel }: {
   value?: string;
   onChange?: (value: string) => void;
   /** For a FormData form: writes a hidden input with this name. */
@@ -34,6 +35,7 @@ export const SpecialtySelect = ({ value, onChange, name, defaultValue = "", plac
   /** The option that clears it — "All specialties" when it's a filter. */
   noneLabel?: string;
 }) => {
+  const t = useTranslations("pickers");
   const { specialties } = useSpecialties();
   const [open, setOpen] = useState(false);
   const [own, setOwn] = useState(defaultValue);
@@ -56,7 +58,7 @@ export const SpecialtySelect = ({ value, onChange, name, defaultValue = "", plac
           <button type="button" aria-haspopup="listbox" className={className}>
             <span className="flex min-w-0 items-center gap-2">
               {icon}
-              <span className={`truncate ${current ? "" : "text-muted-foreground"}`}>{current || placeholder}</span>
+              <span className={`truncate ${current ? "" : "text-muted-foreground"}`}>{current || (placeholder ?? t("selectSpecialty"))}</span>
             </span>
             <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
           </button>
@@ -64,13 +66,13 @@ export const SpecialtySelect = ({ value, onChange, name, defaultValue = "", plac
         {/* Above the admin Modal (z-60), which these forms often sit in. */}
         <PopoverContent align="start" className="z-[70] w-[var(--radix-popover-trigger-width)] min-w-56 p-0">
           <Command>
-            <CommandInput placeholder="Search specialties…" />
+            <CommandInput placeholder={t("searchSpecialties")} />
             <CommandList>
-              <CommandEmpty>No specialty found.</CommandEmpty>
+              <CommandEmpty>{t("noSpecialtyFound")}</CommandEmpty>
               <CommandGroup>
                 {current && (
                   <CommandItem value="__none__" onSelect={() => choose("")} className="text-muted-foreground">
-                    <span className="w-4" /> {noneLabel}
+                    <span className="w-4" /> {noneLabel ?? t("noSpecialty")}
                   </CommandItem>
                 )}
                 {options.map(s => (

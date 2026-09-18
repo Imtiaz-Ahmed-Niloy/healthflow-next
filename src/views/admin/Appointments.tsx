@@ -2,33 +2,34 @@
 
 import { useMemo, useState } from "react";
 import { Stethoscope } from "lucide-react";
-import { format } from "date-fns";
+import { useTranslations } from "next-intl";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ResourcePage } from "@/components/admin/ResourcePage";
 import { Pill } from "@/components/admin/ui";
 import { statusTone } from "@/components/admin/crud";
 import { doctorsApi, patientsApi, type AppointmentRow } from "@/redux/api/resources";
-import { useBookingClock } from "@/lib/appSettings";
+import { useBookingClock, useFormatters } from "@/lib/appSettings";
 
 /**
  * Mirrors appointment_status (0020_appointments.sql) exactly — the mock this
  * replaced had the same three statuses, nothing added.
  */
-const STATUSES = [
-  { value: "scheduled", label: "Scheduled" },
-  { value: "completed", label: "Completed" },
-  { value: "cancelled", label: "Cancelled" },
-];
-
-const statusLabel = (value: string) =>
-  STATUSES.find(s => s.value === value)?.label ?? value;
+const STATUSES = ["scheduled", "completed", "cancelled"] as const;
 
 /** Sentinel for the "not attached to any doctor" filter. Not a doctor id. */
 const UNASSIGNED = "unassigned";
 
 const Page = () => {
+  const t = useTranslations("admin.appointments");
   const [doctorFilter, setDoctorFilter] = useState<string>("all");
   const clock = useBookingClock();
+  const { formatDate } = useFormatters();
+
+  const statusLabel = (value: string) =>
+    (STATUSES as readonly string[]).includes(value)
+      ? t(`statuses.${value as (typeof STATUSES)[number]}`)
+      : value;
+  const statuses = STATUSES.map(value => ({ value, label: statusLabel(value) }));
 
   // Both lists are small enough to load whole; patients feeds the form's
   // picker, doctors feeds both the form's picker and the filter above the
@@ -40,9 +41,9 @@ const Page = () => {
   const doctors = useMemo(() => doctorsData?.data ?? [], [doctorsData]);
 
   const patientOptions = useMemo(() => [
-    { value: "", label: patientsLoading ? "Loading patients…" : "— Select a patient —" },
+    { value: "", label: patientsLoading ? t("loadingPatients") : t("selectPatient") },
     ...patients.map(p => ({ value: p.id, label: `${p.full_name} (${p.mrn})` })),
-  ], [patients, patientsLoading]);
+  ], [patients, patientsLoading, t]);
 
   /**
    * The blank option comes first and carries the empty string, so a new
@@ -51,34 +52,34 @@ const Page = () => {
    * list.
    */
   const doctorOptions = useMemo(() => [
-    { value: "", label: doctorsLoading ? "Loading doctors…" : "— Not assigned —" },
+    { value: "", label: doctorsLoading ? t("loadingDoctors") : t("notAssignedOption") },
     ...doctors.map(d => ({
       value: d.id,
       label: d.specialty ? `${d.name} · ${d.specialty}` : d.name,
     })),
-  ], [doctors, doctorsLoading]);
+  ], [doctors, doctorsLoading, t]);
 
   return (
-    <AdminLayout title="Appointment Management" subtitle="Hospital-wide booking queue">
+    <AdminLayout title={t("title")} subtitle={t("subtitle")}>
       <ResourcePage<AppointmentRow> config={{
         storeKey: "appointments",
         resource: "appointments",
         exportName: "appointments",
-        addLabel: "Add Appointment",
+        addLabel: t("add"),
 
         // Patient/doctor names live on embedded relations — PostgREST's `or`
         // filter can't reach into those, so this only searches the two real
         // top-level text columns. The doctor filter below covers the rest.
         searchFields: ["department", "notes"],
-        statuses: STATUSES,
+        statuses,
 
         extraFilters: (
           <div className="inline-flex items-center gap-1.5 bg-muted/40 rounded-full pl-3 pr-1 py-0.5">
             <Stethoscope className="h-3.5 w-3.5 text-muted-foreground" />
             <select value={doctorFilter} onChange={e => setDoctorFilter(e.target.value)}
-              className="h-7 bg-transparent text-xs outline-none pr-1" aria-label="Filter by doctor">
-              <option value="all">All doctors</option>
-              <option value={UNASSIGNED}>Not assigned</option>
+              className="h-7 bg-transparent text-xs outline-none pr-1" aria-label={t("filterByDoctor")}>
+              <option value="all">{t("allDoctors")}</option>
+              <option value={UNASSIGNED}>{t("notAssigned")}</option>
               {doctors.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
@@ -90,39 +91,39 @@ const Page = () => {
 
         columns: [
           {
-            key: "patient_id", label: "Patient", sortable: true,
+            key: "patient_id", label: t("columns.patient"), sortable: true,
             accessor: r => r.patients?.full_name ?? "",
             render: r => r.patients
               ? <span className="font-semibold text-primary">{r.patients.full_name}</span>
-              : <span className="text-muted-foreground">Unknown patient</span>,
+              : <span className="text-muted-foreground">{t("unknownPatient")}</span>,
           },
           {
-            key: "doctor_id", label: "Doctor", sortable: true,
+            key: "doctor_id", label: t("columns.doctor"), sortable: true,
             accessor: r => r.doctors?.name ?? "",
             render: r => r.doctors
               ? <span>{r.doctors.name}</span>
-              : <span className="text-muted-foreground">Not assigned</span>,
+              : <span className="text-muted-foreground">{t("notAssigned")}</span>,
           },
-          { key: "department", label: "Department", render: r => r.department || "—" },
+          { key: "department", label: t("columns.department"), render: r => r.department || "—" },
           {
-            key: "scheduled_date", label: "Date", sortable: true, accessor: r => r.scheduled_date,
-            render: r => format(new Date(`${r.scheduled_date}T00:00:00`), "MMM d, yyyy"),
+            key: "scheduled_date", label: t("columns.date"), sortable: true, accessor: r => r.scheduled_date,
+            render: r => formatDate(r.scheduled_date),
           },
           // HH:mm:ss from Postgres' time column — trimmed to HH:mm for display.
-          { key: "scheduled_time", label: "Time", render: r => r.scheduled_time.slice(0, 5) },
-          { key: "status", label: "Status", render: r => <Pill tone={statusTone(r.status)}>{statusLabel(r.status)}</Pill> },
+          { key: "scheduled_time", label: t("columns.time"), render: r => r.scheduled_time.slice(0, 5) },
+          { key: "status", label: t("columns.status"), render: r => <Pill tone={statusTone(r.status)}>{statusLabel(r.status)}</Pill> },
         ],
 
         fields: [
-          { name: "patient_id", label: "Patient", type: "select", options: patientOptions, required: true },
-          { name: "doctor_id", label: "Doctor", type: "select", options: doctorOptions },
-          { name: "department", label: "Department", type: "text" },
+          { name: "patient_id", label: t("fields.patient"), type: "select", options: patientOptions, required: true },
+          { name: "doctor_id", label: t("fields.doctor"), type: "select", options: doctorOptions },
+          { name: "department", label: t("fields.department"), type: "text" },
           // Not before today on the hospital's calendar (global settings). An
           // existing appointment keeps its own date as the floor — see minFor.
-          { name: "scheduled_date", label: "Date", type: "date", required: true, min: clock.today },
-          { name: "scheduled_time", label: "Time", type: "time", required: true },
-          { name: "status", label: "Status", type: "select", options: STATUSES },
-          { name: "notes", label: "Notes", type: "textarea", fullWidth: true },
+          { name: "scheduled_date", label: t("fields.date"), type: "date", required: true, min: clock.today },
+          { name: "scheduled_time", label: t("fields.time"), type: "time", required: true },
+          { name: "status", label: t("fields.status"), type: "select", options: statuses },
+          { name: "notes", label: t("fields.notes"), type: "textarea", fullWidth: true },
         ],
       }} />
     </AdminLayout>

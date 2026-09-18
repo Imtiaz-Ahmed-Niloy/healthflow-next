@@ -10,6 +10,9 @@
  * the same arithmetic.
  */
 
+import type { Locale } from "@/i18n/config";
+import { libWords } from "@/i18n/libText";
+
 const parts = (at: Date, timeZone: string) => {
   const map: Record<string, string> = {};
   new Intl.DateTimeFormat("en-US", {
@@ -40,11 +43,11 @@ export const nowTimeIn = (timeZone: string, at: Date = new Date()) => {
  * today, or earlier today than now, has already happened. Times compare as
  * HH:MM strings, which sort correctly when both are zero-padded.
  */
-export const pastSlotReason = (date: string, time: string, timeZone: string, at: Date = new Date()) => {
+export const pastSlotReason = (date: string, time: string, timeZone: string, at: Date = new Date(), locale?: Locale) => {
   const today = todayIn(timeZone, at);
-  if (date < today) return "That date has already passed. Pick today or a later date.";
+  if (date < today) return libWords(locale).datePassed;
   if (date === today && time.slice(0, 5) <= nowTimeIn(timeZone, at)) {
-    return "That time has already passed. Pick a later time.";
+    return libWords(locale).timePassed;
   }
   return null;
 };

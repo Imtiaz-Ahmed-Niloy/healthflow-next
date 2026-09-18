@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Kpi } from "@/components/admin/ui";
 import { Users, Stethoscope, BedDouble, Calendar } from "lucide-react";
@@ -13,6 +14,7 @@ type DashboardData = {
 };
 
 const Dashboard = () => {
+  const t = useTranslations("admin.dashboard");
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -37,22 +39,22 @@ const Dashboard = () => {
   }, []);
 
   return (
-    <AdminLayout title="Executive Dashboard" subtitle="Real-time hospital operations overview">
+    <AdminLayout title={t("title")} subtitle={t("subtitle")}>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Kpi
           icon={Users}
-          label="Total Patients"
+          label={t("totalPatients")}
           value={loading ? "—" : (data?.patients.total ?? 0).toLocaleString()}
         />
         <Kpi
           icon={Stethoscope}
-          label="Active Doctors"
+          label={t("activeDoctors")}
           value={loading ? "—" : (data?.doctors.active ?? 0).toLocaleString()}
           tone="accent"
         />
         <Kpi
           icon={BedDouble}
-          label="Available Beds"
+          label={t("availableBeds")}
           value={
             loading
               ? "—"
@@ -62,7 +64,7 @@ const Dashboard = () => {
         />
         <Kpi
           icon={Calendar}
-          label="Upcoming Appointments"
+          label={t("upcomingAppointments")}
           value={loading ? "—" : (data?.appointments.upcoming ?? 0).toLocaleString()}
         />
       </div>

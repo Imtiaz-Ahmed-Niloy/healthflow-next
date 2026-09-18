@@ -1,6 +1,7 @@
 "use client";
 
 import { FileText } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ResourcePage } from "@/components/admin/ResourcePage";
 import { Pill } from "@/components/admin/ui";
@@ -16,14 +17,7 @@ import type { PersonalFileRow } from "@/redux/api/resources";
 const FOLDERS = ["Contracts", "Licenses", "Policies", "Confidential", "HR", "Other"];
 
 /** Stored lowercase, like every other status in the schema. */
-const FILE_STATUSES = [
-  { value: "active", label: "Active" },
-  { value: "draft", label: "Draft" },
-  { value: "archived", label: "Archived" },
-];
-
-const statusLabel = (value: string) =>
-  FILE_STATUSES.find(s => s.value === value)?.label ?? value;
+const FILE_STATUSES = ["active", "draft", "archived"] as const;
 
 /** 740 KB rather than 757760. Binary units, which is what a file manager shows. */
 const humanSize = (bytes: number | null) => {
@@ -37,19 +31,25 @@ const humanSize = (bytes: number | null) => {
 };
 
 const Page = () => {
+  const t = useTranslations("admin.personalFiles");
   const { formatDate } = useFormatters();
+  const statusLabel = (value: string) =>
+    (FILE_STATUSES as readonly string[]).includes(value)
+      ? t(`statuses.${value as (typeof FILE_STATUSES)[number]}`)
+      : value;
+  const statuses = FILE_STATUSES.map(value => ({ value, label: statusLabel(value) }));
 
   return (
-    <AdminLayout title="Personal & Confidential Files" subtitle="Documents, contracts and policies">
+    <AdminLayout title={t("title")} subtitle={t("subtitle")}>
       <ResourcePage<PersonalFileRow> config={{
         storeKey: "personal-files",
         resource: "personal-files",
         searchFields: ["title", "folder", "owner"],
-        statuses: FILE_STATUSES,
+        statuses,
         columns: [
-          { key: "folder", label: "Folder", sortable: true, accessor: r => r.folder },
+          { key: "folder", label: t("columns.folder"), sortable: true, accessor: r => r.folder },
           {
-            key: "title", label: "File", sortable: true, accessor: r => r.title,
+            key: "title", label: t("columns.file"), sortable: true, accessor: r => r.title,
             render: r => (
               // Never the bucket's public address — /api/v1/documents checks
               // the caller and hands back a link good for a minute.
@@ -62,22 +62,22 @@ const Page = () => {
                 : <span className="font-semibold text-primary">{r.title}</span>
             ),
           },
-          { key: "owner", label: "Owner", render: r => <span>{r.owner || "—"}</span> },
-          { key: "size_bytes", label: "Size", sortable: true, accessor: r => String(r.size_bytes ?? ""), render: r => <span>{humanSize(r.size_bytes)}</span> },
-          { key: "updated_at", label: "Updated", sortable: true, accessor: r => r.updated_at, render: r => <span>{formatDate(r.updated_at)}</span> },
-          { key: "status", label: "Status", render: r => <Pill tone={statusTone(r.status)}>{statusLabel(r.status)}</Pill> },
+          { key: "owner", label: t("columns.owner"), render: r => <span>{r.owner || "—"}</span> },
+          { key: "size_bytes", label: t("columns.size"), sortable: true, accessor: r => String(r.size_bytes ?? ""), render: r => <span>{humanSize(r.size_bytes)}</span> },
+          { key: "updated_at", label: t("columns.updated"), sortable: true, accessor: r => r.updated_at, render: r => <span>{formatDate(r.updated_at)}</span> },
+          { key: "status", label: t("columns.status"), render: r => <Pill tone={statusTone(r.status)}>{statusLabel(r.status)}</Pill> },
         ],
         fields: [
-          { name: "folder", label: "Folder", type: "select", options: FOLDERS },
-          { name: "title", label: "File name", type: "text", required: true },
-          { name: "owner", label: "Owner", type: "text" },
+          { name: "folder", label: t("fields.folder"), type: "select", options: FOLDERS },
+          { name: "title", label: t("fields.title"), type: "text", required: true },
+          { name: "owner", label: t("fields.owner"), type: "text" },
           // The size posts itself from the upload — see sizeField.
           {
-            name: "file_key", label: "Document", type: "document", sizeField: "size_bytes",
-            hint: "Drag the PDF here, or click to choose. Up to 10MB. Leave empty to log a document held elsewhere.",
+            name: "file_key", label: t("fields.document"), type: "document", sizeField: "size_bytes",
+            hint: t("documentHint"),
           },
-          { name: "status", label: "Status", type: "select", options: FILE_STATUSES },
-          { name: "notes", label: "Notes", type: "textarea" },
+          { name: "status", label: t("fields.status"), type: "select", options: statuses },
+          { name: "notes", label: t("fields.notes"), type: "textarea" },
         ],
       }} />
     </AdminLayout>

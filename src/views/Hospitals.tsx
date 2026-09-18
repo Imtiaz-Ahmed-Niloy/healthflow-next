@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { MapPin, Award, Star, Phone, ArrowLeft, Search, BedDouble, Stethoscope, SlidersHorizontal, X } from "lucide-react";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
@@ -62,6 +63,10 @@ const FilterSelect = ({
 );
 
 const Hospitals = () => {
+  const t = useTranslations("directory");
+  const tf = useTranslations("searchBar");
+  const th = useTranslations("hospitalCard");
+  const tc = useTranslations("common");
   const [query, setQuery] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const [division, setDivision] = useState("");
@@ -100,13 +105,13 @@ const Hospitals = () => {
       <main className="container mx-auto py-16">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
           <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-primary hover:gap-2 transition-all mb-6">
-            <ArrowLeft className="h-4 w-4" /> Back to Home
+            <ArrowLeft className="h-4 w-4" /> {t("backHome")}
           </Link>
 
           <div className="mb-10">
-            <h1 className="font-display text-4xl md:text-5xl text-primary">All Eco-Certified Hospitals</h1>
+            <h1 className="font-display text-4xl md:text-5xl text-primary">{t("hospitalsTitle")}</h1>
             <p className="text-muted-foreground mt-3 max-w-xl">
-              Browse our full network of carbon-neutral, biophilically engineered healing centers across the country.
+              {t("hospitalsSubtitle")}
             </p>
           </div>
 
@@ -118,13 +123,13 @@ const Hospitals = () => {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className="flex-1 bg-transparent px-3 py-2 text-base outline-none placeholder:text-muted-foreground"
-                placeholder="Search hospitals by name, city, specialty..."
+                placeholder={t("hospitalsPlaceholder")}
               />
               {query && (
                 <button
                   onClick={() => setQuery("")}
                   className="mr-2 h-7 w-7 rounded-full hover:bg-chip flex items-center justify-center"
-                  aria-label="Clear search"
+                  aria-label={tc("clearSearch")}
                 >
                   <X className="h-4 w-4 text-muted-foreground" />
                 </button>
@@ -145,26 +150,26 @@ const Hospitals = () => {
                 aria-expanded={filterOpen}
               >
                 <SlidersHorizontal className="h-3.5 w-3.5" />
-                Filter
+                {tf("filter")}
               </button>
 
               {(filterOpen || hasFilters) && (
                 <>
                   <FilterSelect
-                    label="Division"
+                    label={tf("division")}
                     value={division}
                     options={BD_DIVISIONS}
                     onChange={(v) => { setDivision(v); setZilla(""); setUpazila(""); }}
                   />
                   <FilterSelect
-                    label="District"
+                    label={tf("district")}
                     value={zilla}
                     options={zillas}
                     disabled={!division}
                     onChange={(v) => { setZilla(v); setUpazila(""); }}
                   />
                   <FilterSelect
-                    label="Sub-District"
+                    label={tf("subDistrict")}
                     value={upazila}
                     options={upazilas}
                     disabled={!zilla}
@@ -177,7 +182,7 @@ const Hospitals = () => {
                       className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                     >
                       <X className="h-3 w-3" />
-                      Clear
+                      {tf("clear")}
                     </button>
                   )}
                 </>
@@ -225,12 +230,12 @@ const Hospitals = () => {
                   ))}
                 </div>
                 <div className="flex items-center justify-between mt-5 pt-4 border-t border-border/60 text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-1"><BedDouble className="h-3.5 w-3.5" />{h.beds} beds</span>
-                  <span className="inline-flex items-center gap-1"><Stethoscope className="h-3.5 w-3.5" />{h.reviews} reviews</span>
-                  <span className="inline-flex items-center gap-1"><Phone className="h-3.5 w-3.5" />Call</span>
+                  <span className="inline-flex items-center gap-1"><BedDouble className="h-3.5 w-3.5" />{th("beds", { count: h.beds })}</span>
+                  <span className="inline-flex items-center gap-1"><Stethoscope className="h-3.5 w-3.5" />{t("reviews", { count: h.reviews })}</span>
+                  <span className="inline-flex items-center gap-1"><Phone className="h-3.5 w-3.5" />{th("call")}</span>
                 </div>
                 <Link href={`/hospitals/${h.slug}`} className="mt-4 block text-center w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors">
-                  View Hospital
+                  {th("view")}
                 </Link>
               </div>
             </motion.article>
@@ -238,7 +243,7 @@ const Hospitals = () => {
         </div>
 
         {filtered.length === 0 && (
-          <p className="text-center text-muted-foreground py-16">No hospitals match your search.</p>
+          <p className="text-center text-muted-foreground py-16">{t("hospitalsNone")}</p>
         )}
       </main>
       <Footer />

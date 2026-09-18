@@ -5,9 +5,12 @@ import Link from "next/link";
 import { MapPin, ArrowRight, Building2, Star, ChevronLeft, ChevronRight } from "lucide-react";
 import { useHospitals } from "@/hooks/useHospitals";
 import TiltCard from "@/components/site/TiltCard";
-import { GradientWords } from "@/components/site/GradientWords";
+import { useTranslations } from "next-intl";
+import { gradient } from "@/components/site/GradientWords";
 
 const Hubs = () => {
+  const t = useTranslations("hubs");
+  const tc = useTranslations("common");
   const hospitals = useHospitals();
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -47,8 +50,8 @@ const Hubs = () => {
   return (
     <section id="hubs" className="container mx-auto py-20">
       <div className="text-center max-w-2xl mx-auto mb-12">
-        <h2 className="font-display text-3xl md:text-5xl text-primary"><GradientWords text="Verified Health Hub" /></h2>
-        <p className="text-muted-foreground mt-3 text-sm">Access verified hospitals, clinics, and diagnostic centers you can trust — all in one secure platform designed to connect you with quality healthcare, faster decisions, and better patient outcomes.</p>
+        <h2 className="font-display text-3xl md:text-5xl text-primary">{t.rich("heading", gradient)}</h2>
+        <p className="text-muted-foreground mt-3 text-sm">{t("description")}</p>
       </div>
 
       <div
@@ -98,7 +101,7 @@ const Hubs = () => {
                     <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 text-[11px]">
                       {h.location && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{h.location}</span>}
                       {h.rating ? <span className="inline-flex items-center gap-1"><Star className="h-3 w-3 fill-current" />{h.rating.toFixed(1)}</span> : null}
-                      {h.beds ? <span className="inline-flex items-center gap-1"><Building2 className="h-3 w-3" />{h.beds} beds</span> : null}
+                      {h.beds ? <span className="inline-flex items-center gap-1"><Building2 className="h-3 w-3" />{t("beds", { count: h.beds })}</span> : null}
                     </div>
                   </div>
                 </Link>
@@ -111,14 +114,14 @@ const Hubs = () => {
         {total > perView && (
           <>
             <button
-              aria-label="Previous"
+              aria-label={tc("previous")}
               onClick={() => go(index - 1)}
               className="absolute -left-2 md:-left-5 top-1/2 -translate-y-1/2 h-11 w-11 grid place-items-center rounded-full bg-card text-primary shadow-card hover:bg-primary hover:text-primary-foreground transition opacity-0 group-hover:opacity-100"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
             <button
-              aria-label="Next"
+              aria-label={tc("next")}
               onClick={() => go(index + 1)}
               className="absolute -right-2 md:-right-5 top-1/2 -translate-y-1/2 h-11 w-11 grid place-items-center rounded-full bg-card text-primary shadow-card hover:bg-primary hover:text-primary-foreground transition opacity-0 group-hover:opacity-100"
             >
@@ -128,7 +131,7 @@ const Hubs = () => {
               {Array.from({ length: maxIndex + 1 }).map((_, i) => (
                 <button
                   key={i}
-                  aria-label={`Go to slide ${i + 1}`}
+                  aria-label={tc("goToSlide", { n: i + 1 })}
                   onClick={() => setIndex(i)}
                   className={`h-1.5 rounded-full transition-all ${i === index ? "w-6 bg-primary" : "w-1.5 bg-primary/30 hover:bg-primary/60"}`}
                 />
@@ -143,7 +146,7 @@ const Hubs = () => {
           className="group inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-soft hover:bg-primary-glow hover:shadow-card hover:-translate-y-0.5 transition-all"
         >
           <Building2 className="h-4 w-4" />
-          View All Hospitals
+          {t("viewAll")}
           <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
         </Link>
       </div>

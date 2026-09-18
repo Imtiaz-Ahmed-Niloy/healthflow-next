@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Award, BedDouble, MapPin, Phone, Star, Stethoscope } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { Hospital } from "@/data/hospitals";
 
 /**
@@ -14,6 +15,7 @@ import type { Hospital } from "@/data/hospitals";
 const SHOWN_SPECIALTIES = 4;
 
 export const HospitalCard = ({ h, i = 0 }: { h: Hospital; i?: number }) => {
+  const t = useTranslations("hospitalCard");
   const extra = h.specialties.length - SHOWN_SPECIALTIES;
 
   return (
@@ -59,16 +61,16 @@ export const HospitalCard = ({ h, i = 0 }: { h: Hospital; i?: number }) => {
         )}
         <div className="mt-auto">
           <div className="flex items-center justify-between mt-5 pt-4 border-t border-border/60 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1"><BedDouble className="h-3.5 w-3.5" />{h.beds} beds</span>
-            <span className="inline-flex items-center gap-1"><Stethoscope className="h-3.5 w-3.5" />{h.doctors_list.length} doctors</span>
+            <span className="inline-flex items-center gap-1"><BedDouble className="h-3.5 w-3.5" />{t("beds", { count: h.beds })}</span>
+            <span className="inline-flex items-center gap-1"><Stethoscope className="h-3.5 w-3.5" />{t("doctors", { count: h.doctors_list.length })}</span>
             {h.phone ? (
-              <a href={`tel:${h.phone}`} className="inline-flex items-center gap-1 hover:text-primary"><Phone className="h-3.5 w-3.5" />Call</a>
+              <a href={`tel:${h.phone}`} className="inline-flex items-center gap-1 hover:text-primary"><Phone className="h-3.5 w-3.5" />{t("call")}</a>
             ) : (
-              <span className="inline-flex items-center gap-1 opacity-50"><Phone className="h-3.5 w-3.5" />No phone</span>
+              <span className="inline-flex items-center gap-1 opacity-50"><Phone className="h-3.5 w-3.5" />{t("noPhone")}</span>
             )}
           </div>
           <Link href={`/hospitals/${h.slug}`} className="mt-4 block text-center w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors">
-            View Hospital
+            {t("view")}
           </Link>
         </div>
       </div>

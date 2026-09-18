@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Search, SlidersHorizontal, X, MapPin, Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 import { BD_DIVISIONS, BD_LOCATIONS } from "@/data/bdLocations";
@@ -84,6 +85,7 @@ const SearchBar = ({
   onSpecialtyChange,
   onClear,
 }: SearchBarProps) => {
+  const t = useTranslations("searchBar");
   const [q, setQ] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const router = useRouter();
@@ -103,7 +105,7 @@ const SearchBar = ({
     const query = q.trim();
     const location = [upazila, zilla, division].filter(Boolean).join(", ");
     if (!query && !location && !specialty) {
-      toast.error("Type a doctor, specialty or hospital — or pick a location.");
+      toast.error(t("needSomething"));
       return;
     }
     const lc = query.toLowerCase();
@@ -123,8 +125,11 @@ const SearchBar = ({
     router.push(`${target}${params.toString() ? `?${params}` : ""}`);
     toast.success(
       looksLikeDoctor || specialty
-        ? `Searching specialists${location ? ` in ${location}` : ""}`
-        : `Searching hospitals${query ? ` for "${query}"` : ""}${location ? ` in ${location}` : ""}`,
+        ? (location ? t("searchingSpecialistsIn", { location }) : t("searchingSpecialists"))
+        : query && location ? t("searchingHospitalsForIn", { query, location })
+        : query ? t("searchingHospitalsFor", { query })
+        : location ? t("searchingHospitalsIn", { location })
+        : t("searchingHospitals"),
     );
   };
 
@@ -143,13 +148,13 @@ const SearchBar = ({
               if (e.target.value.trim()) setFilterOpen(true);
             }}
             className="flex-1 bg-transparent px-3 py-2 text-base outline-none placeholder:text-muted-foreground"
-            placeholder="Search doctors, specialties, hospitals..."
+            placeholder={t("placeholder")}
           />
           <button
             type="submit"
             className="rounded-full bg-primary px-7 sm:px-10 py-3 text-base font-medium text-primary-foreground hover:bg-primary-glow transition-colors"
           >
-            Search
+            {t("search")}
           </button>
         </div>
 
@@ -167,33 +172,33 @@ const SearchBar = ({
             aria-expanded={filterOpen}
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
-            Filter
+            {t("filter")}
           </button>
 
           {(filterOpen || hasFilters) && (
             <>
               <FilterSelect
-                label="Division"
+                label={t("division")}
                 value={division}
                 options={BD_DIVISIONS}
                 onChange={onDivisionChange}
               />
               <FilterSelect
-                label="District"
+                label={t("district")}
                 value={zilla}
                 options={zillas}
                 disabled={!division}
                 onChange={onZillaChange}
               />
               <FilterSelect
-                label="Sub-District"
+                label={t("subDistrict")}
                 value={upazila}
                 options={upazilas}
                 disabled={!zilla}
                 onChange={onUpazilaChange}
               />
               <FilterSelect
-                label="Specialist"
+                label={t("specialist")}
                 value={specialty}
                 options={specialties}
                 onChange={onSpecialtyChange}
@@ -206,7 +211,7 @@ const SearchBar = ({
                   className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                 >
                   <X className="h-3 w-3" />
-                  Clear
+                  {t("clear")}
                 </button>
               )}
             </>

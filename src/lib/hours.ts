@@ -10,7 +10,14 @@
  * Storage is not settled yet. The JSON goes into the existing `opening_hours`
  * text column for now, which needs no migration; `jsonb` is the obvious home
  * later and `parseWeek` already tolerates either.
+ *
+ * Text meant for a person — a day's name, "Closed" — comes out in their
+ * language: pass a `locale` (English when left out; words in
+ * src/i18n/libText.ts).
  */
+
+import type { Locale } from "@/i18n/config";
+import { libWords } from "@/i18n/libText";
 
 export type DayKey = "sun" | "mon" | "tue" | "wed" | "thu" | "fri" | "sat";
 
@@ -30,6 +37,12 @@ export const DAYS: { key: DayKey; label: string; short: string }[] = [
   { key: "fri", label: "Friday", short: "Fri" },
   { key: "sat", label: "Saturday", short: "Sat" },
 ];
+
+/** A day's name, and its short form, in the reader's language. */
+export const dayLabel = (key: DayKey, locale?: Locale) =>
+  libWords(locale).daysLong[DAYS.findIndex(d => d.key === key)];
+export const dayShort = (key: DayKey, locale?: Locale) =>
+  libWords(locale).daysShort[DAYS.findIndex(d => d.key === key)];
 
 export type DayHours =
   | { mode: "hours"; open: string; close: string }
@@ -101,18 +114,19 @@ export const parseWeek = (value: unknown): WeekHours | null => {
 export const serialiseWeek = (week: WeekHours): string => JSON.stringify(week);
 
 /** "09:00" → "9:00 AM". The stored value stays 24-hour; this is display only. */
-export const formatTime = (value: string): string => {
+export const formatTime = (value: string, locale?: Locale): string => {
   const [h, m] = value.split(":").map(Number);
   if (Number.isNaN(h) || Number.isNaN(m)) return value;
-  const suffix = h < 12 ? "AM" : "PM";
+  const w = libWords(locale);
+  const suffix = h < 12 ? w.am : w.pm;
   const hour = h % 12 === 0 ? 12 : h % 12;
   return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
 };
 
-export const formatDay = (day: DayHours): string => {
-  if (day.mode === "closed") return "Closed";
-  if (day.mode === "24h") return "Open 24 hours";
-  return `${formatTime(day.open)} – ${formatTime(day.close)}`;
+export const formatDay = (day: DayHours, locale?: Locale): string => {
+  if (day.mode === "closed") return libWords(locale).closed;
+  if (day.mode === "24h") return libWords(locale).open24;
+  return `${formatTime(day.open, locale)} – ${formatTime(day.close, locale)}`;
 };
 
 const sameDay = (a: DayHours, b: DayHours): boolean => {
@@ -132,7 +146,7 @@ const sameDay = (a: DayHours, b: DayHours): boolean => {
  * Rows are listed starting from the run Sunday belongs to, so the ordering is
  * stable and the working week leads.
  */
-export const summariseWeek = (week: WeekHours): { days: string; hours: string }[] => {
+export const summariseWeek = (week: WeekHours, locale?: Locale): { days: string; hours: string }[] => {
   const n = DAYS.length;
 
   // Walk backwards from Sunday for as long as the previous day matches. That
@@ -162,8 +176,8 @@ export const summariseWeek = (week: WeekHours): { days: string; hours: string }[
     const from = order[runStart];
     const to = order[i];
     rows.push({
-      days: runStart === i ? from.label : `${from.short} – ${to.short}`,
-      hours: formatDay(week[from.key]),
+      days: runStart === i ? dayLabel(from.key, locale) : `${dayShort(from.key, locale)} – ${dayShort(to.key, locale)}`,
+      hours: formatDay(week[from.key], locale),
     });
     runStart = i + 1;
   }

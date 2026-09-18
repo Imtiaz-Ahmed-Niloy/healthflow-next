@@ -2,6 +2,7 @@
 
 import { Facebook, Instagram, Linkedin, Mail, Phone, Twitter } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { BRAND_INFO } from "@/constants/brand";
 import { useFooterContent } from "@/data/footerContent";
 import { useIsPageVisible } from "./PublishedPages";
@@ -15,6 +16,8 @@ import { useIsPageVisible } from "./PublishedPages";
  * quietly does nothing is worse than no form.
  */
 const Footer = () => {
+  const t = useTranslations("footer");
+  // The footer's words are the CMS's (/super/cms); only its labels are here.
   const { content } = useFooterContent();
   const isVisible = useIsPageVisible();
 
@@ -77,9 +80,9 @@ const Footer = () => {
                 rather than two loose lines of text. */}
             <div className="mt-6 flex flex-wrap gap-3">
               {[
-                { href: `mailto:${BRAND_INFO.email}`, label: "Email", value: BRAND_INFO.email, Icon: Mail },
+                { href: `mailto:${BRAND_INFO.email}`, label: t("email"), value: BRAND_INFO.email, Icon: Mail },
                 // tel: wants the number without the spaces it is printed with.
-                { href: `tel:${BRAND_INFO.phone.replace(/\s+/g, "")}`, label: "Phone", value: BRAND_INFO.phone, Icon: Phone },
+                { href: `tel:${BRAND_INFO.phone.replace(/\s+/g, "")}`, label: t("phone"), value: BRAND_INFO.phone, Icon: Phone },
               ].map(({ href, label, value, Icon }) => (
                 <a
                   key={label}

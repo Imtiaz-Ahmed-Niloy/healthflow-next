@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Card, SectionTitle, Btn } from "@/components/admin/ui";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ const describeError = (cause: unknown, fallback: string) =>
   (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? fallback;
 
 const PageHeroEditor = ({ route, showCtas = true, content, save, reset }: Props) => {
+  const t = useTranslations("super.cmsEditor");
   const [draft, setDraft] = useState<CmsHeroFields>(content);
   const [dirty, setDirty] = useState(false);
 
@@ -38,25 +40,25 @@ const PageHeroEditor = ({ route, showCtas = true, content, save, reset }: Props)
     try {
       await save(draft);
       setDirty(false);
-      toast.success("Page updated");
+      toast.success(t("pageUpdated"));
     } catch (cause) {
-      toast.error(describeError(cause, "Could not save page"));
+      toast.error(describeError(cause, t("pageSaveFailed")));
     }
   };
 
   const onReset = async () => {
     try {
       await reset();
-      toast.success("Restored defaults");
+      toast.success(t("restored"));
     } catch (cause) {
-      toast.error(describeError(cause, "Could not restore defaults"));
+      toast.error(describeError(cause, t("restoreFailed")));
     }
   };
 
   return (
     <Card className="p-5">
       <SectionTitle
-        title="Hero Section"
+        title={t("heroSection")}
         action={
           <div className="flex items-center gap-2">
             <a
@@ -65,13 +67,13 @@ const PageHeroEditor = ({ route, showCtas = true, content, save, reset }: Props)
               rel="noreferrer"
               className="inline-flex items-center gap-1 text-xs font-semibold text-primary-glow hover:underline"
             >
-              <ExternalLink className="h-3.5 w-3.5" /> Preview
+              <ExternalLink className="h-3.5 w-3.5" /> {t("preview")}
             </a>
             <Btn variant="ghost" onClick={onReset}>
-              <span className="inline-flex items-center gap-1"><RotateCcw className="h-4 w-4" /> Reset</span>
+              <span className="inline-flex items-center gap-1"><RotateCcw className="h-4 w-4" /> {t("reset")}</span>
             </Btn>
             <Btn onClick={onSave} className={dirty ? "" : "opacity-60"}>
-              <span className="inline-flex items-center gap-1"><Save className="h-4 w-4" /> Save</span>
+              <span className="inline-flex items-center gap-1"><Save className="h-4 w-4" /> {t("save")}</span>
             </Btn>
           </div>
         }
@@ -81,21 +83,21 @@ const PageHeroEditor = ({ route, showCtas = true, content, save, reset }: Props)
         <div className="space-y-1.5">
         </div>
         <div className="space-y-1.5">
-          <Label>Headline</Label>
+          <Label>{t("headline")}</Label>
           <Input value={draft.title} onChange={e => set("title", e.target.value)} />
         </div>
         <div className="space-y-1.5">
-          <Label>Description</Label>
+          <Label>{t("description")}</Label>
           <Textarea rows={4} value={draft.description} onChange={e => set("description", e.target.value)} />
         </div>
         {showCtas && (
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Primary button</Label>
+              <Label>{t("primaryButton")}</Label>
               <Input value={draft.primaryCta} onChange={e => set("primaryCta", e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label>Secondary button</Label>
+              <Label>{t("secondaryButton")}</Label>
               <Input value={draft.secondaryCta} onChange={e => set("secondaryCta", e.target.value)} />
             </div>
           </div>

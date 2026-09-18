@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { SuperLayout } from "@/components/super/SuperLayout";
 import { Card, SectionTitle, Btn, Pill } from "@/components/admin/ui";
 import { Trash2 } from "lucide-react";
@@ -13,9 +14,20 @@ const seed: WhitelistEntry[] = [
   { v: "198.51.100.42", type: "IP", note: "Auditor", status: "pending" },
 ];
 
+/** Entry types are saved in English; only their label changes with the language. */
+const TYPE_KEYS: Record<string, "ipRange" | "domain" | "ip" | "custom"> = {
+  "IP Range": "ipRange", Domain: "domain", IP: "ip", Custom: "custom",
+};
+
 const Whitelisting = () => {
+  const t = useTranslations("super.whitelisting");
+  const tc = useTranslations("common");
   const [list, setList] = useState<WhitelistEntry[]>(() => getWhitelist(seed));
   const [val, setVal] = useState("");
+
+  const typeLabel = (type: string) => (TYPE_KEYS[type] ? t(`types.${TYPE_KEYS[type]}`) : type);
+  const statusLabel = (status: string) =>
+    status === "active" || status === "pending" ? t(`statuses.${status}`) : status;
 
   useEffect(() => { setWhitelist(list); }, [list]);
 
@@ -31,24 +43,24 @@ const Whitelisting = () => {
   }, []);
 
   return (
-    <SuperLayout title="Whitelisting" subtitle="Approved IPs, domains & integrations">
+    <SuperLayout title={t("title")} subtitle={t("subtitle")}>
       <Card className="p-5">
-        <SectionTitle title="Allowlist" />
+        <SectionTitle title={t("allowlist")} />
         <div className="flex gap-2 mb-4">
-          <input value={val} onChange={e => setVal(e.target.value)} placeholder="IP, range or domain"
+          <input value={val} onChange={e => setVal(e.target.value)} placeholder={t("placeholder")}
             className="flex-1 bg-muted/40 rounded-full px-4 py-2 outline-none focus:ring-2 focus:ring-primary text-sm" />
-          <Btn onClick={() => { if (!val) return; setList([{ v: val, type: "Custom", note: "Manually added", status: "active" }, ...list]); setVal(""); toast.success("Added"); }}>Add</Btn>
+          <Btn onClick={() => { if (!val) return; setList([{ v: val, type: "Custom", note: t("manuallyAdded"), status: "active" }, ...list]); setVal(""); toast.success(t("added")); }}>{tc("add")}</Btn>
         </div>
         <ul className="space-y-2">
           {list.map((i, idx) => (
             <li key={`${i.v}-${idx}`} className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3">
               <div>
                 <p className="font-mono text-sm text-primary">{i.v}</p>
-                <p className="text-xs text-muted-foreground">{i.type} · {i.note}</p>
+                <p className="text-xs text-muted-foreground">{typeLabel(i.type)} · {i.note}</p>
               </div>
               <div className="flex items-center gap-2">
-                <Pill tone={i.status === "active" ? "ok" : "warn"}>{i.status}</Pill>
-                <button onClick={() => { setList(list.filter((_, k) => k !== idx)); toast.success("Removed"); }} className="text-destructive p-2"><Trash2 className="h-4 w-4" /></button>
+                <Pill tone={i.status === "active" ? "ok" : "warn"}>{statusLabel(i.status)}</Pill>
+                <button onClick={() => { setList(list.filter((_, k) => k !== idx)); toast.success(t("removed")); }} aria-label={tc("remove")} className="text-destructive p-2"><Trash2 className="h-4 w-4" /></button>
               </div>
             </li>
           ))}
@@ -58,4 +70,3 @@ const Whitelisting = () => {
   );
 };
 export default Whitelisting;
-

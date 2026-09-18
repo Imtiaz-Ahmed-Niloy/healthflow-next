@@ -1,6 +1,7 @@
 "use client";
 
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import {
   useCreateResourceMutation,
   useListResourceQuery,
@@ -61,6 +62,7 @@ const showError = (error: unknown, fallback: string) => {
 };
 
 export const useResourceCrud = <T extends { id: string }>(resource?: string) => {
+  const t = useTranslations("crud");
   // Filtering and paging still happen client-side, exactly as they did with
   // localStorage. Server-side paging is a later change and needs the toolbar
   // to drive it; this keeps the migration to real data a pure swap.
@@ -79,10 +81,10 @@ export const useResourceCrud = <T extends { id: string }>(resource?: string) => 
     if (!resource) return undefined;
     try {
       const result = await createTrigger({ resource, body: values }).unwrap();
-      toast.success("Created");
+      toast.success(t("created"));
       return result.data as T;
     } catch (cause) {
-      showError(cause, "Could not create");
+      showError(cause, t("createFailed"));
       return undefined;
     }
   };
@@ -96,10 +98,10 @@ export const useResourceCrud = <T extends { id: string }>(resource?: string) => 
     if (!resource) return false;
     try {
       await updateTrigger({ resource, id, body: patch }).unwrap();
-      toast.success("Updated");
+      toast.success(t("updated"));
       return true;
     } catch (cause) {
-      showError(cause, "Could not update");
+      showError(cause, t("updateFailed"));
       return false;
     }
   };
@@ -108,9 +110,9 @@ export const useResourceCrud = <T extends { id: string }>(resource?: string) => 
     if (!resource) return;
     try {
       await removeTrigger({ resource, id }).unwrap();
-      toast.success("Deleted");
+      toast.success(t("deleted"));
     } catch (cause) {
-      showError(cause, "Could not delete");
+      showError(cause, t("deleteFailed"));
     }
   };
 
@@ -124,8 +126,8 @@ export const useResourceCrud = <T extends { id: string }>(resource?: string) => 
 
     const failed = results.filter((r) => r.status === "rejected").length;
 
-    if (failed) toast.error(`${failed} of ${ids.length} could not be deleted`);
-    else toast.success(`${ids.length} removed`);
+    if (failed) toast.error(t("bulkFailed", { failed, total: ids.length }));
+    else toast.success(t("bulkRemoved", { count: ids.length }));
   };
 
   return {

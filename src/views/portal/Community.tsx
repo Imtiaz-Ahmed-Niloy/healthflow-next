@@ -6,11 +6,12 @@ import {
   Heart, MessageCircle, Lightbulb, ThumbsUp, Send, Image as ImageIcon, X, Search,
   Loader2, AlertCircle, Trash2, Users,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { useAppDispatch } from "@/redux/hooks";
 import { invalidateResource } from "@/redux/api/createResourceApi";
 import { mediaUrl } from "@/lib/media";
-import { formatDate, formatTime } from "@/lib/appSettings";
+import { useFormatters } from "@/lib/appSettings";
 import {
   communityPostsApi, communityCommentsApi, communityReactionsApi,
   type CommunityPostRow, type CommunityDoctor, type CommunityPublicDoctor,
@@ -36,20 +37,12 @@ import {
 type Category = CommunityPostRow["category"];
 type Reaction = "like" | "love" | "insightful";
 
-const CATEGORIES: { value: Category; label: string }[] = [
-  { value: "discussion", label: "Discussion" },
-  { value: "question", label: "Question" },
-  { value: "case_study", label: "Case Study" },
-  { value: "thought", label: "Thought" },
-];
+const CATEGORIES = ["discussion", "question", "case_study", "thought"] as const satisfies readonly Category[];
 
-const categoryLabel = (value: Category) =>
-  CATEGORIES.find((c) => c.value === value)?.label ?? value;
-
-const REACTIONS: { value: Reaction; label: string; icon: typeof ThumbsUp }[] = [
-  { value: "like", label: "Like", icon: ThumbsUp },
-  { value: "love", label: "Love", icon: Heart },
-  { value: "insightful", label: "Insightful", icon: Lightbulb },
+const REACTIONS: { value: Reaction; icon: typeof ThumbsUp }[] = [
+  { value: "like", icon: ThumbsUp },
+  { value: "love", icon: Heart },
+  { value: "insightful", icon: Lightbulb },
 ];
 
 const FALLBACK_AVATAR = "/assets/doctor-avatar.jpg";
@@ -59,19 +52,22 @@ const FALLBACK_AVATAR = "/assets/doctor-avatar.jpg";
  * indistinguishable from the button doing nothing at all, which is exactly how
  * this went wrong the first time.
  */
-const reason = (cause: unknown) =>
+const serverSaid = (cause: unknown) =>
   (cause as { data?: { error?: { message?: string } } })?.data?.error?.message
-  ?? (cause as { error?: string })?.error
-  ?? "Please try again.";
+  ?? (cause as { error?: string })?.error;
 
 /** "2h ago" up to a day, then the real date — a week-old post saying "168h ago" helps nobody. */
-const when = (iso: string) => {
-  const then = new Date(iso);
-  const minutes = Math.floor((Date.now() - then.getTime()) / 60_000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  if (minutes < 60 * 24) return `${Math.floor(minutes / 60)}h ago`;
-  return `${formatDate(then)} · ${formatTime(then)}`;
+const useWhen = () => {
+  const t = useTranslations("portal.community");
+  const { formatDateTime } = useFormatters();
+  return (iso: string) => {
+    const then = new Date(iso);
+    const minutes = Math.floor((Date.now() - then.getTime()) / 60_000);
+    if (minutes < 1) return t("justNow");
+    if (minutes < 60) return t("minutesAgo", { count: minutes });
+    if (minutes < 60 * 24) return t("hoursAgo", { count: Math.floor(minutes / 60) });
+    return formatDateTime(then);
+  };
 };
 
 type Me = { id: string; name: string; specialty: string | null; photo_url: string | null } | null;
@@ -87,8 +83,8 @@ type Me = { id: string; name: string; specialty: string | null; photo_url: strin
  */
 type Authored = { doctors: CommunityDoctor | null; doctors_public: CommunityPublicDoctor | null };
 
-const authorOf = (row: Authored) => ({
-  name: row.doctors?.name ?? row.doctors_public?.name ?? "A colleague",
+const authorOf = (row: Authored, fallbackName: string) => ({
+  name: row.doctors?.name ?? row.doctors_public?.name ?? fallbackName,
   specialty: row.doctors?.specialty ?? row.doctors_public?.specialty ?? null,
   photo_url: row.doctors?.photo_url ?? row.doctors_public?.photo_url ?? null,
   hospital: row.doctors_public?.hospital_name ?? null,
@@ -105,6 +101,7 @@ const Avatar = ({
 );
 
 const Community = () => {
+  const t = useTranslations("portal.community");
   const [me, setMe] = useState<Me>(null);
   const [loadingMe, setLoadingMe] = useState(true);
 
@@ -145,25 +142,20 @@ const Community = () => {
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="font-display text-3xl text-primary">Doctor Community</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Share thoughts, ask questions, and discuss cases with doctors across HealthFlow.
-            </p>
+            <h1 className="font-display text-3xl text-primary">{t("title")}</h1>
+            <p className="text-sm text-muted-foreground mt-1">{t("subtitle")}</p>
           </div>
           {/* A real count of what is actually here, or nothing at all. */}
           <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
             <Users className="h-3.5 w-3.5" />
-            {data?.meta ? `${data.meta.total} post${data.meta.total === 1 ? "" : "s"}` : "—"}
+            {data?.meta ? t("postCount", { count: data.meta.total }) : "—"}
           </span>
         </div>
 
         {!loadingMe && !me && (
           <div className="flex items-start gap-3 rounded-2xl bg-yellow-100/60 text-yellow-900 p-4 text-sm">
             <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-            <p>
-              You are signed in, but not as a doctor — so you see your own hospital&apos;s posts
-              and can remove one that should not be there, and you cannot write in the feed.
-            </p>
+            <p>{t("notADoctor")}</p>
           </div>
         )}
 
@@ -175,23 +167,23 @@ const Community = () => {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search posts…"
-              aria-label="Search posts"
+              placeholder={t("searchPlaceholder")}
+              aria-label={t("searchLabel")}
               className="w-full rounded-full border border-border/60 bg-card pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
           <div className="flex gap-1.5 flex-wrap">
-            {[{ value: "all" as const, label: "All" }, ...CATEGORIES].map((c) => (
+            {(["all", ...CATEGORIES] as const).map((value) => (
               <button
-                key={c.value}
-                onClick={() => setFilter(c.value)}
+                key={value}
+                onClick={() => setFilter(value)}
                 className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
-                  filter === c.value
+                  filter === value
                     ? "bg-primary text-primary-foreground"
                     : "bg-card border border-border/60 text-foreground/70 hover:bg-chip"
                 }`}
               >
-                {c.label}
+                {t(`categories.${value}`)}
               </button>
             ))}
           </div>
@@ -206,15 +198,13 @@ const Community = () => {
         ) : error ? (
           <div className="flex items-center gap-3 rounded-2xl bg-destructive/10 text-destructive p-4">
             <AlertCircle className="h-5 w-5 shrink-0" />
-            <p className="text-sm font-semibold">Could not load the feed. Refresh to try again.</p>
+            <p className="text-sm font-semibold">{t("loadFailed")}</p>
           </div>
         ) : posts.length === 0 ? (
           <div className="rounded-2xl bg-card border border-border/60 p-10 text-center">
             <MessageCircle className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-sm text-muted-foreground">
-              {query || filter !== "all"
-                ? "Nothing matches that."
-                : "No posts yet. Start the conversation — a case, a question, or a thought."}
+              {query || filter !== "all" ? t("noMatch") : t("empty")}
             </p>
           </div>
         ) : (
@@ -232,6 +222,7 @@ const Community = () => {
 /* ---------------------------------------------------------- composer --- */
 
 const Composer = ({ me }: { me: NonNullable<Me> }) => {
+  const t = useTranslations("portal.community");
   const [content, setContent] = useState("");
   const [category, setCategory] = useState<Category>("discussion");
   const [media, setMedia] = useState<{ key: string; url: string }[]>([]);
@@ -252,7 +243,7 @@ const Composer = ({ me }: { me: NonNullable<Me> }) => {
   const upload = async (files: FileList | null) => {
     if (!files?.length) return;
     const room = 4 - media.length;
-    if (room <= 0) return toast.error("Four images at most");
+    if (room <= 0) return toast.error(t("maxImages"));
 
     setUploading(true);
     try {
@@ -264,7 +255,7 @@ const Composer = ({ me }: { me: NonNullable<Me> }) => {
         });
         const body = await ask.json();
         if (!ask.ok) {
-          toast.error("Could not attach that image", { description: body?.error?.message });
+          toast.error(t("attachFailed"), { description: body?.error?.message });
           continue;
         }
 
@@ -274,7 +265,7 @@ const Composer = ({ me }: { me: NonNullable<Me> }) => {
           body: file,
         });
         if (!put.ok) {
-          toast.error("Could not attach that image", { description: "The upload failed." });
+          toast.error(t("attachFailed"), { description: t("uploadFailed") });
           continue;
         }
 
@@ -287,7 +278,7 @@ const Composer = ({ me }: { me: NonNullable<Me> }) => {
   };
 
   const publish = async () => {
-    if (!content.trim()) return toast.error("Write something before posting");
+    if (!content.trim()) return toast.error(t("writeSomething"));
     try {
       await create({
         category,
@@ -296,12 +287,9 @@ const Composer = ({ me }: { me: NonNullable<Me> }) => {
       }).unwrap();
       setContent("");
       setMedia([]);
-      toast.success("Posted");
+      toast.success(t("posted"));
     } catch (cause) {
-      const message =
-        (cause as { data?: { error?: { message?: string } } })?.data?.error?.message
-        ?? "Please try again.";
-      toast.error("Could not post", { description: message });
+      toast.error(t("postFailed"), { description: serverSaid(cause) ?? t("tryAgain") });
     }
   };
 
@@ -313,10 +301,10 @@ const Composer = ({ me }: { me: NonNullable<Me> }) => {
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="Share a thought, case, or question…"
+            placeholder={t("composerPlaceholder")}
             rows={3}
             maxLength={5000}
-            aria-label="Write a post"
+            aria-label={t("writePost")}
             className="w-full resize-none rounded-xl border border-border/60 bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
 
@@ -327,7 +315,7 @@ const Composer = ({ me }: { me: NonNullable<Me> }) => {
                   <img src={m.url} alt="" className="w-full h-full object-cover" />
                   <button
                     onClick={() => setMedia((current) => current.filter((_, i) => i !== index))}
-                    aria-label="Remove this image"
+                    aria-label={t("removeImage")}
                     className="absolute top-1 right-1 bg-background/90 rounded-full p-1 hover:bg-destructive hover:text-destructive-foreground"
                   >
                     <X className="h-3 w-3" />
@@ -342,11 +330,11 @@ const Composer = ({ me }: { me: NonNullable<Me> }) => {
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as Category)}
-                aria-label="Category"
+                aria-label={t("category")}
                 className="rounded-full border border-border/60 bg-background px-3 py-1.5 text-xs font-semibold text-primary focus:outline-none"
               >
-                {CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
+                {CATEGORIES.map((value) => (
+                  <option key={value} value={value}>{t(`categories.${value}`)}</option>
                 ))}
               </select>
 
@@ -356,7 +344,7 @@ const Composer = ({ me }: { me: NonNullable<Me> }) => {
                 className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-foreground/70 hover:bg-chip disabled:opacity-50"
               >
                 {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
-                {uploading ? "Uploading…" : "Photo"}
+                {uploading ? t("uploading") : t("photo")}
               </button>
               <input
                 ref={fileRef}
@@ -374,7 +362,7 @@ const Composer = ({ me }: { me: NonNullable<Me> }) => {
               className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors disabled:opacity-50"
             >
               {posting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-              Post
+              {t("post")}
             </button>
           </div>
         </div>
@@ -398,6 +386,8 @@ const Post = ({
    */
   meLoading: boolean;
 }) => {
+  const t = useTranslations("portal.community");
+  const when = useWhen();
   const dispatch = useAppDispatch();
   const [showComments, setShowComments] = useState(false);
   const [draft, setDraft] = useState("");
@@ -422,7 +412,7 @@ const Post = ({
   }, [reactions]);
 
   const media = (post.media as { key: string }[] | null) ?? [];
-  const author = authorOf(post);
+  const author = authorOf(post, t("aColleague"));
 
   /**
    * One row per doctor per post, so this is three cases rather than a counter:
@@ -444,7 +434,7 @@ const Post = ({
       // like a button that does not work.
       dispatch(invalidateResource("community-posts"));
     } catch (cause) {
-      toast.error("Could not save that reaction", { description: reason(cause) });
+      toast.error(t("reactionFailed"), { description: serverSaid(cause) ?? t("tryAgain") });
     } finally {
       setBusy(false);
     }
@@ -458,7 +448,7 @@ const Post = ({
       setDraft("");
       dispatch(invalidateResource("community-posts"));
     } catch (cause) {
-      toast.error("Could not comment", { description: reason(cause) });
+      toast.error(t("commentFailed"), { description: serverSaid(cause) ?? t("tryAgain") });
     }
   };
 
@@ -473,9 +463,9 @@ const Post = ({
   const deletePost = async () => {
     try {
       await removePost(post.id).unwrap();
-      toast.success("Post removed");
+      toast.success(t("postRemoved"));
     } catch {
-      toast.error("Could not remove the post", { description: "Please try again." });
+      toast.error(t("removeFailed"), { description: t("tryAgain") });
     }
   };
 
@@ -491,13 +481,13 @@ const Post = ({
           </p>
         </div>
         <span className="rounded-full bg-chip px-2.5 py-0.5 text-[11px] font-semibold text-chip-foreground shrink-0">
-          {categoryLabel(post.category)}
+          {t(`categories.${post.category}`)}
         </span>
         {canDelete && (
           <button
             onClick={() => void deletePost()}
-            title="Remove this post"
-            aria-label="Remove this post"
+            title={t("removePost")}
+            aria-label={t("removePost")}
             className="p-1.5 rounded-lg text-destructive hover:bg-destructive/10 shrink-0"
           >
             <Trash2 className="h-4 w-4" />
@@ -523,15 +513,16 @@ const Post = ({
       )}
 
       <div className="mt-4 flex items-center gap-1.5 flex-wrap border-t border-border/40 pt-3">
-        {REACTIONS.map(({ value, label, icon: Icon }) => {
+        {REACTIONS.map(({ value, icon: Icon }) => {
           const on = mine?.reaction === value;
+          const label = t(`reactions.${value}`);
           return (
             <button
               key={value}
               onClick={() => void react(value)}
               disabled={!me || busy}
               aria-pressed={on}
-              title={me ? label : meLoading ? "One moment — loading your profile" : "Only doctors can react"}
+              title={me ? label : meLoading ? t("loadingProfile") : t("doctorsOnly")}
               className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50 ${
                 on ? "bg-primary/10 text-primary" : "text-foreground/70 hover:bg-chip"
               }`}
@@ -548,16 +539,14 @@ const Post = ({
           className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-foreground/70 hover:bg-chip ml-auto"
         >
           <MessageCircle className="h-3.5 w-3.5" />
-          {comments.length === 0
-            ? "Comment"
-            : `${comments.length} comment${comments.length === 1 ? "" : "s"}`}
+          {comments.length === 0 ? t("comment") : t("commentCount", { count: comments.length })}
         </button>
       </div>
 
       {showComments && (
         <div className="mt-3 space-y-3 border-t border-border/40 pt-3">
           {comments.map((c) => {
-            const by = authorOf(c);
+            const by = authorOf(c, t("aColleague"));
             return (
               <div key={c.id} className="flex gap-2.5">
                 <Avatar photo={by.photo_url} className="h-8 w-8" />
@@ -570,7 +559,7 @@ const Post = ({
                       )}
                       {c.is_suggestion && (
                         <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
-                          Suggestion
+                          {t("suggestion")}
                         </span>
                       )}
                     </p>
@@ -591,8 +580,8 @@ const Post = ({
                   onChange={(e) => setDraft(e.target.value)}
                   rows={2}
                   maxLength={2000}
-                  placeholder="Reply, or suggest what you would do…"
-                  aria-label="Write a comment"
+                  placeholder={t("replyPlaceholder")}
+                  aria-label={t("writeComment")}
                   className="w-full resize-none rounded-xl border border-border/60 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
                 <div className="flex items-center gap-2 mt-2">
@@ -602,7 +591,7 @@ const Post = ({
                     className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
                   >
                     {commenting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
-                    Reply
+                    {t("reply")}
                   </button>
                   {/* Kept from the old screen because the distinction is real:
                       a suggestion is clinical advice, and it reads differently
@@ -612,7 +601,7 @@ const Post = ({
                     disabled={commenting || !draft.trim()}
                     className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-1.5 text-xs font-semibold text-primary hover:bg-muted disabled:opacity-50"
                   >
-                    <Lightbulb className="h-3 w-3" /> Post as suggestion
+                    <Lightbulb className="h-3 w-3" /> {t("postAsSuggestion")}
                   </button>
                 </div>
               </div>

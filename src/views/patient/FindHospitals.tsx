@@ -3,6 +3,7 @@
 import { Search, SearchX, Stethoscope, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
 import { HospitalCard } from "@/components/site/HospitalCard";
 import { SpecialtySelect } from "@/components/common/SpecialtySelect";
@@ -19,13 +20,7 @@ import type { Hospital } from "@/data/hospitals";
  */
 
 type Sort = "recommended" | "rating" | "doctors" | "name";
-
-const SORTS: { value: Sort; label: string }[] = [
-  { value: "recommended", label: "Recommended" },
-  { value: "rating", label: "Top rated" },
-  { value: "doctors", label: "Most doctors" },
-  { value: "name", label: "Name: A to Z" },
-];
+const SORTS: Sort[] = ["recommended", "rating", "doctors", "name"];
 
 const lower = (s: string) => s.trim().toLowerCase();
 
@@ -49,6 +44,9 @@ const sortHospitals = (list: Hospital[], sort: Sort) => {
 };
 
 const FindHospitals = () => {
+  const t = useTranslations("patient.findHospitals");
+  const tl = useTranslations("locationPickers");
+  const tc = useTranslations("common");
   const { hospitals, loading } = useHospitalList();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(searchParams?.get("q") ?? "");
@@ -81,10 +79,8 @@ const FindHospitals = () => {
   return (
     <PatientPortalLayout>
       <div className="max-w-2xl">
-        <h1 className="font-display text-5xl text-primary">Find a Hospital</h1>
-        <p className="text-sm text-muted-foreground mt-3">
-          Search by name, specialty or area to find a hospital near you, then see its doctors and book a visit.
-        </p>
+        <h1 className="font-display text-5xl text-primary">{t("title")}</h1>
+        <p className="text-sm text-muted-foreground mt-3">{t("subtitle")}</p>
       </div>
 
       <div className="mt-7 space-y-2 rounded-2xl border border-border bg-card p-2 shadow-sm">
@@ -95,12 +91,12 @@ const FindHospitals = () => {
               type="search"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Hospital name or address"
+              placeholder={t("searchPlaceholder")}
               className={`${FILTER_CONTROL} pl-10 pr-10 placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:appearance-none`}
-              aria-label="Search hospitals"
+              aria-label={t("searchLabel")}
             />
             {query && (
-              <button onClick={() => setQuery("")} aria-label="Clear search" className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full hover:bg-chip">
+              <button onClick={() => setQuery("")} aria-label={tc("clearSearch")} className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full hover:bg-chip">
                 <X className="h-4 w-4 text-muted-foreground" />
               </button>
             )}
@@ -110,8 +106,8 @@ const FindHospitals = () => {
             <SpecialtySelect
               value={specialty}
               onChange={setSpecialty}
-              placeholder="All specialties"
-              noneLabel="All specialties"
+              placeholder={t("allSpecialties")}
+              noneLabel={t("allSpecialties")}
               icon={<Stethoscope className={FILTER_ICON} />}
               className={`${FILTER_CONTROL} flex items-center justify-between gap-2 text-left`}
             />
@@ -124,28 +120,26 @@ const FindHospitals = () => {
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <p className="mr-1 text-sm text-muted-foreground">
-            {loading ? "Loading hospitals…" : (
-              <><span className="font-semibold text-foreground">{visible.length}</span> {visible.length === 1 ? "hospital" : "hospitals"} found</>
-            )}
+            {loading ? t("loading") : t.rich("found", { count: visible.length, b: chunks => <span className="font-semibold text-foreground">{chunks}</span> })}
           </p>
           {specialty && <FilterChip label={specialty} onClear={() => setSpecialty("")} />}
-          {wantDivision && <FilterChip label={`${wantDivision} Division`} onClear={() => place.pickDivision("")} />}
-          {wantDistrict && <FilterChip label={wantDistrict} onClear={() => place.pickDistrict("")} />}
-          {wantUpazila && <FilterChip label={wantUpazila} onClear={() => place.pickUpazila("")} />}
+          {wantDivision && <FilterChip label={tl("divisionChip", { name: place.labels.division })} onClear={() => place.pickDivision("")} />}
+          {wantDistrict && <FilterChip label={place.labels.district} onClear={() => place.pickDistrict("")} />}
+          {wantUpazila && <FilterChip label={place.labels.upazila} onClear={() => place.pickUpazila("")} />}
           {filtered && (
             <button type="button" onClick={clearAll} className="text-xs font-semibold text-muted-foreground underline-offset-4 hover:text-primary hover:underline">
-              Clear all
+              {tc("clearAll")}
             </button>
           )}
         </div>
 
         <Select value={sort} onValueChange={v => setSort(v as Sort)}>
-          <SelectTrigger className="h-9 w-auto gap-2 rounded-full border-border bg-card px-4 text-sm focus:ring-primary/30 focus:ring-offset-0" aria-label="Sort hospitals">
-            <span className="text-muted-foreground">Sort:</span>
+          <SelectTrigger className="h-9 w-auto gap-2 rounded-full border-border bg-card px-4 text-sm focus:ring-primary/30 focus:ring-offset-0" aria-label={t("sortLabel")}>
+            <span className="text-muted-foreground">{tc("sortBy")}</span>
             <SelectValue />
           </SelectTrigger>
           <SelectContent align="end">
-            {SORTS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+            {SORTS.map(s => <SelectItem key={s} value={s}>{t(`sorts.${s}`)}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -160,11 +154,11 @@ const FindHospitals = () => {
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
               <SearchX className="h-5 w-5 text-muted-foreground" />
             </div>
-            <p className="mt-4 font-semibold text-foreground">No hospitals match these filters</p>
-            <p className="mt-1 text-sm text-muted-foreground">Try another name, or widen the specialty or area.</p>
+            <p className="mt-4 font-semibold text-foreground">{t("noneTitle")}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t("noneBody")}</p>
             {filtered && (
               <button type="button" onClick={clearAll} className="mt-5 rounded-full border border-border px-5 py-2 text-sm font-semibold text-foreground hover:bg-chip">
-                Clear filters
+                {tc("clearFilters")}
               </button>
             )}
           </div>

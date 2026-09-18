@@ -1,5 +1,7 @@
-import { useEffect, useSyncExternalStore } from "react";
-import i18n from "@/i18n";
+import { useSyncExternalStore } from "react";
+import { useLocale } from "next-intl";
+import type { Locale } from "@/i18n/config";
+import { libWords } from "@/i18n/libText";
 import { nowTimeIn, pastSlotReason, todayIn } from "@/lib/timezone";
 
 export type AppSettings = {
@@ -70,11 +72,11 @@ const subscribe = (fn: () => void) => {
 
 export const getAppSettings = () => current;
 
-const publish = (languageChangedTo?: string) => {
+// The language itself isn't switched here: it's a cookie the server renders
+// by (src/i18n). `language` stays in these settings as the platform default,
+// which PlatformSettings applies to a browser that never picked one.
+const publish = () => {
   current = merge();
-  if (languageChangedTo && languageChangedTo !== i18n.language) {
-    i18n.changeLanguage(languageChangedTo).catch(() => { /* noop */ });
-  }
   if (typeof window !== "undefined") window.dispatchEvent(new Event(EVT));
   subs.forEach(fn => fn());
 };
@@ -83,14 +85,14 @@ const publish = (languageChangedTo?: string) => {
 export const setAppSettings = (patch: Partial<AppSettings>) => {
   chosen = { ...chosen, ...patch };
   try { localStorage.setItem(KEY, JSON.stringify(chosen)); } catch { /* ignore */ }
-  publish(patch.language);
+  publish();
 };
 
 /** Back to the platform's defaults for every key, as if nothing was ever set. */
 export const clearAppSettings = () => {
   chosen = {};
   try { localStorage.removeItem(KEY); } catch { /* ignore */ }
-  publish(platform.language ?? DEFAULTS.language);
+  publish();
 };
 
 /**
@@ -99,8 +101,11 @@ export const clearAppSettings = () => {
  */
 export const setPlatformDefaults = (patch: Partial<AppSettings>) => {
   platform = { ...platform, ...patch };
-  publish(chosen.language ? undefined : patch.language);
+  publish();
 };
+
+/** The platform's default language, once /super/global-settings has loaded. */
+export const platformLanguage = () => platform.language;
 
 export const useAppSettings = () =>
   useSyncExternalStore(subscribe, () => current, () => current);
@@ -115,6 +120,7 @@ export const useAppSettings = () =>
  */
 export const useBookingClock = () => {
   const s = useAppSettings();
+  const locale = useLocale();
   const timezone = platform.timezone ?? s.timezone;
   return {
     timezone,
@@ -122,15 +128,10 @@ export const useBookingClock = () => {
     today: todayIn(timezone),
     /** HH:MM now, for a time input's `min` when the date is today. */
     nowTime: nowTimeIn(timezone),
-    /** Null when the slot is bookable; otherwise a sentence to show. */
-    pastSlotReason: (date: string, time: string) => pastSlotReason(date, time, timezone),
+    /** Null when the slot is bookable; otherwise a sentence to show, in the page's language. */
+    pastSlotReason: (date: string, time: string) => pastSlotReason(date, time, timezone, new Date(), locale),
   };
 };
-
-// Sync i18n language with stored setting on load
-if (typeof window !== "undefined" && current.language && i18n.language !== current.language) {
-  i18n.changeLanguage(current.language).catch(() => { /* noop */ });
-}
 
 // ---- Format helpers ----
 
@@ -188,21 +189,28 @@ const partsFor = (date: Date, tz: string) => {
   return map;
 };
 
-const SHORT_MONTH = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const EN_WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+/**
+ * A date in the settings' format. Month and weekday names come out in the
+ * page's language (`locale`, English when left out); the digits stay Western
+ * either way, for the reason CURRENCY_LOCALE gives.
+ */
 export const formatDate = (
   input: Date | string | number,
   s: AppSettings = current,
   fmt?: string,
+  locale?: Locale,
 ) => {
   const date = input instanceof Date ? input : new Date(input);
   if (isNaN(date.getTime())) return "";
   const p = partsFor(date, s.timezone);
+  const w = libWords(locale);
   const YYYY = p.year;
   const MM = p.month;
   const DD = p.day;
-  const MMM = SHORT_MONTH[parseInt(MM, 10) - 1];
-  const dddd = p.weekday;
+  const MMM = w.monthsShort[parseInt(MM, 10) - 1];
+  const dddd = w.daysLong[EN_WEEKDAYS.indexOf(p.weekday)] ?? p.weekday;
   const f = fmt ?? s.dateFormat;
   return f
     .replace("dddd", dddd)
@@ -220,26 +228,19 @@ export const formatTime = (input: Date | string | number, s: AppSettings = curre
   }).format(date);
 };
 
-export const formatDateTime = (input: Date | string | number, s: AppSettings = current) =>
-  `${formatDate(input, s)} • ${formatTime(input, s)}`;
+export const formatDateTime = (input: Date | string | number, s: AppSettings = current, locale?: Locale) =>
+  `${formatDate(input, s, undefined, locale)} • ${formatTime(input, s)}`;
 
-// Convenience hook returning live settings + bound formatters
+// Convenience hook returning live settings + bound formatters, in the page's language.
 export const useFormatters = () => {
   const s = useAppSettings();
+  const locale = useLocale();
   return {
     settings: s,
     formatCurrency: (n: number) => formatCurrency(n, s),
-    formatDate: (d: Date | string | number, fmt?: string) => formatDate(d, s, fmt),
+    formatDate: (d: Date | string | number, fmt?: string) => formatDate(d, s, fmt, locale),
     formatTime: (d: Date | string | number) => formatTime(d, s),
-    formatDateTime: (d: Date | string | number) => formatDateTime(d, s),
+    formatDateTime: (d: Date | string | number) => formatDateTime(d, s, locale),
     currencySymbol: () => currencySymbol(s),
   };
-};
-
-// Optional: ensure language stays in sync if changed elsewhere
-export const useSyncLanguage = () => {
-  const s = useAppSettings();
-  useEffect(() => {
-    if (i18n.language !== s.language) i18n.changeLanguage(s.language);
-  }, [s.language]);
 };

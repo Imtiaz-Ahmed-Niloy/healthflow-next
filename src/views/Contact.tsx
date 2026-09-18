@@ -5,6 +5,7 @@ import * as Icons from "lucide-react";
 import { ChevronDown, Linkedin, Facebook } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import type { CmsHeroFields } from "@/data/cmsPageHero";
@@ -23,6 +24,8 @@ const inputClass =
   "mt-2 w-full rounded-xl bg-muted/60 border border-border/60 px-4 py-3 text-sm outline-none transition-shadow placeholder:text-muted-foreground/70 focus:border-primary/40 focus:ring-2 focus:ring-primary/25";
 
 const Contact = ({ hero, content }: { hero: CmsHeroFields; content: ContactContent }) => {
+  const t = useTranslations("contactPage");
+  // The form's labels and the support channels are the CMS's (/super/cms).
   const { form: f, support } = content;
 
   const [form, setForm] = useState({ name: "", email: "", subject: f.subjects[0] ?? "", message: "" });
@@ -51,7 +54,7 @@ const Contact = ({ hero, content }: { hero: CmsHeroFields; content: ContactConte
       setForm({ name: "", email: "", subject: f.subjects[0] ?? "", message: "" });
     } catch {
       // The fields are kept on purpose so a retry does not mean retyping.
-      toast.error("We couldn't send your message. Please try again, or email us directly.");
+      toast.error(t("failed"));
     } finally {
       setSending(false);
     }
@@ -82,8 +85,8 @@ const Contact = ({ hero, content }: { hero: CmsHeroFields; content: ContactConte
           <motion.form onSubmit={onSubmit}
             initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}
             className="lg:col-span-3 rounded-3xl bg-card border border-border/60 shadow-card p-7 md:p-9">
-            <h2 className="font-display text-2xl text-primary">Send us a message</h2>
-            <p className="text-sm text-muted-foreground mt-2">We read every message and reply to most within a working day.</p>
+            <h2 className="font-display text-2xl text-primary">{t("formTitle")}</h2>
+            <p className="text-sm text-muted-foreground mt-2">{t("formSub")}</p>
 
             <div className="mt-7 space-y-5">
               <div className="grid sm:grid-cols-2 gap-5">
@@ -120,10 +123,10 @@ const Contact = ({ hero, content }: { hero: CmsHeroFields; content: ContactConte
 
               <button type="submit" disabled={sending}
                 className="w-full rounded-full bg-primary text-primary-foreground py-4 font-semibold shadow-soft transition-all hover:bg-primary-glow hover:shadow-card disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:shadow-soft">
-                {sending ? "Sending…" : f.submitLabel}
+                {sending ? t("sending") : f.submitLabel}
               </button>
               <p className="text-center text-xs text-muted-foreground">
-                Please don&apos;t send medical details or documents here — this is a general enquiry form.
+                {t("noMedical")}
               </p>
             </div>
           </motion.form>
@@ -154,9 +157,9 @@ const Contact = ({ hero, content }: { hero: CmsHeroFields; content: ContactConte
             </div>
 
             <div>
-              <h2 className="font-display text-2xl text-primary">Follow Us</h2>
+              <h2 className="font-display text-2xl text-primary">{t("followTitle")}</h2>
               <p className="text-sm text-muted-foreground mt-2">
-                Stay connected with {BRAND_INFO.name} for the latest updates and insights.
+                {t("followSub", { brand: BRAND_INFO.name })}
               </p>
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <TiltCard maxTilt={10} lift={4} className="rounded-2xl bg-card border border-border/60 shadow-soft transition-shadow duration-300 hover:shadow-card">

@@ -10,6 +10,8 @@
 // Employees are PASSED IN, not loaded here — they are rows in public.employees
 // (HF-68), which is an async fetch and cannot happen inside a pure function.
 import type { Tables } from "@/lib/supabase/types";
+import { payslipWords } from "@/i18n/libText";
+import { clientLocale } from "@/i18n/config";
 
 /** The staff register row, exactly as the database returns it. */
 export type Employee = Tables<"employees">;
@@ -187,8 +189,11 @@ export const printPayslip = (
 ) => {
   const w = window.open("", "_blank", "width=820,height=1000");
   if (!w) return;
+  // Printing happens outside React, so the language comes from the cookie.
+  const locale = clientLocale();
+  const words = payslipWords(locale);
   const fmt = (n: number) => `৳${Number(n).toLocaleString()}`;
-  w.document.write(`<!doctype html><html><head><title>Payslip ${slip.emp_id} ${slip.period}</title>
+  w.document.write(`<!doctype html><html lang="${locale}"><head><title>${words.tabTitle(slip.emp_id, slip.period)}</title>
 <style>
   *{box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto}
   body{margin:0;padding:32px;color:#0f172a;background:#fff}
@@ -210,38 +215,38 @@ export const printPayslip = (
   @media print {body{padding:0}.wrap{border:0}}
 </style></head><body>
 <div class="wrap">
-  <header><h1>${company}</h1><span>Payslip · ${slip.period}</span></header>
+  <header><h1>${company}</h1><span>${words.heading(slip.period)}</span></header>
   <div class="meta">
-    <div><b>Employee</b>${slip.name}</div>
-    <div><b>Employee ID</b>${slip.emp_id}</div>
-    <div><b>Department</b>${slip.department || "—"}</div>
-    <div><b>Designation</b>${slip.designation || "—"}</div>
-    <div><b>Run</b>${runLabel}</div>
-    <div><b>Generated</b>${new Date().toLocaleString()}</div>
+    <div><b>${words.employee}</b>${slip.name}</div>
+    <div><b>${words.employeeId}</b>${slip.emp_id}</div>
+    <div><b>${words.department}</b>${slip.department || "—"}</div>
+    <div><b>${words.designation}</b>${slip.designation || "—"}</div>
+    <div><b>${words.run}</b>${runLabel}</div>
+    <div><b>${words.generated}</b>${new Date().toLocaleString(locale === "bn" ? "bn-BD-u-nu-latn" : "en-US")}</div>
   </div>
   <div class="grid">
     <div>
-      <h3>Earnings</h3>
+      <h3>${words.earnings}</h3>
       <table>
-        <tr><td>Basic</td><td class="r">${fmt(slip.basic)}</td></tr>
-        <tr><td>House Rent</td><td class="r">${fmt(slip.house_rent)}</td></tr>
-        <tr><td>Medical</td><td class="r">${fmt(slip.medical)}</td></tr>
-        <tr><td>Transport</td><td class="r">${fmt(slip.transport)}</td></tr>
-        <tr><th>Gross</th><th class="r">${fmt(slip.gross)}</th></tr>
+        <tr><td>${words.basic}</td><td class="r">${fmt(slip.basic)}</td></tr>
+        <tr><td>${words.houseRent}</td><td class="r">${fmt(slip.house_rent)}</td></tr>
+        <tr><td>${words.medical}</td><td class="r">${fmt(slip.medical)}</td></tr>
+        <tr><td>${words.transport}</td><td class="r">${fmt(slip.transport)}</td></tr>
+        <tr><th>${words.gross}</th><th class="r">${fmt(slip.gross)}</th></tr>
       </table>
     </div>
     <div>
-      <h3>Deductions</h3>
+      <h3>${words.deductions}</h3>
       <table>
-        <tr><td>Provident Fund</td><td class="r">${fmt(slip.pf)}</td></tr>
-        <tr><td>Income Tax</td><td class="r">${fmt(slip.tax)}</td></tr>
-        <tr><td>Loan / Advance</td><td class="r">${fmt(slip.loan)}</td></tr>
-        <tr><th>Total</th><th class="r">${fmt(slip.total_deductions)}</th></tr>
+        <tr><td>${words.pf}</td><td class="r">${fmt(slip.pf)}</td></tr>
+        <tr><td>${words.tax}</td><td class="r">${fmt(slip.tax)}</td></tr>
+        <tr><td>${words.loan}</td><td class="r">${fmt(slip.loan)}</td></tr>
+        <tr><th>${words.total}</th><th class="r">${fmt(slip.total_deductions)}</th></tr>
       </table>
     </div>
   </div>
-  <div class="total"><span>Net Payable</span><span>${fmt(slip.net)}</span></div>
-  <footer>Computer-generated payslip · ${new Date().getFullYear()} ${company}</footer>
+  <div class="total"><span>${words.netPayable}</span><span>${fmt(slip.net)}</span></div>
+  <footer>${words.footer(new Date().getFullYear(), company)}</footer>
 </div>
 <script>window.onload=()=>setTimeout(()=>window.print(),200)</script>
 </body></html>`);

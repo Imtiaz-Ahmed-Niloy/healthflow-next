@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Clock } from "lucide-react";
+import { useLocale } from "next-intl";
 import { useAppSettings, formatDate } from "@/lib/appSettings";
 
 interface Props {
@@ -11,6 +12,7 @@ interface Props {
 
 export const HeaderClock = ({ className = "", compact = false }: Props) => {
   const settings = useAppSettings();
+  const locale = useLocale();
 
   /**
    * null until the client has mounted.
@@ -40,7 +42,7 @@ export const HeaderClock = ({ className = "", compact = false }: Props) => {
       hour12: settings.timeFormat !== "24h",
     }).format(now);
 
-  const date = now && formatDate(now, settings);
+  const date = now && formatDate(now, settings, undefined, locale);
 
   return (
     <div

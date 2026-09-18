@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowRight, GraduationCap, MapPin, Star } from "lucide-react";
+import { useTranslations } from "next-intl";
 import TiltCard from "@/components/site/TiltCard";
 import { Avatar } from "@/components/common/Avatar";
 import type { UIDoctor } from "@/hooks/useDoctors";
@@ -22,7 +23,9 @@ export const DOCTOR_CARD_BUTTON =
  * button is View Profile: it goes to the doctor's profile, which is where a
  * visitor books from.
  */
-export const DoctorCard = ({ d, i = 0, action }: { d: UIDoctor; i?: number; action?: ReactNode }) => (
+export const DoctorCard = ({ d, i = 0, action }: { d: UIDoctor; i?: number; action?: ReactNode }) => {
+  const t = useTranslations("doctorCard");
+  return (
   <TiltCard
     delay={Math.min(i * 0.06, 0.4)}
     className="relative flex h-full flex-col rounded-3xl bg-card border border-border/60 p-5 shadow-soft transition-shadow duration-300 hover:shadow-card"
@@ -44,7 +47,7 @@ export const DoctorCard = ({ d, i = 0, action }: { d: UIDoctor; i?: number; acti
           <div className="flex items-center gap-1 mt-1.5 text-xs text-foreground/70">
             <Star className="h-3 w-3 fill-primary-glow text-primary-glow" />
             <span className="font-semibold">{d.rating}</span>
-            <span className="text-muted-foreground">({d.reviews} reviews)</span>
+            <span className="text-muted-foreground">({t("reviews", { count: d.reviews })})</span>
           </div>
         </div>
       </div>
@@ -60,8 +63,8 @@ export const DoctorCard = ({ d, i = 0, action }: { d: UIDoctor; i?: number; acti
       {/* Their areas of expertise — the first few, and how many more. */}
       {d.expertise.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {d.expertise.slice(0, 3).map(t => (
-            <span key={t} className="rounded-full bg-accent/40 px-2 py-0.5 text-[11px] font-medium text-primary">{t}</span>
+          {d.expertise.slice(0, 3).map(e => (
+            <span key={e} className="rounded-full bg-accent/40 px-2 py-0.5 text-[11px] font-medium text-primary">{e}</span>
           ))}
           {d.expertise.length > 3 && (
             <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">+{d.expertise.length - 3}</span>
@@ -73,15 +76,15 @@ export const DoctorCard = ({ d, i = 0, action }: { d: UIDoctor; i?: number; acti
           week reads as "Sun–Thu 9:00 AM–5:00 PM · Sat …", so it gets a line
           of its own, with all of it in the title when it is too long. */}
       <div className="mt-4">
-        <p className="text-xs font-semibold text-primary">Practicing At</p>
+        <p className="text-xs font-semibold text-primary">{t("practicingAt")}</p>
         <div className="mt-1.5 space-y-2">
           {(d.places.length ? d.places : [{ id: d.id, name: d.hospital.name, available: d.available }]).map(p => (
             <div key={p.id} className="flex items-center gap-1.5 min-w-0">
               <MapPin className="h-3.5 w-3.5 shrink-0 text-primary-glow" />
               <div className="min-w-0">
                 <p className="truncate text-xs font-medium text-foreground/85" title={p.name}>{p.name}</p>
-                <p className="truncate text-xs text-muted-foreground" title={p.available || "Hours not set"}>
-                  {p.available || "Hours not set"}
+                <p className="truncate text-xs text-muted-foreground" title={p.available || t("hoursNotSet")}>
+                  {p.available || t("hoursNotSet")}
                 </p>
               </div>
             </div>
@@ -94,19 +97,23 @@ export const DoctorCard = ({ d, i = 0, action }: { d: UIDoctor; i?: number; acti
         where every place they practise, and its hours, is listed. */}
     {action ?? (
       <Link href={`/doctors/${d.slug}`} className={DOCTOR_CARD_BUTTON}>
-        View Profile
+        {t("viewProfile")}
         {/* Slides out of nothing as the card is hovered. */}
         <ArrowRight className="h-4 w-0 opacity-0 transition-all duration-300 group-hover:w-4 group-hover:opacity-100" />
       </Link>
     )}
   </TiltCard>
-);
+  );
+};
 
 /** The note in place of the button for a doctor at no hospital or chamber yet — nothing to book. */
-export const DoctorCardNotBookable = () => (
-  <p className="mt-5 w-full rounded-full border border-border py-2.5 text-center text-xs font-semibold text-muted-foreground">
-    Not taking bookings on HealthFlow yet
-  </p>
-);
+export const DoctorCardNotBookable = () => {
+  const t = useTranslations("doctorCard");
+  return (
+    <p className="mt-5 w-full rounded-full border border-border py-2.5 text-center text-xs font-semibold text-muted-foreground">
+      {t("notBookable")}
+    </p>
+  );
+};
 
 export default DoctorCard;

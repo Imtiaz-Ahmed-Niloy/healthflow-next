@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, Btn, Pill, SectionTitle } from "@/components/admin/ui";
 import { Chips } from "@/components/admin/crud";
@@ -53,14 +54,10 @@ const ENTITY_HREF: Record<string, string> = {
   pharmacy_items: "/admin/pharmacy",
 };
 
-const FILTERS = [
-  { value: "all", label: "All" },
-  { value: "unread", label: "Unread" },
-  { value: "feed", label: "Hospital" },
-  { value: "local", label: "This device" },
-] as const;
+const FILTERS = ["all", "unread", "feed", "local"] as const;
 
 const NotificationRow = ({ n }: { n: Notif }) => {
+  const t = useTranslations("admin.notifications");
   const Icon = (n.kind && KIND_ICON[n.kind]) || Bell;
   const href = n.entityType ? ENTITY_HREF[n.entityType] : undefined;
 
@@ -91,7 +88,7 @@ const NotificationRow = ({ n }: { n: Notif }) => {
           {!n.persisted && (
             // Worth saying out loud: this one is not on the notice board, so a
             // colleague is not seeing it and it will not survive this browser.
-            <Pill tone="default">This device only</Pill>
+            <Pill tone="default">{t("thisDeviceOnly")}</Pill>
           )}
         </div>
       </div>
@@ -102,6 +99,8 @@ const NotificationRow = ({ n }: { n: Notif }) => {
 };
 
 const Notifications = () => {
+  const t = useTranslations("admin.notifications");
+  const tc = useTranslations("common");
   const { items, unread, isLoading, markAllRead, clear } = useNotifications();
   const [filter, setFilter] = useState<string>("all");
 
@@ -115,34 +114,31 @@ const Notifications = () => {
   const localCount = items.filter(n => !n.persisted).length;
 
   return (
-    <AdminLayout
-      title="Notifications"
-      subtitle="What happened in this hospital, and what you have not read yet"
-    >
+    <AdminLayout title={t("title")} subtitle={t("subtitle")}>
       <Card className="p-5">
         <SectionTitle
-          title={unread ? `${unread} unread` : "All caught up"}
+          title={unread ? t("unreadCount", { count: unread }) : t("allCaughtUp")}
           action={
             <div className="flex flex-wrap items-center gap-2">
-              <Chips value={filter} onChange={setFilter} options={FILTERS as unknown as { value: string; label: string }[]} />
-              <Btn variant="outline" onClick={markAllRead} disabled={!unread}>Mark all read</Btn>
+              <Chips value={filter} onChange={setFilter} options={FILTERS.map(value => ({ value, label: t(`filters.${value}`) }))} />
+              <Btn variant="outline" onClick={markAllRead} disabled={!unread}>{t("markAllRead")}</Btn>
               {/* Only the local ones can be cleared — the hospital's feed is
                   not one person's to erase for everybody else. */}
               <Btn variant="ghost" onClick={clear} disabled={!localCount}>
-                Clear this device
+                {t("clearDevice")}
               </Btn>
             </div>
           }
         />
 
         {isLoading ? (
-          <p className="text-sm text-muted-foreground text-center py-12">Loading…</p>
+          <p className="text-sm text-muted-foreground text-center py-12">{tc("loading")}</p>
         ) : (
           <ul className="space-y-2">
             {rows.map(n => <li key={n.id}><NotificationRow n={n} /></li>)}
             {!rows.length && (
               <p className="text-sm text-muted-foreground text-center py-12">
-                {filter === "unread" ? "Nothing unread." : "Nothing here yet."}
+                {filter === "unread" ? t("nothingUnread") : t("nothingYet")}
               </p>
             )}
           </ul>

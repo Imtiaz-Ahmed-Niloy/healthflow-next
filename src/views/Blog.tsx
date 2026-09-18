@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Search, Calendar, Clock, ArrowRight, BookOpen, Tag, TrendingUp } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
@@ -12,6 +13,8 @@ import type { BlogContent } from "@/data/blogContent";
 import { formatPostDate, type BlogPost } from "@/data/blogPost";
 
 const Blog = ({ chrome, posts }: { chrome: BlogContent; posts: BlogPost[] }) => {
+  const t = useTranslations("blogPage");
+  // The headings, categories and posts are the CMS's; only the controls are here.
   const { trendingTitle, leadEyebrow, leadKicker, gridTitle, emptyText, categories } = chrome;
   const [query, setQuery] = useState("");
   const [cat, setCat] = useState("All");
@@ -47,7 +50,7 @@ const Blog = ({ chrome, posts }: { chrome: BlogContent; posts: BlogPost[] }) => 
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search articles, authors, topics..."
+                placeholder={t("searchPlaceholder")}
                 className="pl-9 rounded-full"
               />
             </div>
@@ -67,9 +70,9 @@ const Blog = ({ chrome, posts }: { chrome: BlogContent; posts: BlogPost[] }) => 
                 <button
                   key={s}
                   onClick={() => setSort(s)}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${sort === s ? "bg-primary text-primary-foreground" : "text-foreground/70"}`}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${sort === s ? "bg-primary text-primary-foreground" : "text-foreground/70"}`}
                 >
-                  {s}
+                  {t(`sort.${s}`)}
                 </button>
               ))}
             </div>
@@ -105,7 +108,7 @@ const Blog = ({ chrome, posts }: { chrome: BlogContent; posts: BlogPost[] }) => 
                 <span>·</span>
                 <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" />{formatPostDate(lead.published_at)}</span>
                 <span>·</span>
-                <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />{lead.read_time} min read</span>
+                <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />{t("minRead", { count: lead.read_time })}</span>
               </div>
             </motion.article>
 
@@ -113,13 +116,13 @@ const Blog = ({ chrome, posts }: { chrome: BlogContent; posts: BlogPost[] }) => 
             <aside className="lg:col-span-4 lg:border-l lg:border-border/60 lg:pl-8">
               <h3 className="font-display text-xl text-primary border-b-2 border-primary/30 pb-2">{trendingTitle}</h3>
               <ol className="mt-4 space-y-5">
-                {trending.map((t, i) => (
-                  <li key={t.slug} className="flex gap-4 group">
+                {trending.map((post, i) => (
+                  <li key={post.slug} className="flex gap-4 group">
                     <span className="font-display text-3xl text-primary/30 leading-none w-8">{String(i + 1).padStart(2, "0")}</span>
-                    <Link href={`/blog/${t.slug}`} className="flex-1 border-b border-dashed border-border/60 pb-4">
-                      <span className="text-[10px] uppercase tracking-widest text-primary-glow font-bold">{t.category}</span>
-                      <h4 className="font-display text-base text-primary mt-1 leading-snug group-hover:underline">{t.title}</h4>
-                      <p className="text-[11px] text-muted-foreground mt-1">By {t.author} · {t.views.toLocaleString()} reads</p>
+                    <Link href={`/blog/${post.slug}`} className="flex-1 border-b border-dashed border-border/60 pb-4">
+                      <span className="text-[10px] uppercase tracking-widest text-primary-glow font-bold">{post.category}</span>
+                      <h4 className="font-display text-base text-primary mt-1 leading-snug group-hover:underline">{post.title}</h4>
+                      <p className="text-[11px] text-muted-foreground mt-1">{t("byReads", { author: post.author, count: post.views })}</p>
                     </Link>
                   </li>
                 ))}
@@ -135,7 +138,7 @@ const Blog = ({ chrome, posts }: { chrome: BlogContent; posts: BlogPost[] }) => 
               <BookOpen className="h-5 w-5" />
               {cat === "All" ? gridTitle : cat}
             </h2>
-            <span className="text-xs text-muted-foreground">{filtered.length} {filtered.length === 1 ? "article" : "articles"}</span>
+            <span className="text-xs text-muted-foreground">{t("articles", { count: filtered.length })}</span>
           </div>
 
           {filtered.length === 0 ? (
@@ -170,9 +173,9 @@ const Blog = ({ chrome, posts }: { chrome: BlogContent; posts: BlogPost[] }) => 
                     <img src={p.author_photo} alt={p.author} className="h-9 w-9 rounded-full object-cover" loading="lazy" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-primary truncate">{p.author}</p>
-                      <p className="text-[10px] text-muted-foreground">{formatPostDate(p.published_at)} · {p.read_time} min read</p>
+                      <p className="text-[10px] text-muted-foreground">{formatPostDate(p.published_at)} · {t("minRead", { count: p.read_time })}</p>
                     </div>
-                    <Link href={`/blog/${p.slug}`} className="text-primary opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Read">
+                    <Link href={`/blog/${p.slug}`} className="text-primary opacity-0 group-hover:opacity-100 transition-opacity" aria-label={t("read")}>
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                   </div>

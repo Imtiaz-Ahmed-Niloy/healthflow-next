@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, Btn, Pill, SectionTitle } from "@/components/admin/ui";
 import { exportCSV } from "@/components/admin/crud";
@@ -35,6 +36,8 @@ const MONEY_COLUMNS = new Set([
 ]);
 
 const ReportsPage = () => {
+  const t = useTranslations("admin.reports");
+  const tc = useTranslations("common");
   const { formatCurrency, formatDate } = useFormatters();
   const [data, setData] = useState<ReportsResponse | null>(null);
   const [active, setActive] = useState("receivables");
@@ -56,15 +59,15 @@ const ReportsPage = () => {
     try {
       const res = await fetch(`/api/v1/reports?from=${a}&to=${b}`);
       const body = await res.json().catch(() => null);
-      if (!res.ok) { setError(body?.error?.message || "Couldn't build that report."); return; }
+      if (!res.ok) { setError(body?.error?.message || t("buildFailed")); return; }
       setError(null);
       setData(body.data);
     } catch {
-      setError("Couldn't reach the server.");
+      setError(tc("networkError"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t, tc]);
 
   useEffect(() => { void load(from, to); }, [load, from, to]);
 
@@ -74,17 +77,17 @@ const ReportsPage = () => {
     MONEY_COLUMNS.has(column) && typeof value === "number" ? formatCurrency(value) : String(value);
 
   return (
-    <AdminLayout title="Reports" subtitle="Finance and operations, counted from real rows">
+    <AdminLayout title={t("title")} subtitle={t("subtitle")}>
       <Card className="p-5">
         <div className="flex flex-wrap items-end gap-3">
           <div>
-            <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1">FROM</p>
-            <input type="date" value={from} max={to} onChange={e => setFrom(e.target.value)}
+            <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1">{t("from")}</p>
+            <input type="date" value={from} max={to} onChange={e => setFrom(e.target.value)} aria-label={t("from")}
               className="bg-muted/40 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary" />
           </div>
           <div>
-            <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1">TO</p>
-            <input type="date" value={to} min={from} max={today} onChange={e => setTo(e.target.value)}
+            <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1">{t("to")}</p>
+            <input type="date" value={to} min={from} max={today} onChange={e => setTo(e.target.value)} aria-label={t("to")}
               className="bg-muted/40 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary" />
           </div>
           {data && (
@@ -97,7 +100,7 @@ const ReportsPage = () => {
               report.rows.map(row => Object.fromEntries(report.columns.map((c, i) => [c, row[i]]))),
               `${active}-${from}-to-${to}.csv`,
             )}>
-              <Download className="h-4 w-4" /> Export CSV
+              <Download className="h-4 w-4" /> {t("exportCsv")}
             </Btn>
           )}
         </div>
@@ -113,11 +116,11 @@ const ReportsPage = () => {
                   : "bg-card border-border/60 hover:shadow-card"
               }`}>
               <p className={`text-[10px] tracking-widest font-bold ${active === key ? "opacity-80" : "text-muted-foreground"}`}>
-                REPORT
+                {t("report")}
               </p>
               <p className={`font-display text-lg mt-1 ${active === key ? "" : "text-primary"}`}>{r.title}</p>
               <p className={`text-xs mt-1 ${active === key ? "opacity-80" : "text-muted-foreground"}`}>
-                {r.rows.length} row{r.rows.length === 1 ? "" : "s"}
+                {t("rows", { count: r.rows.length })}
               </p>
             </button>
           ))}
@@ -126,18 +129,18 @@ const ReportsPage = () => {
 
       <Card className="p-5 mt-4">
         {loading ? (
-          <p className="py-16 text-center text-sm text-muted-foreground">Building…</p>
+          <p className="py-16 text-center text-sm text-muted-foreground">{t("building")}</p>
         ) : error ? (
           <div className="py-12 text-center">
             <ShieldAlert className="h-6 w-6 text-destructive mx-auto mb-3" />
             <p className="text-sm text-foreground/80">{error}</p>
-            <Btn variant="outline" className="mt-4" onClick={() => void load(from, to)}>Try again</Btn>
+            <Btn variant="outline" className="mt-4" onClick={() => void load(from, to)}>{t("tryAgain")}</Btn>
           </div>
         ) : report ? (
           <>
             <SectionTitle
               title={report.title}
-              action={<Pill tone="info">{report.rows.length} rows</Pill>}
+              action={<Pill tone="info">{t("rows", { count: report.rows.length })}</Pill>}
             />
             <p className="text-xs text-muted-foreground -mt-2 mb-3">{report.note}</p>
             {report.rows.length ? (
@@ -163,7 +166,7 @@ const ReportsPage = () => {
               </div>
             ) : (
               <p className="py-12 text-center text-sm text-muted-foreground">
-                Nothing in this range. Widen the dates, or the rows behind this report do not exist yet.
+                {t("emptyRange")}
               </p>
             )}
 
@@ -183,7 +186,7 @@ const ReportsPage = () => {
         ) : (
           <p className="py-16 text-center text-sm text-muted-foreground">
             <FileBarChart className="h-6 w-6 mx-auto mb-3 text-muted-foreground" />
-            Pick a report above.
+            {t("pickReport")}
           </p>
         )}
       </Card>

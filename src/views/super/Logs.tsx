@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertCircle, ChevronDown, ChevronRight, ChevronLeft, Download, FilePlus2,
   FileX2, Pencil, Search, Shield, X,
@@ -9,6 +10,8 @@ import { SuperLayout } from "@/components/super/SuperLayout";
 import { Card, SectionTitle, Btn, Pill } from "@/components/admin/ui";
 import { auditLogsApi, type AuditLogRow } from "@/redux/api/resources";
 import { formatDate, formatTime, useAppSettings } from "@/lib/appSettings";
+import { useRoleLabel } from "@/i18n/useRoleLabel";
+import type { AppRole } from "@/lib/auth/permissions";
 
 /**
  * Every write in the database, from `public.audit_logs` (0058).
@@ -22,13 +25,19 @@ import { formatDate, formatTime, useAppSettings } from "@/lib/appSettings";
  * "what the API did" — it is what the database did, including changes made in
  * the SQL editor or by a script holding the service key. Nothing here can be
  * added or removed through the app: the table has no write policy at all.
+ *
+ * Table and column names stay as the database spells them — this is the
+ * screen for finding the row, and a translated name would not find it.
  */
 
 const PAGE_SIZE = 25;
 
 const ACTION_TONE = { insert: "ok", update: "info", delete: "bad" } as const;
 const ACTION_ICON = { insert: FilePlus2, update: Pencil, delete: FileX2 } as const;
-const ACTION_LABEL = { insert: "Created", update: "Updated", delete: "Deleted" } as const;
+
+const KNOWN_ROLES: readonly string[] = [
+  "super_admin", "hospital_admin", "hr_admin", "finance_admin", "lab_admin", "pharmacy_admin", "doctor", "patient",
+];
 
 /** `payroll_runs` reads as "Payroll runs" without a lookup table to maintain. */
 const humanTable = (name: string) => {
@@ -36,9 +45,8 @@ const humanTable = (name: string) => {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 };
 
-const humanRole = (role: string | null) => (role ? role.replace(/_/g, " ") : null);
-
 const Logs = () => {
+  const t = useTranslations("super.logs");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [action, setAction] = useState("all");
@@ -77,6 +85,7 @@ const Logs = () => {
   const onFilter = (fn: () => void) => { fn(); setPage(1); setExpanded(null); };
 
   const exportCsv = () => {
+    // Machine-readable on purpose: the columns and values are the database's.
     const header = ["when", "actor", "role", "action", "table", "record", "hospital", "changed"];
     const lines = rows.map((row) => [
       row.occurred_at,
@@ -103,17 +112,17 @@ const Logs = () => {
   };
 
   return (
-    <SuperLayout title="System Logs" subtitle="Every write, as the database saw it">
+    <SuperLayout title={t("title")} subtitle={t("subtitle")}>
       <Card className="p-5">
         <SectionTitle
-          title="Audit trail"
+          title={t("trail")}
           action={
             <div className="flex items-center gap-2">
               <p className="text-xs text-muted-foreground">
-                {meta ? `${meta.total.toLocaleString()} events` : "—"}
+                {meta ? t("events", { count: meta.total }) : "—"}
               </p>
               <Btn variant="outline" onClick={exportCsv} disabled={rows.length === 0}>
-                <Download className="h-4 w-4" /> Export page
+                <Download className="h-4 w-4" /> {t("exportPage")}
               </Btn>
             </div>
           }
@@ -125,8 +134,8 @@ const Logs = () => {
             <input
               value={search}
               onChange={(e) => onFilter(() => setSearch(e.target.value))}
-              placeholder="Who or which table…"
-              aria-label="Search the audit trail"
+              placeholder={t("searchPlaceholder")}
+              aria-label={t("searchLabel")}
               className="h-9 w-60 pl-9 pr-3 rounded-lg border border-border bg-background text-sm"
             />
           </div>
@@ -134,22 +143,22 @@ const Logs = () => {
           <select
             value={action}
             onChange={(e) => onFilter(() => setAction(e.target.value))}
-            aria-label="Filter by what happened"
+            aria-label={t("actionLabel")}
             className="h-9 rounded-lg border border-border bg-background px-3 text-sm"
           >
-            <option value="all">Anything</option>
-            <option value="insert">Created</option>
-            <option value="update">Updated</option>
-            <option value="delete">Deleted</option>
+            <option value="all">{t("anything")}</option>
+            <option value="insert">{t("actions.insert")}</option>
+            <option value="update">{t("actions.update")}</option>
+            <option value="delete">{t("actions.delete")}</option>
           </select>
 
           <select
             value={table}
             onChange={(e) => onFilter(() => setTable(e.target.value))}
-            aria-label="Filter by table"
+            aria-label={t("tableLabel")}
             className="h-9 max-w-[220px] rounded-lg border border-border bg-background px-3 text-sm"
           >
-            <option value="all">All tables</option>
+            <option value="all">{t("allTables")}</option>
             {tableOptions.map((name) => (
               <option key={name} value={name}>{humanTable(name)}</option>
             ))}
@@ -160,7 +169,7 @@ const Logs = () => {
               onClick={clearFilters}
               className="inline-flex items-center gap-1 h-9 px-3 rounded-lg border border-border text-sm font-semibold hover:bg-muted"
             >
-              <X className="h-3.5 w-3.5" /> Clear
+              <X className="h-3.5 w-3.5" /> {t("clear")}
             </button>
           )}
         </div>
@@ -174,26 +183,26 @@ const Logs = () => {
         ) : error ? (
           <div className="flex items-center gap-3 rounded-xl bg-destructive/10 text-destructive p-4">
             <AlertCircle className="h-5 w-5 shrink-0" />
-            <p className="text-sm font-semibold">Could not load the audit trail. Refresh to try again.</p>
+            <p className="text-sm font-semibold">{t("loadFailed")}</p>
           </div>
         ) : rows.length === 0 ? (
           <div className="rounded-xl bg-muted/40 p-10 text-center">
             <Shield className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-sm text-muted-foreground">
-              {hasFilter ? "No events match those filters." : "Nothing has been written yet."}
+              {hasFilter ? t("noMatch") : t("nothingYet")}
             </p>
           </div>
         ) : (
           <>
             <div className={`overflow-x-auto transition-opacity ${isFetching ? "opacity-60" : ""}`}>
               <table className="w-full text-sm min-w-[820px]">
-                <thead className="text-left text-[10px] tracking-widest text-muted-foreground bg-muted/30">
+                <thead className="text-left text-[10px] tracking-widest text-muted-foreground bg-muted/30 uppercase">
                   <tr>
-                    <th className="px-4 py-2.5">WHEN</th>
-                    <th>WHO</th>
-                    <th>WHAT</th>
-                    <th>WHERE</th>
-                    <th>HOSPITAL</th>
+                    <th className="px-4 py-2.5">{t("columns.when")}</th>
+                    <th>{t("columns.who")}</th>
+                    <th>{t("columns.what")}</th>
+                    <th>{t("columns.where")}</th>
+                    <th>{t("columns.hospital")}</th>
                     <th />
                   </tr>
                 </thead>
@@ -213,7 +222,7 @@ const Logs = () => {
             {meta && meta.totalPages > 1 && (
               <div className="flex items-center justify-between gap-3 mt-4">
                 <p className="text-xs text-muted-foreground">
-                  Page {meta.page} of {meta.totalPages}
+                  {t("pageOf", { page: meta.page, total: meta.totalPages })}
                 </p>
                 <div className="flex items-center gap-2">
                   <Btn
@@ -221,14 +230,14 @@ const Logs = () => {
                     onClick={() => { setPage((p) => Math.max(1, p - 1)); setExpanded(null); }}
                     disabled={page <= 1 || isFetching}
                   >
-                    <ChevronLeft className="h-4 w-4" /> Newer
+                    <ChevronLeft className="h-4 w-4" /> {t("newer")}
                   </Btn>
                   <Btn
                     variant="outline"
                     onClick={() => { setPage((p) => p + 1); setExpanded(null); }}
                     disabled={page >= meta.totalPages || isFetching}
                   >
-                    Older <ChevronRight className="h-4 w-4" />
+                    {t("older")} <ChevronRight className="h-4 w-4" />
                   </Btn>
                 </div>
               </div>
@@ -237,22 +246,21 @@ const Logs = () => {
         )}
       </Card>
 
-      <p className="mt-4 text-xs text-muted-foreground">
-        Written by a database trigger, so a change made in the SQL editor or by a script is
-        here too — not only what went through the app. Values are recorded for platform and
-        content tables; for everything else the trail names the columns that changed but not
-        what they hold, so patient and payroll data is not copied into a second place.
-        Nothing here can be edited or deleted, by anyone.
-      </p>
+      <p className="mt-4 text-xs text-muted-foreground">{t("footnote")}</p>
     </SuperLayout>
   );
 };
 
 const Row = ({ row, open, onToggle }: { row: AuditLogRow; open: boolean; onToggle: () => void }) => {
+  const t = useTranslations("super.logs");
+  const roleLabel = useRoleLabel();
   const Icon = ACTION_ICON[row.action];
   const when = new Date(row.occurred_at);
   const details = row.details as { old?: Record<string, unknown>; new?: Record<string, unknown> } | null;
   const expandable = row.changed_fields.length > 0 || !!details;
+  const role = row.actor_role
+    ? KNOWN_ROLES.includes(row.actor_role) ? roleLabel(row.actor_role as AppRole) : row.actor_role.replace(/_/g, " ")
+    : null;
 
   return (
     <>
@@ -268,22 +276,20 @@ const Row = ({ row, open, onToggle }: { row: AuditLogRow; open: boolean; onToggl
           {row.actor_email ? (
             <>
               <span className="font-semibold text-primary">{row.actor_email}</span>
-              {row.actor_role && (
-                <span className="block text-[11px] text-muted-foreground capitalize">
-                  {humanRole(row.actor_role)}
-                </span>
+              {role && (
+                <span className="block text-[11px] text-muted-foreground">{role}</span>
               )}
             </>
           ) : (
             // No JWT behind the change: the service key, a migration, or the
             // SQL editor. Named as such rather than blamed on a person.
-            <span className="text-muted-foreground italic">System</span>
+            <span className="text-muted-foreground italic">{t("system")}</span>
           )}
         </td>
         <td>
           <span className="inline-flex items-center gap-1.5">
             <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-            <Pill tone={ACTION_TONE[row.action]}>{ACTION_LABEL[row.action]}</Pill>
+            <Pill tone={ACTION_TONE[row.action]}>{t(`actions.${row.action}`)}</Pill>
           </span>
         </td>
         <td>
@@ -309,8 +315,8 @@ const Row = ({ row, open, onToggle }: { row: AuditLogRow; open: boolean; onToggl
           <td colSpan={6} className="px-4 py-4">
             {row.changed_fields.length > 0 && (
               <div className="mb-3">
-                <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1.5">
-                  COLUMNS CHANGED
+                <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1.5 uppercase">
+                  {t("columnsChanged")}
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {row.changed_fields.map((field) => (
@@ -326,8 +332,8 @@ const Row = ({ row, open, onToggle }: { row: AuditLogRow; open: boolean; onToggl
               <div className="grid sm:grid-cols-2 gap-3">
                 {(["old", "new"] as const).map((side) => (
                   <div key={side}>
-                    <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1.5">
-                      {side === "old" ? "BEFORE" : "AFTER"}
+                    <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1.5 uppercase">
+                      {side === "old" ? t("before") : t("after")}
                     </p>
                     <pre className="max-h-56 overflow-auto rounded-lg bg-card border border-border/60 p-3 text-[11px] leading-relaxed">
                       {JSON.stringify(details[side] ?? {}, null, 2)}
@@ -336,10 +342,7 @@ const Row = ({ row, open, onToggle }: { row: AuditLogRow; open: boolean; onToggl
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground">
-                Values are not recorded for this table — the trail says which columns changed,
-                not what they hold.
-              </p>
+              <p className="text-xs text-muted-foreground">{t("valuesNotRecorded")}</p>
             )}
           </td>
         </tr>

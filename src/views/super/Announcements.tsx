@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { SuperLayout } from "@/components/super/SuperLayout";
 import { Btn, Pill } from "@/components/admin/ui";
 import {
@@ -12,19 +13,26 @@ import {
   Announcement, AnnouncementStatus, AnnouncementType,
 } from "@/data/announcements";
 import { useResourceCrud } from "@/components/admin/useResourceCrud";
+import { useFormatters } from "@/lib/appSettings";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { format } from "date-fns";
 
-type Filter = "All" | AnnouncementStatus;
+type Filter = "all" | AnnouncementStatus;
+
+const FILTERS: Filter[] = ["all", "published", "draft", "archived"];
+const STATUSES: AnnouncementStatus[] = ["published", "draft", "archived"];
+const TYPES: AnnouncementType[] = ["text", "image"];
 
 /**
  * The editor's working copy. No id means "new"; cta fields are plain strings
  * here (the row carries them as string | null) so the inputs stay controlled.
+ *
+ * An announcement's own title and body are what the super admin wrote, in
+ * whichever language they wrote it; only the screen around them translates.
  */
 type Draft = {
   id?: string;
@@ -36,8 +44,6 @@ type Draft = {
   cta_url: string;
   status: AnnouncementStatus;
 };
-
-const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const emptyForm = (): Draft => ({
   type: "text",
@@ -61,9 +67,12 @@ const toDraft = (a: Announcement): Draft => ({
 });
 
 const Page = () => {
+  const t = useTranslations("super.announcements");
+  const tc = useTranslations("common");
+  const { formatDateTime } = useFormatters();
   const crud = useResourceCrud<Announcement>("announcements");
   const items = crud.items;
-  const [filter, setFilter] = useState<Filter>("All");
+  const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<Draft | null>(null);
   const [preview, setPreview] = useState<Announcement | null>(null);
@@ -74,7 +83,7 @@ const Page = () => {
     return items.filter(a => {
       const q = query.toLowerCase();
       const mq = a.title.toLowerCase().includes(q) || a.body.toLowerCase().includes(q);
-      const mf = filter === "All" ? true : a.status === filter;
+      const mf = filter === "all" ? true : a.status === filter;
       return mq && mf;
     });
   }, [items, filter, query]);
@@ -108,43 +117,33 @@ const Page = () => {
     void crud.update(a.id, { status: next });
   };
 
+  const tiles = [
+    { label: t("stats.total"), value: stats.total, icon: Megaphone, tone: "bg-primary/10 text-primary" },
+    { label: t("stats.live"), value: stats.published, icon: Eye, tone: "bg-accent/40 text-accent-foreground" },
+    { label: t("stats.drafts"), value: stats.drafts, icon: Pencil, tone: "bg-chip text-chip-foreground" },
+  ];
+
   return (
-    <SuperLayout title="Announcements" subtitle="Broadcast pop-up announcements to home page visitors">
+    <SuperLayout title={t("title")} subtitle={t("subtitle")}>
       <div className="space-y-6">
         {/* Header actions */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="rounded-2xl bg-card border border-border/60 shadow-soft px-4 py-3 flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary grid place-items-center">
-                <Megaphone className="h-4 w-4" />
+            {tiles.map(tile => (
+              <div key={tile.label} className="rounded-2xl bg-card border border-border/60 shadow-soft px-4 py-3 flex items-center gap-3">
+                <div className={`h-9 w-9 rounded-lg grid place-items-center ${tile.tone}`}>
+                  <tile.icon className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-[10px] tracking-widest font-bold text-muted-foreground uppercase">{tile.label}</p>
+                  <p className="font-display text-xl text-primary leading-none mt-0.5">{tile.value}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-[10px] tracking-widest font-bold text-muted-foreground">TOTAL</p>
-                <p className="font-display text-xl text-primary leading-none mt-0.5">{stats.total}</p>
-              </div>
-            </div>
-            <div className="rounded-2xl bg-card border border-border/60 shadow-soft px-4 py-3 flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-accent/40 text-accent-foreground grid place-items-center">
-                <Eye className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-[10px] tracking-widest font-bold text-muted-foreground">LIVE</p>
-                <p className="font-display text-xl text-primary leading-none mt-0.5">{stats.published}</p>
-              </div>
-            </div>
-            <div className="rounded-2xl bg-card border border-border/60 shadow-soft px-4 py-3 flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-chip text-chip-foreground grid place-items-center">
-                <Pencil className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-[10px] tracking-widest font-bold text-muted-foreground">DRAFTS</p>
-                <p className="font-display text-xl text-primary leading-none mt-0.5">{stats.drafts}</p>
-              </div>
-            </div>
+            ))}
           </div>
           <div className="flex items-center gap-2">
             <Btn onClick={() => setEditing(emptyForm())}>
-              <Plus className="h-4 w-4" /> New Announcement
+              <Plus className="h-4 w-4" /> {t("new")}
             </Btn>
           </div>
         </div>
@@ -154,14 +153,14 @@ const Page = () => {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search announcements…"
+              placeholder={t("searchPlaceholder")}
               value={query}
               onChange={e => setQuery(e.target.value)}
               className="pl-9 bg-muted/40 border-border/60"
             />
           </div>
           <div className="flex items-center gap-1 rounded-full bg-muted/50 p-1">
-            {(["All", "published", "draft", "archived"] as Filter[]).map(f => (
+            {FILTERS.map(f => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
@@ -169,7 +168,7 @@ const Page = () => {
                   filter === f ? "bg-card text-primary shadow-soft" : "text-muted-foreground hover:text-primary"
                 }`}
               >
-                {f === "All" ? "All" : cap(f)}
+                {t(`filters.${f}`)}
               </button>
             ))}
           </div>
@@ -178,15 +177,13 @@ const Page = () => {
         {/* Cards */}
         {crud.error ? (
           <div className="rounded-2xl bg-card border border-border/60 shadow-soft p-12 text-center">
-            <p className="text-sm font-semibold text-destructive">Could not load announcements.</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              You may not have access to this module, or the request failed.
-            </p>
-            <Btn variant="outline" className="mt-3" onClick={() => crud.refetch()}>Try again</Btn>
+            <p className="text-sm font-semibold text-destructive">{t("loadFailed")}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("loadFailedHint")}</p>
+            <Btn variant="outline" className="mt-3" onClick={() => crud.refetch()}>{t("tryAgain")}</Btn>
           </div>
         ) : crud.isLoading ? (
           <div className="rounded-2xl bg-card border border-border/60 shadow-soft p-12 text-center text-sm text-muted-foreground">
-            Loading…
+            {tc("loading")}
           </div>
         ) : (
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -205,29 +202,29 @@ const Page = () => {
                 <div className="flex items-center gap-2">
                   <Pill tone={a.type === "image" ? "info" : "default"}>
                     {a.type === "image" ? <ImageIcon className="h-3 w-3 mr-1 inline" /> : <Type className="h-3 w-3 mr-1 inline" />}
-                    {a.type}
+                    {t(`types.${a.type}`)}
                   </Pill>
                   <Pill tone={a.status === "published" ? "ok" : a.status === "draft" ? "warn" : "default"}>
-                    {cap(a.status)}
+                    {t(`filters.${a.status}`)}
                   </Pill>
                 </div>
                 <h3 className="font-display text-lg text-primary leading-tight line-clamp-2">{a.title}</h3>
                 <p className="text-sm text-foreground/70 line-clamp-3 flex-1">{a.body}</p>
                 <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                   <Calendar className="h-3 w-3" />
-                  {format(new Date(a.updated_at), "MMM d, yyyy · HH:mm")}
+                  {formatDateTime(a.updated_at)}
                 </div>
                 <div className="flex items-center justify-between pt-3 border-t border-border/50">
                   <button
                     onClick={() => setPreview(a)}
                     className="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1"
                   >
-                    <Eye className="h-3.5 w-3.5" /> Preview
+                    <Eye className="h-3.5 w-3.5" /> {t("preview")}
                   </button>
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => togglePublish(a)}
-                      title={a.status === "published" ? "Unpublish" : "Publish"}
+                      title={a.status === "published" ? t("unpublish") : t("publish")}
                       className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
                     >
                       {a.status === "published" ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -235,14 +232,14 @@ const Page = () => {
                     <button
                       onClick={() => setEditing(toDraft(a))}
                       className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
-                      title="Edit"
+                      title={tc("edit")}
                     >
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => void crud.remove(a.id)}
                       className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                      title="Delete"
+                      title={tc("delete")}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -254,8 +251,8 @@ const Page = () => {
           {filtered.length === 0 && (
             <div className="col-span-full rounded-2xl bg-card border border-border/60 shadow-soft p-12 text-center">
               <Megaphone className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
-              <p className="font-semibold text-primary">No announcements yet</p>
-              <p className="text-sm text-muted-foreground mt-1">Click &quot;New Announcement&quot; to broadcast your first message.</p>
+              <p className="font-semibold text-primary">{t("none")}</p>
+              <p className="text-sm text-muted-foreground mt-1">{t("noneHint")}</p>
             </div>
           )}
         </div>
@@ -267,61 +264,62 @@ const Page = () => {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editing?.id ? "Edit Announcement" : "New Announcement"}
+              {editing?.id ? t("editTitle") : t("new")}
             </DialogTitle>
           </DialogHeader>
           {editing && (
             <div className="space-y-4">
               {/* Type toggle */}
               <div>
-                <Label className="mb-2 block">Type</Label>
+                <Label className="mb-2 block">{t("fields.type")}</Label>
                 <div className="grid grid-cols-2 gap-2">
-                  {(["text", "image"] as AnnouncementType[]).map(t => (
+                  {TYPES.map(type => (
                     <button
-                      key={t}
+                      key={type}
                       type="button"
-                      onClick={() => setEditing({ ...editing, type: t })}
+                      onClick={() => setEditing({ ...editing, type })}
                       className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
-                        editing.type === t
+                        editing.type === type
                           ? "bg-primary text-primary-foreground border-primary"
                           : "bg-card border-border/60 text-foreground/70 hover:border-primary/50"
                       }`}
                     >
-                      {t === "text" ? <Type className="h-4 w-4" /> : <ImageIcon className="h-4 w-4" />}
-                      {t === "text" ? "Text" : "Image"}
+                      {type === "text" ? <Type className="h-4 w-4" /> : <ImageIcon className="h-4 w-4" />}
+                      {t(`types.${type}`)}
                     </button>
                   ))}
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <Label>Title</Label>
+                <Label>{t("fields.title")}</Label>
                 <Input
                   value={editing.title}
                   onChange={e => setEditing({ ...editing, title: e.target.value })}
-                  placeholder="e.g. 30% Off Annual Plans"
+                  placeholder={t("fields.titlePlaceholder")}
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label>Body</Label>
+                <Label>{t("fields.body")}</Label>
                 <Textarea
                   rows={4}
                   value={editing.body}
                   onChange={e => setEditing({ ...editing, body: e.target.value })}
-                  placeholder="Describe your announcement…"
+                  placeholder={t("fields.bodyPlaceholder")}
                 />
               </div>
 
               {editing.type === "image" && (
                 <div className="space-y-1.5">
-                  <Label>Image</Label>
+                  <Label>{t("fields.image")}</Label>
                   {editing.image ? (
                     <div className="relative rounded-xl overflow-hidden border border-border/60">
                       <img src={editing.image} alt="" className="w-full h-40 object-cover" />
                       <button
                         type="button"
                         onClick={() => setEditing({ ...editing, image: null })}
+                        aria-label={tc("remove")}
                         className="absolute top-2 right-2 h-7 w-7 grid place-items-center rounded-full bg-card/90 border border-border/60 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
                       >
                         <X className="h-3.5 w-3.5" />
@@ -334,8 +332,8 @@ const Page = () => {
                       className="w-full rounded-xl border-2 border-dashed border-border/60 hover:border-primary/50 hover:bg-muted/30 px-4 py-8 text-center transition-colors"
                     >
                       <Upload className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm font-semibold text-primary">Click to upload</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">PNG, JPG up to 2MB</p>
+                      <p className="text-sm font-semibold text-primary">{t("fields.upload")}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{t("fields.uploadHint")}</p>
                     </button>
                   )}
                   <input
@@ -347,7 +345,7 @@ const Page = () => {
                       const file = e.target.files?.[0] || null;
                       if (!file) return;
                       if (file.size > 2 * 1024 * 1024) {
-                        toast.error("Image must be smaller than 2MB");
+                        toast.error(t("tooBig"));
                         return;
                       }
                       const fr = new FileReader();
@@ -360,15 +358,15 @@ const Page = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>CTA Label</Label>
+                  <Label>{t("fields.ctaLabel")}</Label>
                   <Input
                     value={editing.cta_label}
                     onChange={e => setEditing({ ...editing, cta_label: e.target.value })}
-                    placeholder="View Pricing"
+                    placeholder={t("fields.ctaLabelPlaceholder")}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>CTA Link</Label>
+                  <Label>{t("fields.ctaLink")}</Label>
                   <Input
                     value={editing.cta_url}
                     onChange={e => setEditing({ ...editing, cta_url: e.target.value })}
@@ -378,9 +376,9 @@ const Page = () => {
               </div>
 
               <div className="space-y-1.5">
-                <Label>Status</Label>
+                <Label>{t("fields.status")}</Label>
                 <div className="grid grid-cols-3 gap-2">
-                  {(["published", "draft", "archived"] as AnnouncementStatus[]).map(s => (
+                  {STATUSES.map(s => (
                     <button
                       key={s}
                       type="button"
@@ -391,7 +389,7 @@ const Page = () => {
                           : "bg-card border-border/60 text-foreground/60 hover:border-primary/50"
                       }`}
                     >
-                      {cap(s)}
+                      {t(`filters.${s}`)}
                     </button>
                   ))}
                 </div>
@@ -399,17 +397,17 @@ const Page = () => {
             </div>
           )}
           <DialogFooter>
-            <Btn variant="ghost" onClick={() => setEditing(null)}>Cancel</Btn>
+            <Btn variant="ghost" onClick={() => setEditing(null)}>{tc("cancel")}</Btn>
             <Btn
               disabled={saving}
               onClick={() => {
                 if (!editing) return;
-                if (!editing.title.trim()) { toast.error("Title is required"); return; }
-                if (editing.type === "image" && !editing.image) { toast.error("Please upload an image"); return; }
+                if (!editing.title.trim()) { toast.error(t("titleRequired")); return; }
+                if (editing.type === "image" && !editing.image) { toast.error(t("imageRequired")); return; }
                 void persist(editing);
               }}
             >
-              {saving ? "Saving…" : "Save Announcement"}
+              {saving ? tc("saving") : t("save")}
             </Btn>
           </DialogFooter>
         </DialogContent>
@@ -426,8 +424,8 @@ const Page = () => {
                 </div>
               ) : (
                 <div className="px-7 pt-8 pb-2 bg-gradient-to-br from-primary/10 via-accent/30 to-chip">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-card/80 backdrop-blur text-[10px] font-bold tracking-widest text-primary border border-border/60">
-                    <Sparkles className="h-3 w-3" /> ANNOUNCEMENT
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-card/80 backdrop-blur text-[10px] font-bold tracking-widest text-primary border border-border/60 uppercase">
+                    <Sparkles className="h-3 w-3" /> {t("badge")}
                   </span>
                 </div>
               )}
@@ -441,8 +439,8 @@ const Page = () => {
                     </span>
                   </div>
                 )}
-                <p className="text-[10px] tracking-widest font-bold text-muted-foreground pt-3 border-t border-border/50">
-                  PREVIEW · This is how visitors see the pop-up on the home page
+                <p className="text-[10px] tracking-widest font-bold text-muted-foreground pt-3 border-t border-border/50 uppercase">
+                  {t("previewNote")}
                 </p>
               </div>
             </>

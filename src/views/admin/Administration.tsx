@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, Btn, Pill } from "@/components/admin/ui";
 import { Modal, Field, Input, TextArea, Select, statusTone } from "@/components/admin/crud";
@@ -96,13 +97,19 @@ const CertFieldInput = ({ field, defaultValue }: { field: CertField; defaultValu
   );
 };
 
-/** Statuses are stored lowercase across every module; capitalised only here. */
-const STATUS_LABELS: Record<CertStatus, string> = {
-  pending: "Pending",
-  issued: "Issued",
-  revoked: "Revoked",
-};
+const CERT_STATUSES = ["pending", "issued", "revoked"] as const;
 
+/** The status as the printed certificate spells it — in English, like the rest of the document. */
+const PRINTED_STATUS: Record<CertStatus, string> = { pending: "Pending", issued: "Issued", revoked: "Revoked" };
+
+/**
+ * The certificate itself stays in English.
+ *
+ * It is a document someone hands to a registrar, an employer or an embassy, so
+ * its wording is the wording those readers expect — the same reason the
+ * prescription keeps medicine names as written. The panel around it (this
+ * page's own buttons, filters and table) reads in the admin's language.
+ */
 const dateLabel = (iso: string | null) => {
   if (!iso) return "—";
   const d = new Date(`${iso}T00:00:00`);
@@ -130,6 +137,13 @@ const suggestNumber = (rows: Certificate[], type: CertType) => {
 };
 
 export default function Administration() {
+  const t = useTranslations("admin.certificates");
+  const tc = useTranslations("common");
+  const typeLabel = (type: CertType) => t(`types.${type}`);
+  const categoryLabel = (category: "Patient" | "Employee") =>
+    category === "Patient" ? t("categories.patient") : t("categories.employee");
+  const statusLabel = (status: CertStatus) => t(`statuses.${status}`);
+
   const crud = useResourceCrud<Certificate>("certificates");
   const patients = useResourceCrud<PatientOption>("patients");
   const employees = useResourceCrud<EmployeeOption>("employees");
@@ -171,7 +185,7 @@ export default function Administration() {
     // The table refuses an issued certificate with no date; catch it here so
     // the person gets a sentence rather than a constraint violation.
     if (status === "issued" && !issuedOn) {
-      push({ title: "An issued certificate needs an issue date", tone: "warn" });
+      push({ title: t("needsIssueDate"), tone: "warn" });
       return;
     }
 
@@ -204,16 +218,16 @@ export default function Administration() {
       : await crud.create(body as never);
     if (!saved) return; // useResourceCrud has surfaced the error
 
-    push({ title: editing ? "Certificate updated" : `${activeMeta?.label} issued`, tone: "ok" });
+    push({ title: editing ? t("updated") : t("issuedToast", { type: activeType ? typeLabel(activeType) : "" }), tone: "ok" });
     setIssuing(null);
     setEditing(null);
   };
 
   const exportCSV = () => {
-    const head = ["Cert No", "Type", "Category", "Recipient", "Issued By", "Issued On", "Status"];
+    const head = [t("columns.certNo"), t("columns.type"), t("columns.category"), t("columns.recipient"), t("columns.issuedBy"), t("columns.issuedOn"), t("columns.status")];
     const body = filtered.map(c => [
-      c.certificate_no, metaFor(c.type).label, metaFor(c.type).category,
-      c.recipient_name, c.issued_by ?? "", c.issued_on ?? "", STATUS_LABELS[c.status],
+      c.certificate_no, typeLabel(c.type), categoryLabel(metaFor(c.type).category),
+      c.recipient_name, c.issued_by ?? "", c.issued_on ?? "", statusLabel(c.status),
     ]);
     const csv = [head, ...body]
       .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(","))
@@ -225,28 +239,26 @@ export default function Administration() {
   };
 
   return (
-    <AdminLayout title="Certificates" subtitle="Issue and manage medical & HR certificates">
+    <AdminLayout title={t("title")} subtitle={t("subtitle")}>
       <div className="space-y-6">
         <Card className="p-5">
           <div className="mb-4">
-            <h3 className="font-display text-lg text-primary">Issue a new certificate</h3>
-            <p className="text-xs text-muted-foreground">
-              Pick a template to issue. Patient and employee certificates supported.
-            </p>
+            <h3 className="font-display text-lg text-primary">{t("issueNew")}</h3>
+            <p className="text-xs text-muted-foreground">{t("issueNewNote")}</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-            {TYPES.map(t => {
-              const Icon = t.icon;
+            {TYPES.map(type => {
+              const Icon = type.icon;
               return (
-                <button key={t.type} onClick={() => setIssuing(t.type)}
+                <button key={type.type} onClick={() => setIssuing(type.type)}
                   className="group text-left rounded-xl border border-border/60 bg-background hover:border-primary hover:shadow-md transition p-4">
-                  <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${t.tone} mb-3`}>
+                  <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${type.tone} mb-3`}>
                     <Icon className="h-5 w-5" />
                   </div>
-                  <div className="text-sm font-semibold text-primary leading-tight">{t.label}</div>
+                  <div className="text-sm font-semibold text-primary leading-tight">{typeLabel(type.type)}</div>
                   <div className="mt-2 flex items-center justify-between">
-                    <span className="text-[10px] tracking-widest text-muted-foreground">{t.category.toUpperCase()}</span>
-                    <span className="text-[10px] text-muted-foreground">{counts.get(t.type) || 0} issued</span>
+                    <span className="text-[10px] tracking-widest text-muted-foreground">{categoryLabel(type.category).toUpperCase()}</span>
+                    <span className="text-[10px] text-muted-foreground">{t("issuedCount", { count: counts.get(type.type) || 0 })}</span>
                   </div>
                 </button>
               );
@@ -259,43 +271,41 @@ export default function Administration() {
             <div className="relative flex-1 min-w-[220px] max-w-sm">
               <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Search number, name or type…"
+                placeholder={t("searchPlaceholder")} aria-label={t("searchPlaceholder")}
                 className="w-full bg-muted/40 rounded-lg pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-primary text-sm" />
             </div>
             <div className="flex items-center gap-1 rounded-full bg-muted/50 p-1">
-              {(["All", "Patient", "Employee"] as const).map(t => (
-                <button key={t} onClick={() => setTab(t)}
+              {(["All", "Patient", "Employee"] as const).map(key => (
+                <button key={key} onClick={() => setTab(key)}
                   className={`px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${
-                    tab === t ? "bg-card text-primary shadow-soft" : "text-muted-foreground hover:text-primary"
-                  }`}>{t}</button>
+                    tab === key ? "bg-card text-primary shadow-soft" : "text-muted-foreground hover:text-primary"
+                  }`}>{key === "All" ? t("all") : categoryLabel(key)}</button>
               ))}
             </div>
-            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} aria-label={t("columns.type")}
               className="bg-muted/40 rounded-lg px-3 py-2 text-sm outline-none">
-              <option value="All">All types</option>
-              {TYPES.map(t => <option key={t.type} value={t.type}>{t.label}</option>)}
+              <option value="All">{t("allTypes")}</option>
+              {TYPES.map(type => <option key={type.type} value={type.type}>{typeLabel(type.type)}</option>)}
             </select>
-            <Btn variant="outline" className="ml-auto" onClick={exportCSV}>Export CSV</Btn>
+            <Btn variant="outline" className="ml-auto" onClick={exportCSV}>{t("exportCsv")}</Btn>
           </div>
 
           {crud.error ? (
             <div className="py-12 text-center">
-              <p className="text-sm font-semibold text-destructive">Could not load certificates.</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                You may not have access to this module, or the request failed.
-              </p>
+              <p className="text-sm font-semibold text-destructive">{t("loadFailed")}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t("loadFailedHint")}</p>
               <button type="button" onClick={() => crud.refetch()}
                 className="mt-3 px-4 py-2 rounded-full text-xs font-semibold border border-border hover:bg-muted">
-                Try again
+                {t("tryAgain")}
               </button>
             </div>
           ) : crud.isLoading ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>
+            <div className="py-12 text-center text-sm text-muted-foreground">{tc("loading")}</div>
           ) : filtered.length === 0 ? (
             <div className="py-12 text-center">
-              <p className="text-sm font-semibold text-primary">No certificates found</p>
+              <p className="text-sm font-semibold text-primary">{t("noneFound")}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                {rows.length === 0 ? "Pick a template above to issue the first one." : "Try a different search or filter."}
+                {rows.length === 0 ? t("pickTemplate") : t("tryAnother")}
               </p>
             </div>
           ) : (
@@ -303,8 +313,8 @@ export default function Administration() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/40">
                   <tr>
-                    {["Cert No", "Type", "Recipient", "Issued By", "Issued On", "Status", ""].map(h => (
-                      <th key={h} className="px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-bold text-left">{h}</th>
+                    {[t("columns.certNo"), t("columns.type"), t("columns.recipient"), t("columns.issuedBy"), t("columns.issuedOn"), t("columns.status"), ""].map((h, i) => (
+                      <th key={i} className="px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-bold text-left">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -312,15 +322,15 @@ export default function Administration() {
                   {filtered.map(c => (
                     <tr key={c.id} className="border-t border-border/40 hover:bg-muted/20">
                       <td className="px-4 py-3 font-mono text-xs font-semibold text-primary">{c.certificate_no}</td>
-                      <td className="px-4 py-3">{metaFor(c.type).label}</td>
+                      <td className="px-4 py-3">{typeLabel(c.type)}</td>
                       <td className="px-4 py-3 font-semibold text-primary">{c.recipient_name}</td>
                       <td className="px-4 py-3 text-muted-foreground">{c.issued_by || "—"}</td>
                       <td className="px-4 py-3 text-muted-foreground">{dateLabel(c.issued_on)}</td>
-                      <td className="px-4 py-3"><Pill tone={statusTone(c.status)}>{STATUS_LABELS[c.status]}</Pill></td>
+                      <td className="px-4 py-3"><Pill tone={statusTone(c.status)}>{statusLabel(c.status)}</Pill></td>
                       <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <Btn variant="ghost" onClick={() => setPreview(c)}>Preview</Btn>
-                        <Btn variant="ghost" onClick={() => setEditing(c)}>Edit</Btn>
-                        <Btn variant="danger" onClick={() => void crud.remove(c.id)}>Delete</Btn>
+                        <Btn variant="ghost" onClick={() => setPreview(c)}>{t("preview")}</Btn>
+                        <Btn variant="ghost" onClick={() => setEditing(c)}>{tc("edit")}</Btn>
+                        <Btn variant="danger" onClick={() => void crud.remove(c.id)}>{tc("delete")}</Btn>
                       </td>
                     </tr>
                   ))}
@@ -332,39 +342,39 @@ export default function Administration() {
       </div>
 
       <Modal open={!!issuing || !!editing} onClose={() => { setIssuing(null); setEditing(null); }}
-        title={editing ? `Edit · ${metaFor(editing.type).label}` : activeMeta ? `Issue · ${activeMeta.label}` : ""}
+        title={editing ? t("editTitle", { type: typeLabel(editing.type) }) : activeType ? t("issueTitle", { type: typeLabel(activeType) }) : ""}
         footer={<>
-          <Btn variant="outline" onClick={() => { setIssuing(null); setEditing(null); }}>Cancel</Btn>
+          <Btn variant="outline" onClick={() => { setIssuing(null); setEditing(null); }}>{tc("cancel")}</Btn>
           <button type="submit" form="cert-form"
             className="px-5 py-2.5 rounded-full text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90">
-            {editing ? "Save changes" : "Issue certificate"}
+            {editing ? t("saveChanges") : t("issueCertificate")}
           </button>
         </>}>
         {activeMeta && (
           <form id="cert-form" onSubmit={onIssueSubmit}>
             <div className="grid md:grid-cols-2 gap-3">
-              <Field label="Certificate number" required>
+              <Field label={t("fields.certificateNo")} required>
                 <Input name="certificate_no" required
                   defaultValue={editing?.certificate_no ?? suggestNumber(rows, activeMeta.type)} />
               </Field>
-              <Field label="Recipient name" required>
-                <Input name="recipient_name" required defaultValue={editing?.recipient_name} placeholder="Full name" />
+              <Field label={t("fields.recipient")} required>
+                <Input name="recipient_name" required defaultValue={editing?.recipient_name} placeholder={t("fullName")} />
               </Field>
-              <Field label={activeMeta.category === "Patient" ? "Patient on file" : "Employee on file"}>
+              <Field label={activeMeta.category === "Patient" ? t("fields.patientOnFile") : t("fields.employeeOnFile")}>
                 <Select name="subject_id"
                   defaultValue={(activeMeta.category === "Patient" ? editing?.patient_id : editing?.employee_id) ?? ""}>
-                  <option value="">Not on file — name only</option>
+                  <option value="">{t("notOnFile")}</option>
                   {activeMeta.category === "Patient"
                     ? patients.items.map(p => <option key={p.id} value={p.id}>{p.full_name} · {p.mrn}</option>)
                     : employees.items.map(e => <option key={e.id} value={e.id}>{e.name} · {e.emp_id}</option>)}
                 </Select>
               </Field>
-              <Field label="Issued by"><Input name="issued_by" defaultValue={editing?.issued_by ?? ""} placeholder="Doctor / HR Officer" /></Field>
-              <Field label="Issue date"><Input name="issued_on" type="date" defaultValue={editing?.issued_on ?? ""} /></Field>
-              <Field label="Status">
+              <Field label={t("fields.issuedBy")}><Input name="issued_by" defaultValue={editing?.issued_by ?? ""} placeholder={t("issuedByPlaceholder")} /></Field>
+              <Field label={t("fields.issueDate")}><Input name="issued_on" type="date" defaultValue={editing?.issued_on ?? ""} /></Field>
+              <Field label={t("columns.status")}>
                 <Select name="status" defaultValue={editing?.status ?? "issued"}>
-                  {(Object.keys(STATUS_LABELS) as CertStatus[]).map(s => (
-                    <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                  {CERT_STATUSES.map(s => (
+                    <option key={s} value={s}>{statusLabel(s)}</option>
                   ))}
                 </Select>
               </Field>
@@ -389,7 +399,7 @@ export default function Administration() {
               </div>
             ))}
 
-            <Field label="Details / Remarks" hint="Anything the fields above do not cover">
+            <Field label={t("fields.details")} hint={t("detailsHint")}>
               <textarea name="details" defaultValue={editing?.details ?? ""} rows={3}
                 className="w-full bg-muted/40 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary text-sm" />
             </Field>
@@ -397,8 +407,8 @@ export default function Administration() {
         )}
       </Modal>
 
-      <Modal open={!!preview} onClose={() => setPreview(null)} title="Certificate preview" size="xl"
-        footer={<Btn variant="outline" onClick={() => setPreview(null)}>Close</Btn>}>
+      <Modal open={!!preview} onClose={() => setPreview(null)} title={t("previewTitle")} size="xl"
+        footer={<Btn variant="outline" onClick={() => setPreview(null)}>{tc("close")}</Btn>}>
         {preview && <CertPrintable c={preview} />}
       </Modal>
     </AdminLayout>
@@ -472,7 +482,7 @@ function CertPrintable({ c }: { c: Certificate }) {
         </div>
         <div>
           <div className="text-[10px] tracking-widest text-slate-500">STATUS</div>
-          <div className="font-semibold">{STATUS_LABELS[c.status]}</div>
+          <div className="font-semibold">{PRINTED_STATUS[c.status]}</div>
         </div>
       </div>
 

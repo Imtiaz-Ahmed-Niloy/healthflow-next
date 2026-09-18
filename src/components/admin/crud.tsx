@@ -4,6 +4,9 @@ import { ReactNode, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Search, Filter, Download, Plus, Trash2, Pencil, Eye, X, ChevronUp, ChevronDown, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
+import { crudWords } from "@/i18n/libText";
+import { clientLocale } from "@/i18n/config";
 import { Card, Btn, Pill } from "./ui";
 import { Label } from "@/components/ui/label";
 import { load, save, uid } from "@/lib/storage";
@@ -13,17 +16,18 @@ import { useSession } from "@/lib/auth/useSession";
 // ============ useCrud hook ============
 export function useCrud<T extends { id: string }>(key: string, seed: T[]) {
   const [items, setItems] = useState<T[]>(() => load(key, seed));
+  const words = crudWords(clientLocale());
   useEffect(() => { save(key, items); }, [key, items]);
   return {
     items, setItems,
-    create: (it: Omit<T, "id">) => { const r = { ...it, id: uid() } as T; setItems(p => [r, ...p]); toast.success("Created"); return r; },
+    create: (it: Omit<T, "id">) => { const r = { ...it, id: uid() } as T; setItems(p => [r, ...p]); toast.success(words.created); return r; },
     // Returns true to match useResourceCrud.update, whose caller closes the
     // modal only on success. A localStorage write cannot fail, so it is always
     // true here — the signature is what matters.
-    update: (id: string, patch: Partial<T>) => { setItems(p => p.map(i => i.id === id ? { ...i, ...patch } : i)); toast.success("Updated"); return true; },
-    remove: (id: string) => { setItems(p => p.filter(i => i.id !== id)); toast.success("Deleted"); },
-    bulkRemove: (ids: string[]) => { setItems(p => p.filter(i => !ids.includes(i.id))); toast.success(`${ids.length} removed`); },
-    reset: () => { setItems(seed); save(key, seed); toast.info("Reset to defaults"); },
+    update: (id: string, patch: Partial<T>) => { setItems(p => p.map(i => i.id === id ? { ...i, ...patch } : i)); toast.success(words.updated); return true; },
+    remove: (id: string) => { setItems(p => p.filter(i => i.id !== id)); toast.success(words.deleted); },
+    bulkRemove: (ids: string[]) => { setItems(p => p.filter(i => !ids.includes(i.id))); toast.success(words.removedCount(ids.length)); },
+    reset: () => { setItems(seed); save(key, seed); toast.info(words.reset); },
   };
 }
 
@@ -68,14 +72,18 @@ export const Drawer = ({ open, onClose, title, children }: { open: boolean; onCl
 };
 
 // ============ Confirm ============
-export const ConfirmDialog = ({ open, onClose, onConfirm, title = "Are you sure?", description }: {
+export const ConfirmDialog = ({ open, onClose, onConfirm, title, description }: {
   open: boolean; onClose: () => void; onConfirm: () => void; title?: string; description?: string;
-}) => (
-  <Modal open={open} onClose={onClose} title={title} size="sm"
-    footer={<><Btn variant="outline" onClick={onClose}>Cancel</Btn><Btn variant="danger" onClick={() => { onConfirm(); onClose(); }}>Confirm</Btn></>}>
-    <p className="text-sm text-muted-foreground">{description || "This action cannot be undone."}</p>
-  </Modal>
-);
+}) => {
+  const t = useTranslations("crud");
+  const tc = useTranslations("common");
+  return (
+    <Modal open={open} onClose={onClose} title={title ?? t("areYouSure")} size="sm"
+      footer={<><Btn variant="outline" onClick={onClose}>{tc("cancel")}</Btn><Btn variant="danger" onClick={() => { onConfirm(); onClose(); }}>{t("confirm")}</Btn></>}>
+      <p className="text-sm text-muted-foreground">{description || t("cannotUndo")}</p>
+    </Modal>
+  );
+};
 
 // ============ FormField ============
 export const Field = ({ label, children, hint, required = false }: { label: string; children: ReactNode; hint?: string; required?: boolean }) => (
@@ -94,27 +102,31 @@ export const Select = ({ children, ...p }: React.SelectHTMLAttributes<HTMLSelect
 );
 
 // ============ Toolbar ============
-export const Toolbar = ({ search, onSearch, onAdd, onExport, addLabel = "New", filters, bulkCount, onBulkDelete, right, beforeAdd }: {
+export const Toolbar = ({ search, onSearch, onAdd, onExport, addLabel, filters, bulkCount, onBulkDelete, right, beforeAdd }: {
   search: string; onSearch: (v: string) => void; onAdd?: () => void; onExport?: () => void; addLabel?: string;
   filters?: ReactNode; bulkCount?: number; onBulkDelete?: () => void; right?: ReactNode;
   /** Sits right beside the add button — another way in, such as adding an existing record. */
   beforeAdd?: ReactNode;
-}) => (
-  <div className="flex flex-wrap items-center gap-3 mb-4">
-    <div className="flex-1 min-w-[220px] flex items-center gap-2 bg-muted/40 rounded-full px-4 py-2">
-      <Search className="h-4 w-4 text-muted-foreground" />
-      <input value={search} onChange={e => onSearch(e.target.value)} placeholder="Search…" className="bg-transparent outline-none text-sm flex-1" />
+}) => {
+  const t = useTranslations("crud");
+  const tc = useTranslations("common");
+  return (
+    <div className="flex flex-wrap items-center gap-3 mb-4">
+      <div className="flex-1 min-w-[220px] flex items-center gap-2 bg-muted/40 rounded-full px-4 py-2">
+        <Search className="h-4 w-4 text-muted-foreground" />
+        <input value={search} onChange={e => onSearch(e.target.value)} placeholder={t("searchPlaceholder")} aria-label={tc("search")} className="bg-transparent outline-none text-sm flex-1" />
+      </div>
+      {filters}
+      {bulkCount! > 0 && onBulkDelete && (
+        <Btn variant="danger" onClick={onBulkDelete}><Trash2 className="h-4 w-4" /> {bulkCount}</Btn>
+      )}
+      {right}
+      {onExport && <Btn variant="outline" onClick={onExport}><Download className="h-4 w-4" /> {t("export")}</Btn>}
+      {beforeAdd}
+      {onAdd && <Btn onClick={onAdd}><Plus className="h-4 w-4" /> {addLabel ?? t("new")}</Btn>}
     </div>
-    {filters}
-    {bulkCount! > 0 && onBulkDelete && (
-      <Btn variant="danger" onClick={onBulkDelete}><Trash2 className="h-4 w-4" /> {bulkCount}</Btn>
-    )}
-    {right}
-    {onExport && <Btn variant="outline" onClick={onExport}><Download className="h-4 w-4" /> Export</Btn>}
-    {beforeAdd}
-    {onAdd && <Btn onClick={onAdd}><Plus className="h-4 w-4" /> {addLabel}</Btn>}
-  </div>
-);
+  );
+};
 
 // ============ DataTable ============
 export type Column<T> = {
@@ -126,6 +138,7 @@ export function DataTable<T extends { id: string }>({ rows, columns, onRow, sele
   selected?: string[]; onSelect?: (ids: string[]) => void;
   actions?: (row: T) => ReactNode; empty?: string;
 }) {
+  const noRecords = useTranslations("crud")("noRecords");
   const [sort, setSort] = useState<{ k: string; dir: 1 | -1 } | null>(null);
   const sorted = useMemo(() => {
     if (!sort) return rows;
@@ -163,7 +176,7 @@ export function DataTable<T extends { id: string }>({ rows, columns, onRow, sele
         </thead>
         <tbody>
           {sorted.length === 0 && (
-            <tr><td colSpan={columns.length + (onSelect ? 1 : 0) + (actions ? 1 : 0)} className="text-center py-12 text-muted-foreground text-sm">{empty || "No records"}</td></tr>
+            <tr><td colSpan={columns.length + (onSelect ? 1 : 0) + (actions ? 1 : 0)} className="text-center py-12 text-muted-foreground text-sm">{empty || noRecords}</td></tr>
           )}
           {sorted.map(r => (
             <tr key={r.id} className="border-t border-border/40 hover:bg-muted/20 cursor-pointer"
@@ -189,15 +202,19 @@ export const RowActions = ({ onView, onEdit, onDelete, extra, before }: {
   onView?: () => void; onEdit?: () => void; onDelete?: () => void; extra?: ReactNode;
   /** Drawn first, left of View — where a module's own action leads, as ResourcePage's rowActions do. */
   before?: ReactNode;
-}) => (
-  <div className="inline-flex items-center gap-1">
-    {before}
-    {onView && <button onClick={onView} className="p-1.5 rounded-lg hover:bg-muted text-foreground/70" title="View"><Eye className="h-4 w-4" /></button>}
-    {onEdit && <button onClick={onEdit} className="p-1.5 rounded-lg hover:bg-muted text-foreground/70" title="Edit"><Pencil className="h-4 w-4" /></button>}
-    {onDelete && <button onClick={onDelete} className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive" title="Delete"><Trash2 className="h-4 w-4" /></button>}
-    {extra}
-  </div>
-);
+}) => {
+  const t = useTranslations("crud");
+  const tc = useTranslations("common");
+  return (
+    <div className="inline-flex items-center gap-1">
+      {before}
+      {onView && <button onClick={onView} className="p-1.5 rounded-lg hover:bg-muted text-foreground/70" title={t("view")} aria-label={t("view")}><Eye className="h-4 w-4" /></button>}
+      {onEdit && <button onClick={onEdit} className="p-1.5 rounded-lg hover:bg-muted text-foreground/70" title={tc("edit")} aria-label={tc("edit")}><Pencil className="h-4 w-4" /></button>}
+      {onDelete && <button onClick={onDelete} className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive" title={tc("delete")} aria-label={tc("delete")}><Trash2 className="h-4 w-4" /></button>}
+      {extra}
+    </div>
+  );
+};
 
 // ============ Filter chip group ============
 export const Chips = <T extends string>({ value, onChange, options }: {
@@ -234,7 +251,8 @@ const csvCell = (value: unknown) => {
 };
 
 export const exportCSV = <T extends Record<string, unknown>>(rows: T[], filename: string) => {
-  if (!rows.length) { toast.error("Nothing to export"); return; }
+  const words = crudWords(clientLocale());
+  if (!rows.length) { toast.error(words.nothingToExport); return; }
   const headers = Object.keys(rows[0]);
   const csv = [
     headers.map(csvCell).join(","),
@@ -257,7 +275,7 @@ export const exportCSV = <T extends Record<string, unknown>>(rows: T[], filename
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 
-  toast.success("Exported CSV");
+  toast.success(words.exported);
 };
 
 // ============ Can wrapper ============

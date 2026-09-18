@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, Btn, Pill, SectionTitle, Kpi } from "@/components/admin/ui";
 import {
@@ -29,12 +30,8 @@ import { BedDouble, UserPlus, LogOut, Activity, Stethoscope, FileText, Printer, 
  *   useAdmitPatient() (create) or useTransferBedMutation() (move/release).
  */
 
-const STATUSES = [
-  { value: "admitted", label: "Admitted" },
-  { value: "under_observation", label: "Under Observation" },
-  { value: "in_surgery", label: "In Surgery" },
-  { value: "discharged", label: "Discharged" },
-] as const;
+const STATUSES = ["admitted", "under_observation", "in_surgery", "discharged"] as const;
+type AdmissionStatus = (typeof STATUSES)[number];
 
 /**
  * The clinical statuses — the strip above the table counts these. Discharged
@@ -46,13 +43,10 @@ const STATUSES = [
  * (It used to be left out of the form entirely, which meant editing a
  * discharged admission showed "Admitted" and saving it un-discharged them.)
  */
-const EDITABLE_STATUSES = STATUSES.filter(s => s.value !== "discharged");
+const EDITABLE_STATUSES = STATUSES.filter(s => s !== "discharged");
 
-const PRIORITIES = [
-  { value: "routine", label: "Routine" },
-  { value: "urgent", label: "Urgent" },
-  { value: "critical", label: "Critical" },
-] as const;
+const PRIORITIES = ["routine", "urgent", "critical"] as const;
+type Priority = (typeof PRIORITIES)[number];
 
 const priorityTone: Record<string, "ok" | "warn" | "bad"> = {
   routine: "ok",
@@ -60,8 +54,6 @@ const priorityTone: Record<string, "ok" | "warn" | "bad"> = {
   critical: "bad",
 };
 
-const statusLabel = (v: string) => STATUSES.find(s => s.value === v)?.label ?? v;
-const priorityLabel = (v: string) => PRIORITIES.find(p => p.value === v)?.label ?? v;
 
 /**
  * A datetime-local input shows and returns wall-clock time with no zone.
@@ -87,11 +79,12 @@ const ageFromDob = (dob: string | null) => {
 /** The open placement, if any — bed_stays carries every placement the admission ever had. */
 const currentStay = (a: AdmissionRow) => a.bed_stays.find(s => s.ended_at === null) ?? null;
 
-const locationLabel = (a: AdmissionRow) => {
-  const stay = currentStay(a);
-  if (stay?.beds) return `Bed ${stay.beds.number}`;
-  if (stay?.cabins) return `Cabin ${stay.cabins.number}`;
-  return "Unassigned";
+/** Where a stay put the patient — a bed or a cabin and its number, or nowhere yet. */
+type Place = { kind: "bed" | "cabin"; number: string } | null;
+const placeOf = (stay: AdmissionRow["bed_stays"][number] | null | undefined): Place => {
+  if (stay?.beds) return { kind: "bed", number: String(stay.beds.number) };
+  if (stay?.cabins) return { kind: "cabin", number: String(stay.cabins.number) };
+  return null;
 };
 
 /** The invoice the discharge raised — absent before discharge, and for roles that can't read invoices. */
@@ -124,6 +117,17 @@ const emptyDraft: Draft = {
 };
 
 const Admissions = () => {
+  const t = useTranslations("admin.admissions");
+  const tc = useTranslations("common");
+  const statusLabel = (v: string) =>
+    (STATUSES as readonly string[]).includes(v) ? t(`statuses.${v as AdmissionStatus}`) : v;
+  const priorityLabel = (v: string) =>
+    (PRIORITIES as readonly string[]).includes(v) ? t(`priorities.${v as Priority}`) : v;
+  const placeLabel = (place: Place) =>
+    place ? t(`place.${place.kind}`, { number: place.number }) : t("place.unassigned");
+  const locationLabel = (a: AdmissionRow) => placeLabel(placeOf(currentStay(a)));
+  const patientName = (a: AdmissionRow | null) => a?.patients?.full_name ?? t("thePatient");
+
   const crud = useResourceCrud<AdmissionRow>("admissions");
   const { admit } = useAdmitPatient();
   const [transferBed] = useTransferBedMutation();
@@ -134,16 +138,16 @@ const Admissions = () => {
   const { data: patientsData, isLoading: patientsLoading } = patientsApi.useList({ limit: 100 });
   const patients = useMemo(() => patientsData?.data ?? [], [patientsData]);
   const patientOptions = useMemo(() => [
-    { value: "", label: patientsLoading ? "Loading patients…" : "— Select a patient —" },
+    { value: "", label: patientsLoading ? t("loadingPatients") : t("selectPatient") },
     ...patients.map(p => ({ value: p.id, label: `${p.full_name} (${p.mrn})` })),
-  ], [patients, patientsLoading]);
+  ], [patients, patientsLoading, t]);
 
   const { data: doctorsData, isLoading: doctorsLoading } = doctorsApi.useList({ limit: 100 });
   const doctors = useMemo(() => doctorsData?.data ?? [], [doctorsData]);
   const doctorOptions = useMemo(() => [
-    { value: "", label: doctorsLoading ? "Loading doctors…" : "— Not assigned —" },
+    { value: "", label: doctorsLoading ? t("loadingDoctors") : t("notAssigned") },
     ...doctors.map(d => ({ value: d.id, label: d.specialty ? `${d.name} · ${d.specialty}` : d.name })),
-  ], [doctors, doctorsLoading]);
+  ], [doctors, doctorsLoading, t]);
 
   // Only vacant beds/cabins are offered — admitting or transferring into an
   // occupied one is exactly what the partial unique indexes behind
@@ -173,11 +177,13 @@ const Admissions = () => {
     if (statusFilter !== "all" && a.status !== statusFilter) return false;
     if (search) {
       const q = search.toLowerCase();
-      return [a.patients?.full_name ?? "", a.doctors?.name ?? "", a.diagnosis ?? "", locationLabel(a)]
+      const place = placeOf(currentStay(a));
+      const where = place ? t(`place.${place.kind}`, { number: place.number }) : "";
+      return [a.patients?.full_name ?? "", a.doctors?.name ?? "", a.diagnosis ?? "", where]
         .some(v => v.toLowerCase().includes(q));
     }
     return true;
-  }), [crud.items, search, statusFilter]);
+  }), [crud.items, search, statusFilter, t]);
 
   const active = crud.items.filter(a => a.status !== "discharged");
   const critical = active.filter(a => a.priority === "critical").length;
@@ -205,11 +211,11 @@ const Admissions = () => {
     if (edit) {
       const toDischarged = draft.status === "discharged";
       if (toDischarged && !draft.discharged_at) {
-        push({ title: "Discharge date needed", body: "Enter when the patient was discharged", tone: "warn" });
+        push({ title: t("toasts.dateNeeded"), body: t("toasts.dateNeededBody"), tone: "warn" });
         return;
       }
       if (toDischarged && dischargeTooEarly(draft.admitted_at, draft.discharged_at)) {
-        push({ title: "Check the dates", body: "The discharge can't be before the admission", tone: "warn" });
+        push({ title: t("toasts.checkDates"), body: t("toasts.tooEarly"), tone: "warn" });
         return;
       }
 
@@ -282,7 +288,7 @@ const Admissions = () => {
       try {
         await transferBed({ admission_id: a.id, bed_id: null, cabin_id: null }).unwrap();
       } catch {
-        push({ title: "Could not release the bed", body: "Nothing was changed — try again, or release it from the Wards floor map", tone: "bad" });
+        push({ title: t("toasts.releaseFailed"), body: t("toasts.releaseFailedBody"), tone: "bad" });
         return false;
       }
     }
@@ -290,21 +296,23 @@ const Admissions = () => {
     if (ok) {
       // The invoice is raised by the database as the status lands (0080).
       push({
-        title: "Discharged",
-        body: `${a.patients?.full_name ?? "Patient"} discharged${billTotal(a) > 0 ? " — invoice raised" : ""}`,
+        title: t("toasts.discharged"),
+        body: billTotal(a) > 0
+          ? t("toasts.dischargedInvoiced", { name: patientName(a) })
+          : t("toasts.dischargedBody", { name: patientName(a) }),
         tone: "ok",
       });
       // A freed bed is the thing the next shift needs to know about.
       void notify({
         kind: "patient.discharged",
-        title: `${a.patients?.full_name ?? "A patient"} discharged`,
-        body: locationLabel(a) === "Unassigned" ? undefined : `${locationLabel(a)} is now free`,
+        title: t("notices.discharged", { name: patientName(a) }),
+        body: currentStay(a) ? t("notices.nowFree", { place: locationLabel(a) }) : undefined,
         tone: "ok",
         entity_type: "admissions",
         entity_id: a.id,
       });
     } else {
-      push({ title: "Bed released, but the discharge did not save", body: "Set the status to Discharged from the row's edit form", tone: "warn" });
+      push({ title: t("toasts.halfDischarged"), body: t("toasts.halfDischargedBody"), tone: "warn" });
     }
     return ok;
   };
@@ -314,11 +322,11 @@ const Admissions = () => {
   const confirmDischarge = async () => {
     if (!discharge) return;
     if (!dischargeAt) {
-      push({ title: "Discharge date needed", body: "Enter when the patient was discharged", tone: "warn" });
+      push({ title: t("toasts.dateNeeded"), body: t("toasts.dateNeededBody"), tone: "warn" });
       return;
     }
     if (dischargeTooEarly(toLocalInput(discharge.admitted_at), dischargeAt)) {
-      push({ title: "Check the date", body: "The discharge can't be before the admission", tone: "warn" });
+      push({ title: t("toasts.checkDate"), body: t("toasts.tooEarly"), tone: "warn" });
       return;
     }
     setDischarging(true);
@@ -336,61 +344,61 @@ const Admissions = () => {
         bed_id: transferTarget.bed_id || null,
         cabin_id: transferTarget.cabin_id || null,
       }).unwrap();
-      push({ title: "Transferred", body: `${transferring.patients?.full_name ?? "Patient"} moved to a new bed`, tone: "ok" });
+      push({ title: t("toasts.transferred"), body: t("notices.moved", { name: patientName(transferring) }), tone: "ok" });
       void notify({
         kind: "patient.transferred",
-        title: `${transferring.patients?.full_name ?? "A patient"} moved to a new bed`,
-        body: `From ${locationLabel(transferring)}`,
+        title: t("notices.moved", { name: patientName(transferring) }),
+        body: t("notices.from", { place: locationLabel(transferring) }),
         tone: "info",
         entity_type: "admissions",
         entity_id: transferring.id,
       });
       setTransferring(null);
     } catch {
-      push({ title: "Transfer failed", body: "The bed/cabin may already be occupied", tone: "bad" });
+      push({ title: t("toasts.transferFailed"), body: t("toasts.transferFailedBody"), tone: "bad" });
     }
   };
 
   const columns: Column<AdmissionRow>[] = [
     {
-      key: "patient", label: "Patient", sortable: true, accessor: a => a.patients?.full_name ?? "",
+      key: "patient", label: t("columns.patient"), sortable: true, accessor: a => a.patients?.full_name ?? "",
       render: a => {
         const age = ageFromDob(a.patients?.date_of_birth ?? null);
         return (
           <div>
-            <p className="font-semibold text-primary">{a.patients?.full_name ?? "Unknown patient"}</p>
+            <p className="font-semibold text-primary">{a.patients?.full_name ?? t("unknownPatient")}</p>
             <p className="text-[11px] text-muted-foreground">
-              {age !== null ? `${age}y · ` : ""}{a.patients?.gender ?? ""}{a.patients?.phone ? ` · ${a.patients.phone}` : ""}
+              {age !== null ? `${t("age", { age })} · ` : ""}{a.patients?.gender ?? ""}{a.patients?.phone ? ` · ${a.patients.phone}` : ""}
             </p>
           </div>
         );
       },
     },
     {
-      key: "location", label: "Location", sortable: true, accessor: a => locationLabel(a),
+      key: "location", label: t("columns.location"), sortable: true, accessor: a => locationLabel(a),
       render: a => <span className="font-semibold">{locationLabel(a)}</span>,
     },
-    { key: "doctor", label: "Doctor", sortable: true, accessor: a => a.doctors?.name ?? "", render: a => <span className="text-sm">{a.doctors?.name ?? "—"}</span> },
-    { key: "diagnosis", label: "Diagnosis", render: a => <span className="text-sm">{a.diagnosis || "—"}</span> },
+    { key: "doctor", label: t("columns.doctor"), sortable: true, accessor: a => a.doctors?.name ?? "", render: a => <span className="text-sm">{a.doctors?.name ?? "—"}</span> },
+    { key: "diagnosis", label: t("columns.diagnosis"), render: a => <span className="text-sm">{a.diagnosis || "—"}</span> },
     {
-      key: "priority", label: "Priority", sortable: true, accessor: a => a.priority,
+      key: "priority", label: t("columns.priority"), sortable: true, accessor: a => a.priority,
       render: a => <Pill tone={priorityTone[a.priority]}>{priorityLabel(a.priority)}</Pill>,
     },
     {
-      key: "status", label: "Status", sortable: true, accessor: a => a.status,
+      key: "status", label: t("columns.status"), sortable: true, accessor: a => a.status,
       render: a => <Pill tone={statusTone(a.status)}>{statusLabel(a.status)}</Pill>,
     },
     {
-      key: "admitted_at", label: "Admitted", sortable: true, accessor: a => a.admitted_at,
+      key: "admitted_at", label: t("columns.admitted"), sortable: true, accessor: a => a.admitted_at,
       render: a => <span className="text-xs text-muted-foreground">{formatDateTime(a.admitted_at)}</span>,
     },
     {
-      key: "bill", label: "Bill", sortable: true, accessor: billTotal,
+      key: "bill", label: t("columns.bill"), sortable: true, accessor: billTotal,
       render: a => {
         const invoice = invoiceOf(a);
         const note = invoice
-          ? invoice.paid_at ? "Paid" : "Invoiced"
-          : a.status === "discharged" ? "Final" : "So far";
+          ? invoice.paid_at ? t("billNote.paid") : t("billNote.invoiced")
+          : a.status === "discharged" ? t("billNote.final") : t("billNote.soFar");
         return (
           <button type="button" onClick={e => { e.stopPropagation(); setBillId(a.id); }} className="text-left">
             <p className="font-semibold text-primary">{formatCurrency(billTotal(a))}</p>
@@ -402,13 +410,13 @@ const Admissions = () => {
   ];
 
   return (
-    <AdminLayout title="Patient Admissions" subtitle="Admit patients into beds and cabins, transfer or discharge them">
+    <AdminLayout title={t("title")} subtitle={t("subtitle")}>
       {/* KPIs */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <Kpi icon={BedDouble} label="Active Admissions" value={String(active.length)} tone="primary" />
-        <Kpi icon={Activity} label="Critical" value={String(critical)} tone="destructive" />
-        <Kpi icon={Stethoscope} label="In Surgery" value={String(byStatus("in_surgery"))} tone="accent" />
-        <Kpi icon={UserPlus} label="Today's Admits" value={String(todaysAdmits)} tone="chip" />
+        <Kpi icon={BedDouble} label={t("kpis.active")} value={String(active.length)} tone="primary" />
+        <Kpi icon={Activity} label={t("kpis.critical")} value={String(critical)} tone="destructive" />
+        <Kpi icon={Stethoscope} label={t("kpis.inSurgery")} value={String(byStatus("in_surgery"))} tone="accent" />
+        <Kpi icon={UserPlus} label={t("kpis.today")} value={String(todaysAdmits)} tone="chip" />
       </div>
 
       {/* Occupancy by clinical status — the old strip grouped by ward name,
@@ -417,13 +425,13 @@ const Admissions = () => {
           Grouping by status keeps the same at-a-glance purpose without a
           second join the frontend doesn't need for anything else. */}
       <Card className="p-5 mb-6">
-        <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-3">ACTIVE BY STATUS</p>
+        <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-3 uppercase">{t("activeByStatus")}</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {EDITABLE_STATUSES.map(s => (
-            <button key={s.value} onClick={() => setStatusFilter(s.value)}
-              className={`rounded-xl border px-3 py-2 text-left transition ${statusFilter === s.value ? "border-primary bg-primary/5" : "border-border/60 hover:bg-muted/40"}`}>
-              <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{s.label.toUpperCase()}</p>
-              <p className="font-display text-xl text-primary">{byStatus(s.value)}</p>
+            <button key={s} onClick={() => setStatusFilter(s)}
+              className={`rounded-xl border px-3 py-2 text-left transition ${statusFilter === s ? "border-primary bg-primary/5" : "border-border/60 hover:bg-muted/40"}`}>
+              <p className="text-[10px] tracking-widest font-bold text-muted-foreground uppercase">{statusLabel(s)}</p>
+              <p className="font-display text-xl text-primary">{byStatus(s)}</p>
             </button>
           ))}
         </div>
@@ -431,10 +439,10 @@ const Admissions = () => {
 
       {/* Table */}
       <Card className="p-5">
-        <SectionTitle title="Admission Register" />
+        <SectionTitle title={t("register")} />
         <Toolbar
           search={search} onSearch={setSearch}
-          onAdd={openAdd} addLabel="Admit Patient"
+          onAdd={openAdd} addLabel={t("admitPatient")}
           onExport={() => exportCSV(rows as unknown as Record<string, unknown>[], "admissions.csv")}
           bulkCount={selected.length}
           onBulkDelete={() => { crud.bulkRemove(selected); setSelected([]); }}
@@ -442,17 +450,17 @@ const Admissions = () => {
             <Chips
               value={statusFilter}
               onChange={v => setStatusFilter(v)}
-              options={[{ value: "all", label: "All" }, ...STATUSES.map(s => ({ value: s.value, label: s.label }))]}
+              options={[{ value: "all", label: t("all") }, ...STATUSES.map(s => ({ value: s, label: statusLabel(s) }))]}
             />
           }
         />
         {crud.error ? (
           <div className="py-12 text-center">
-            <p className="text-sm font-semibold text-destructive">Could not load admissions.</p>
-            <button type="button" onClick={() => crud.refetch()} className="mt-3 px-4 py-2 rounded-full text-xs font-semibold border border-border hover:bg-muted">Try again</button>
+            <p className="text-sm font-semibold text-destructive">{t("loadFailed")}</p>
+            <button type="button" onClick={() => crud.refetch()} className="mt-3 px-4 py-2 rounded-full text-xs font-semibold border border-border hover:bg-muted">{t("tryAgain")}</button>
           </div>
         ) : crud.isLoading ? (
-          <div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>
+          <div className="py-12 text-center text-sm text-muted-foreground">{tc("loading")}</div>
         ) : (
           <DataTable
             rows={rows}
@@ -460,22 +468,22 @@ const Admissions = () => {
             selected={selected}
             onSelect={setSelected}
             onRow={openEdit}
-            empty="No admissions match your filters"
+            empty={t("empty")}
             actions={(row) => (
               <RowActions
                 onEdit={() => openEdit(row)}
                 onDelete={() => setDel(row.id)}
                 extra={
                   <>
-                    <button onClick={() => setBillId(row.id)} className="p-1.5 rounded-lg hover:bg-muted text-primary" title={invoiceOf(row) ? "Invoice" : "Bill"}>
+                    <button onClick={() => setBillId(row.id)} className="p-1.5 rounded-lg hover:bg-muted text-primary" title={invoiceOf(row) ? t("invoice") : t("bill")}>
                       <FileText className="h-4 w-4" />
                     </button>
                     {row.status !== "discharged" && (
                       <>
-                        <button onClick={() => openTransfer(row)} className="p-1.5 rounded-lg hover:bg-muted text-primary" title="Transfer">
+                        <button onClick={() => openTransfer(row)} className="p-1.5 rounded-lg hover:bg-muted text-primary" title={t("transfer")}>
                           <ArrowRightLeft className="h-4 w-4" />
                         </button>
-                        <button onClick={() => openDischarge(row)} className="p-1.5 rounded-lg hover:bg-muted text-primary" title="Discharge">
+                        <button onClick={() => openDischarge(row)} className="p-1.5 rounded-lg hover:bg-muted text-primary" title={t("discharge")}>
                           <LogOut className="h-4 w-4" />
                         </button>
                       </>
@@ -492,50 +500,52 @@ const Admissions = () => {
       <Modal
         open={add || !!edit}
         onClose={() => { setAdd(false); setEdit(null); }}
-        title={edit ? "Edit admission" : "Admit patient"}
+        title={edit ? t("editTitle") : t("admitTitle")}
         size="lg"
         footer={<>
-          <Btn variant="outline" onClick={() => { setAdd(false); setEdit(null); }}>Cancel</Btn>
-          <Btn onClick={save}>{edit ? "Save changes" : "Admit patient"}</Btn>
+          <Btn variant="outline" onClick={() => { setAdd(false); setEdit(null); }}>{tc("cancel")}</Btn>
+          <Btn onClick={save}>{edit ? t("saveChanges") : t("admitTitle")}</Btn>
         </>}
       >
         <div className="grid sm:grid-cols-2 gap-x-5">
-          <Field label="Patient" required>
+          <Field label={t("columns.patient")} required>
             <Select value={draft.patient_id} onChange={e => setDraft(d => ({ ...d, patient_id: e.target.value }))}>
               {patientOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </Select>
           </Field>
-          <Field label="Attending doctor">
+          <Field label={t("fields.doctor")}>
             <Select value={draft.doctor_id} onChange={e => setDraft(d => ({ ...d, doctor_id: e.target.value }))}>
               {doctorOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </Select>
           </Field>
-          <Field label="Diagnosis"><Input value={draft.diagnosis} onChange={e => setDraft(d => ({ ...d, diagnosis: e.target.value }))} placeholder="Reason for admission" /></Field>
-          <Field label="Priority">
+          <Field label={t("columns.diagnosis")}><Input value={draft.diagnosis} onChange={e => setDraft(d => ({ ...d, diagnosis: e.target.value }))} placeholder={t("fields.diagnosisPlaceholder")} /></Field>
+          <Field label={t("columns.priority")}>
             <Select value={draft.priority} onChange={e => setDraft(d => ({ ...d, priority: e.target.value }))}>
-              {PRIORITIES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+              {PRIORITIES.map(p => <option key={p} value={p}>{priorityLabel(p)}</option>)}
             </Select>
           </Field>
           {!edit ? (
             <>
-              <Field label="Assign bed" hint="Leave both bed and cabin empty to admit without a location yet.">
+              <Field label={t("fields.assignBed")} hint={t("fields.assignHint")}>
                 <Select value={draft.bed_id} onChange={e => setDraft(d => ({ ...d, bed_id: e.target.value, cabin_id: e.target.value ? "" : d.cabin_id }))}>
-                  <option value="">— No bed —</option>
-                  {availableBeds.map(b => <option key={b.id} value={b.id}>{b.wards?.name ?? "Ward"} · Bed {b.number}</option>)}
+                  <option value="">{t("noBed")}</option>
+                  {availableBeds.map(b => <option key={b.id} value={b.id}>{b.wards?.name ?? t("ward")} · {t("place.bed", { number: String(b.number) })}</option>)}
                 </Select>
               </Field>
-              <Field label="Assign cabin">
+              <Field label={t("fields.assignCabin")}>
                 <Select value={draft.cabin_id} onChange={e => setDraft(d => ({ ...d, cabin_id: e.target.value, bed_id: e.target.value ? "" : d.bed_id }))}>
-                  <option value="">— No cabin —</option>
-                  {availableCabins.map(c => <option key={c.id} value={c.id}>Cabin {c.number} ({c.category})</option>)}
+                  <option value="">{t("noCabin")}</option>
+                  {availableCabins.map(c => <option key={c.id} value={c.id}>{t("place.cabin", { number: String(c.number) })} ({c.category})</option>)}
                 </Select>
               </Field>
             </>
           ) : (
             <Field
-              label="Status"
+              label={t("columns.status")}
               hint={edit.status !== "discharged" && draft.status === "discharged"
-                ? `Saving releases ${locationLabel(edit) === "Unassigned" ? "the patient" : locationLabel(edit)} and marks it for cleaning.`
+                ? currentStay(edit)
+                  ? t("fields.releaseHint", { place: locationLabel(edit) })
+                  : t("fields.releaseHintNone")
                 : undefined}
             >
               <Select
@@ -547,13 +557,13 @@ const Admissions = () => {
                   discharged_at: e.target.value === "discharged" ? (d.discharged_at || now()) : "",
                 }))}
               >
-                {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                {STATUSES.map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
               </Select>
             </Field>
           )}
-          <Field label="Admitted at"><Input type="datetime-local" value={draft.admitted_at} onChange={e => setDraft(d => ({ ...d, admitted_at: e.target.value }))} /></Field>
+          <Field label={t("fields.admittedAt")}><Input type="datetime-local" value={draft.admitted_at} onChange={e => setDraft(d => ({ ...d, admitted_at: e.target.value }))} /></Field>
           {edit && draft.status === "discharged" && (
-            <Field label="Discharged at" required>
+            <Field label={t("fields.dischargedAt")} required>
               <Input
                 type="datetime-local"
                 value={draft.discharged_at}
@@ -563,32 +573,34 @@ const Admissions = () => {
             </Field>
           )}
         </div>
-        <Field label="Clinical notes"><TextArea rows={3} value={draft.notes} onChange={e => setDraft(d => ({ ...d, notes: e.target.value }))} placeholder="Allergies, vitals, special instructions…" /></Field>
+        <Field label={t("fields.notes")}><TextArea rows={3} value={draft.notes} onChange={e => setDraft(d => ({ ...d, notes: e.target.value }))} placeholder={t("fields.notesPlaceholder")} /></Field>
       </Modal>
 
       <ConfirmDialog
         open={!!del}
         onClose={() => setDel(null)}
         onConfirm={() => del && crud.remove(del)}
-        title="Remove admission?"
-        description="This permanently removes the admission record."
+        title={t("removeTitle")}
+        description={t("removeBody")}
       />
 
       <Modal
         open={!!discharge}
         onClose={() => !discharging && setDischarge(null)}
-        title={`Discharge ${discharge?.patients?.full_name ?? "this patient"}?`}
+        title={discharge?.patients?.full_name
+          ? t("dischargeTitle", { name: discharge.patients.full_name })
+          : t("dischargeTitleAnon")}
         size="sm"
         footer={<>
-          <Btn variant="outline" onClick={() => setDischarge(null)} disabled={discharging}>Cancel</Btn>
+          <Btn variant="outline" onClick={() => setDischarge(null)} disabled={discharging}>{tc("cancel")}</Btn>
           <Btn onClick={confirmDischarge} disabled={discharging || !dischargeAt}>
-            {discharging ? "Discharging…" : "Confirm"}
+            {discharging ? t("discharging") : t("confirm")}
           </Btn>
         </>}
       >
         {discharge && (
           <>
-            <Field label="Discharge date & time" required>
+            <Field label={t("fields.dischargeWhen")} required>
               <Input
                 type="datetime-local"
                 value={dischargeAt}
@@ -597,14 +609,17 @@ const Admissions = () => {
               />
             </Field>
             <p className="text-sm text-muted-foreground">
-              {locationLabel(discharge) === "Unassigned"
-                ? "The patient has no bed or cabin to release."
-                : `${locationLabel(discharge)} will be released and marked for cleaning.`}
+              {currentStay(discharge)
+                ? t("willRelease", { place: locationLabel(discharge) })
+                : t("nothingToRelease")}
             </p>
             <p className="text-sm text-muted-foreground mt-2">
               {billTotal(discharge) > 0
-                ? <>An invoice for about <b className="text-foreground">{formatCurrency(billTotal(discharge))}</b> will be raised and shown on the patient&apos;s Billing page.</>
-                : "There are no bed or cabin charges, so no invoice will be raised."}
+                ? t.rich("willInvoice", {
+                    amount: formatCurrency(billTotal(discharge)),
+                    b: chunks => <b className="text-foreground">{chunks}</b>,
+                  })
+                : t("noInvoice")}
             </p>
           </>
         )}
@@ -614,23 +629,28 @@ const Admissions = () => {
       <Modal
         open={!!transferring}
         onClose={() => setTransferring(null)}
-        title={`Transfer ${transferring?.patients?.full_name ?? ""}`}
+        title={t("transferTitle", { name: transferring?.patients?.full_name ?? "" })}
         footer={<>
-          <Btn variant="outline" onClick={() => setTransferring(null)}>Cancel</Btn>
-          <Btn onClick={confirmTransfer} disabled={!transferTarget.bed_id && !transferTarget.cabin_id}>Move patient</Btn>
+          <Btn variant="outline" onClick={() => setTransferring(null)}>{tc("cancel")}</Btn>
+          <Btn onClick={confirmTransfer} disabled={!transferTarget.bed_id && !transferTarget.cabin_id}>{t("movePatient")}</Btn>
         </>}
       >
-        <p className="text-sm text-muted-foreground mb-4">Currently in <b className="text-foreground">{transferring ? locationLabel(transferring) : ""}</b>. Choose the new bed or cabin.</p>
-        <Field label="Move to bed">
+        <p className="text-sm text-muted-foreground mb-4">
+          {t.rich("currentlyIn", {
+            place: transferring ? locationLabel(transferring) : "",
+            b: chunks => <b className="text-foreground">{chunks}</b>,
+          })}
+        </p>
+        <Field label={t("fields.moveToBed")}>
           <Select value={transferTarget.bed_id} onChange={e => setTransferTarget({ bed_id: e.target.value, cabin_id: e.target.value ? "" : transferTarget.cabin_id })}>
-            <option value="">— No bed —</option>
-            {availableBeds.map(b => <option key={b.id} value={b.id}>{b.wards?.name ?? "Ward"} · Bed {b.number}</option>)}
+            <option value="">{t("noBed")}</option>
+            {availableBeds.map(b => <option key={b.id} value={b.id}>{b.wards?.name ?? t("ward")} · {t("place.bed", { number: String(b.number) })}</option>)}
           </Select>
         </Field>
-        <Field label="Move to cabin">
+        <Field label={t("fields.moveToCabin")}>
           <Select value={transferTarget.cabin_id} onChange={e => setTransferTarget({ cabin_id: e.target.value, bed_id: e.target.value ? "" : transferTarget.bed_id })}>
-            <option value="">— No cabin —</option>
-            {availableCabins.map(c => <option key={c.id} value={c.id}>Cabin {c.number} ({c.category})</option>)}
+            <option value="">{t("noCabin")}</option>
+            {availableCabins.map(c => <option key={c.id} value={c.id}>{t("place.cabin", { number: String(c.number) })} ({c.category})</option>)}
           </Select>
         </Field>
       </Modal>
@@ -643,12 +663,12 @@ const Admissions = () => {
         open={!!billFor}
         onClose={() => setBillId(null)}
         title={!billFor ? "" : invoiceOf(billFor)
-          ? `Invoice ${invoiceOf(billFor)!.reference}`
-          : billFor.status === "discharged" ? "Bill" : "Bill so far"}
+          ? t("invoiceTitle", { reference: invoiceOf(billFor)!.reference })
+          : billFor.status === "discharged" ? t("bill") : t("billSoFar")}
         size="lg"
         footer={<>
-          <Btn variant="outline" onClick={() => setBillId(null)}>Close</Btn>
-          <Btn onClick={() => window.print()}><Printer className="h-4 w-4 mr-1.5" /> Print</Btn>
+          <Btn variant="outline" onClick={() => setBillId(null)}>{tc("close")}</Btn>
+          <Btn onClick={() => window.print()}><Printer className="h-4 w-4 mr-1.5" /> {t("print")}</Btn>
         </>}
       >
         {billFor && (() => {
@@ -658,9 +678,7 @@ const Admissions = () => {
           const total = billTotal(a);
           const age = ageFromDob(a.patients?.date_of_birth ?? null);
           const lastStay = a.bed_stays[a.bed_stays.length - 1];
-          const location = currentStay(a)
-            ? locationLabel(a)
-            : lastStay?.beds ? `Bed ${lastStay.beds.number}` : lastStay?.cabins ? `Cabin ${lastStay.cabins.number}` : "Unassigned";
+          const location = currentStay(a) ? locationLabel(a) : placeLabel(placeOf(lastStay));
           const overdue = !!inv && !inv.paid_at && new Date(`${inv.due_date}T23:59:59`) < new Date();
           return (
             <div className="text-sm">
@@ -668,30 +686,30 @@ const Admissions = () => {
                 <div>
                   <p className="font-semibold text-primary text-base">{a.patients?.full_name ?? "—"}</p>
                   <p className="text-xs text-muted-foreground">
-                    {a.patients?.mrn ? `${a.patients.mrn} · ` : ""}{age !== null ? `${age}y · ` : ""}{a.patients?.gender ?? ""}{a.patients?.phone ? ` · ${a.patients.phone}` : ""}
+                    {a.patients?.mrn ? `${a.patients.mrn} · ` : ""}{age !== null ? `${t("age", { age })} · ` : ""}{a.patients?.gender ?? ""}{a.patients?.phone ? ` · ${a.patients.phone}` : ""}
                   </p>
-                  {a.diagnosis && <p className="text-xs text-muted-foreground mt-1">Diagnosis: {a.diagnosis}</p>}
+                  {a.diagnosis && <p className="text-xs text-muted-foreground mt-1">{t("diagnosisLine", { diagnosis: a.diagnosis })}</p>}
                 </div>
                 <div className="text-xs space-y-0.5 sm:text-right">
-                  <p>Admitted {formatDateTime(a.admitted_at)}</p>
-                  <p>{a.discharged_at ? `Discharged ${formatDateTime(a.discharged_at)}` : "Still admitted"}</p>
+                  <p>{t("admittedOn", { when: formatDateTime(a.admitted_at) })}</p>
+                  <p>{a.discharged_at ? t("dischargedOn", { when: formatDateTime(a.discharged_at) }) : t("stillAdmitted")}</p>
                   <p className="text-muted-foreground">{location}{a.doctors?.name ? ` · ${a.doctors.name}` : ""}</p>
                 </div>
               </div>
 
               {lines.length === 0 ? (
                 <p className="py-8 text-center text-muted-foreground">
-                  Nothing charged yet. Bed and cabin days are billed once the patient has one.
+                  {t("nothingCharged")}
                 </p>
               ) : (
                 <div className="rounded-xl border border-border/60 overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50 text-xs font-semibold text-muted-foreground">
                       <tr>
-                        <th className="text-left px-3 py-2">Description</th>
-                        <th className="text-right px-3 py-2 w-16">Days</th>
-                        <th className="text-right px-3 py-2 w-28">Rate</th>
-                        <th className="text-right px-3 py-2 w-28">Amount</th>
+                        <th className="text-left px-3 py-2">{t("billColumns.description")}</th>
+                        <th className="text-right px-3 py-2 w-16">{t("billColumns.days")}</th>
+                        <th className="text-right px-3 py-2 w-28">{t("billColumns.rate")}</th>
+                        <th className="text-right px-3 py-2 w-28">{t("billColumns.amount")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -712,14 +730,14 @@ const Admissions = () => {
                 <p className="text-xs text-muted-foreground max-w-sm">
                   {inv
                     ? inv.paid_at
-                      ? `Paid on ${formatDateTime(inv.paid_at)}.`
-                      : `${overdue ? "Overdue" : "Unpaid"} · due ${formatDate(`${inv.due_date}T00:00:00`)}. It's on the patient's Billing page; mark it paid from Finance.`
+                      ? t("paidOn", { when: formatDateTime(inv.paid_at) })
+                      : t(overdue ? "overdueDue" : "unpaidDue", { due: formatDate(`${inv.due_date}T00:00:00`) })
                     : a.status === "discharged"
-                      ? "No invoice on record for this stay."
-                      : "Charges keep running until discharge. Discharging raises the invoice."}
+                      ? t("noInvoiceOnRecord")
+                      : t("chargesRunning")}
                 </p>
                 <div className="flex items-baseline gap-3 font-display text-lg text-primary">
-                  <span>{inv || a.status === "discharged" ? "Total" : "So far"}</span>
+                  <span>{inv || a.status === "discharged" ? t("total") : t("billNote.soFar")}</span>
                   <span>{formatCurrency(total)}</span>
                 </div>
               </div>

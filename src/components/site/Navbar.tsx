@@ -4,7 +4,7 @@ import { useState, useSyncExternalStore } from "react";
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { NavLink } from "@/components/NavLink";
-import { useTranslation } from "react-i18next";
+import { useTranslations } from "next-intl";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { BRAND_INFO } from "@/constants/brand";
 import { useIsPageVisible } from "./PublishedPages";
@@ -30,7 +30,7 @@ const Navbar = ({ transparentAtTop = false }: { transparentAtTop?: boolean }) =>
   const atTop = useSyncExternalStore(subscribeScroll, isAtTop, () => true);
   // The open mobile menu keeps its background, so its links stay readable.
   const clear = transparentAtTop && atTop && !open;
-  const { t } = useTranslation();
+  const t = useTranslations();
   const isVisible = useIsPageVisible();
   const { user, isLoading: sessionLoading } = useSession();
   // Their own panel: a patient's dashboard, a doctor's portal, and so on.
@@ -82,7 +82,7 @@ const Navbar = ({ transparentAtTop = false }: { transparentAtTop?: boolean }) =>
             </>
           )}
         </div>
-        <button className="md:hidden text-primary" onClick={() => setOpen(!open)} aria-label="Menu">
+        <button className="md:hidden text-primary" onClick={() => setOpen(!open)} aria-label={open ? t("nav.closeMenu") : t("nav.openMenu")}>
           {open ? <X /> : <Menu />}
         </button>
       </nav>

@@ -4,11 +4,14 @@ import { motion } from "framer-motion";
 import TiltCard from "@/components/site/TiltCard";
 import { Check, X } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import type { PricingContent } from "@/data/pricingContent";
 
 const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
+  const t = useTranslations("pricingPage");
+  // Plans, the comparison and the FAQ are the CMS's (/super/cms/pricing).
   return (
     <div className="min-h-screen bg-gradient-hero">
       <Navbar />
@@ -27,13 +30,13 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
                 delay={i * 0.1}
                 className={`relative rounded-3xl p-8 transition-shadow duration-300 hover:shadow-card ${p.featured ? "bg-accent/40 border-2 border-accent shadow-glow md:-mt-6 md:mb-0" : "bg-card border border-border/60 shadow-soft"}`}>
                 {p.featured && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary text-primary-foreground px-4 py-1 text-[10px] font-bold tracking-wider">MOST POPULAR</span>
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary text-primary-foreground px-4 py-1 text-[10px] font-bold tracking-wider">{t("mostPopular")}</span>
                 )}
                 <h3 className="font-display text-2xl text-primary">{p.name}</h3>
                 <p className="text-sm text-muted-foreground mt-1">{p.tag}</p>
                 <div className="mt-5 flex items-baseline gap-1">
                   <span className="font-display text-5xl text-primary">৳{p.price}</span>
-                  <span className="text-sm text-muted-foreground">Per Prescription</span>
+                  <span className="text-sm text-muted-foreground">{t("perPrescription")}</span>
                 </div>
                 <ul className="mt-6 space-y-3">
                   {p.features.map(f => (
@@ -57,14 +60,14 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
 
         <section className="container mx-auto py-12">
           <div className="text-center max-w-2xl mx-auto mb-10">
-            <h2 className="font-display text-3xl md:text-4xl text-primary">Compare the plans</h2>
-            <p className="text-muted-foreground mt-2 text-sm">What each plan includes, side by side.</p>
+            <h2 className="font-display text-3xl md:text-4xl text-primary">{t("compareTitle")}</h2>
+            <p className="text-muted-foreground mt-2 text-sm">{t("compareSub")}</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm border-collapse min-w-[700px]">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="py-4 font-display text-lg text-primary">Included</th>
+                  <th className="py-4 font-display text-lg text-primary">{t("included")}</th>
                   {plans.map((p, i) => (
                     <th key={i} className="py-4 font-display text-lg text-primary">{p.name}</th>
                   ))}
@@ -99,8 +102,8 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
             <div aria-hidden className="pointer-events-none absolute -bottom-28 -left-24 h-72 w-72 rounded-full bg-secondary/60 blur-3xl" />
 
             <div className="relative text-center max-w-2xl mx-auto">
-              <h2 className="font-display text-3xl md:text-4xl text-primary">Frequently Asked Questions</h2>
-              <p className="text-muted-foreground mt-3 text-sm">How billing works, and what you are paying for.</p>
+              <h2 className="font-display text-3xl md:text-4xl text-primary">{t("faqTitle")}</h2>
+              <p className="text-muted-foreground mt-3 text-sm">{t("faqSub")}</p>
             </div>
 
             <div className="relative grid md:grid-cols-2 gap-5 mt-10">

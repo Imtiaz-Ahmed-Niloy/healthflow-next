@@ -2,6 +2,7 @@
 
 import { ReactNode, useState, useMemo, useRef, useEffect } from "react";
 import { Upload, X, Plus, Facebook, Twitter, Instagram, Linkedin, Youtube, Globe, FileText, Paperclip, User, ChevronLeft, ChevronRight } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { Card, Pill } from "./ui";
 import { DataTable, Toolbar, Modal, ConfirmDialog, RowActions, Drawer, exportCSV, useCrud, Field, Input, Select, Chips, statusTone, type Column } from "./crud";
 import { useResourceCrud } from "./useResourceCrud";
@@ -33,6 +34,8 @@ export function ImageUploadField({ name, required, defaultValue, folder = "hospi
   /** True while a file is on its way to R2 — so a form can hold its submit until the key exists. */
   onUploadingChange?: (uploading: boolean) => void;
 }) {
+  const t = useTranslations("resource");
+  const tc = useTranslations("common");
   // What goes in the column: a key for anything uploaded here, or whatever was
   // already stored (an Unsplash link, an /assets path) left untouched.
   const [stored, setStored] = useState<string>(defaultValue || "");
@@ -52,11 +55,11 @@ export function ImageUploadField({ name, required, defaultValue, folder = "hospi
     // entirely — someone can drag a PDF onto this. Check the type ourselves
     // rather than sending it and reading Cloudflare's refusal back.
     if (!(ALLOWED_IMAGE_TYPES as readonly string[]).includes(file.type)) {
-      setError("That is not an image we take — PNG, JPG, WebP, AVIF or SVG.");
+      setError(t("badImage"));
       return;
     }
     if (file.size > MAX_IMAGE_BYTES) {
-      setError(`That image is ${(file.size / 1024 / 1024).toFixed(1)}MB — the limit is 5MB.`);
+      setError(t("imageTooBig", { size: (file.size / 1024 / 1024).toFixed(1) }));
       return;
     }
 
@@ -72,7 +75,7 @@ export function ImageUploadField({ name, required, defaultValue, folder = "hospi
         body: JSON.stringify({ folder, contentType: file.type, size: file.size }),
       });
       const body = await permission.json().catch(() => null);
-      if (!permission.ok) throw new Error(body?.error?.message || "Could not start the upload.");
+      if (!permission.ok) throw new Error(body?.error?.message || t("startFailed"));
 
       const { key, uploadUrl, publicUrl } = body.data;
 
@@ -82,13 +85,13 @@ export function ImageUploadField({ name, required, defaultValue, folder = "hospi
         headers: { "Content-Type": file.type },
         body: file,
       });
-      if (!put.ok) throw new Error("Cloudflare refused the upload.");
+      if (!put.ok) throw new Error(t("uploadRefused"));
 
       setStored(key);
       onChange?.(key);
       setPreview(publicUrl);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not upload that image.");
+      setError(err instanceof Error ? err.message : t("imageUploadFailed"));
       // Put the field back how it was rather than leaving a preview of a file
       // that never landed.
       setPreview(mediaUrl(stored) || "");
@@ -145,7 +148,7 @@ export function ImageUploadField({ name, required, defaultValue, folder = "hospi
         type="button"
         onClick={openPicker}
         disabled={busy}
-        aria-label={preview ? "Change image" : "Choose an image"}
+        aria-label={preview ? t("changeImage") : t("chooseImage")}
         className="h-24 w-24 rounded-xl bg-muted/40 border border-border/60 overflow-hidden flex items-center justify-center shrink-0 disabled:opacity-60"
       >
         {preview ? <img src={preview} alt="preview" className="h-full w-full object-cover" /> : <Upload className="h-5 w-5 text-muted-foreground" />}
@@ -156,19 +159,19 @@ export function ImageUploadField({ name, required, defaultValue, folder = "hospi
         <div className="flex items-center gap-2">
           <button type="button" onClick={openPicker} disabled={busy}
             className="px-3 py-2 rounded-lg text-xs font-semibold bg-primary text-primary-foreground inline-flex items-center gap-1.5 disabled:opacity-60">
-            <Upload className="h-3.5 w-3.5" /> {busy ? "Uploading…" : preview ? "Change" : "Upload"} image
+            <Upload className="h-3.5 w-3.5" /> {busy ? t("uploadingImage") : preview ? t("changeImageBtn") : t("uploadImage")}
           </button>
           {preview && !busy && (
             <button type="button" onClick={clear}
               className="px-3 py-2 rounded-lg text-xs font-semibold border border-border inline-flex items-center gap-1.5">
-              <X className="h-3.5 w-3.5" /> Remove
+              <X className="h-3.5 w-3.5" /> {tc("remove")}
             </button>
           )}
         </div>
         {error
           ? <p className="text-[11px] text-destructive mt-1.5">{error}</p>
           : <p className="text-[11px] text-muted-foreground mt-1.5">
-              {dragging ? "Drop it here." : "Drag an image here, or click to choose. PNG, JPG, WebP, AVIF or SVG, up to 5MB."}
+              {dragging ? t("dropHere") : t("imageHint")}
             </p>}
       </div>
     </div>
@@ -186,6 +189,8 @@ export function ImageUploadField({ name, required, defaultValue, folder = "hospi
  * in the row.
  */
 function DocumentUploadField({ name, required, defaultValue, hint, sizeName, defaultSize }: { name: string; required?: boolean; defaultValue?: string; hint?: string; sizeName?: string; defaultSize?: unknown }) {
+  const t = useTranslations("resource");
+  const tc = useTranslations("common");
   const [stored, setStored] = useState<string>(defaultValue || "");
   // Posted alongside the key when the resource has somewhere to put it. Known
   // for free here and nowhere else — reading it back would mean a round trip
@@ -204,18 +209,18 @@ function DocumentUploadField({ name, required, defaultValue, hint, sizeName, def
   // not public. This route checks who is asking and hands back a link that
   // expires in a minute.
   const href = stored ? `/api/v1/documents?key=${encodeURIComponent(stored)}` : null;
-  const shown = label || (stored ? stored.split("/").pop() || "Document" : "");
+  const shown = label || (stored ? stored.split("/").pop() || t("document") : "");
 
   const upload = async (file: File) => {
     setError(null);
 
     // A drop bypasses the picker's `accept` filter entirely.
     if (!(ALLOWED_DOCUMENT_TYPES as readonly string[]).includes(file.type)) {
-      setError("Licence documents must be PDFs.");
+      setError(t("pdfOnly"));
       return;
     }
     if (file.size > MAX_DOCUMENT_BYTES) {
-      setError(`That file is ${(file.size / 1024 / 1024).toFixed(1)}MB — the limit is 10MB.`);
+      setError(t("fileTooBig", { size: (file.size / 1024 / 1024).toFixed(1) }));
       return;
     }
 
@@ -227,7 +232,7 @@ function DocumentUploadField({ name, required, defaultValue, hint, sizeName, def
         body: JSON.stringify({ folder: "documents", contentType: file.type, size: file.size }),
       });
       const body = await permission.json().catch(() => null);
-      if (!permission.ok) throw new Error(body?.error?.message || "Could not start the upload.");
+      if (!permission.ok) throw new Error(body?.error?.message || t("startFailed"));
 
       const { key, uploadUrl } = body.data;
 
@@ -236,13 +241,13 @@ function DocumentUploadField({ name, required, defaultValue, hint, sizeName, def
         headers: { "Content-Type": file.type },
         body: file,
       });
-      if (!put.ok) throw new Error("Cloudflare refused the upload.");
+      if (!put.ok) throw new Error(t("uploadRefused"));
 
       setStored(key);
       setLabel(file.name);
       setSize(String(file.size));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not upload that document.");
+      setError(err instanceof Error ? err.message : t("documentUploadFailed"));
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -294,7 +299,7 @@ function DocumentUploadField({ name, required, defaultValue, hint, sizeName, def
       {sizeName && <input type="hidden" name={sizeName} value={size} />}
       <input ref={inputRef} type="file" accept="application/pdf" onChange={onPick} className="hidden" />
 
-      <button type="button" onClick={openPicker} disabled={busy} aria-label={stored ? "Replace document" : "Choose a PDF"}
+      <button type="button" onClick={openPicker} disabled={busy} aria-label={stored ? t("replaceDocument") : t("choosePdf")}
         className="h-12 w-12 rounded-lg bg-muted/40 border border-border/60 flex items-center justify-center shrink-0 disabled:opacity-60">
         <FileText className="h-5 w-5 text-muted-foreground" />
       </button>
@@ -310,19 +315,19 @@ function DocumentUploadField({ name, required, defaultValue, hint, sizeName, def
         <div className="flex items-center gap-2 mt-1">
           <button type="button" onClick={openPicker} disabled={busy}
             className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground inline-flex items-center gap-1.5 disabled:opacity-60">
-            <Upload className="h-3.5 w-3.5" /> {busy ? "Uploading…" : stored ? "Replace" : "Upload"} PDF
+            <Upload className="h-3.5 w-3.5" /> {busy ? t("uploadingPdf") : stored ? t("replacePdf") : t("uploadPdf")}
           </button>
           {stored && !busy && (
             <button type="button" onClick={clear}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-border inline-flex items-center gap-1.5">
-              <X className="h-3.5 w-3.5" /> Remove
+              <X className="h-3.5 w-3.5" /> {tc("remove")}
             </button>
           )}
         </div>
         {error
           ? <p className="text-[11px] text-destructive mt-1.5">{error}</p>
           : <p className="text-[11px] text-muted-foreground mt-1.5">
-              {dragging ? "Drop it here." : hint || "Drag the scan here, or click to choose. PDF, up to 10MB."}
+              {dragging ? t("dropHere") : hint || t("pdfHint")}
             </p>}
       </div>
     </div>
@@ -338,6 +343,8 @@ function FileUploadField({ name, required, defaultValue, accept = "image/*,appli
     if (typeof defaultValue === "string" && defaultValue.startsWith("data:")) return { name: "document", type: defaultValue.slice(5, defaultValue.indexOf(";")) || "application/octet-stream", data: defaultValue };
     return null;
   })();
+  const t = useTranslations("resource");
+  const tc = useTranslations("common");
   const [file, setFile] = useState<DocFile | null>(init);
   const inputRef = useRef<HTMLInputElement>(null);
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -359,7 +366,7 @@ function FileUploadField({ name, required, defaultValue, accept = "image/*,appli
         <div className="flex items-center gap-2 flex-wrap">
           <button type="button" onClick={() => inputRef.current?.click()}
             className="px-3 py-2 rounded-lg text-xs font-semibold bg-primary text-primary-foreground inline-flex items-center gap-1.5">
-            <Upload className="h-3.5 w-3.5" /> {file ? "Replace" : "Upload"} file
+            <Upload className="h-3.5 w-3.5" /> {file ? t("replaceFile") : t("uploadFile")}
           </button>
           {file && (
             <>
@@ -369,12 +376,12 @@ function FileUploadField({ name, required, defaultValue, accept = "image/*,appli
               </a>
               <button type="button" onClick={() => setFile(null)}
                 className="px-3 py-2 rounded-lg text-xs font-semibold border border-border inline-flex items-center gap-1.5">
-                <X className="h-3.5 w-3.5" /> Remove
+                <X className="h-3.5 w-3.5" /> {tc("remove")}
               </button>
             </>
           )}
         </div>
-        <p className="text-[11px] text-muted-foreground mt-1.5">{hint || "PDF, PNG or JPG."}</p>
+        <p className="text-[11px] text-muted-foreground mt-1.5">{hint || t("fileHint")}</p>
       </div>
     </div>
   );
@@ -386,6 +393,8 @@ function FilesUploadField({ name, defaultValue, accept = "image/*,application/pd
     try { const p = JSON.parse(defaultValue); if (Array.isArray(p)) return p as DocFile[]; } catch { /* ignore */ }
     return [];
   })();
+  const t = useTranslations("resource");
+  const tc = useTranslations("common");
   const [files, setFiles] = useState<DocFile[]>(init);
   const inputRef = useRef<HTMLInputElement>(null);
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -409,7 +418,7 @@ function FilesUploadField({ name, defaultValue, accept = "image/*,application/pd
             <li key={i} className="flex items-center gap-2 bg-muted/40 rounded-lg px-3 py-2">
               {f.type?.startsWith("image/") ? <img src={f.data} alt={f.name} className="h-8 w-8 rounded object-cover" /> : <FileText className="h-5 w-5 text-primary" />}
               <a href={f.data} download={f.name} target="_blank" rel="noreferrer" className="flex-1 text-sm truncate hover:underline">{f.name}</a>
-              <button type="button" onClick={() => remove(i)} className="p-1.5 rounded-md hover:bg-background" title="Remove">
+              <button type="button" onClick={() => remove(i)} className="p-1.5 rounded-md hover:bg-background" title={tc("remove")} aria-label={tc("remove")}>
                 <X className="h-3.5 w-3.5" />
               </button>
             </li>
@@ -418,9 +427,9 @@ function FilesUploadField({ name, defaultValue, accept = "image/*,application/pd
       )}
       <button type="button" onClick={() => inputRef.current?.click()}
         className="px-3 py-2 rounded-lg text-xs font-semibold bg-primary text-primary-foreground inline-flex items-center gap-1.5">
-        <Plus className="h-3.5 w-3.5" /> Add license / document
+        <Plus className="h-3.5 w-3.5" /> {t("addDocument")}
       </button>
-      <p className="text-[11px] text-muted-foreground mt-1.5">{hint || "Add multiple PDFs or images."}</p>
+      <p className="text-[11px] text-muted-foreground mt-1.5">{hint || t("filesHint")}</p>
     </div>
   );
 }
@@ -435,6 +444,7 @@ function parseList(v: unknown): string[] {
 }
 
 function ListField({ name, defaultValue, inputType = "text", placeholder }: { name: string; defaultValue?: unknown; inputType?: string; placeholder?: string }) {
+  const tc = useTranslations("common");
   const [items, setItems] = useState<string[]>(() => {
     const arr = parseList(defaultValue);
     return arr.length ? arr : [""];
@@ -449,14 +459,14 @@ function ListField({ name, defaultValue, inputType = "text", placeholder }: { na
         <div key={i} className="flex items-center gap-2">
           <input type={inputType} value={val} onChange={e => update(i, e.target.value)} placeholder={placeholder}
             className="flex-1 bg-muted/40 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary text-sm" />
-          <button type="button" onClick={() => remove(i)} className="p-2 rounded-lg border border-border hover:bg-muted" title="Remove">
+          <button type="button" onClick={() => remove(i)} className="p-2 rounded-lg border border-border hover:bg-muted" title={tc("remove")} aria-label={tc("remove")}>
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
       ))}
       <button type="button" onClick={add}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-border hover:bg-muted">
-        <Plus className="h-3.5 w-3.5" /> Add
+        <Plus className="h-3.5 w-3.5" /> {tc("add")}
       </button>
     </div>
   );
@@ -474,6 +484,8 @@ const SOCIAL_PLATFORMS = [
 type SocialLink = { platform: string; url: string };
 
 function SocialField({ name, defaultValue }: { name: string; defaultValue?: unknown }) {
+  const t = useTranslations("resource");
+  const tc = useTranslations("common");
   const [items, setItems] = useState<SocialLink[]>(() => {
     if (typeof defaultValue === "string" && defaultValue.trim()) {
       try { const p = JSON.parse(defaultValue); if (Array.isArray(p)) return p; } catch { /* ignore */ }
@@ -495,7 +507,7 @@ function SocialField({ name, defaultValue }: { name: string; defaultValue?: unkn
           <div key={i} className="flex items-center gap-2">
             <select value={s.platform} onChange={e => update(i, { platform: e.target.value })}
               className="bg-muted/40 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-primary">
-              {SOCIAL_PLATFORMS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+              {SOCIAL_PLATFORMS.map(p => <option key={p.key} value={p.key}>{p.key === "other" ? tc("other") : p.label}</option>)}
             </select>
             <div className="flex-1 flex items-center gap-2 bg-muted/40 rounded-lg px-3">
               <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -503,7 +515,7 @@ function SocialField({ name, defaultValue }: { name: string; defaultValue?: unkn
                 placeholder="https://…"
                 className="flex-1 bg-transparent py-2 text-sm outline-none" />
             </div>
-            <button type="button" onClick={() => remove(i)} className="p-2 rounded-lg border border-border hover:bg-muted" title="Remove">
+            <button type="button" onClick={() => remove(i)} className="p-2 rounded-lg border border-border hover:bg-muted" title={tc("remove")} aria-label={tc("remove")}>
               <X className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -511,7 +523,7 @@ function SocialField({ name, defaultValue }: { name: string; defaultValue?: unkn
       })}
       <button type="button" onClick={add}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-border hover:bg-muted">
-        <Plus className="h-3.5 w-3.5" /> Add link
+        <Plus className="h-3.5 w-3.5" /> {t("addLink")}
       </button>
     </div>
   );
@@ -521,6 +533,8 @@ function SocialField({ name, defaultValue }: { name: string; defaultValue?: unkn
 type Person = { name: string; role: string; phone: string; email: string };
 
 function PeopleField({ name, defaultValue, roleOptions, addLabel }: { name: string; defaultValue?: unknown; roleOptions?: string[]; addLabel?: string }) {
+  const t = useTranslations("resource");
+  const tc = useTranslations("common");
   const [items, setItems] = useState<Person[]>(() => {
     if (typeof defaultValue === "string" && defaultValue.trim()) {
       try { const p = JSON.parse(defaultValue); if (Array.isArray(p)) return p as Person[]; } catch { /* ignore */ }
@@ -539,14 +553,14 @@ function PeopleField({ name, defaultValue, roleOptions, addLabel }: { name: stri
         <div key={i} className="rounded-xl border border-border/60 bg-muted/20 p-3">
           <div className="flex items-center justify-between mb-2">
             <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
-              <User className="h-3.5 w-3.5" /> Member {i + 1}
+              <User className="h-3.5 w-3.5" /> {t("member", { n: i + 1 })}
             </div>
-            <button type="button" onClick={() => remove(i)} className="p-1.5 rounded-lg border border-border hover:bg-muted" title="Remove">
+            <button type="button" onClick={() => remove(i)} className="p-1.5 rounded-lg border border-border hover:bg-muted" title={tc("remove")} aria-label={tc("remove")}>
               <X className="h-3.5 w-3.5" />
             </button>
           </div>
           <div className="grid sm:grid-cols-2 gap-2">
-            <input value={m.name} onChange={e => update(i, { name: e.target.value })} placeholder="Full name"
+            <input value={m.name} onChange={e => update(i, { name: e.target.value })} placeholder={t("fullName")}
               className="bg-card rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary border border-border/60" />
             {roleOptions && roleOptions.length > 0 ? (
               <select value={m.role} onChange={e => update(i, { role: e.target.value })}
@@ -554,19 +568,19 @@ function PeopleField({ name, defaultValue, roleOptions, addLabel }: { name: stri
                 {roleOptions.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
             ) : (
-              <input value={m.role} onChange={e => update(i, { role: e.target.value })} placeholder="Role / designation"
+              <input value={m.role} onChange={e => update(i, { role: e.target.value })} placeholder={t("roleDesignation")}
                 className="bg-card rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary border border-border/60" />
             )}
-            <input type="tel" value={m.phone} onChange={e => update(i, { phone: e.target.value })} placeholder="Phone"
+            <input type="tel" value={m.phone} onChange={e => update(i, { phone: e.target.value })} placeholder={t("phone")}
               className="bg-card rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary border border-border/60" />
-            <input type="email" value={m.email} onChange={e => update(i, { email: e.target.value })} placeholder="Email"
+            <input type="email" value={m.email} onChange={e => update(i, { email: e.target.value })} placeholder={t("email")}
               className="bg-card rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary border border-border/60" />
           </div>
         </div>
       ))}
       <button type="button" onClick={add}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-border hover:bg-muted">
-        <Plus className="h-3.5 w-3.5" /> {addLabel || "Add member"}
+        <Plus className="h-3.5 w-3.5" /> {addLabel || t("addMember")}
       </button>
     </div>
   );
@@ -604,6 +618,8 @@ const isImageColumn = (key: string) => /(logo|image|photo|avatar|cover)/.test(ke
 
 /** A thumbnail in the drawer, full size on click. */
 const DetailImage = ({ value }: { value: string }) => {
+  const t = useTranslations("resource");
+  const tc = useTranslations("common");
   const [zoom, setZoom] = useState(false);
   const src = mediaUrl(value);
 
@@ -620,7 +636,7 @@ const DetailImage = ({ value }: { value: string }) => {
 
   return (
     <>
-      <button type="button" onClick={() => setZoom(true)} title="Open full size"
+      <button type="button" onClick={() => setZoom(true)} title={t("openFullSize")} aria-label={t("openFullSize")}
         className="block rounded-lg overflow-hidden border border-border/60 hover:border-primary transition-colors">
         <img src={src} alt="" className="h-24 w-24 object-cover" />
       </button>
@@ -632,7 +648,7 @@ const DetailImage = ({ value }: { value: string }) => {
           onClick={() => setZoom(false)}
           className="fixed inset-0 z-[120] grid place-items-center bg-black/80 p-6 animate-in fade-in duration-150"
         >
-          <button type="button" aria-label="Close" onClick={() => setZoom(false)}
+          <button type="button" aria-label={tc("close")} onClick={() => setZoom(false)}
             className="absolute top-4 right-4 h-9 w-9 grid place-items-center rounded-full bg-card/90 border border-border/60 text-muted-foreground hover:text-primary">
             <X className="h-4 w-4" />
           </button>
@@ -654,6 +670,9 @@ const DetailValue = ({ name, value }: { name: string; value: unknown }) => {
   // The platform's timezone, date format and clock format (0057) — so a row
   // written at 16:43 UTC reads as the Dhaka time the reader lives in.
   const { formatDate, formatDateTime } = useFormatters();
+  const t = useTranslations("resource");
+  const tc = useTranslations("common");
+  const locale = useLocale();
 
   if (value === null || value === undefined || value === "") {
     return <span className="text-muted-foreground font-normal">—</span>;
@@ -666,7 +685,7 @@ const DetailValue = ({ name, value }: { name: string; value: unknown }) => {
     if (DATE_ONLY.test(value)) return <>{formatDate(value)}</>;
   }
 
-  if (typeof value === "boolean") return <>{value ? "Yes" : "No"}</>;
+  if (typeof value === "boolean") return <>{value ? tc("yes") : tc("no")}</>;
 
   // A logo or photo: show the picture, not the key that points at it.
   if (isImageColumn(name) && typeof value === "string") return <DetailImage value={value} />;
@@ -683,14 +702,14 @@ const DetailValue = ({ name, value }: { name: string; value: unknown }) => {
         className="inline-flex items-center gap-1.5 text-primary hover:underline"
       >
         <FileText className="h-3.5 w-3.5 shrink-0" />
-        {value.split("/").pop() || "Document"}
+        {value.split("/").pop() || t("document")}
       </a>
     );
   }
 
   // A doctor's availability: a week described, old free text as typed.
   if (name === "availability" && typeof value === "string") {
-    return <>{availabilityLabel(value) ?? "—"}</>;
+    return <>{availabilityLabel(value, locale) ?? "—"}</>;
   }
 
   // The weekly opening hours, shown the way the public page shows them:
@@ -699,7 +718,7 @@ const DetailValue = ({ name, value }: { name: string; value: unknown }) => {
   if (week) {
     return (
       <span className="flex flex-col gap-0.5">
-        {summariseWeek(week).map(row => (
+        {summariseWeek(week, locale).map(row => (
           <span key={row.days}>
             <span className="font-normal text-muted-foreground">{row.days}</span> · {row.hours}
           </span>
@@ -826,6 +845,7 @@ export function RecordFormFields({
   activeStepId?: number;
   stepIds?: number[];
 }) {
+  const patientsSee = useTranslations("chamberForm")("patientsSee");
   const ids = stepIds && stepIds.length ? stepIds : [1];
   return (
     <div className="grid grid-cols-2 gap-x-4">
@@ -859,7 +879,7 @@ export function RecordFormFields({
               ) : f.type === "hours" ? (
                 <WeeklyHoursField name={f.name} defaultValue={(editing as never)?.[f.name]} />
               ) : f.type === "availability" ? (
-                <WeeklyHoursField name={f.name} defaultValue={(editing as never)?.[f.name]} seed={weekFromAvailability} summaryLabel="Patients see" />
+                <WeeklyHoursField name={f.name} defaultValue={(editing as never)?.[f.name]} seed={weekFromAvailability} summaryLabel={patientsSee} />
               ) : f.type === "specialty" ? (
                 <SpecialtySelect key={String((editing as { id?: string } | null)?.id ?? "new")} name={f.name}
                   defaultValue={(editing as never)?.[f.name] ?? ""} />
@@ -923,6 +943,9 @@ export type ResourceConfig<T extends { id: string; status?: string }> = {
 const JSON_VALUED_TYPES = new Set(["list", "social", "people"]);
 
 export function ResourcePage<T extends { id: string; status?: string }>({ config, extra }: { config: ResourceConfig<T>; extra?: ReactNode }) {
+  const t = useTranslations("resource");
+  const tc = useTranslations("common");
+  const patientsSee = useTranslations("chamberForm")("patientsSee");
   // Both hooks run every render — React forbids calling one conditionally.
   // useResourceCrud skips its request when config.resource is undefined, and
   // useCrud is cheap, so the unused one costs nothing.
@@ -1004,7 +1027,7 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
       <Card className="p-5">
         <Toolbar
           search={q} onSearch={setQ}
-          onAdd={() => setCreating(true)} addLabel={config.addLabel || "New"}
+          onAdd={() => setCreating(true)} addLabel={config.addLabel}
           beforeAdd={config.beforeAdd}
           onExport={() => exportCSV(rows as never, `${config.exportName || config.storeKey}.csv`)}
           bulkCount={sel.length} onBulkDelete={() => setBulk(true)}
@@ -1013,7 +1036,7 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
               {config.statuses && (
                 <Chips value={status as never} onChange={setStatus as never}
                   options={[
-                    { value: "all", label: "All" },
+                    { value: "all", label: t("all") },
                     ...config.statuses.map(s => (typeof s === "string" ? { value: s, label: s } : s)),
                   ]} />
               )}
@@ -1023,17 +1046,15 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
         />
         {loadError ? (
           <div className="py-12 text-center">
-            <p className="text-sm font-semibold text-destructive">Could not load records.</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              You may not have access to this module, or the request failed.
-            </p>
+            <p className="text-sm font-semibold text-destructive">{t("loadFailed")}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("loadFailedHint")}</p>
             <button type="button" onClick={() => remote.refetch()}
               className="mt-3 px-4 py-2 rounded-full text-xs font-semibold border border-border hover:bg-muted">
-              Try again
+              {t("tryAgain")}
             </button>
           </div>
         ) : isLoading ? (
-          <div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>
+          <div className="py-12 text-center text-sm text-muted-foreground">{tc("loading")}</div>
         ) : (
           <DataTable<T>
             rows={rows} columns={config.columns}
@@ -1058,22 +1079,22 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
       {/* Create / Edit */}
       <Modal open={creating || !!editing} onClose={() => { setCreating(false); setEditing(null); }}
         size="lg"
-        title={editing ? "Edit record" : "Create new"}
+        title={editing ? t("editRecord") : t("createNew")}
         footer={<>
-          <button onClick={() => { setCreating(false); setEditing(null); }} className="px-4 py-2 rounded-full text-sm font-semibold border border-border">Cancel</button>
+          <button onClick={() => { setCreating(false); setEditing(null); }} className="px-4 py-2 rounded-full text-sm font-semibold border border-border">{tc("cancel")}</button>
           {steps && !isFirstStep && (
             <button type="button" onClick={() => goToStep(s => Math.max(0, s - 1))}
               className="px-4 py-2 rounded-full text-sm font-semibold border border-border inline-flex items-center gap-1.5">
-              <ChevronLeft className="h-4 w-4" /> Back
+              <ChevronLeft className="h-4 w-4" /> {tc("back")}
             </button>
           )}
           {steps && !isLastStep ? (
             <button type="button" onClick={() => goToStep(s => Math.min(steps.length - 1, s + 1))}
               className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground inline-flex items-center gap-1.5">
-              Next <ChevronRight className="h-4 w-4" />
+              {tc("next")} <ChevronRight className="h-4 w-4" />
             </button>
           ) : (
-            <button form="resource-form" type="submit" className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground">Save</button>
+            <button form="resource-form" type="submit" className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground">{tc("save")}</button>
           )}
         </>}>
         {steps && (
@@ -1216,7 +1237,7 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
                     ) : f.type === "hours" ? (
                       <WeeklyHoursField name={f.name} defaultValue={(editing as never)?.[f.name]} />
                     ) : f.type === "availability" ? (
-                      <WeeklyHoursField name={f.name} defaultValue={(editing as never)?.[f.name]} seed={weekFromAvailability} summaryLabel="Patients see" />
+                      <WeeklyHoursField name={f.name} defaultValue={(editing as never)?.[f.name]} seed={weekFromAvailability} summaryLabel={patientsSee} />
                     ) : f.type === "specialty" ? (
                       <SpecialtySelect key={String((editing as { id?: string } | null)?.id ?? "new")} name={f.name}
                         defaultValue={(editing as never)?.[f.name] ?? ""} />
@@ -1237,7 +1258,7 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
 
 
       {/* View drawer */}
-      <Drawer open={!!viewing} onClose={() => setViewing(null)} title="Details">
+      <Drawer open={!!viewing} onClose={() => setViewing(null)} title={t("details")}>
         {viewing && (
           <div className="space-y-3 text-sm">
             {Object.entries(viewing).filter(([k]) => !isIdColumn(k)).map(([k, v]) => (
@@ -1255,9 +1276,9 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
       </Drawer>
 
       <ConfirmDialog open={!!confirm} onClose={() => setConfirm(null)} onConfirm={() => confirm && crud.remove(confirm)}
-        title="Delete record" description="This will permanently remove the entry." />
+        title={t("deleteRecord")} description={t("deleteRecordBody")} />
       <ConfirmDialog open={bulk} onClose={() => setBulk(false)} onConfirm={() => { crud.bulkRemove(sel); setSel([]); }}
-        title={`Delete ${sel.length} records?`} description="Bulk action cannot be undone." />
+        title={t("deleteMany", { count: sel.length })} description={t("deleteManyBody")} />
     </>
   );
 }

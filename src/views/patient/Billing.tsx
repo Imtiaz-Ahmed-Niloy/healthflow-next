@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Building2, ShieldCheck, Eye, Receipt } from "lucide-react";
 import { toast } from "sonner";
+import { useLocale, useTranslations } from "next-intl";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
 import { useFormatters } from "@/lib/appSettings";
 
@@ -27,23 +28,29 @@ type Summary = {
   upcoming_due: { amount: number; due_date: string } | null;
 };
 
-const dateLabel = (iso: string) => {
+/** Month names in the page's language; digits stay Western (see appSettings). */
+const dateLabel = (iso: string, locale: string) => {
   const date = new Date(iso.length > 10 ? iso : `${iso}T00:00:00`);
   return Number.isNaN(date.getTime())
     ? iso
-    : date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    : date.toLocaleDateString(locale === "bn" ? "bn-BD-u-nu-latn" : "en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 
-const statusOf = (invoice: Invoice) =>
-  invoice.paid_at ? "PAID" : invoice.overdue ? "OVERDUE" : "UNPAID";
+type Status = "paid" | "unpaid" | "overdue";
 
-const STATUS_CLASS: Record<string, string> = {
-  PAID: "bg-chip text-primary",
-  UNPAID: "bg-primary/10 text-primary",
-  OVERDUE: "bg-destructive/15 text-destructive",
+const statusOf = (invoice: Invoice): Status =>
+  invoice.paid_at ? "paid" : invoice.overdue ? "overdue" : "unpaid";
+
+const STATUS_CLASS: Record<Status, string> = {
+  paid: "bg-chip text-primary",
+  unpaid: "bg-primary/10 text-primary",
+  overdue: "bg-destructive/15 text-destructive",
 };
 
 const Billing = () => {
+  const t = useTranslations("patient.billing");
+  const tc = useTranslations("common");
+  const locale = useLocale();
   // The platform currency from global settings, like every money figure in
   // the app. This page had ৳ typed in, and before that dollars.
   const { formatCurrency: fmt } = useFormatters();
@@ -60,14 +67,14 @@ const Billing = () => {
         const body = await res.json().catch(() => null);
         if (!res.ok) {
           setFailed(true);
-          toast.error(body?.error?.message || "Couldn't load your bills.");
+          toast.error(body?.error?.message || t("loadFailed"));
           return;
         }
         setInvoices(body.data.invoices ?? []);
         setSummary(body.data.summary ?? { outstanding: 0, last_payment: null, upcoming_due: null });
       } catch {
         setFailed(true);
-        toast.error("Couldn't reach the server.");
+        toast.error(tc("networkError"));
       } finally {
         setLoading(false);
       }
@@ -77,10 +84,8 @@ const Billing = () => {
 
   return (
     <PatientPortalLayout>
-      <h1 className="font-display text-5xl text-primary">Billing</h1>
-      <p className="text-sm text-muted-foreground mt-1">
-        Invoices your hospitals have raised for your care.
-      </p>
+      <h1 className="font-display text-5xl text-primary">{t("title")}</h1>
+      <p className="text-sm text-muted-foreground mt-1">{t("subtitle")}</p>
 
       <div className="grid lg:grid-cols-[1fr_360px] gap-6 mt-8">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -88,27 +93,27 @@ const Billing = () => {
           <div className="absolute -right-24 -bottom-24 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />
           <div className="flex items-start justify-between relative">
             <div>
-              <p className="text-[10px] tracking-widest font-bold opacity-80">TOTAL OUTSTANDING BALANCE</p>
+              <p className="text-[10px] tracking-widest font-bold opacity-80">{t("outstanding")}</p>
               <p className="font-display text-6xl mt-3">{loading ? "—" : fmt(summary.outstanding)}</p>
             </div>
             <Building2 className="h-7 w-7" />
           </div>
           <div className="grid sm:grid-cols-2 gap-3 mt-10 relative">
             <div className="rounded-2xl bg-surface-dark-foreground/10 p-4">
-              <p className="text-xs opacity-80">Last Payment</p>
+              <p className="text-xs opacity-80">{t("lastPayment")}</p>
               <p className="font-display text-2xl mt-1">
                 {summary.last_payment ? fmt(summary.last_payment.amount) : "—"}
                 {summary.last_payment && (
-                  <span className="text-xs opacity-70 font-sans"> on {dateLabel(summary.last_payment.paid_at)}</span>
+                  <span className="text-xs opacity-70 font-sans"> {t("on", { date: dateLabel(summary.last_payment.paid_at, locale) })}</span>
                 )}
               </p>
             </div>
             <div className="rounded-2xl bg-surface-dark-foreground/10 p-4">
-              <p className="text-xs opacity-80">Upcoming Due</p>
+              <p className="text-xs opacity-80">{t("upcomingDue")}</p>
               <p className="font-display text-2xl mt-1">
                 {summary.upcoming_due ? fmt(summary.upcoming_due.amount) : "—"}
                 {summary.upcoming_due && (
-                  <span className="text-xs opacity-70 font-sans"> {dateLabel(summary.upcoming_due.due_date)}</span>
+                  <span className="text-xs opacity-70 font-sans"> {dateLabel(summary.upcoming_due.due_date, locale)}</span>
                 )}
               </p>
             </div>
@@ -124,23 +129,23 @@ const Billing = () => {
         <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}
           className="rounded-3xl bg-chip/60 p-6 border border-border/40">
           <p className="flex items-center gap-2 text-[10px] tracking-widest font-bold text-primary-glow">
-            <Receipt className="h-3.5 w-3.5" /> YOUR INVOICES
+            <Receipt className="h-3.5 w-3.5" /> {t("yourInvoices")}
           </p>
           <div className="mt-5 space-y-3">
             <div className="flex items-baseline justify-between">
-              <span className="text-sm text-foreground/70">Unpaid</span>
+              <span className="text-sm text-foreground/70">{t("unpaid")}</span>
               <span className="font-display text-2xl text-primary">
                 {invoices.filter(i => !i.paid_at).length}
               </span>
             </div>
             <div className="flex items-baseline justify-between">
-              <span className="text-sm text-foreground/70">Overdue</span>
+              <span className="text-sm text-foreground/70">{t("overdue")}</span>
               <span className="font-display text-2xl text-destructive">
                 {invoices.filter(i => i.overdue).length}
               </span>
             </div>
             <div className="flex items-baseline justify-between">
-              <span className="text-sm text-foreground/70">Settled</span>
+              <span className="text-sm text-foreground/70">{t("settled")}</span>
               <span className="font-display text-2xl text-primary/70">
                 {invoices.filter(i => i.paid_at).length}
               </span>
@@ -151,26 +156,22 @@ const Billing = () => {
 
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
         className="mt-8 rounded-3xl bg-card border border-border/60 p-7 shadow-soft">
-        <h2 className="font-display text-2xl text-primary">Invoice History</h2>
+        <h2 className="font-display text-2xl text-primary">{t("history")}</h2>
 
         {loading ? (
-          <p className="text-sm text-muted-foreground py-10 text-center">Loading your invoices…</p>
+          <p className="text-sm text-muted-foreground py-10 text-center">{t("loading")}</p>
         ) : failed ? (
-          <p className="text-sm text-destructive py-10 text-center">
-            Your invoices couldn&apos;t be loaded. Reload the page to try again.
-          </p>
+          <p className="text-sm text-destructive py-10 text-center">{t("failed")}</p>
         ) : invoices.length === 0 ? (
           <div className="py-12 text-center">
             <Receipt className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
-            <p className="text-sm font-semibold text-primary">No invoices yet</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Bills raised by your hospital will appear here.
-            </p>
+            <p className="text-sm font-semibold text-primary">{t("emptyTitle")}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("emptyBody")}</p>
           </div>
         ) : (
           <>
             <div className="mt-6 grid grid-cols-[1fr_1fr_1fr_1fr_80px] gap-4 text-[10px] tracking-widest font-bold text-muted-foreground pb-3 border-b border-border/50 px-3">
-              <div>INVOICE</div><div>DUE</div><div>AMOUNT</div><div>STATUS</div><div>VIEW</div>
+              <div>{t("cols.invoice")}</div><div>{t("cols.due")}</div><div>{t("cols.amount")}</div><div>{t("cols.status")}</div><div>{t("cols.view")}</div>
             </div>
             <div className="mt-2 space-y-2">
               {invoices.map((inv, i) => {
@@ -178,24 +179,24 @@ const Billing = () => {
                 const open = openId === inv.id;
                 return (
                   <motion.div key={inv.id} initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
-                    className={`rounded-xl ${status === "PAID" ? "hover:bg-muted/30" : "bg-chip/40"}`}>
+                    className={`rounded-xl ${status === "paid" ? "hover:bg-muted/30" : "bg-chip/40"}`}>
                   <div className="grid grid-cols-[1fr_1fr_1fr_1fr_80px] gap-4 items-center px-3 py-3">
                     <div className="min-w-0">
                       <p className="font-semibold text-primary text-sm">{inv.reference}</p>
                       {inv.description && <p className="text-xs text-muted-foreground truncate">{inv.description}</p>}
                     </div>
-                    <p className="text-sm text-foreground/70">{dateLabel(inv.due_date)}</p>
+                    <p className="text-sm text-foreground/70">{dateLabel(inv.due_date, locale)}</p>
                     <p className="font-semibold text-primary text-sm">{fmt(inv.amount)}</p>
                     <span className={`justify-self-start rounded-full px-3 py-1 text-[10px] font-bold tracking-wider ${STATUS_CLASS[status]}`}>
-                      {status}
+                      {t(`status.${status}`)}
                     </span>
                     <div className="flex items-center justify-end">
                       <button
                         onClick={() => inv.lines?.length
                           ? setOpenId(open ? null : inv.id)
-                          : toast.info(`${inv.description ?? inv.reference} · ${fmt(inv.amount)} · due ${dateLabel(inv.due_date)}`)}
+                          : toast.info(t("summaryToast", { what: inv.description ?? inv.reference, amount: fmt(inv.amount), date: dateLabel(inv.due_date, locale) }))}
                         className={open ? "text-primary" : "text-foreground/60 hover:text-primary"}
-                        aria-label={`View ${inv.reference}`}
+                        aria-label={t("viewInvoice", { ref: inv.reference })}
                         aria-expanded={inv.lines?.length ? open : undefined}
                       >
                         <Eye className="h-4 w-4" />
@@ -208,10 +209,10 @@ const Billing = () => {
                         <table className="w-full text-sm">
                           <thead className="text-xs text-muted-foreground">
                             <tr>
-                              <th className="text-left font-semibold px-3 py-2">Charge</th>
-                              <th className="text-right font-semibold px-3 py-2">Days</th>
-                              <th className="text-right font-semibold px-3 py-2">Rate</th>
-                              <th className="text-right font-semibold px-3 py-2">Amount</th>
+                              <th className="text-left font-semibold px-3 py-2">{t("lines.charge")}</th>
+                              <th className="text-right font-semibold px-3 py-2">{t("lines.days")}</th>
+                              <th className="text-right font-semibold px-3 py-2">{t("lines.rate")}</th>
+                              <th className="text-right font-semibold px-3 py-2">{t("lines.amount")}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -224,7 +225,7 @@ const Billing = () => {
                               </tr>
                             ))}
                             <tr className="border-t border-border/50 font-semibold text-primary">
-                              <td className="px-3 py-2" colSpan={3}>Total</td>
+                              <td className="px-3 py-2" colSpan={3}>{t("lines.total")}</td>
                               <td className="px-3 py-2 text-right">{fmt(inv.amount)}</td>
                             </tr>
                           </tbody>
@@ -249,13 +250,9 @@ const Billing = () => {
       */}
       <div className="mt-8 rounded-3xl bg-chip/40 p-6 border border-border/40">
         <p className="flex items-center gap-2 text-[10px] tracking-widest font-bold text-primary-glow">
-          <ShieldCheck className="h-3.5 w-3.5" /> PAYING A BILL
+          <ShieldCheck className="h-3.5 w-3.5" /> {t("payingTitle")}
         </p>
-        <p className="text-sm text-foreground/80 mt-3">
-          Online payment and insurance claims aren&apos;t available yet. To settle an invoice,
-          contact your hospital&apos;s billing desk — they can mark it paid, and it will show as
-          settled here.
-        </p>
+        <p className="text-sm text-foreground/80 mt-3">{t("payingBody")}</p>
       </div>
     </PatientPortalLayout>
   );

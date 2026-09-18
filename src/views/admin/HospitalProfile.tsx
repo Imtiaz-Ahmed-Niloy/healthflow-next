@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Save, Building2, Users, ImagePlus } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, SectionTitle } from "@/components/admin/ui";
 import { RecordFormFields } from "@/components/admin/ResourcePage";
-import { HOSPITAL_FIELDS, HOSPITAL_STEPS } from "@/data/hospitalFields";
+import { useHospitalFields, useHospitalSteps } from "@/data/hospitalFields";
 import type { Tables } from "@/lib/supabase/types";
 
 type Hospital = Tables<"tenants">;
@@ -23,6 +24,10 @@ type Hospital = Tables<"tenants">;
  * the caller's own row in `tenants`.
  */
 const HospitalProfile = () => {
+  const t = useTranslations("admin.hospitalProfile");
+  const tc = useTranslations("common");
+  const HOSPITAL_FIELDS = useHospitalFields();
+  const HOSPITAL_STEPS = useHospitalSteps();
   const [hospital, setHospital] = useState<Hospital | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -35,18 +40,18 @@ const HospitalProfile = () => {
         const res = await fetch("/api/v1/hospital/profile");
         const body = await res.json().catch(() => null);
         if (!res.ok) {
-          setFailed(body?.error?.message || "Could not load your hospital.");
+          setFailed(body?.error?.message || t("loadFailed"));
           return;
         }
         setHospital(body.data);
       } catch {
-        setFailed("Could not reach the server.");
+        setFailed(tc("networkError"));
       } finally {
         setLoading(false);
       }
     };
     void load();
-  }, []);
+  }, [t, tc]);
 
   const stepIds = HOSPITAL_STEPS.map(s => s.id);
   const activeStepId = HOSPITAL_STEPS[step]?.id;
@@ -74,13 +79,13 @@ const HospitalProfile = () => {
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        toast.error(body?.error?.message || "Could not save your hospital.");
+        toast.error(body?.error?.message || t("saveFailed"));
         return;
       }
       setHospital(body.data);
-      toast.success("Hospital profile saved");
+      toast.success(t("saved"));
     } catch {
-      toast.error("Could not reach the server.");
+      toast.error(tc("networkError"));
     } finally {
       setSaving(false);
     }
@@ -88,26 +93,24 @@ const HospitalProfile = () => {
 
   if (loading) {
     return (
-      <AdminLayout title="Hospital Profile" subtitle="Identity, owners, licenses & contacts">
-        <Card className="p-10 text-center text-sm text-muted-foreground">Loading your hospital…</Card>
+      <AdminLayout title={t("title")} subtitle={t("subtitle")}>
+        <Card className="p-10 text-center text-sm text-muted-foreground">{t("loading")}</Card>
       </AdminLayout>
     );
   }
 
   if (failed || !hospital) {
     return (
-      <AdminLayout title="Hospital Profile" subtitle="Identity, owners, licenses & contacts">
+      <AdminLayout title={t("title")} subtitle={t("subtitle")}>
         <Card className="p-10 text-center">
-          <p className="text-sm text-muted-foreground">
-            {failed ?? "No hospital found. Ask the super admin to register your hospital first."}
-          </p>
+          <p className="text-sm text-muted-foreground">{failed ?? t("noHospital")}</p>
         </Card>
       </AdminLayout>
     );
   }
 
   return (
-    <AdminLayout title="Hospital Profile" subtitle="Update every detail registered for your hospital">
+    <AdminLayout title={t("title")} subtitle={t("editSubtitle")}>
       {/* Step nav */}
       <div className="flex items-center gap-2 mb-5 flex-wrap">
         {HOSPITAL_STEPS.map((s, i) => {
@@ -130,7 +133,7 @@ const HospitalProfile = () => {
           action={
             <button type="submit" form="hospital-profile-form" disabled={saving}
               className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-60">
-              <Save className="h-4 w-4 mr-1.5" /> {saving ? "Saving…" : "Save changes"}
+              <Save className="h-4 w-4 mr-1.5" /> {saving ? tc("saving") : t("saveChanges")}
             </button>
           }
         />
@@ -143,14 +146,14 @@ const HospitalProfile = () => {
           />
           <div className="flex justify-between items-center mt-6 pt-5 border-t border-border/40">
             <button type="button" disabled={step === 0} onClick={() => setStep(s => Math.max(0, s - 1))}
-              className="px-4 py-2 rounded-full text-sm font-semibold border border-border disabled:opacity-40">Previous</button>
+              className="px-4 py-2 rounded-full text-sm font-semibold border border-border disabled:opacity-40">{tc("previous")}</button>
             {step < HOSPITAL_STEPS.length - 1 ? (
               <button type="button" onClick={() => setStep(s => Math.min(HOSPITAL_STEPS.length - 1, s + 1))}
-                className="px-4 py-2 rounded-full text-sm font-semibold border border-border">Next section</button>
+                className="px-4 py-2 rounded-full text-sm font-semibold border border-border">{t("nextSection")}</button>
             ) : (
               <button type="submit" form="hospital-profile-form" disabled={saving}
                 className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-60">
-                <Save className="h-4 w-4 mr-1.5" /> {saving ? "Saving…" : "Save changes"}
+                <Save className="h-4 w-4 mr-1.5" /> {saving ? tc("saving") : t("saveChanges")}
               </button>
             )}
           </div>

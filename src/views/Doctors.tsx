@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { ArrowLeft, Search, MapPin, SlidersHorizontal, X, Stethoscope } from "lucide-react";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
@@ -65,6 +66,9 @@ const FilterSelect = ({
 );
 
 const Doctors = () => {
+  const t = useTranslations("directory");
+  const tf = useTranslations("searchBar");
+  const tc = useTranslations("common");
   const { doctors, loading } = useDoctors();
   // The specialties list (0093) — the one a doctor's specialty is picked from.
   const { specialties } = useSpecialties();
@@ -109,13 +113,13 @@ const Doctors = () => {
       <main className="container mx-auto py-16">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
           <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-primary hover:gap-2 transition-all mb-6">
-            <ArrowLeft className="h-4 w-4" /> Back to Home
+            <ArrowLeft className="h-4 w-4" /> {t("backHome")}
           </Link>
 
           <div className="mb-10">
-            <h1 className="font-display text-4xl md:text-5xl text-primary">All Doctors</h1>
+            <h1 className="font-display text-4xl md:text-5xl text-primary">{t("doctorsTitle")}</h1>
             <p className="text-muted-foreground mt-3 max-w-xl">
-              Browse our full directory of trusted specialists across {specialties.length || "every"} disciplines.
+              {specialties.length ? t("doctorsSubtitle", { count: specialties.length }) : t("doctorsSubtitleAll")}
             </p>
           </div>
 
@@ -127,13 +131,13 @@ const Doctors = () => {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className="flex-1 bg-transparent px-3 py-2 text-base outline-none placeholder:text-muted-foreground"
-                placeholder="Search doctors, specialties, hospitals..."
+                placeholder={tf("placeholder")}
               />
               {query && (
                 <button
                   onClick={() => setQuery("")}
                   className="mr-2 h-7 w-7 rounded-full hover:bg-chip flex items-center justify-center"
-                  aria-label="Clear search"
+                  aria-label={tc("clearSearch")}
                 >
                   <X className="h-4 w-4 text-muted-foreground" />
                 </button>
@@ -154,33 +158,33 @@ const Doctors = () => {
                 aria-expanded={filterOpen}
               >
                 <SlidersHorizontal className="h-3.5 w-3.5" />
-                Filter
+                {tf("filter")}
               </button>
 
               {(filterOpen || hasFilters) && (
                 <>
                   <FilterSelect
-                    label="Division"
+                    label={tf("division")}
                     value={division}
                     options={BD_DIVISIONS}
                     onChange={(v) => { setDivision(v); setZilla(""); setUpazila(""); }}
                   />
                   <FilterSelect
-                    label="District"
+                    label={tf("district")}
                     value={zilla}
                     options={zillas}
                     disabled={!division}
                     onChange={(v) => { setZilla(v); setUpazila(""); }}
                   />
                   <FilterSelect
-                    label="Sub-District"
+                    label={tf("subDistrict")}
                     value={upazila}
                     options={upazilas}
                     disabled={!zilla}
                     onChange={setUpazila}
                   />
                   <FilterSelect
-                    label="Specialist"
+                    label={tf("specialist")}
                     value={specialty}
                     options={specialties}
                     onChange={setSpecialty}
@@ -193,7 +197,7 @@ const Doctors = () => {
                       className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                     >
                       <X className="h-3 w-3" />
-                      Clear
+                      {tf("clear")}
                     </button>
                   )}
                 </>
@@ -207,7 +211,7 @@ const Doctors = () => {
             </div>
           ) : visible.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
-              No doctors match your search.
+              {t("doctorsNone")}
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">

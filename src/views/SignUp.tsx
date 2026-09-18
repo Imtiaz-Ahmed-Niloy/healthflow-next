@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { BadgeInfo, CalendarDays, ChevronDown, Eye, EyeOff, Lock, Mail, Phone, User } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { useForm, type SubmitErrorHandler, type SubmitHandler } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { AuthLayout } from "@/components/site/AuthLayout";
@@ -19,6 +20,8 @@ import { Label } from "@/components/ui/label";
 type PatientSignupFormValues = PatientSignupRequest;
 
 const genderOptions = ["Female", "Male", "Non-binary", "Prefer not to say"] as const;
+// The values above are what the account stores; these are their labels' keys.
+const GENDER_KEY = { Female: "female", Male: "male", "Non-binary": "nonBinary", "Prefer not to say": "preferNot" } as const;
 const signupFieldNames = ["fullName", "email", "phone", "password", "gender", "dateOfBirth"] as const;
 
 const isSignupGender = (value: string): value is (typeof genderOptions)[number] =>
@@ -56,6 +59,8 @@ const parseLocalDateValue = (value: string) => {
 };
 
 const Signup = () => {
+  const t = useTranslations("auth.signUp");
+  const ts = useTranslations("auth.signIn");
   const dispatch = useAppDispatch();
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
@@ -119,7 +124,7 @@ const Signup = () => {
     if (error) {
       const message =
         error.message === "User already registered"
-          ? "An account with this email already exists. Try signing in instead."
+          ? t("exists")
           : error.message;
 
       if (message.toLowerCase().includes("email")) {
@@ -146,11 +151,9 @@ const Signup = () => {
     const needsConfirmation = !data.session;
 
     toast.success(
-      <span data-testid="signup-success-message">Account created</span>,
+      <span data-testid="signup-success-message">{t("created")}</span>,
       {
-        description: needsConfirmation
-          ? "Check your email to confirm your account, then sign in."
-          : "Your patient account is ready.",
+        description: needsConfirmation ? t("confirmEmail") : t("ready"),
       },
     );
 
@@ -163,7 +166,7 @@ const Signup = () => {
   };
 
   const onInvalid: SubmitErrorHandler<PatientSignupFormValues> = () => {
-    toast.error("Please complete all required fields correctly.");
+    toast.error(ts("completeFields"));
   };
 
   const today = getLocalDateValue();
@@ -181,10 +184,8 @@ const Signup = () => {
             <span className="inline-flex rounded-full bg-chip text-chip-foreground px-4 py-1.5 text-[10px] font-bold tracking-widest">
               HEALTHFLOW
             </span>
-            <h1 className="mt-5 font-display text-3xl text-primary">Create your patient account</h1>
-            <p className="text-sm text-muted-foreground mt-2">
-              Join HealthFlow and start managing your care from one place.
-            </p>
+            <h1 className="mt-5 font-display text-3xl text-primary">{t("title")}</h1>
+            <p className="text-sm text-muted-foreground mt-2">{t("subtitle")}</p>
           </div>
 
           {/* Google returns a name and an email and nothing else, so a new
@@ -193,38 +194,38 @@ const Signup = () => {
 
           <div className="my-6 flex items-center gap-3">
             <hr className="flex-1 border-border/60" />
-            <p className="text-[10px] tracking-widest font-bold text-muted-foreground">OR CREATE WITH EMAIL</p>
+            <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("orEmail")}</p>
             <hr className="flex-1 border-border/60" />
           </div>
 
           <form data-testid="signup-form" onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-4" noValidate>
             <div>
               <Label htmlFor="fullName" className="text-[11px] tracking-widest font-bold text-primary" required>
-                FULL NAME
+                {t("fullName")}
               </Label>
               <div className="relative mt-2">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
                   id="fullName"
                   data-testid="signup-full-name-input"
-                  placeholder="Ayesha Rahman"
+                  placeholder={t("fullNamePlaceholder")}
                   aria-invalid={Boolean(errors.fullName)}
                   aria-describedby={errors.fullName ? "fullName-error" : undefined}
                   className="w-full bg-muted/60 rounded-xl pl-10 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
                   {...register("fullName", {
-                    required: "Full name is required.",
+                    required: t("fullNameRequired"),
                     validate: (value) => {
                       const trimmed = value.trim();
 
                       if (trimmed.length < 2) {
-                        return "Full name must be at least 2 characters.";
+                        return t("fullNameMin");
                       }
 
                       if (trimmed.length > 100) {
-                        return "Full name must be 100 characters or fewer.";
+                        return t("fullNameMax");
                       }
 
-                      return trimmed.length > 0 || "Full name is required.";
+                      return trimmed.length > 0 || t("fullNameRequired");
                     },
                   })}
                 />
@@ -243,7 +244,7 @@ const Signup = () => {
 
             <div>
               <Label htmlFor="email" className="text-[11px] tracking-widest font-bold text-primary" required>
-                EMAIL ADDRESS
+                {t("email")}
               </Label>
               <div className="relative mt-2">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -256,15 +257,15 @@ const Signup = () => {
                   aria-describedby={errors.email ? "email-error" : undefined}
                   className="w-full bg-muted/60 rounded-xl pl-10 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
                   {...register("email", {
-                    required: "Email address is required.",
+                    required: ts("emailRequired"),
                     validate: (value) => {
                       const trimmed = value.trim();
                       if (!trimmed) {
-                        return "Email address is required.";
+                        return ts("emailRequired");
                       }
 
                       const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                      return emailPattern.test(trimmed) || "Please enter a valid email address.";
+                      return emailPattern.test(trimmed) || ts("emailInvalid");
                     },
                   })}
                 />
@@ -283,7 +284,7 @@ const Signup = () => {
 
             <div>
               <Label htmlFor="phone" className="text-[11px] tracking-widest font-bold text-primary" required>
-                PHONE NUMBER
+                {t("phone")}
               </Label>
               <div className="relative mt-2">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -292,16 +293,16 @@ const Signup = () => {
                   data-testid="signup-phone-input"
                   type="tel"
                   inputMode="tel"
-                  placeholder="01712345678 or +8801712345678"
+                  placeholder={t("phonePlaceholder")}
                   aria-invalid={Boolean(errors.phone)}
                   aria-describedby={errors.phone ? "phone-error" : undefined}
                   className="w-full bg-muted/60 rounded-xl pl-10 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
                   {...register("phone", {
-                    required: "Phone number is required.",
+                    required: t("phoneRequired"),
                     validate: (value) => {
                       const trimmed = value.trim();
                       if (!trimmed) {
-                        return "Phone number is required.";
+                        return t("phoneRequired");
                       }
 
                       const localPattern = /^01\d{9}$/;
@@ -312,7 +313,7 @@ const Signup = () => {
                         localPattern.test(trimmed) ||
                         internationalPattern.test(trimmed) ||
                         plainCountryPattern.test(trimmed) ||
-                        "Please enter a valid phone number."
+                        t("phoneInvalid")
                       );
                     },
                   })}
@@ -332,7 +333,7 @@ const Signup = () => {
 
             <div>
               <Label htmlFor="password" className="text-[11px] tracking-widest font-bold text-primary" required>
-                PASSWORD
+                {ts("passwordLabel")}
               </Label>
               <div className="relative mt-2">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -345,14 +346,14 @@ const Signup = () => {
                   aria-describedby={errors.password ? "password-error" : undefined}
                   className="w-full bg-muted/60 rounded-xl pl-10 pr-10 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
                   {...register("password", {
-                    required: "Password is required.",
+                    required: ts("passwordRequired"),
                     validate: (value) => {
                       if (value.length < 8) {
-                        return "Password must be at least 8 characters.";
+                        return ts("passwordMin");
                       }
 
                       if (value.length > 128) {
-                        return "Password must be 128 characters or fewer.";
+                        return ts("passwordMax");
                       }
 
                       const hasLetter = /[A-Za-z]/.test(value);
@@ -360,7 +361,7 @@ const Signup = () => {
 
                       return hasLetter && hasNumber
                         ? true
-                        : "Password must contain at least one letter and one number.";
+                        : t("passwordMix");
                     },
                   })}
                 />
@@ -369,7 +370,7 @@ const Signup = () => {
                   data-testid="signup-toggle-password"
                   onClick={() => setShowPassword((current) => !current)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-label={showPassword ? ts("hidePassword") : ts("showPassword")}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -388,7 +389,7 @@ const Signup = () => {
 
             <div>
               <Label htmlFor="gender" className="text-[11px] tracking-widest font-bold text-primary" required>
-                GENDER
+                {t("gender")}
               </Label>
               <div className="relative mt-2">
                 <BadgeInfo className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -399,14 +400,14 @@ const Signup = () => {
                   aria-describedby={errors.gender ? "gender-error" : undefined}
                   className="w-full appearance-none bg-muted/60 rounded-xl pl-10 pr-10 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
                   {...register("gender", {
-                    required: "Please select a gender.",
-                    validate: (value) => isSignupGender(value) || "Please select a gender.",
+                    required: t("genderRequired"),
+                    validate: (value) => isSignupGender(value) || t("genderRequired"),
                   })}
                 >
-                  <option value="">Select gender</option>
+                  <option value="">{t("selectGender")}</option>
                   {genderOptions.map((option) => (
                     <option key={option} value={option}>
-                      {option}
+                      {t(`genders.${GENDER_KEY[option]}`)}
                     </option>
                   ))}
                 </select>
@@ -426,7 +427,7 @@ const Signup = () => {
 
             <div>
               <Label htmlFor="dateOfBirth" className="text-[11px] tracking-widest font-bold text-primary" required>
-                DATE OF BIRTH
+                {t("dob")}
               </Label>
               <div className="relative mt-2">
                 <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -439,27 +440,27 @@ const Signup = () => {
                   aria-describedby={errors.dateOfBirth ? "dateOfBirth-error" : undefined}
                   className="w-full bg-muted/60 rounded-xl pl-10 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
                   {...register("dateOfBirth", {
-                    required: "Date of birth is required.",
+                    required: t("dobRequired"),
                     validate: (value) => {
                       const trimmed = value.trim();
                       if (!trimmed) {
-                        return "Date of birth is required.";
+                        return t("dobRequired");
                       }
 
                       const parsedDate = parseLocalDateValue(trimmed);
 
                       if (!parsedDate) {
-                        return "Please enter a valid date of birth.";
+                        return t("dobInvalid");
                       }
 
                       const limit = parseLocalDateValue(today);
 
                       if (!limit) {
-                        return "Please enter a valid date of birth.";
+                        return t("dobInvalid");
                       }
 
                       if (parsedDate > limit) {
-                        return "Date of birth cannot be in the future.";
+                        return t("dobFuture");
                       }
 
                       return true;
@@ -487,10 +488,10 @@ const Signup = () => {
             >
               {isLoading ? (
                 <span data-testid="signup-loading" className="inline-flex items-center justify-center">
-                  <span data-testid="signup-loading-text">Creating account...</span>
+                  <span data-testid="signup-loading-text">{t("creating")}</span>
                 </span>
               ) : (
-                "Create Account"
+                t("submit")
               )}
             </button>
 
@@ -499,13 +500,13 @@ const Signup = () => {
                 <div className="h-6 w-6 rounded-full bg-chip border-2 border-card" />
                 <div className="h-6 w-6 rounded-full bg-accent border-2 border-card" />
               </div>
-              <p>&quot;The most intuitive clinical platform I&apos;ve ever used.&quot;</p>
+              <p>{t("quote")}</p>
             </div>
 
             <p className="text-center text-xs text-muted-foreground">
-              Already have an account?{" "}
+              {t("haveAccount")}{" "}
               <Link href="/signin" className="font-semibold text-primary-glow hover:underline">
-                Sign In
+                {ts("submit")}
               </Link>
             </p>
           </form>

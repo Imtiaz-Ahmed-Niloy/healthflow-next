@@ -8,6 +8,7 @@ import { PrescriptionPreview } from "@/components/common/PrescriptionPreview";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { useLocale, useTranslations } from "next-intl";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -117,22 +118,8 @@ type Place = {
 
 type Me = { name: string; specialty: string | null; education: string | null; bmdc_number: string | null; hospitals: Place[] };
 
-const formatDate = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
-
-const genderLabel = (g: Gender | null) => (g ? g[0].toUpperCase() + g.slice(1) : "—");
-
-/** Short form for the meta bar / print header -- "3mo", "15d", "36y". */
-const ageShort = (a: Age | null) => (a ? `${a.value}${a.unit === "years" ? "y" : a.unit === "months" ? "mo" : "d"}` : "—");
-/** Long form -- for the age-input dialog's own unit label and the print preview's "Age / Sex" line. */
-const ageLong = (a: Age | null) => (a ? `${a.value} ${a.unit[0].toUpperCase() + a.unit.slice(1)}` : "—");
-
 const initials = (name: string) =>
   name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
-
-/** Feet + inches, not cm -- that's not how height is read out in a Bangladeshi hospital. */
-const heightLabel = (feet: number | null, inches: number | null) =>
-  feet != null ? `${feet} ft ${inches ?? 0} in` : "—";
 
 const bpLabel = (systolic: number | null, diastolic: number | null) =>
   systolic != null && diastolic != null ? `${systolic}/${diastolic} mmHg` : "—";
@@ -152,6 +139,8 @@ type EditableSectionProps = {
 };
 
 const EditableSection = ({ icon: Icon, title, action, items, onAdd, onUpdate, onRemove, placeholder, multiline, suggestions }: EditableSectionProps) => {
+  const t = useTranslations("portal.prescription");
+  const tc = useTranslations("common");
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
   // null = the open input is adding a new entry; an index = editing that
@@ -180,10 +169,10 @@ const EditableSection = ({ icon: Icon, title, action, items, onAdd, onUpdate, on
     if (!v) return;
     if (editingIndex !== null) {
       onUpdate(editingIndex, v);
-      toast.success(`${title} updated`);
+      toast.success(t("sectionUpdated", { section: title }));
     } else {
       onAdd(v);
-      toast.success(`${title} added`);
+      toast.success(t("sectionAdded", { section: title }));
     }
     setValue("");
     setEditingIndex(null);
@@ -226,14 +215,14 @@ const EditableSection = ({ icon: Icon, title, action, items, onAdd, onUpdate, on
             />
           )}
           <button onClick={() => submit()} className="rounded-lg bg-primary text-primary-foreground px-3 text-xs font-semibold hover:opacity-90">
-            {editingIndex !== null ? "Update" : "Save"}
+            {editingIndex !== null ? t("update") : tc("save")}
           </button>
         </motion.div>
       )}
 
       <div className="rounded-xl bg-muted/40 border border-border/40 p-4 min-h-[110px] text-sm text-foreground/80 space-y-1.5">
         {items.length === 0 ? (
-          <p className="text-muted-foreground text-xs italic">No entries yet. Click &quot;{action}&quot; to add.</p>
+          <p className="text-muted-foreground text-xs italic">{t("noEntries", { action })}</p>
         ) : (
           items.map((it, i) => (
             <div key={i} className="group flex items-start justify-between gap-2">
@@ -245,9 +234,9 @@ const EditableSection = ({ icon: Icon, title, action, items, onAdd, onUpdate, on
                 – {it}
               </button>
               <button
-                onClick={(e) => { e.stopPropagation(); onRemove(i); toast.message("Removed"); }}
+                onClick={(e) => { e.stopPropagation(); onRemove(i); toast.message(t("removed")); }}
                 className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                aria-label="Remove"
+                aria-label={tc("remove")}
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -260,6 +249,25 @@ const EditableSection = ({ icon: Icon, title, action, items, onAdd, onUpdate, on
 };
 
 const Prescription = () => {
+  const t = useTranslations("portal.prescription");
+  const tc = useTranslations("common");
+  const tr = useTranslations("rxSheet");
+  const locale = useLocale();
+
+  const formatDate = (iso: string) =>
+    new Date(`${iso}T00:00:00`).toLocaleDateString(locale === "bn" ? "bn-BD-u-nu-latn" : "en-US", { month: "short", day: "2-digit", year: "numeric" });
+
+  const genderLabel = (g: Gender | null) => (g ? tr(`gender.${g}`) : "—");
+
+  /** Short form for the meta bar -- "3mo", "15d", "36y". */
+  const ageShort = (a: Age | null) => (a ? t(`ageShort.${a.unit}`, { count: a.value }) : "—");
+  /** Long form -- for the age dialog's unit label and the sheet's "Age / Sex" line. */
+  const ageLong = (a: Age | null) => (a ? tr(`age.${a.unit}`, { count: a.value }) : "—");
+
+  /** Feet + inches, not cm -- that's not how height is read out in a Bangladeshi hospital. */
+  const heightLabel = (feet: number | null, inches: number | null) =>
+    feet != null ? tr("height", { feet, inches: inches ?? 0 }) : "—";
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const appointmentId = searchParams?.get("appointment") ?? null;
@@ -306,13 +314,13 @@ const Prescription = () => {
         const body = await res.json().catch(() => null);
         if (!active) return;
         if (!res.ok) {
-          setCtxError(body?.error?.message || "Couldn't load this consultation.");
+          setCtxError(body?.error?.message || t("loadFailed"));
           setCtx(null);
           return;
         }
         setCtx(body.data as ConsultationCtx);
       } catch {
-        if (active) setCtxError("Couldn't reach the server.");
+        if (active) setCtxError(tc("networkError"));
       } finally {
         if (active) setLoadingCtx(false);
       }
@@ -340,11 +348,11 @@ const Prescription = () => {
         body: JSON.stringify({ action: "move", tenant_id: place.id }),
       });
       const body = await res.json().catch(() => null);
-      if (!res.ok) { toast.error("Couldn't move this patient", { description: body?.error?.message }); return; }
-      toast.success(`${ctx.patient.full_name} is now seen at ${place.name}`);
+      if (!res.ok) { toast.error(t("moveFailed"), { description: body?.error?.message }); return; }
+      toast.success(t("moved", { name: ctx.patient.full_name, place: place.name }));
       setCtxVersion(v => v + 1);
     } catch {
-      toast.error("Couldn't reach the server.");
+      toast.error(tc("networkError"));
     } finally {
       setMoving(false);
     }
@@ -406,12 +414,12 @@ type SidebarQueueEntry = {
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        toast.error(body?.error?.message || "Couldn't start that consultation.");
+        toast.error(body?.error?.message || t("startFailed"));
         return;
       }
       router.push(`/portal/prescription?appointment=${entry.id}`);
     } catch {
-      toast.error("Couldn't reach the server.");
+      toast.error(tc("networkError"));
     } finally {
       setSideStartingId(null);
     }
@@ -730,7 +738,7 @@ type SidebarQueueEntry = {
 
   const saveMedicine = () => {
     if (!newMed.name.trim() || !newMed.dose.trim() || !newMed.days.trim()) {
-      toast.error("Fill name, dose and days");
+      toast.error(t("fillMedicine"));
       return;
     }
     if (editingIndex !== null) {
@@ -754,7 +762,7 @@ type SidebarQueueEntry = {
     }
     const wasEditing = editingIndex !== null;
     closeMedDialog();
-    toast.success(wasEditing ? "Medicine updated" : "Medicine added");
+    toast.success(wasEditing ? t("medicineUpdated") : t("medicineAdded"));
   };
   const toggleAddAdvice = () => {
     if (adviceOpen && editingAdviceIndex === null) {
@@ -777,10 +785,10 @@ type SidebarQueueEntry = {
     if (!v) return;
     if (editingAdviceIndex !== null) {
       setAdvice((a) => a.map((x, idx) => (idx === editingAdviceIndex ? v : x)));
-      toast.success("Advice updated");
+      toast.success(t("adviceUpdated"));
     } else {
       setAdvice((a) => [...a, v]);
-      toast.success("Advice added");
+      toast.success(t("adviceAdded"));
     }
     setNewAdvice("");
     setEditingAdviceIndex(null);
@@ -799,9 +807,7 @@ type SidebarQueueEntry = {
       // Still show the preview — seeing the finished sheet is useful even
       // before it belongs to anyone — but be explicit that nothing has been
       // filed, since this used to be unreachable and now is not.
-      toast.error("Pick a patient first", {
-        description: "This is a preview. Choose a patient from Today’s Queue to submit it.",
-      });
+      toast.error(t("pickPatient"), { description: t("previewOnly") });
       setPreviewOpen(true);
       return;
     }
@@ -814,9 +820,9 @@ type SidebarQueueEntry = {
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        toast.error(body?.error?.message || "Couldn't mark this visit completed, but here's the preview.");
+        toast.error(body?.error?.message || t("completeFailed"));
       } else {
-        toast.success("Visit marked completed");
+        toast.success(t("completed"));
         setCtx((c) =>
           c ? { ...c, appointment: { ...c.appointment, status: "completed", complaints, examination, investigation, diagnosis, medicines, advice } } : c
         );
@@ -829,7 +835,7 @@ type SidebarQueueEntry = {
         }
       }
     } catch {
-      toast.error("Couldn't reach the server, but here's the preview.");
+      toast.error(t("networkButPreview"));
     } finally {
       setSubmitting(false);
       setPreviewOpen(true);
@@ -853,9 +859,7 @@ type SidebarQueueEntry = {
     if (!appointmentId) {
       // The pad opens without a patient now, so this is reachable. Say what
       // to do instead of failing silently.
-      toast.error("Pick a patient first", {
-        description: "Choose one from Today’s Queue, then save.",
-      });
+      toast.error(t("pickPatient"), { description: t("pickThenSave") });
       return;
     }
     const weight_kg = vitalsForm.weight.trim() === "" ? null : Number(vitalsForm.weight);
@@ -866,7 +870,7 @@ type SidebarQueueEntry = {
       (height_feet !== null && (Number.isNaN(height_feet) || height_feet <= 0)) ||
       (height_inches !== null && (Number.isNaN(height_inches) || height_inches < 0 || height_inches > 11))
     ) {
-      toast.error("Enter valid numbers (inches 0-11), or leave a field blank.");
+      toast.error(t("badVitals"));
       return;
     }
     setSavingVitals(true);
@@ -878,14 +882,14 @@ type SidebarQueueEntry = {
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        toast.error(body?.error?.message || "Couldn't save that.");
+        toast.error(body?.error?.message || t("saveFailed"));
         return;
       }
       setCtx((c) => (c ? { ...c, patient: { ...c.patient, weight_kg: body.data.weight_kg, height_feet: body.data.height_feet, height_inches: body.data.height_inches } } : c));
-      toast.success("Vitals updated");
+      toast.success(t("vitalsUpdated"));
       setVitalsOpen(false);
     } catch {
-      toast.error("Couldn't reach the server.");
+      toast.error(tc("networkError"));
     } finally {
       setSavingVitals(false);
     }
@@ -911,15 +915,13 @@ type SidebarQueueEntry = {
     if (!appointmentId) {
       // The pad opens without a patient now, so this is reachable. Say what
       // to do instead of failing silently.
-      toast.error("Pick a patient first", {
-        description: "Choose one from Today’s Queue, then save.",
-      });
+      toast.error(t("pickPatient"), { description: t("pickThenSave") });
       return;
     }
     const bp_systolic = bpForm.systolic.trim() === "" ? null : Number(bpForm.systolic);
     const bp_diastolic = bpForm.diastolic.trim() === "" ? null : Number(bpForm.diastolic);
     if ((bp_systolic !== null && (Number.isNaN(bp_systolic) || bp_systolic <= 0)) || (bp_diastolic !== null && (Number.isNaN(bp_diastolic) || bp_diastolic <= 0))) {
-      toast.error("Enter positive numbers, or leave blank.");
+      toast.error(t("badNumbers"));
       return;
     }
     setSavingBp(true);
@@ -931,14 +933,14 @@ type SidebarQueueEntry = {
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        toast.error(body?.error?.message || "Couldn't save that.");
+        toast.error(body?.error?.message || t("saveFailed"));
         return;
       }
       setCtx((c) => (c ? { ...c, appointment: { ...c.appointment, bp_systolic: body.data.bp_systolic, bp_diastolic: body.data.bp_diastolic } } : c));
-      toast.success("Blood pressure updated");
+      toast.success(t("bpUpdated"));
       setBpOpen(false);
     } catch {
-      toast.error("Couldn't reach the server.");
+      toast.error(tc("networkError"));
     } finally {
       setSavingBp(false);
     }
@@ -969,15 +971,13 @@ type SidebarQueueEntry = {
     if (!appointmentId) {
       // The pad opens without a patient now, so this is reachable. Say what
       // to do instead of failing silently.
-      toast.error("Pick a patient first", {
-        description: "Choose one from Today’s Queue, then save.",
-      });
+      toast.error(t("pickPatient"), { description: t("pickThenSave") });
       return;
     }
     const trimmed = patientForm.ageValue.trim();
     const ageValue = trimmed === "" ? null : Number(trimmed);
     if (ageValue !== null && (Number.isNaN(ageValue) || ageValue <= 0)) {
-      toast.error("Enter a positive age, or leave it blank.");
+      toast.error(t("badAge"));
       return;
     }
     setSavingPatient(true);
@@ -993,14 +993,14 @@ type SidebarQueueEntry = {
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        toast.error(body?.error?.message || "Couldn't save that.");
+        toast.error(body?.error?.message || t("saveFailed"));
         return;
       }
       setCtx((c) => (c ? { ...c, patient: { ...c.patient, age: body.data.age, gender: body.data.gender } } : c));
-      toast.success("Patient details updated");
+      toast.success(t("patientUpdated"));
       setPatientOpen(false);
     } catch {
-      toast.error("Couldn't reach the server.");
+      toast.error(tc("networkError"));
     } finally {
       setSavingPatient(false);
     }
@@ -1032,10 +1032,10 @@ type SidebarQueueEntry = {
       <PortalLayout>
         <div className="rounded-3xl bg-card border border-destructive/30 shadow-soft p-16 text-center">
           <AlertTriangle className="h-10 w-10 text-destructive mx-auto" />
-          <h1 className="font-display text-2xl text-primary mt-4">Couldn&apos;t open this consultation</h1>
-          <p className="text-sm text-muted-foreground mt-2">{ctxError || "Something went wrong."}</p>
+          <h1 className="font-display text-2xl text-primary mt-4">{t("openFailed")}</h1>
+          <p className="text-sm text-muted-foreground mt-2">{ctxError || tc("somethingWrong")}</p>
           <Link href="/portal/queue" className="mt-6 inline-flex items-center gap-2 rounded-full border border-border px-6 py-3 text-sm font-semibold text-primary hover:bg-chip">
-            Back to Today&apos;s Queue
+            {t("backToQueue")}
           </Link>
         </div>
       </PortalLayout>
@@ -1099,7 +1099,7 @@ type SidebarQueueEntry = {
         <div className="text-left">
           <h1 className="font-display text-2xl text-primary">{hospital.name}</h1>
           <p className="text-xs text-muted-foreground">
-            {hospital.address || "Address not on file"}
+            {hospital.address || tr("noAddress")}
             {hospital.contact_phone ? <><br />{hospital.contact_phone}</> : null}
           </p>
         </div>
@@ -1118,14 +1118,14 @@ type SidebarQueueEntry = {
           // hospitals or chambers. This machine remembers the choice.
           <Popover open={placeOpen} onOpenChange={setPlaceOpen}>
             <PopoverTrigger asChild>
-              <button type="button" disabled={moving} title="Change where you're seeing patients"
+              <button type="button" disabled={moving} title={t("changePlace")}
                 className="group flex items-start gap-4 rounded-2xl -m-2 p-2 hover:bg-muted/50 transition-colors disabled:opacity-60">
                 {headerBlock}
               </button>
             </PopoverTrigger>
             <PopoverContent align="start" className="w-80 p-2">
               <p className="px-2 py-1.5 text-xs text-muted-foreground">
-                {appointmentId ? "Move this walk-in to" : "Where are you seeing patients?"}
+                {appointmentId ? t("moveWalkIn") : t("wherePatients")}
               </p>
               {places.map(p => (
                 <button key={p.id} type="button" onClick={() => void choosePlace(p)}
@@ -1134,7 +1134,7 @@ type SidebarQueueEntry = {
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-semibold text-primary truncate">{p.name}</span>
                     <span className="block text-xs text-muted-foreground truncate">
-                      {p.kind === "chamber" ? "Your chamber" : "Hospital"}{p.address ? ` · ${p.address}` : ""}
+                      {p.kind === "chamber" ? t("yourChamber") : t("hospital")}{p.address ? ` · ${p.address}` : ""}
                     </span>
                   </span>
                   {p.id === headerPlaceId && <Check className="h-4 w-4 mt-0.5 shrink-0 text-primary" />}
@@ -1150,23 +1150,23 @@ type SidebarQueueEntry = {
           <h2 className="font-display text-2xl text-primary">{doctor.name}</h2>
           {doctor.education && <p className="text-xs text-muted-foreground mt-1">{doctor.education}</p>}
           {doctor.specialty && <p className="text-xs text-muted-foreground">{doctor.specialty}</p>}
-          {doctor.bmdc_number && <p className="text-xs text-muted-foreground">BMDC Reg. No. {doctor.bmdc_number}</p>}
+          {doctor.bmdc_number && <p className="text-xs text-muted-foreground">{tr("bmdc", { number: doctor.bmdc_number })}</p>}
         </div>
       </div>
 
       {/* Patient meta */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6 py-6 border-b border-border/60">
         <div>
-          <p className="text-[10px] tracking-widest font-bold text-muted-foreground">PATIENT NAME</p>
+          <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("meta.patientName")}</p>
           <p className="font-semibold text-primary mt-1">{patient.full_name}</p>
         </div>
         <button onClick={openPatientDialog} className="text-left group">
-          <p className="text-[10px] tracking-widest font-bold text-muted-foreground">AGE / GENDER</p>
+          <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("meta.ageGender")}</p>
           <p className="font-semibold text-primary mt-1 group-hover:text-primary-glow transition-colors">{ageGender}</p>
         </button>
         {[
-          { l: "Date", v: formatDate(appointment.scheduled_date) },
-          { l: "Patient ID", v: patient.mrn },
+          { l: t("meta.date"), v: formatDate(appointment.scheduled_date) },
+          { l: t("meta.patientId"), v: patient.mrn },
         ].map(m => (
           <div key={m.l}>
             <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{m.l.toUpperCase()}</p>
@@ -1174,19 +1174,19 @@ type SidebarQueueEntry = {
           </div>
         ))}
         <button onClick={openVitals} className="text-left group">
-          <p className="text-[10px] tracking-widest font-bold text-muted-foreground">WEIGHT</p>
+          <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("meta.weight")}</p>
           <p className="font-semibold text-primary mt-1 group-hover:text-primary-glow transition-colors">
-            {patient.weight_kg != null ? `${patient.weight_kg} kg` : "—"}
+            {patient.weight_kg != null ? tr("kg", { value: patient.weight_kg }) : "—"}
           </p>
         </button>
         <button onClick={openVitals} className="text-left group">
-          <p className="text-[10px] tracking-widest font-bold text-muted-foreground">HEIGHT</p>
+          <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("meta.height")}</p>
           <p className="font-semibold text-primary mt-1 group-hover:text-primary-glow transition-colors">
             {heightLabel(patient.height_feet, patient.height_inches)}
           </p>
         </button>
         <button onClick={openBp} className="text-left group">
-          <p className="text-[10px] tracking-widest font-bold text-muted-foreground">BP</p>
+          <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("meta.bp")}</p>
           <p className="font-semibold text-primary mt-1 group-hover:text-primary-glow transition-colors">
             {bpLabel(appointment.bp_systolic, appointment.bp_diastolic)}
           </p>
@@ -1198,9 +1198,9 @@ type SidebarQueueEntry = {
         <div className="space-y-6">
           <EditableSection
             icon={ClipboardList}
-            title="Chief Complaints"
-            action="Add Complaints"
-            placeholder="e.g. Headache"
+            title={t("sections.complaints")}
+            action={t("actions.complaints")}
+            placeholder={t("placeholders.complaints")}
             items={complaints}
             onAdd={addTo(setComplaints)}
             onUpdate={updateIn(setComplaints)}
@@ -1208,9 +1208,9 @@ type SidebarQueueEntry = {
           />
           <EditableSection
             icon={ClipboardCheck}
-            title="Examination"
-            action="Add Examination"
-            placeholder="e.g. BP 120/80"
+            title={t("sections.examination")}
+            action={t("actions.examination")}
+            placeholder={t("placeholders.examination")}
             items={examination}
             onAdd={addTo(setExamination)}
             onUpdate={updateIn(setExamination)}
@@ -1218,9 +1218,9 @@ type SidebarQueueEntry = {
           />
           <EditableSection
             icon={FlaskConical}
-            title="Investigation"
-            action="Add Investigation"
-            placeholder="Search tests, e.g. CBC, Lipid Profile"
+            title={t("sections.investigation")}
+            action={t("actions.investigation")}
+            placeholder={t("placeholders.investigation")}
             suggestions={investigationList}
             items={investigation}
             onAdd={addTo(setInvestigation)}
@@ -1229,9 +1229,9 @@ type SidebarQueueEntry = {
           />
           <EditableSection
             icon={ClipboardList}
-            title="Diagnosis"
-            action="Add Diagnosis"
-            placeholder="Describe diagnosis…"
+            title={t("sections.diagnosis")}
+            action={t("actions.diagnosis")}
+            placeholder={t("placeholders.diagnosis")}
             multiline
             items={diagnosis}
             onAdd={addTo(setDiagnosis)}
@@ -1248,25 +1248,25 @@ type SidebarQueueEntry = {
               onClick={() => setMedOpen(true)}
               className="flex items-center gap-1 text-xs font-semibold text-primary border border-border rounded-full px-3 py-1.5 hover:bg-chip transition-colors"
             >
-              <Plus className="h-3 w-3" /> Add Medicine
+              <Plus className="h-3 w-3" /> {t("addMedicine")}
             </button>
           </div>
 
           <Dialog open={medOpen} onOpenChange={(o) => (o ? setMedOpen(true) : closeMedDialog())}>
             <DialogContent className="sm:max-w-[560px]">
               <DialogHeader>
-                <DialogTitle className="font-display text-2xl text-primary">{editingIndex !== null ? "Edit Medicine" : "Add Medicine"}</DialogTitle>
-                <DialogDescription>Search the medicine list — no free typing, so nothing gets misspelled onto the prescription.</DialogDescription>
+                <DialogTitle className="font-display text-2xl text-primary">{editingIndex !== null ? t("editMedicine") : t("addMedicine")}</DialogTitle>
+                <DialogDescription>{t("medicineHelp")}</DialogDescription>
               </DialogHeader>
               <div className="space-y-3 py-1">
                 <div className="space-y-1.5">
-                  <Label>Medicine</Label>
+                  <Label>{t("medicine")}</Label>
                   <Popover open={medPickerOpen} onOpenChange={setMedPickerOpen}>
                     <PopoverTrigger asChild>
                       <button type="button" className="flex w-full items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm text-left hover:bg-chip transition-colors">
                         <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                         <span className={newMed.name ? "text-foreground" : "text-muted-foreground"}>
-                          {newMed.name || "Search by brand name…"}
+                          {newMed.name || t("searchBrand")}
                         </span>
                       </button>
                     </PopoverTrigger>
@@ -1286,23 +1286,23 @@ type SidebarQueueEntry = {
                       align="start"
                     >
                       <Command shouldFilter={false} className="flex-1 min-h-0">
-                        <CommandInput value={medQuery} onValueChange={setMedQuery} placeholder="e.g. Napa, Seclo…" />
+                        <CommandInput value={medQuery} onValueChange={setMedQuery} placeholder={t("medQueryPlaceholder")} />
                         <CommandList className="max-h-[calc(420px-2.75rem)] overflow-y-auto">
                           {medSearching ? (
-                            <div className="py-8 text-center text-sm text-muted-foreground">Searching…</div>
+                            <div className="py-8 text-center text-sm text-muted-foreground">{t("searching")}</div>
                           ) : medQuery.trim() === "" ? (
                             medResults.length === 0 ? (
-                              <div className="py-8 text-center text-sm text-muted-foreground">Type a medicine name to search.</div>
+                              <div className="py-8 text-center text-sm text-muted-foreground">{t("typeToSearch")}</div>
                             ) : (
-                              <CommandGroup heading="Your most-prescribed — no search needed">
+                              <CommandGroup heading={t("mostPrescribed")}>
                                 {medResults.map(renderMedRow)}
                               </CommandGroup>
                             )
                           ) : medQuery.trim().length < 2 ? (
-                            <div className="py-8 text-center text-sm text-muted-foreground">Type at least 2 letters to search.</div>
+                            <div className="py-8 text-center text-sm text-muted-foreground">{t("twoLetters")}</div>
                           ) : (
                             <>
-                              <CommandEmpty>No matches.</CommandEmpty>
+                              <CommandEmpty>{t("noMatches")}</CommandEmpty>
                               <CommandGroup>{medResults.map(renderMedRow)}</CommandGroup>
                             </>
                           )}
@@ -1316,7 +1316,7 @@ type SidebarQueueEntry = {
                       the same brand often comes as a tablet for an adult and a
                       syrup or drops for a child, so the form isn't always the
                       one MedEx's listing happened to match. */}
-                  <Label>Form</Label>
+                  <Label>{t("form")}</Label>
                   <div className="flex flex-wrap gap-1.5 mt-1.5 mb-2">
                     {FORM_PRESETS.map((f) => (
                       <button key={f} type="button" onClick={() => setNewMed({ ...newMed, dosage_form: f })} className={`rounded-full px-3 py-1 text-xs font-semibold border transition-colors ${newMed.dosage_form === f ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-chip"}`}>{f}</button>
@@ -1328,25 +1328,25 @@ type SidebarQueueEntry = {
                       (Fast Refresh keeps component state across the edit
                       that added it) or a pre-existing localStorage draft --
                       so this Input is never uncontrolled-then-controlled. */}
-                  <Input value={newMed.dosage_form ?? ""} onChange={(e) => setNewMed({ ...newMed, dosage_form: e.target.value })} placeholder="or type a form…" />
+                  <Input value={newMed.dosage_form ?? ""} onChange={(e) => setNewMed({ ...newMed, dosage_form: e.target.value })} placeholder={t("orTypeForm")} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Dose</Label>
-                  <Input value={newMed.dose} onChange={(e) => setNewMed({ ...newMed, dose: e.target.value })} placeholder="e.g. 500 mg" />
+                  <Label>{t("dose")}</Label>
+                  <Input value={newMed.dose} onChange={(e) => setNewMed({ ...newMed, dose: e.target.value })} placeholder={t("dosePlaceholder")} />
                 </div>
                 <div>
-                  <Label>Days</Label>
+                  <Label>{t("days")}</Label>
                   <div className="flex flex-wrap gap-1.5 mt-1.5 mb-2">
                     {DAY_PRESETS.map((d) => (
                       <button key={d} type="button" onClick={() => setNewMed({ ...newMed, days: d })} className={`rounded-full px-3 py-1 text-xs font-semibold border transition-colors ${newMed.days === d ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-chip"}`}>{d}</button>
                     ))}
                   </div>
-                  <Input value={newMed.days} onChange={(e) => setNewMed({ ...newMed, days: e.target.value })} placeholder="or type a custom duration…" />
+                  <Input value={newMed.days} onChange={(e) => setNewMed({ ...newMed, days: e.target.value })} placeholder={t("orTypeDuration")} />
                 </div>
                 <div>
-                  <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1.5">FREQUENCY (DOSE PER TIME OF DAY)</p>
+                  <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1.5">{t("frequency")}</p>
                   <div className="grid grid-cols-3 gap-2">
-                    {([["M", "Morning", freqM], ["A", "Afternoon", freqA], ["N", "Night", freqN]] as const).map(([slot, label, value]) => (
+                    {([["M", t("morning"), freqM], ["A", t("afternoon"), freqA], ["N", t("night"), freqN]] as const).map(([slot, label, value]) => (
                       <div key={slot} className="space-y-1">
                         <p className="text-[10px] text-muted-foreground text-center">{label}</p>
                         <Select value={value} onValueChange={(v) => setFreq(slot, v)}>
@@ -1358,7 +1358,7 @@ type SidebarQueueEntry = {
                       </div>
                     ))}
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-1.5">Sig: {newMed.frequency.replace(/\+/g, " + ")}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1.5">{tr("sig")} {newMed.frequency.replace(/\+/g, " + ")}</p>
                 </div>
                 <div className="flex gap-1.5">
                   {(["Before Meal", "After Meal"] as const).map((m) => (
@@ -1367,14 +1367,14 @@ type SidebarQueueEntry = {
                 </div>
               </div>
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={closeMedDialog}>Cancel</Button>
-                <Button type="button" onClick={saveMedicine}>{editingIndex !== null ? "Save Changes" : "Save Medicine"}</Button>
+                <Button type="button" variant="outline" onClick={closeMedDialog}>{tc("cancel")}</Button>
+                <Button type="button" onClick={saveMedicine}>{editingIndex !== null ? t("saveChanges") : t("saveMedicine")}</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
           <div className="mt-6 space-y-5">
-            {medicines.length === 0 && <p className="text-xs italic text-muted-foreground">No medicines yet.</p>}
+            {medicines.length === 0 && <p className="text-xs italic text-muted-foreground">{t("noMedicines")}</p>}
             {medicines.map((m, i) => (
               <motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} whileHover={{ x: 2 }}
                 onClick={() => openEditMedicine(i)} role="button" tabIndex={0}
@@ -1396,8 +1396,8 @@ type SidebarQueueEntry = {
                   </div>
                 </div>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setMedicines((arr) => arr.filter((_, idx) => idx !== i)); toast.message("Removed"); }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive mt-1.5" aria-label="Remove">
+                  onClick={(e) => { e.stopPropagation(); setMedicines((arr) => arr.filter((_, idx) => idx !== i)); toast.message(t("removed")); }}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive mt-1.5" aria-label={tc("remove")}>
                   <X className="h-3.5 w-3.5" />
                 </button>
               </motion.div>
@@ -1406,26 +1406,26 @@ type SidebarQueueEntry = {
 
           <div className="mt-12">
             <div className="flex items-center justify-between">
-              <p className="flex items-center gap-2 text-sm font-semibold text-primary"><Lightbulb className="h-4 w-4" /> General Advice</p>
+              <p className="flex items-center gap-2 text-sm font-semibold text-primary"><Lightbulb className="h-4 w-4" /> {t("generalAdvice")}</p>
               <button onClick={toggleAddAdvice} className="flex items-center gap-1 text-xs font-semibold text-primary border border-border rounded-full px-3 py-1 hover:bg-chip transition-colors">
-                <Plus className={`h-3 w-3 transition-transform ${adviceOpen && editingAdviceIndex === null ? "rotate-45" : ""}`} /> Add Advice
+                <Plus className={`h-3 w-3 transition-transform ${adviceOpen && editingAdviceIndex === null ? "rotate-45" : ""}`} /> {t("addAdvice")}
               </button>
             </div>
             {adviceOpen && (
               <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2 mt-3">
-                <SuggestInput value={newAdvice} onChange={setNewAdvice} onPick={saveAdvice} suggestions={adviceList} placeholder="Search advice, e.g. rest, water, follow-up" />
+                <SuggestInput value={newAdvice} onChange={setNewAdvice} onPick={saveAdvice} suggestions={adviceList} placeholder={t("advicePlaceholder")} />
                 <button onClick={() => saveAdvice()} className="rounded-lg bg-primary text-primary-foreground px-3 text-xs font-semibold hover:opacity-90">
-                  {editingAdviceIndex !== null ? "Update" : "Save"}
+                  {editingAdviceIndex !== null ? t("update") : tc("save")}
                 </button>
               </motion.div>
             )}
             <div className="rounded-xl bg-muted/40 border border-border/40 p-5 mt-3 space-y-2 text-sm text-foreground/80">
               {advice.length === 0 ? (
-                <p className="text-xs italic text-muted-foreground">No advice yet.</p>
+                <p className="text-xs italic text-muted-foreground">{t("noAdvice")}</p>
               ) : advice.map((a, i) => (
                 <div key={i} className="group flex items-start justify-between gap-2">
                   <button type="button" onClick={() => startEditAdvice(i)} className="flex-1 text-left hover:text-primary transition-colors">{a}</button>
-                  <button onClick={(e) => { e.stopPropagation(); setAdvice((arr) => arr.filter((_, idx) => idx !== i)); toast.message("Removed"); }} className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive" aria-label="Remove">
+                  <button onClick={(e) => { e.stopPropagation(); setAdvice((arr) => arr.filter((_, idx) => idx !== i)); toast.message(t("removed")); }} className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive" aria-label={tc("remove")}>
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -1437,7 +1437,7 @@ type SidebarQueueEntry = {
             {/* Room above the line for the doctor's own signature. */}
             <div aria-hidden className="h-8" />
             <div className="border-t border-border w-48 mt-1 pt-2 text-right text-xs text-muted-foreground">
-              Signed By<br /><span className="font-semibold text-primary">{doctor.name}</span>
+              {t("signedBy")}<br /><span className="font-semibold text-primary">{doctor.name}</span>
             </div>
           </div>
         </div>
@@ -1446,17 +1446,17 @@ type SidebarQueueEntry = {
         <div className="space-y-5">
           <div className="rounded-2xl bg-muted/40 p-5">
             <div className="flex items-center justify-between">
-              <p className="flex items-center gap-2 text-sm font-semibold text-primary"><History className="h-4 w-4" /> Patient History</p>
-              <span className="text-[10px] font-bold tracking-widest text-primary-glow">{history.length} VISIT{history.length === 1 ? "" : "S"}</span>
+              <p className="flex items-center gap-2 text-sm font-semibold text-primary"><History className="h-4 w-4" /> {t("patientHistory")}</p>
+              <span className="text-[10px] font-bold tracking-widest text-primary-glow">{t("visitCount", { count: history.length })}</span>
             </div>
             <div className="mt-4 space-y-4 border-l border-border ml-1 pl-4">
               {history.length === 0 ? (
-                <p className="text-xs italic text-muted-foreground">No past visits on file yet.</p>
+                <p className="text-xs italic text-muted-foreground">{t("noHistory")}</p>
               ) : history.map(h => (
                 <div key={h.id} className="relative">
                   <div className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full bg-primary-glow" />
                   <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{formatDate(h.scheduled_date).toUpperCase()}</p>
-                  <p className="text-sm font-semibold text-primary mt-0.5">{h.department || "Consultation"}</p>
+                  <p className="text-sm font-semibold text-primary mt-0.5">{h.department || t("consultation")}</p>
                   {h.notes && <p className="text-xs text-muted-foreground mt-1">{h.notes}</p>}
                 </div>
               ))}
@@ -1464,14 +1464,14 @@ type SidebarQueueEntry = {
           </div>
 
           <div className="rounded-2xl bg-muted/40 border border-border/40 p-4">
-            <p className="flex items-center gap-2 text-xs font-bold text-muted-foreground"><AlertTriangle className="h-3.5 w-3.5" /> ALLERGIES</p>
-            <p className="text-sm text-muted-foreground mt-2 italic">Not recorded yet.</p>
+            <p className="flex items-center gap-2 text-xs font-bold text-muted-foreground"><AlertTriangle className="h-3.5 w-3.5" /> {t("allergies")}</p>
+            <p className="text-sm text-muted-foreground mt-2 italic">{t("notRecorded")}</p>
           </div>
 
           <div className="rounded-2xl bg-gradient-dark text-surface-dark-foreground p-5">
             <div className="flex items-center justify-between">
-              <p className="flex items-center gap-2 text-sm font-semibold"><FlaskConical className="h-4 w-4 text-accent" /> Quick Add</p>
-              <span className="text-[9px] font-bold tracking-widest opacity-70">YOUR MOST-PRESCRIBED</span>
+              <p className="flex items-center gap-2 text-sm font-semibold"><FlaskConical className="h-4 w-4 text-accent" /> {t("quickAdd")}</p>
+              <span className="text-[9px] font-bold tracking-widest opacity-70">{t("yourMostPrescribed")}</span>
             </div>
             <div className="mt-4 space-y-2">
               {quickMedsLoading ? (
@@ -1479,7 +1479,7 @@ type SidebarQueueEntry = {
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-surface-dark-foreground/40 border-t-transparent" />
                 </div>
               ) : quickMeds.length === 0 ? (
-                <p className="text-xs opacity-70 py-2">Nothing prescribed yet — add a medicine and it&apos;ll show up here next time.</p>
+                <p className="text-xs opacity-70 py-2">{t("quickAddEmpty")}</p>
               ) : (
                 quickMeds.map((m) => (
                   // Napa 20mg and Napa 40mg are separate entries on purpose
@@ -1502,13 +1502,13 @@ type SidebarQueueEntry = {
                 ))
               )}
             </div>
-            <p className="text-[10px] opacity-60 mt-4 border-t border-surface-dark-foreground/15 pt-3">From your own prescribing history — tap one to add it to this Rx.</p>
+            <p className="text-[10px] opacity-60 mt-4 border-t border-surface-dark-foreground/15 pt-3">{t("quickAddNote")}</p>
           </div>
 
           <div className="rounded-2xl bg-muted/40 p-5">
             <div className="flex items-center justify-between">
-              <p className="flex items-center gap-2 text-sm font-semibold text-primary"><Users className="h-4 w-4" /> Today&apos;s Queue</p>
-              <span className="text-[10px] font-bold tracking-widest text-muted-foreground">REMAINING: {sideRemaining}</span>
+              <p className="flex items-center gap-2 text-sm font-semibold text-primary"><Users className="h-4 w-4" /> {t("todaysQueue")}</p>
+              <span className="text-[10px] font-bold tracking-widest text-muted-foreground">{t("remaining", { count: sideRemaining })}</span>
             </div>
             <div className="mt-4 space-y-2">
               {sideLoading ? (
@@ -1516,7 +1516,7 @@ type SidebarQueueEntry = {
                   <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                 </div>
               ) : sideQueue.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-4">No one else waiting.</p>
+                <p className="text-xs text-muted-foreground text-center py-4">{t("noOneWaiting")}</p>
               ) : (
                 sideQueue.map(p => {
                   const isCurrent = p.id === appointmentId;
@@ -1526,9 +1526,9 @@ type SidebarQueueEntry = {
                         {initials(p.patient?.full_name ?? "?")}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-primary truncate">{p.patient?.full_name ?? "Patient"}</p>
+                        <p className="text-sm font-semibold text-primary truncate">{p.patient?.full_name ?? t("patient")}</p>
                         <p className="text-[10px] tracking-widest font-bold text-primary-glow">
-                          {isCurrent ? "VIEWING" : p.in_consultation ? "IN CONSULTATION" : p.waited_minutes > 0 ? `WAITING - ${p.waited_minutes}M` : "WAITING"}
+                          {isCurrent ? t("viewing") : p.in_consultation ? t("inConsultation") : p.waited_minutes > 0 ? t("waitingFor", { minutes: p.waited_minutes }) : t("waitingLabel")}
                         </p>
                       </div>
                       <button
@@ -1536,7 +1536,7 @@ type SidebarQueueEntry = {
                         disabled={isCurrent || sideStartingId === p.id}
                         className="shrink-0 rounded-full bg-gradient-dark text-surface-dark-foreground px-3 py-1.5 text-[10px] font-semibold tracking-wider hover:opacity-90 shadow-glow disabled:opacity-60"
                       >
-                        {isCurrent ? "Current" : sideStartingId === p.id ? "Starting..." : p.in_consultation ? "In Consult" : "Start Consult"}
+                        {isCurrent ? t("current") : sideStartingId === p.id ? t("starting") : p.in_consultation ? t("inConsult") : t("startConsult")}
                       </button>
                     </div>
                   );
@@ -1549,9 +1549,9 @@ type SidebarQueueEntry = {
 
       {/* Actions */}
       <div className="mt-10 flex items-center justify-between border-t border-border/60 pt-6">
-        <button onClick={() => toast.success("Saved as draft")} className="rounded-full border border-border px-6 py-3 text-sm font-semibold text-primary hover:bg-chip transition-colors">Save as Draft</button>
+        <button onClick={() => toast.success(t("savedDraft"))} className="rounded-full border border-border px-6 py-3 text-sm font-semibold text-primary hover:bg-chip transition-colors">{t("saveDraft")}</button>
         <button onClick={handleSubmit} disabled={submitting} className="flex items-center gap-2 rounded-full bg-gradient-dark text-surface-dark-foreground px-7 py-3 text-sm font-semibold hover:opacity-90 shadow-glow disabled:opacity-60">
-          <Printer className="h-4 w-4" /> {submitting ? "Submitting..." : "Print & Submit"}
+          <Printer className="h-4 w-4" /> {submitting ? t("submitting") : t("printSubmit")}
         </button>
       </div>
 
@@ -1562,13 +1562,13 @@ type SidebarQueueEntry = {
             hospital,
             doctor,
             patientBar: [
-              ["Name", patient.full_name],
-              ["Age / Sex", `${ageLong(patient.age)} / ${genderLabel(patient.gender)}`],
-              ["Patient ID", patient.mrn],
-              ["Date", formatDate(appointment.scheduled_date)],
-              ["Weight", patient.weight_kg != null ? `${patient.weight_kg} kg` : "—"],
-              ["Height", heightLabel(patient.height_feet, patient.height_inches)],
-              ["BP", bpLabel(appointment.bp_systolic, appointment.bp_diastolic)],
+              [tr("bar.name"), patient.full_name],
+              [tr("bar.ageSex"), `${ageLong(patient.age)} / ${genderLabel(patient.gender)}`],
+              [tr("bar.patientId"), patient.mrn],
+              [tr("bar.date"), formatDate(appointment.scheduled_date)],
+              [tr("bar.weight"), patient.weight_kg != null ? tr("kg", { value: patient.weight_kg }) : "—"],
+              [tr("bar.height"), heightLabel(patient.height_feet, patient.height_inches)],
+              [tr("bar.bp"), bpLabel(appointment.bp_systolic, appointment.bp_diastolic)],
             ],
             complaints, examination, investigation, diagnosis, medicines, advice,
           }}
@@ -1577,28 +1577,28 @@ type SidebarQueueEntry = {
       <Dialog open={vitalsOpen} onOpenChange={(o) => !savingVitals && setVitalsOpen(o)}>
         <DialogContent className="sm:max-w-[380px]">
           <DialogHeader>
-            <DialogTitle className="font-display text-2xl text-primary">Update Vitals</DialogTitle>
-            <DialogDescription>Weight and height for {patient.full_name}. Leave blank to clear.</DialogDescription>
+            <DialogTitle className="font-display text-2xl text-primary">{t("updateVitals")}</DialogTitle>
+            <DialogDescription>{t("vitalsFor", { name: patient.full_name })}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1.5">
-              <Label>Weight (kg)</Label>
+              <Label>{t("weightKg")}</Label>
               <Input type="number" min="0" step="0.1" value={vitalsForm.weight}
-                onChange={(e) => setVitalsForm(f => ({ ...f, weight: e.target.value }))} placeholder="e.g. 64" />
+                onChange={(e) => setVitalsForm(f => ({ ...f, weight: e.target.value }))} placeholder={t("egWeight")} />
             </div>
             <div className="space-y-1.5">
-              <Label>Height</Label>
+              <Label>{t("heightLabel")}</Label>
               <div className="grid grid-cols-2 gap-3">
                 <Input type="number" min="0" step="1" value={vitalsForm.heightFeet}
-                  onChange={(e) => setVitalsForm(f => ({ ...f, heightFeet: e.target.value }))} placeholder="Feet, e.g. 5" />
+                  onChange={(e) => setVitalsForm(f => ({ ...f, heightFeet: e.target.value }))} placeholder={t("egFeet")} />
                 <Input type="number" min="0" max="11" step="1" value={vitalsForm.heightInches}
-                  onChange={(e) => setVitalsForm(f => ({ ...f, heightInches: e.target.value }))} placeholder="Inches, e.g. 4" />
+                  onChange={(e) => setVitalsForm(f => ({ ...f, heightInches: e.target.value }))} placeholder={t("egInches")} />
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setVitalsOpen(false)} disabled={savingVitals}>Cancel</Button>
-            <Button type="button" onClick={saveVitals} disabled={savingVitals}>{savingVitals ? "Saving..." : "Save"}</Button>
+            <Button type="button" variant="outline" onClick={() => setVitalsOpen(false)} disabled={savingVitals}>{tc("cancel")}</Button>
+            <Button type="button" onClick={saveVitals} disabled={savingVitals}>{savingVitals ? tc("saving") : tc("save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1606,24 +1606,24 @@ type SidebarQueueEntry = {
       <Dialog open={bpOpen} onOpenChange={(o) => !savingBp && setBpOpen(o)}>
         <DialogContent className="sm:max-w-[340px]">
           <DialogHeader>
-            <DialogTitle className="font-display text-2xl text-primary">Blood Pressure</DialogTitle>
-            <DialogDescription>For {patient.full_name}&apos;s visit today. Leave blank to clear.</DialogDescription>
+            <DialogTitle className="font-display text-2xl text-primary">{t("bloodPressure")}</DialogTitle>
+            <DialogDescription>{t("bpFor", { name: patient.full_name })}</DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-3 py-2">
             <div className="space-y-1.5">
-              <Label>Systolic</Label>
+              <Label>{t("systolic")}</Label>
               <Input type="number" min="0" step="1" value={bpForm.systolic}
-                onChange={(e) => setBpForm(f => ({ ...f, systolic: e.target.value }))} placeholder="e.g. 120" />
+                onChange={(e) => setBpForm(f => ({ ...f, systolic: e.target.value }))} placeholder={t("egSystolic")} />
             </div>
             <div className="space-y-1.5">
-              <Label>Diastolic</Label>
+              <Label>{t("diastolic")}</Label>
               <Input type="number" min="0" step="1" value={bpForm.diastolic}
-                onChange={(e) => setBpForm(f => ({ ...f, diastolic: e.target.value }))} placeholder="e.g. 80" />
+                onChange={(e) => setBpForm(f => ({ ...f, diastolic: e.target.value }))} placeholder={t("egDiastolic")} />
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setBpOpen(false)} disabled={savingBp}>Cancel</Button>
-            <Button type="button" onClick={saveBp} disabled={savingBp}>{savingBp ? "Saving..." : "Save"}</Button>
+            <Button type="button" variant="outline" onClick={() => setBpOpen(false)} disabled={savingBp}>{tc("cancel")}</Button>
+            <Button type="button" onClick={saveBp} disabled={savingBp}>{savingBp ? tc("saving") : tc("save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1631,41 +1631,41 @@ type SidebarQueueEntry = {
       <Dialog open={patientOpen} onOpenChange={(o) => !savingPatient && setPatientOpen(o)}>
         <DialogContent className="sm:max-w-[380px]">
           <DialogHeader>
-            <DialogTitle className="font-display text-2xl text-primary">Age &amp; Gender</DialogTitle>
-            <DialogDescription>For {patient.full_name}. Days or Months for a newborn — leave the age blank to clear it.</DialogDescription>
+            <DialogTitle className="font-display text-2xl text-primary">{t("ageGender")}</DialogTitle>
+            <DialogDescription>{t("ageFor", { name: patient.full_name })}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1.5">
-              <Label>Age</Label>
+              <Label>{t("age")}</Label>
               <div className="flex gap-2">
                 <Input type="number" min="0" step="1" value={patientForm.ageValue}
-                  onChange={(e) => setPatientForm(f => ({ ...f, ageValue: e.target.value }))} placeholder="e.g. 3" className="flex-1" />
+                  onChange={(e) => setPatientForm(f => ({ ...f, ageValue: e.target.value }))} placeholder={t("egAge")} className="flex-1" />
                 <Select value={patientForm.ageUnit} onValueChange={(v) => setPatientForm(f => ({ ...f, ageUnit: v as Age["unit"] }))}>
                   <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="years">Years</SelectItem>
-                    <SelectItem value="months">Months</SelectItem>
-                    <SelectItem value="days">Days</SelectItem>
+                    <SelectItem value="years">{t("units.years")}</SelectItem>
+                    <SelectItem value="months">{t("units.months")}</SelectItem>
+                    <SelectItem value="days">{t("units.days")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Gender</Label>
+              <Label>{t("gender")}</Label>
               <Select value={patientForm.gender || "unspecified"} onValueChange={(v) => setPatientForm(f => ({ ...f, gender: v === "unspecified" ? "" : (v as Gender) }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="unspecified">Not specified</SelectItem>
-                  <SelectItem value="male">Male</SelectItem>
-                  <SelectItem value="female">Female</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="unspecified">{t("notSpecified")}</SelectItem>
+                  <SelectItem value="male">{tr("gender.male")}</SelectItem>
+                  <SelectItem value="female">{tr("gender.female")}</SelectItem>
+                  <SelectItem value="other">{tr("gender.other")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setPatientOpen(false)} disabled={savingPatient}>Cancel</Button>
-            <Button type="button" onClick={savePatientDetails} disabled={savingPatient}>{savingPatient ? "Saving..." : "Save"}</Button>
+            <Button type="button" variant="outline" onClick={() => setPatientOpen(false)} disabled={savingPatient}>{tc("cancel")}</Button>
+            <Button type="button" onClick={savePatientDetails} disabled={savingPatient}>{savingPatient ? tc("saving") : tc("save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

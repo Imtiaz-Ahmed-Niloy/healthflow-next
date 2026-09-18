@@ -7,16 +7,18 @@ import { useSavedDoctors } from "@/hooks/useSavedDoctors";
 import { motion } from "framer-motion";
 import { ArrowLeft, Star, Calendar, Languages, GraduationCap, Award, Heart, Phone, MapPin, Clock, User, BadgeCheck, Store } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import { Avatar } from "@/components/common/Avatar";
-import { useDoctors, INDEPENDENT_LABEL, type DoctorPlace } from "@/hooks/useDoctors";
+import { useDoctors, type DoctorPlace } from "@/hooks/useDoctors";
 import { useHospitals } from "@/hooks/useHospitals";
 import { useEffect, useMemo, useState } from "react";
 import { useFormatters } from "@/lib/appSettings";
 import type { Hospital } from "@/data/hospitals";
 
 const DoctorDetail = () => {
+  const t = useTranslations("doctorDetail");
   const slug = useParams<{ slug: string }>()?.slug;
   const router = useRouter();
   const { formatCurrency } = useFormatters();
@@ -73,8 +75,8 @@ const DoctorDetail = () => {
       <div className="min-h-screen bg-gradient-hero">
         <Navbar />
         <main className="container mx-auto py-32 text-center">
-          <h1 className="font-display text-4xl text-primary">Doctor not found</h1>
-          <Link href="/hospitals" className="mt-6 inline-flex items-center gap-2 text-primary"><ArrowLeft className="h-4 w-4" /> Back</Link>
+          <h1 className="font-display text-4xl text-primary">{t("notFound")}</h1>
+          <Link href="/hospitals" className="mt-6 inline-flex items-center gap-2 text-primary"><ArrowLeft className="h-4 w-4" /> {t("back")}</Link>
         </main>
         <Footer />
       </div>
@@ -92,7 +94,7 @@ const DoctorDetail = () => {
       <Navbar />
       <main className="container mx-auto py-12">
         <Link href="/hospitals" className="inline-flex items-center gap-1.5 text-sm text-primary hover:gap-2 transition-all mb-6">
-          <ArrowLeft className="h-4 w-4" /> Back to Hospitals
+          <ArrowLeft className="h-4 w-4" /> {t("backToHospitals")}
         </Link>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
@@ -121,24 +123,24 @@ const DoctorDetail = () => {
               {d.bmdc && (
                 <p className="text-sm text-foreground/75 flex items-center gap-1.5 mt-1.5">
                   <BadgeCheck className="h-4 w-4 shrink-0 text-primary-glow" />
-                  BMDC Reg. No. <span className="font-semibold text-primary">{d.bmdc}</span>
+                  {t("bmdc")} <span className="font-semibold text-primary">{d.bmdc}</span>
                 </p>
               )}
               {d.experience != null && d.experience > 0 && (
                 <p className="text-sm text-foreground/75 flex items-center gap-1.5 mt-1.5">
                   <Award className="h-4 w-4 shrink-0 text-primary-glow" />
-                  <span><span className="font-semibold text-primary">{d.experience}</span> {d.experience === 1 ? "year" : "years"} of experience</span>
+                  <span>{t.rich("experience", { count: d.experience, b: chunks => <span className="font-semibold text-primary">{chunks}</span> })}</span>
                 </p>
               )}
               {d.independent ? (
                 // An appointment belongs to a hospital or a chamber; this doctor has neither yet.
                 <p className="mt-5 text-center w-full rounded-full border border-border py-3 text-xs font-semibold text-muted-foreground">
-                  Not taking bookings on HealthFlow yet
+                  {t("notBookable")}
                 </p>
               ) : (
                 // Books right here — the same form as a patient's Find Doctors.
                 <button type="button" onClick={() => setBooking(true)} className="mt-5 block text-center w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors">
-                  Book Appointment
+                  {t("book")}
                 </button>
               )}
               {/* Saves to the patient's list (0092), shown at /patient/saved-doctors.
@@ -153,7 +155,7 @@ const DoctorDetail = () => {
                     return;
                   }
                   if (!savedDoctors.canSave) {
-                    toast.info("Saving doctors is for patient accounts.");
+                    toast.info(t("saveForPatients"));
                     return;
                   }
                   void savedDoctors.toggle(d);
@@ -161,49 +163,51 @@ const DoctorDetail = () => {
                 className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-full border border-primary/30 py-2.5 text-sm font-semibold text-primary hover:bg-primary/5 disabled:opacity-60"
               >
                 <Heart className={`h-4 w-4 ${savedDoctors.isSaved(d) ? "fill-primary" : ""}`} />
-                {savedDoctors.isSaved(d) ? "Saved" : "Save"}
+                {savedDoctors.isSaved(d) ? t("saved") : t("save")}
               </button>
             </div>
           </div>
 
           <div className="space-y-8">
             <section className="rounded-3xl bg-card border border-border/60 p-7">
-              <h2 className="font-display text-2xl text-primary">About Dr. {d.name.split(" ").slice(-1)[0]}</h2>
+              <h2 className="font-display text-2xl text-primary">{t("about", { name: d.name.split(" ").slice(-1)[0] })}</h2>
               {/* Their own About, as written on their profile. This used to be a
                   template — "a board-certified … specialist … patient-first
                   approach" — printed for every doctor whatever they had saved. */}
               <p className="text-foreground/75 leading-relaxed mt-3 whitespace-pre-line">
-                {d.bio ?? `${d.name} is a ${d.specialty.toLowerCase()} specialist${d.independent ? " in independent practice" : ` at ${d.places.map((p) => p.name).join(" and ")}`}.`}
+                {d.bio ?? (d.independent
+                  ? t("bioIndependent", { name: d.name, specialty: d.specialty })
+                  : t("bioAt", { name: d.name, specialty: d.specialty, places: d.places.map((p) => p.name).join(t("and")) }))}
               </p>
               <div className="grid sm:grid-cols-2 gap-4 mt-5 text-sm">
                 <div className="flex items-center gap-2 text-foreground/70"><Languages className="h-4 w-4 text-primary-glow" />{d.languages.join(" · ")}</div>
                 <div className="flex items-center gap-2 text-foreground/70"><Calendar className="h-4 w-4 text-primary-glow" />
-                  {d.places.length > 1 ? `At ${d.places.length} places — hours for each below` : `Available ${d.available}`}
+                  {d.places.length > 1 ? t("atPlaces", { count: d.places.length }) : t("available", { hours: d.available })}
                 </div>
-                <div className="flex items-center gap-2 text-foreground/70"><Clock className="h-4 w-4 text-primary-glow" />30 min consultation</div>
+                <div className="flex items-center gap-2 text-foreground/70"><Clock className="h-4 w-4 text-primary-glow" />{t("consultation")}</div>
                 {d.gender && (
-                  <div className="flex items-center gap-2 text-foreground/70 capitalize"><User className="h-4 w-4 text-primary-glow" />{d.gender}</div>
+                  <div className="flex items-center gap-2 text-foreground/70"><User className="h-4 w-4 text-primary-glow" />{t(`gender.${d.gender}`)}</div>
                 )}
               </div>
             </section>
 
             <section className="rounded-3xl bg-card border border-border/60 p-7">
-              <h2 className="font-display text-2xl text-primary mb-4">Areas of Expertise</h2>
+              <h2 className="font-display text-2xl text-primary mb-4">{t("expertise")}</h2>
               <div className="flex flex-wrap gap-2">
                 {/* What they listed on their profile; their specialty when they listed none. */}
-                {(d.expertise.length ? d.expertise : [d.specialty]).map((t) => (
-                  <span key={t} className="rounded-full bg-accent/40 text-primary text-xs font-medium px-3 py-1.5">{t}</span>
+                {(d.expertise.length ? d.expertise : [d.specialty]).map((e) => (
+                  <span key={e} className="rounded-full bg-accent/40 text-primary text-xs font-medium px-3 py-1.5">{e}</span>
                 ))}
               </div>
             </section>
 
             <section className="rounded-3xl bg-card border border-border/60 p-7">
-              <h2 className="font-display text-2xl text-primary mb-4">Practicing At</h2>
+              <h2 className="font-display text-2xl text-primary mb-4">{t("practicingAt")}</h2>
               {d.independent ? (
                 <div className="rounded-2xl bg-accent/20 p-4">
-                  <p className="font-display text-lg text-primary">{INDEPENDENT_LABEL}</p>
+                  <p className="font-display text-lg text-primary">{d.hospital.name}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Not at a HealthFlow hospital or chamber yet, so not taking bookings here.
+                    {t("independentNote")}
                   </p>
                 </div>
               ) : (
@@ -213,14 +217,14 @@ const DoctorDetail = () => {
                     const h = p.kind === "hospital" ? hospitalOf(p) : undefined;
                     const hours = (
                       <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                        <Calendar className="h-3 w-3 shrink-0" />{p.available || "Hours not set"}
+                        <Calendar className="h-3 w-3 shrink-0" />{p.available || t("hoursNotSet")}
                       </p>
                     );
                     // What a visit here costs, large, on the right.
                     const fee = (
                       <div className="shrink-0 text-right">
                         <p className="font-display text-xl text-primary leading-none">{formatCurrency(p.fee)}</p>
-                        <p className="text-[11px] text-muted-foreground mt-1">Consultation fee</p>
+                        <p className="text-[11px] text-muted-foreground mt-1">{t("fee")}</p>
                       </div>
                     );
                     return p.kind === "chamber" ? (
@@ -232,7 +236,7 @@ const DoctorDetail = () => {
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="font-display text-xl text-primary">{p.name}</p>
-                          <p className="text-xs text-muted-foreground">Their own chamber</p>
+                          <p className="text-xs text-muted-foreground">{t("ownChamber")}</p>
                           <p className="text-xs text-muted-foreground flex items-start gap-1 mt-1.5">
                             <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
                             {[p.address, ...p.location.split(", ")].filter((part, i, all) => part && all.indexOf(part) === i).join(", ")}
@@ -267,7 +271,7 @@ const DoctorDetail = () => {
 
             {peers.length > 0 && (
               <section>
-                <h2 className="font-display text-2xl text-primary mb-4">Other {d.specialty} Specialists</h2>
+                <h2 className="font-display text-2xl text-primary mb-4">{t("otherSpecialists", { specialty: d.specialty })}</h2>
                 <div className="grid sm:grid-cols-3 gap-4">
                   {peers.map(({ d: p }) => (
                     <Link key={p.slug} href={`/doctors/${p.slug}`} className="group rounded-2xl bg-card border border-border/60 p-4 hover:shadow-soft transition-all">

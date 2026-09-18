@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ResourcePage } from "@/components/admin/ResourcePage";
 import { WeeklyHoursField } from "@/components/admin/WeeklyHoursField";
@@ -21,6 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { availabilityLabel } from "@/lib/availability";
+import type { Locale } from "@/i18n/config";
 
 /**
  * Doctor Management: directory, performance and scheduling.
@@ -61,13 +63,10 @@ type Doctor = {
   consultation_duration_minutes: string;
 };
 
-const GENDERS = [
-  { value: "male", label: "Male" },
-  { value: "female", label: "Female" },
-  { value: "other", label: "Other" },
-];
+const GENDERS = ["male", "female", "other"] as const;
+const DOCTOR_STATUSES = ["active", "on_leave", "suspended"] as const;
 
-const TABS = ["Directory", "Performance", "Scheduling"] as const;
+const TABS = ["directory", "performance", "scheduling"] as const;
 type Tab = (typeof TABS)[number];
 
 /**
@@ -99,6 +98,8 @@ type Candidate = {
  * photo and the rest come from their profile.
  */
 const AddExistingDoctor = () => {
+  const t = useTranslations("admin.doctors.existing");
+  const tc = useTranslations("common");
   const dispatch = useAppDispatch();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -123,14 +124,14 @@ const AddExistingDoctor = () => {
         const res = await fetch(`/api/v1/doctors/existing?q=${encodeURIComponent(q)}`);
         const body = await res.json().catch(() => null);
         if (!live) return;
-        if (!res.ok) { toast.error("Couldn't search", { description: body?.error?.message }); setResults([]); return; }
+        if (!res.ok) { toast.error(t("searchFailed"), { description: body?.error?.message }); setResults([]); return; }
         setResults(body.data ?? []);
       } finally {
         if (live) setSearching(false);
       }
     }, 300);
     return () => { live = false; clearTimeout(timer); };
-  }, [query, open]);
+  }, [query, open, t]);
 
   const add = async () => {
     if (!picked) return;
@@ -146,12 +147,10 @@ const AddExistingDoctor = () => {
         }),
       });
       const body = await res.json().catch(() => null);
-      if (!res.ok) { toast.error("Couldn't add the doctor", { description: body?.error?.message }); return; }
+      if (!res.ok) { toast.error(t("addFailed"), { description: body?.error?.message }); return; }
       dispatch(invalidateResource("doctors"));
-      toast.success(`${picked.name} added to your hospital`, {
-        description: picked.has_login
-          ? "They sign in with their own account and will see your hospital in their portal."
-          : "They have no login yet — press the key on their row to create one.",
+      toast.success(t("added", { name: picked.name }), {
+        description: picked.has_login ? t("addedWithLogin") : t("addedNoLogin"),
       });
       setOpen(false);
       reset();
@@ -163,16 +162,16 @@ const AddExistingDoctor = () => {
   return (
     <>
       <Btn variant="outline" onClick={() => setOpen(true)} className="whitespace-nowrap">
-        <UserPlus className="h-4 w-4" /> Add existing doctor
+        <UserPlus className="h-4 w-4" /> {t("button")}
       </Btn>
 
-      <Modal open={open} onClose={close} title={picked ? `Add ${picked.name}` : "Add an existing doctor"} size="lg"
+      <Modal open={open} onClose={close} title={picked ? t("addName", { name: picked.name }) : t("title")} size="lg"
         footer={<>
-          {picked && <Btn variant="outline" onClick={() => setPicked(null)} disabled={saving} className="mr-auto">Back to search</Btn>}
-          <Btn variant="outline" onClick={close} disabled={saving}>Cancel</Btn>
+          {picked && <Btn variant="outline" onClick={() => setPicked(null)} disabled={saving} className="mr-auto">{t("backToSearch")}</Btn>}
+          <Btn variant="outline" onClick={close} disabled={saving}>{tc("cancel")}</Btn>
           {picked && (
             <Btn onClick={() => void add()} disabled={saving}>
-              {saving && <Loader2 className="h-4 w-4 animate-spin" />} Add to hospital
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />} {t("addToHospital")}
             </Btn>
           )}
         </>}>
@@ -181,19 +180,15 @@ const AddExistingDoctor = () => {
             <div className="relative mb-4">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input autoFocus value={query} onChange={e => setQuery(e.target.value)}
-                placeholder="Search by name, email, phone or BMDC number" className="pl-9" />
+                placeholder={t("searchPlaceholder")} className="pl-9" />
             </div>
-            <p className="text-xs text-muted-foreground mb-3">
-              Doctors already on HealthFlow and not at your hospital. Type any part of a name, email, phone or BMDC number.
-            </p>
+            <p className="text-xs text-muted-foreground mb-3">{t("searchHint")}</p>
             {query.trim().length < 2 ? null : searching ? (
               <div className="py-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
             ) : results.length === 0 ? (
               <div className="py-10 text-center">
-                <p className="text-sm font-semibold text-primary">No doctor matches</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Doctors already at your hospital aren&apos;t shown. Someone new to HealthFlow is added with New.
-                </p>
+                <p className="text-sm font-semibold text-primary">{t("noMatch")}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t("noMatchHint")}</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -204,13 +199,13 @@ const AddExistingDoctor = () => {
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold text-primary truncate flex items-center gap-2">
                         <span className="truncate">{c.name}</span>
-                        {!c.has_login && <Pill tone="default">No login yet</Pill>}
+                        {!c.has_login && <Pill tone="default">{t("noLoginYet")}</Pill>}
                       </p>
                       <p className="text-xs text-muted-foreground truncate">
                         {[c.specialty, c.bmdc_number && `BMDC ${c.bmdc_number}`, c.email_hint, c.phone_hint].filter(Boolean).join(" · ") || "—"}
                       </p>
                       {c.hospitals.length > 0 && (
-                        <p className="text-[11px] text-muted-foreground truncate">Works at {c.hospitals.join(", ")}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">{t("worksAt", { hospitals: c.hospitals.join(", ") })}</p>
                       )}
                     </div>
                     <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -226,21 +221,19 @@ const AddExistingDoctor = () => {
               <div className="min-w-0">
                 <p className="font-semibold text-primary truncate">{picked.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {picked.specialty || "No specialty"}
-                  {picked.hospitals.length > 0 && ` · also at ${picked.hospitals.join(", ")}`}
+                  {picked.specialty || t("noSpecialty")}
+                  {picked.hospitals.length > 0 && ` · ${t("alsoAt", { hospitals: picked.hospitals.join(", ") })}`}
                 </p>
               </div>
             </div>
             <p className="text-xs text-muted-foreground mb-4">
-              {picked.has_login
-                ? "Their name, photo and details come from their own profile. Set what is yours: the fee and the hours they see patients here."
-                : "They have no login yet, so they can be at one hospital: yours, once added. Set the fee and the hours they see patients here, then give them a login with the key on their row."}
+              {picked.has_login ? t("pickedWithLogin") : t("pickedNoLogin")}
             </p>
-            <Field label="Consultation fee">
+            <Field label={t("fee")}>
               <Input type="number" min={0} step="0.01" value={fee} onChange={e => setFee(e.target.value)} />
             </Field>
-            <Field label="Availability at your hospital">
-              <WeeklyHoursField key={picked.profile_id ?? picked.doctor_id} onChange={setWeek} summaryLabel="Patients see" />
+            <Field label={t("availability")}>
+              <WeeklyHoursField key={picked.profile_id ?? picked.doctor_id} onChange={setWeek} summaryLabel={t("patientsSee")} />
             </Field>
           </>
         )}
@@ -250,20 +243,21 @@ const AddExistingDoctor = () => {
 };
 
 const Doctors = () => {
-  const [tab, setTab] = useState<Tab>("Directory");
+  const t = useTranslations("admin.doctors");
+  const [tab, setTab] = useState<Tab>("directory");
   return (
-    <AdminLayout title="Doctor Management" subtitle="Directory, performance & scheduling">
+    <AdminLayout title={t("title")} subtitle={t("subtitle")}>
       <div className="flex flex-wrap items-center gap-2 mb-6">
-        {TABS.map(t => (
-          <button key={t} onClick={() => setTab(t)}
+        {TABS.map(key => (
+          <button key={key} onClick={() => setTab(key)}
             className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
-              tab === t ? "bg-primary text-primary-foreground shadow-soft" : "bg-card border border-border/60 text-foreground/70 hover:bg-muted/60"
-            }`}>{t}</button>
+              tab === key ? "bg-primary text-primary-foreground shadow-soft" : "bg-card border border-border/60 text-foreground/70 hover:bg-muted/60"
+            }`}>{t(`tabs.${key}`)}</button>
         ))}
       </div>
-      {tab === "Directory" && <DirectoryTab />}
-      {tab === "Performance" && <PerformanceTab />}
-      {tab === "Scheduling" && <SchedulingTab />}
+      {tab === "directory" && <DirectoryTab />}
+      {tab === "performance" && <PerformanceTab />}
+      {tab === "scheduling" && <SchedulingTab />}
     </AdminLayout>
   );
 };
@@ -278,6 +272,13 @@ const Doctors = () => {
  * stored encrypted (not hashed) specifically so this button keeps working.
  */
 const DirectoryTab = () => {
+  const t = useTranslations("admin.doctors");
+  const locale = useLocale() as Locale;
+  const genderLabel = (value: string) =>
+    (GENDERS as readonly string[]).includes(value) ? t(`genders.${value as (typeof GENDERS)[number]}`) : value;
+  const statusLabel = (value: string) =>
+    (DOCTOR_STATUSES as readonly string[]).includes(value) ? t(`statuses.${value as (typeof DOCTOR_STATUSES)[number]}`) : value;
+  const statuses = DOCTOR_STATUSES.map(value => ({ value, label: statusLabel(value) }));
   const dispatch = useAppDispatch();
   const { user } = useSession();
   const [creds, setCreds] = useState<{ doctor: string; email: string; password: string } | null>(null);
@@ -293,8 +294,10 @@ const DirectoryTab = () => {
 
   const copy = (value: string, label: string) => {
     navigator.clipboard.writeText(value);
-    toast.success(`${label} copied`);
+    toast.success(t("login.copied", { label }));
   };
+  const tryAgain = t("login.tryAgain");
+  const requestFailed = t("login.requestFailed");
 
   const createLogin = async (doctor: Doctor) => {
     setBusyId(doctor.id);
@@ -302,15 +305,15 @@ const DirectoryTab = () => {
       const res = await fetch(`/api/v1/doctors/${doctor.id}/login`, { method: "POST" });
       const body = await res.json();
       if (!res.ok) {
-        toast.error("Could not create login", { description: body?.error?.message ?? "Please try again." });
+        toast.error(t("login.createFailed"), { description: body?.error?.message ?? tryAgain });
         return;
       }
       if (body.data?.linked) {
         // Already a HealthFlow doctor at another hospital: no new account and
         // no password to hand over — they sign in the way they always have.
         dispatch(invalidateResource("doctors", doctor.id));
-        toast.success(`Linked to ${body.data.name}'s existing account`, {
-          description: "They sign in with their own login and will see your hospital in their portal.",
+        toast.success(t("login.linked", { name: body.data.name }), {
+          description: t("login.linkedBody"),
         });
         return;
       }
@@ -320,9 +323,9 @@ const DirectoryTab = () => {
       // this the row action button would still read "Create Login" and a
       // second click would 409.
       dispatch(invalidateResource("doctors", doctor.id));
-      toast.success("Login created");
+      toast.success(t("login.created"));
     } catch {
-      toast.error("Could not create login", { description: "The request failed. Please try again." });
+      toast.error(t("login.createFailed"), { description: requestFailed });
     } finally {
       setBusyId(null);
     }
@@ -342,15 +345,15 @@ const DirectoryTab = () => {
           return;
         }
         if (body?.error?.code === "shared_login") {
-          toast.info("This doctor has their own account", { description: body.error.message });
+          toast.info(t("login.ownAccount"), { description: body.error.message });
           return;
         }
-        toast.error("Could not load login", { description: body?.error?.message ?? "Please try again." });
+        toast.error(t("login.loadFailed"), { description: body?.error?.message ?? tryAgain });
         return;
       }
       setCreds({ doctor: doctor.name, ...body.data });
     } catch {
-      toast.error("Could not load login", { description: "The request failed. Please try again." });
+      toast.error(t("login.loadFailed"), { description: requestFailed });
     } finally {
       setBusyId(null);
     }
@@ -362,13 +365,13 @@ const DirectoryTab = () => {
       const res = await fetch(`/api/v1/doctors/${doctor.id}/login`, { method: "PUT" });
       const body = await res.json();
       if (!res.ok) {
-        toast.error("Could not reset password", { description: body?.error?.message ?? "Please try again." });
+        toast.error(t("login.resetFailed"), { description: body?.error?.message ?? tryAgain });
         return;
       }
       setCreds({ doctor: doctor.name, ...body.data });
-      toast.success("Password reset");
+      toast.success(t("login.resetDone"));
     } catch {
-      toast.error("Could not reset password", { description: "The request failed. Please try again." });
+      toast.error(t("login.resetFailed"), { description: requestFailed });
     } finally {
       setBusyId(null);
     }
@@ -380,7 +383,7 @@ const DirectoryTab = () => {
     storeKey: "doctors",
     resource: "doctors",
     searchFields: ["name", "specialty", "email", "bmdc_number"],
-    statuses: ["active", "on_leave", "suspended"],
+    statuses,
     // A hospital adds to itself; a super admin adds from /super/doctors.
     beforeAdd: user?.role !== "super_admin" ? <AddExistingDoctor /> : undefined,
     rowActions: r => (
@@ -392,45 +395,45 @@ const DirectoryTab = () => {
           else setPendingCreate(r);
         }}
         disabled={busyId === r.id}
-        title={r.profile_id ? "View this doctor's login" : "Create a login for this doctor"}
+        title={r.profile_id ? t("login.view") : t("login.create")}
         className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 disabled:opacity-50">
         {busyId === r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
       </button>
     ),
     columns: [
-      { key: "name", label: "Name", accessor: r => r.name, sortable: true,
+      { key: "name", label: t("columns.name"), accessor: r => r.name, sortable: true,
         render: r => <span className="font-semibold text-primary">{r.name}</span> },
-      { key: "specialty", label: "Specialization", accessor: r => r.specialty, sortable: true },
-      { key: "gender", label: "Gender", accessor: r => r.gender, render: r => GENDERS.find(g => g.value === r.gender)?.label ?? "—" },
-      { key: "education", label: "Qualifications", accessor: r => r.education },
-      { key: "availability", label: "Availability", accessor: r => availabilityLabel(r.availability) ?? "" },
-      { key: "experience_years", label: "Exp (yrs)", accessor: r => r.experience_years, sortable: true },
-      { key: "consultation_fee", label: "Fee", accessor: r => r.consultation_fee },
-      { key: "status", label: "Status", render: r => <Pill tone={statusTone(r.status)}>{r.status}</Pill> },
+      { key: "specialty", label: t("columns.specialty"), accessor: r => r.specialty, sortable: true },
+      { key: "gender", label: t("columns.gender"), accessor: r => r.gender, render: r => r.gender ? genderLabel(r.gender) : "—" },
+      { key: "education", label: t("columns.education"), accessor: r => r.education },
+      { key: "availability", label: t("columns.availability"), accessor: r => availabilityLabel(r.availability, locale) ?? "" },
+      { key: "experience_years", label: t("columns.experience"), accessor: r => r.experience_years, sortable: true },
+      { key: "consultation_fee", label: t("columns.fee"), accessor: r => r.consultation_fee },
+      { key: "status", label: t("columns.status"), render: r => <Pill tone={statusTone(r.status)}>{statusLabel(r.status)}</Pill> },
     ],
     fields: [
-      { name: "photo_url", label: "Doctor photo", type: "image" },
-      { name: "name", label: "Full name", type: "text", required: true },
+      { name: "photo_url", label: t("fields.photo"), type: "image" },
+      { name: "name", label: t("fields.name"), type: "text", required: true },
       // The specialties list (0093), searchable — the same one the site filters by.
-      { name: "specialty", label: "Specialization", type: "specialty" },
-      { name: "gender", label: "Gender", type: "select", options: GENDERS },
-      { name: "education", label: "Education / Qualifications", type: "text", required: true },
+      { name: "specialty", label: t("columns.specialty"), type: "specialty" },
+      { name: "gender", label: t("columns.gender"), type: "select", options: GENDERS.map(value => ({ value, label: genderLabel(value) })) },
+      { name: "education", label: t("fields.education"), type: "text", required: true },
       // min/max/numberStep mirror the check constraints in 0005. Without
       // numberStep a number input is integers-only, so "4.7" in a
       // numeric(2,1) column silently blocked the whole form from submitting.
-      { name: "experience_years", label: "Experience (years)", type: "number", required: true, min: 0 },
-      { name: "rating", label: "Rating (0–5)", type: "number", min: 0, max: 5, numberStep: 0.1 },
-      { name: "consultation_fee", label: "Consultation Fee (USD)", type: "number", required: true, min: 0, numberStep: 0.01 },
-      { name: "patients_treated", label: "Patients treated", type: "number", min: 0 },
-      { name: "consultation_duration_minutes", label: "Consultation duration (minutes)", type: "number", min: 1 },
-      { name: "languages", label: "Languages (comma separated)", type: "text" },
-      { name: "availability", label: "Availability", type: "availability" },
-      { name: "email", label: "Email", type: "email", required: true },
-      { name: "bmdc_number", label: "BMDC registration no.", type: "text" },
-      { name: "phone", label: "Phone", type: "tel" },
-      { name: "status", label: "Status", type: "select", options: ["active", "on_leave", "suspended"] },
-      { name: "expertise", label: "Areas of Expertise (comma separated)", type: "textarea" },
-      { name: "bio", label: "About / Biography", type: "textarea" },
+      { name: "experience_years", label: t("fields.experience"), type: "number", required: true, min: 0 },
+      { name: "rating", label: t("fields.rating"), type: "number", min: 0, max: 5, numberStep: 0.1 },
+      { name: "consultation_fee", label: t("fields.fee"), type: "number", required: true, min: 0, numberStep: 0.01 },
+      { name: "patients_treated", label: t("fields.patientsTreated"), type: "number", min: 0 },
+      { name: "consultation_duration_minutes", label: t("fields.duration"), type: "number", min: 1 },
+      { name: "languages", label: t("fields.languages"), type: "text" },
+      { name: "availability", label: t("columns.availability"), type: "availability" },
+      { name: "email", label: t("fields.email"), type: "email", required: true },
+      { name: "bmdc_number", label: t("fields.bmdc"), type: "text" },
+      { name: "phone", label: t("fields.phone"), type: "tel" },
+      { name: "status", label: t("columns.status"), type: "select", options: statuses },
+      { name: "expertise", label: t("fields.expertise"), type: "textarea" },
+      { name: "bio", label: t("fields.bio"), type: "textarea" },
     ],
       }} />
 
@@ -438,10 +441,10 @@ const DirectoryTab = () => {
         open={!!pendingCreate}
         onClose={() => setPendingCreate(null)}
         onConfirm={() => pendingCreate && void createLogin(pendingCreate)}
-        title="Create doctor login?"
+        title={t("login.createTitle")}
         description={
           pendingCreate
-            ? `If ${pendingCreate.email || "this email"} or this BMDC number already belongs to a doctor on HealthFlow, this row is linked to their existing account and they keep their own details. Otherwise a new login is created for ${pendingCreate.name}.`
+            ? t("login.createBody", { email: pendingCreate.email || t("login.thisEmail"), name: pendingCreate.name })
             : undefined
         }
       />
@@ -450,22 +453,18 @@ const DirectoryTab = () => {
         open={!!pendingReset}
         onClose={() => setPendingReset(null)}
         onConfirm={() => pendingReset && void resetLogin(pendingReset)}
-        title="Reset this doctor's password?"
-        description={
-          pendingReset
-            ? `${pendingReset.name} has a login, but no password was saved for it — it predates this feature, or saving it failed. The old password can't be recovered, only replaced. Resetting sets a new one you can view here from now on, and stops the old one working if they are still using it.`
-            : undefined
-        }
+        title={t("login.resetTitle")}
+        description={pendingReset ? t("login.resetBody", { name: pendingReset.name }) : undefined}
       />
 
       <Modal
         open={!!creds}
         onClose={() => setCreds(null)}
-        title="Doctor login"
+        title={t("login.modalTitle")}
         footer={
           <button onClick={() => setCreds(null)}
             className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground">
-            Done
+            {t("login.done")}
           </button>
         }>
         {creds && (
@@ -473,21 +472,22 @@ const DirectoryTab = () => {
             <div className="flex items-start gap-3 rounded-xl bg-muted/40 p-4">
               <KeyRound className="h-5 w-5 text-primary mt-0.5 shrink-0" />
               <p className="text-sm text-muted-foreground">
-                Login for <span className="font-semibold text-primary">{creds.doctor}</span>. Share these
-                securely — unlike a hospital admin&apos;s password, you can come back to this button and view
-                it again any time.
+                {t.rich("login.intro", {
+                  name: creds.doctor,
+                  b: chunks => <span className="font-semibold text-primary">{chunks}</span>,
+                })}
               </p>
             </div>
             {[
-              { label: "Email", value: creds.email },
-              { label: "Password", value: creds.password },
+              { label: t("login.email"), value: creds.email },
+              { label: t("login.password"), value: creds.password },
             ].map(({ label, value }) => (
               <div key={label}>
-                <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1.5">{label.toUpperCase()}</p>
+                <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1.5 uppercase">{label}</p>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 bg-muted/40 rounded-lg px-3 py-2 text-sm font-mono break-all">{value}</code>
                   <button onClick={() => copy(value, label)}
-                    className="p-2 rounded-lg border border-border hover:bg-muted" title={`Copy ${label}`}>
+                    className="p-2 rounded-lg border border-border hover:bg-muted" title={t("login.copy", { label })}>
                     <Copy className="h-4 w-4" />
                   </button>
                 </div>
@@ -506,17 +506,20 @@ const useDoctors = () => {
   return { doctors: (data?.data ?? []) as DoctorRow[], isLoading, error };
 };
 
-const EmptyOrError = ({ error, colSpan, empty }: { error: unknown; colSpan: number; empty: string }) => (
-  <tr>
-    <td colSpan={colSpan} className="py-8 text-center text-muted-foreground">
-      {error ? (
-        <span className="inline-flex items-center gap-2 text-destructive font-semibold">
-          <AlertCircle className="h-4 w-4" /> Could not load. Refresh to try again.
-        </span>
-      ) : empty}
-    </td>
-  </tr>
-);
+const EmptyOrError = ({ error, colSpan, empty }: { error: unknown; colSpan: number; empty: string }) => {
+  const t = useTranslations("admin.doctors");
+  return (
+    <tr>
+      <td colSpan={colSpan} className="py-8 text-center text-muted-foreground">
+        {error ? (
+          <span className="inline-flex items-center gap-2 text-destructive font-semibold">
+            <AlertCircle className="h-4 w-4" /> {t("loadFailed")}
+          </span>
+        ) : empty}
+      </td>
+    </tr>
+  );
+};
 
 /* ------------------------------------------------------- Performance --- */
 
@@ -530,6 +533,8 @@ type PerfValues = {
 const PERF_FIELDS = ["patient_volume", "consultations", "revenue", "feedback"] as const;
 
 const PerformanceTab = () => {
+  const t = useTranslations("admin.doctors.performance");
+  const tc = useTranslations("common");
   const { doctors, isLoading: docsLoading, error: docsError } = useDoctors();
   const perfQuery = doctorPerformanceApi.useList({ limit: 100 });
   const [createPerf] = doctorPerformanceApi.useCreate();
@@ -614,11 +619,11 @@ const PerformanceTab = () => {
     setSaving(false);
 
     if (failed) {
-      toast.error(`${failed} of ${dirtyIds.length} could not be saved`);
+      toast.error(t("saveFailed", { failed, total: dirtyIds.length }));
       return;
     }
     setEdits({});
-    toast.success(dirtyIds.length === 1 ? "Performance saved" : `${dirtyIds.length} doctors saved`);
+    toast.success(t("saved", { count: dirtyIds.length }));
   };
 
   const loading = docsLoading || perfQuery.isLoading;
@@ -627,19 +632,19 @@ const PerformanceTab = () => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Kpi icon={Users} label="Total Patients" value={totals.patients.toLocaleString()} tone="primary" />
-        <Kpi icon={Activity} label="Consultations" value={totals.consults.toLocaleString()} tone="accent" />
-        <Kpi icon={DollarSign} label="Revenue Generated" value={`$${totals.revenue.toLocaleString()}`} tone="chip" />
-        <Kpi icon={Star} label="Avg Feedback" value={`${totals.avgFeedback} / 5`} tone="primary" />
+        <Kpi icon={Users} label={t("kpis.patients")} value={totals.patients.toLocaleString()} tone="primary" />
+        <Kpi icon={Activity} label={t("kpis.consultations")} value={totals.consults.toLocaleString()} tone="accent" />
+        <Kpi icon={DollarSign} label={t("kpis.revenue")} value={`$${totals.revenue.toLocaleString()}`} tone="chip" />
+        <Kpi icon={Star} label={t("kpis.feedback")} value={`${totals.avgFeedback} / 5`} tone="primary" />
       </div>
 
       <Card className="p-5">
         <SectionTitle
-          title="Doctor Performance"
+          title={t("title")}
           action={
             dirtyIds.length > 0
               ? <span className="text-xs font-semibold text-muted-foreground">
-                  {dirtyIds.length} unsaved {dirtyIds.length === 1 ? "row" : "rows"}
+                  {t("unsaved", { count: dirtyIds.length })}
                 </span>
               : undefined
           }
@@ -647,22 +652,22 @@ const PerformanceTab = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-[11px] tracking-widest font-bold text-muted-foreground border-b border-border/60">
-                <th className="py-2 pr-3">DOCTOR</th>
-                <th className="py-2 pr-3">PATIENT VOLUME</th>
-                <th className="py-2 pr-3">CONSULTATIONS</th>
-                <th className="py-2 pr-3">REVENUE</th>
-                <th className="py-2 pr-3">FEEDBACK</th>
-                <th className="py-2 pr-3 w-[160px]">REVENUE SHARE</th>
+              <tr className="text-left text-[11px] tracking-widest font-bold text-muted-foreground border-b border-border/60 uppercase">
+                <th className="py-2 pr-3">{t("columns.doctor")}</th>
+                <th className="py-2 pr-3">{t("columns.volume")}</th>
+                <th className="py-2 pr-3">{t("columns.consultations")}</th>
+                <th className="py-2 pr-3">{t("columns.revenue")}</th>
+                <th className="py-2 pr-3">{t("columns.feedback")}</th>
+                <th className="py-2 pr-3 w-[160px]">{t("columns.share")}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr><td colSpan={6} className="py-8 text-center text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin inline" /> Loading…
+                  <Loader2 className="h-4 w-4 animate-spin inline" /> {tc("loading")}
                 </td></tr>
               ) : doctors.length === 0 ? (
-                <EmptyOrError error={error} colSpan={6} empty="No doctors yet. Add one in Directory." />
+                <EmptyOrError error={error} colSpan={6} empty={t("empty")} />
               ) : (
                 doctors.map(doctor => {
                   const revenue = valueOf(doctor.id, "revenue");
@@ -675,13 +680,13 @@ const PerformanceTab = () => {
                       </td>
                       <td className="py-3 pr-3">
                         <input type="number" min={0} value={valueOf(doctor.id, "patient_volume")}
-                          aria-label={`Patient volume for ${doctor.name}`}
+                          aria-label={t("aria.volume", { name: doctor.name })}
                           onChange={e => setValue(doctor.id, "patient_volume", Number(e.target.value))}
                           className="w-24 rounded-md bg-muted/40 px-2 py-1 text-sm" />
                       </td>
                       <td className="py-3 pr-3">
                         <input type="number" min={0} value={valueOf(doctor.id, "consultations")}
-                          aria-label={`Consultations for ${doctor.name}`}
+                          aria-label={t("aria.consultations", { name: doctor.name })}
                           onChange={e => setValue(doctor.id, "consultations", Number(e.target.value))}
                           className="w-24 rounded-md bg-muted/40 px-2 py-1 text-sm" />
                       </td>
@@ -689,7 +694,7 @@ const PerformanceTab = () => {
                         <div className="flex items-center gap-1">
                           <span className="text-muted-foreground">$</span>
                           <input type="number" min={0} step="0.01" value={revenue}
-                            aria-label={`Revenue for ${doctor.name}`}
+                            aria-label={t("aria.revenue", { name: doctor.name })}
                             onChange={e => setValue(doctor.id, "revenue", Number(e.target.value))}
                             className="w-28 rounded-md bg-muted/40 px-2 py-1 text-sm" />
                         </div>
@@ -697,7 +702,7 @@ const PerformanceTab = () => {
                       <td className="py-3 pr-3">
                         <div className="flex items-center gap-2">
                           <input type="number" step="0.1" min={0} max={5} value={valueOf(doctor.id, "feedback")}
-                            aria-label={`Feedback for ${doctor.name}`}
+                            aria-label={t("aria.feedback", { name: doctor.name })}
                             onChange={e => setValue(doctor.id, "feedback", Number(e.target.value))}
                             className="w-20 rounded-md bg-muted/40 px-2 py-1 text-sm" />
                           <Star className="h-3.5 w-3.5 text-yellow-500 fill-yellow-500" />
@@ -718,9 +723,9 @@ const PerformanceTab = () => {
         </div>
         <div className="flex justify-end mt-4">
           <Btn onClick={() => void save()} disabled={saving || dirtyIds.length === 0}
-            title={dirtyIds.length === 0 ? "No changes to save" : undefined}>
+            title={dirtyIds.length === 0 ? t("noChanges") : undefined}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <TrendingUp className="h-4 w-4" />}
-            {saving ? "Saving…" : "Save Metrics"}
+            {saving ? tc("saving") : t("save")}
           </Btn>
         </div>
       </Card>
@@ -732,6 +737,11 @@ const PerformanceTab = () => {
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 const SHIFT_TYPES = ["Regular", "On-Call", "Emergency", "Surgery", "Off"] as const;
+
+/** Shift types are stored as these English words; only the label changes with the language. */
+const SHIFT_KEYS = {
+  "Regular": "regular", "On-Call": "onCall", "Emergency": "emergency", "Surgery": "surgery", "Off": "off",
+} as const;
 
 const SHIFT_TONES: Record<string, string> = {
   "Regular": "bg-primary/15 text-primary border-primary/30",
@@ -745,6 +755,11 @@ const SHIFT_TONES: Record<string, string> = {
 const hhmm = (value: string) => value.slice(0, 5);
 
 const SchedulingTab = () => {
+  const t = useTranslations("admin.doctors.scheduling");
+  const tc = useTranslations("common");
+  const shiftLabel = (value: string) =>
+    value in SHIFT_KEYS ? t(`shiftTypes.${SHIFT_KEYS[value as keyof typeof SHIFT_KEYS]}`) : value;
+  const dayLabel = (day: (typeof DAYS)[number]) => t(`days.${day}`);
   const { doctors, isLoading: docsLoading, error: docsError } = useDoctors();
   const shiftsQuery = doctorShiftsApi.useList({ limit: 100 });
   const [createShift] = doctorShiftsApi.useCreate();
@@ -768,25 +783,25 @@ const SchedulingTab = () => {
 
   const add = async () => {
     if (!form.doctor_id) {
-      toast.error("Pick a doctor");
+      toast.error(t("pickDoctor"));
       return;
     }
     // Mirrors doctor_shifts_duration_check. End before start is allowed on
     // purpose — that is a shift running past midnight.
     if (form.start_time === form.end_time) {
-      toast.error("Start and end time cannot be the same");
+      toast.error(t("sameTimes"));
       return;
     }
 
     setAdding(true);
     try {
       await createShift({ ...form, ward: form.ward.trim() || undefined }).unwrap();
-      toast.success("Shift added");
+      toast.success(t("added"));
       setForm(f => ({ ...f, ward: "" }));
     } catch (cause) {
       const message =
-        (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? "Please try again.";
-      toast.error("Could not add shift", { description: message });
+        (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? t("tryAgain");
+      toast.error(t("addFailed"), { description: message });
     } finally {
       setAdding(false);
     }
@@ -796,9 +811,9 @@ const SchedulingTab = () => {
     setRemoving(id);
     try {
       await removeShift(id).unwrap();
-      toast.success("Shift removed");
+      toast.success(t("removed"));
     } catch {
-      toast.error("Could not remove shift", { description: "Please try again." });
+      toast.error(t("removeFailed"), { description: t("tryAgain") });
     } finally {
       setRemoving(null);
     }
@@ -813,67 +828,67 @@ const SchedulingTab = () => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Kpi icon={CalendarRange} label="Shifts Scheduled" value={String(shifts.length)} tone="primary" />
-        <Kpi icon={Stethoscope} label="Doctors" value={String(doctors.length)} tone="accent" />
-        <Kpi icon={ClipboardList} label="On-Call" value={String(shifts.filter(s => s.shift_type === "On-Call").length)} tone="chip" />
-        <Kpi icon={Activity} label="Emergency" value={String(shifts.filter(s => s.shift_type === "Emergency").length)} tone="destructive" />
+        <Kpi icon={CalendarRange} label={t("kpis.scheduled")} value={String(shifts.length)} tone="primary" />
+        <Kpi icon={Stethoscope} label={t("kpis.doctors")} value={String(doctors.length)} tone="accent" />
+        <Kpi icon={ClipboardList} label={shiftLabel("On-Call")} value={String(shifts.filter(s => s.shift_type === "On-Call").length)} tone="chip" />
+        <Kpi icon={Activity} label={shiftLabel("Emergency")} value={String(shifts.filter(s => s.shift_type === "Emergency").length)} tone="destructive" />
       </div>
 
       <Card className="p-5">
-        <SectionTitle title="Add Shift / Plan" />
+        <SectionTitle title={t("addTitle")} />
         <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
           <select value={form.doctor_id} onChange={e => setForm({ ...form, doctor_id: e.target.value })}
-            aria-label="Doctor" className="md:col-span-2 rounded-lg bg-muted/40 px-3 py-2 text-sm">
-            <option value="">Select doctor…</option>
+            aria-label={t("aria.doctor")} className="md:col-span-2 rounded-lg bg-muted/40 px-3 py-2 text-sm">
+            <option value="">{t("selectDoctor")}</option>
             {doctors.map(d => (
               <option key={d.id} value={d.id}>{d.name}{d.specialty ? ` — ${d.specialty}` : ""}</option>
             ))}
           </select>
-          <select value={form.day_of_week} aria-label="Day"
+          <select value={form.day_of_week} aria-label={t("aria.day")}
             onChange={e => setForm({ ...form, day_of_week: e.target.value as (typeof DAYS)[number] })}
             className="rounded-lg bg-muted/40 px-3 py-2 text-sm">
-            {DAYS.map(d => <option key={d}>{d}</option>)}
+            {DAYS.map(d => <option key={d} value={d}>{dayLabel(d)}</option>)}
           </select>
-          <input type="time" value={form.start_time} aria-label="Start time"
+          <input type="time" value={form.start_time} aria-label={t("aria.start")}
             onChange={e => setForm({ ...form, start_time: e.target.value })}
             className="rounded-lg bg-muted/40 px-3 py-2 text-sm" />
-          <input type="time" value={form.end_time} aria-label="End time"
+          <input type="time" value={form.end_time} aria-label={t("aria.end")}
             onChange={e => setForm({ ...form, end_time: e.target.value })}
             className="rounded-lg bg-muted/40 px-3 py-2 text-sm" />
-          <select value={form.shift_type} aria-label="Shift type"
+          <select value={form.shift_type} aria-label={t("aria.shiftType")}
             onChange={e => setForm({ ...form, shift_type: e.target.value as (typeof SHIFT_TYPES)[number] })}
             className="rounded-lg bg-muted/40 px-3 py-2 text-sm">
-            {SHIFT_TYPES.map(t => <option key={t}>{t}</option>)}
+            {SHIFT_TYPES.map(type => <option key={type} value={type}>{shiftLabel(type)}</option>)}
           </select>
-          <input placeholder="Ward / Room" value={form.ward} aria-label="Ward or room"
+          <input placeholder={t("wardPlaceholder")} value={form.ward} aria-label={t("aria.ward")}
             onChange={e => setForm({ ...form, ward: e.target.value })}
             className="rounded-lg bg-muted/40 px-3 py-2 text-sm" />
         </div>
         <div className="flex justify-end mt-4">
           <Btn onClick={() => void add()} disabled={adding}>
             {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            {adding ? "Adding…" : "Add Shift"}
+            {adding ? t("adding") : t("add")}
           </Btn>
         </div>
       </Card>
 
       <Card className="p-5">
-        <SectionTitle title="Duty Roster (Weekly)" />
+        <SectionTitle title={t("roster")} />
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="text-left text-[11px] tracking-widest font-bold text-muted-foreground">
-                <th className="py-2 pr-3 sticky left-0 bg-card">DOCTOR</th>
-                {DAYS.map(d => <th key={d} className="py-2 px-2 text-center">{d.toUpperCase()}</th>)}
+              <tr className="text-left text-[11px] tracking-widest font-bold text-muted-foreground uppercase">
+                <th className="py-2 pr-3 sticky left-0 bg-card">{t("doctor")}</th>
+                {DAYS.map(d => <th key={d} className="py-2 px-2 text-center">{dayLabel(d)}</th>)}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr><td colSpan={DAYS.length + 1} className="py-8 text-center text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin inline" /> Loading…
+                  <Loader2 className="h-4 w-4 animate-spin inline" /> {tc("loading")}
                 </td></tr>
               ) : doctors.length === 0 ? (
-                <EmptyOrError error={error} colSpan={DAYS.length + 1} empty="Add doctors first." />
+                <EmptyOrError error={error} colSpan={DAYS.length + 1} empty={t("empty")} />
               ) : (
                 doctors.map(doctor => (
                   <tr key={doctor.id} className="border-t border-border/40 align-top">
@@ -890,11 +905,11 @@ const SchedulingTab = () => {
                               <div className="font-bold">
                                 {hhmm(shift.start_time)}–{hhmm(shift.end_time)}
                               </div>
-                              <div className="opacity-80">{shift.shift_type}</div>
+                              <div className="opacity-80">{shiftLabel(shift.shift_type)}</div>
                               {shift.ward && <div className="opacity-70 truncate">{shift.ward}</div>}
                               <button onClick={() => void remove(shift.id)}
                                 disabled={removing === shift.id}
-                                aria-label={`Remove ${shift.shift_type} shift for ${doctor.name} on ${day}`}
+                                aria-label={t("aria.remove", { shift: shiftLabel(shift.shift_type), name: doctor.name, day: dayLabel(day) })}
                                 className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 grid place-items-center disabled:opacity-50">
                                 {removing === shift.id
                                   ? <Loader2 className="h-3 w-3 animate-spin" />
@@ -912,9 +927,9 @@ const SchedulingTab = () => {
           </table>
         </div>
         <div className="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t border-border/40">
-          <span className="text-xs font-semibold text-muted-foreground">Legend:</span>
-          {SHIFT_TYPES.map(t => (
-            <span key={t} className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${SHIFT_TONES[t]}`}>{t}</span>
+          <span className="text-xs font-semibold text-muted-foreground">{t("legend")}</span>
+          {SHIFT_TYPES.map(type => (
+            <span key={type} className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${SHIFT_TONES[type]}`}>{shiftLabel(type)}</span>
           ))}
         </div>
       </Card>

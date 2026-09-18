@@ -3,18 +3,20 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { X, Sparkles, ArrowRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Announcement, pickActiveAnnouncement, dismissAnnouncement } from "@/data/announcements";
 
 const AnnouncementPopup = ({ announcements }: { announcements: Announcement[] }) => {
+  const t = useTranslations("announcement");
   const [ann, setAnn] = useState<Announcement | null>(null);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       const a = pickActiveAnnouncement(announcements);
       if (a) { setAnn(a); setOpen(true); }
     }, 800);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [announcements]);
 
   if (!open || !ann) return null;
@@ -31,7 +33,7 @@ const AnnouncementPopup = ({ announcements }: { announcements: Announcement[] })
       <div className="relative w-full max-w-md rounded-3xl bg-card border border-border/60 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
         <button
           onClick={close}
-          aria-label="Close"
+          aria-label={t("close")}
           className="absolute top-3 right-3 z-10 h-8 w-8 grid place-items-center rounded-full bg-card/90 backdrop-blur border border-border/60 text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors shadow-soft"
         >
           <X className="h-4 w-4" />
@@ -44,7 +46,7 @@ const AnnouncementPopup = ({ announcements }: { announcements: Announcement[] })
         ) : (
           <div className="px-7 pt-8 pb-2 bg-gradient-to-br from-primary/10 via-accent/30 to-chip">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-card/80 backdrop-blur text-[10px] font-bold tracking-widest text-primary border border-border/60">
-              <Sparkles className="h-3 w-3" /> ANNOUNCEMENT
+              <Sparkles className="h-3 w-3" /> {t("label")}
             </span>
           </div>
         )}
@@ -78,7 +80,7 @@ const AnnouncementPopup = ({ announcements }: { announcements: Announcement[] })
               onClick={close}
               className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors"
             >
-              Dismiss
+              {t("dismiss")}
             </button>
           </div>
         </div>

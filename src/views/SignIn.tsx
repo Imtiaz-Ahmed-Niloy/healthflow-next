@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BarChart3, Eye, EyeOff, ShieldCheck, Stethoscope, User } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { useForm, type SubmitErrorHandler, type SubmitHandler } from "react-hook-form";
 import { AuthLayout } from "@/components/site/AuthLayout";
 import { GoogleAuthButton } from "@/components/site/GoogleAuthButton";
@@ -39,12 +40,13 @@ const BADGE_TONE: Record<string, string> = {
   muted: "bg-muted text-muted-foreground",
 };
 
+// `role` names a key in auth.signIn.demoRoles.
 const demos = [
-  { icon: User, t: "Patient", e: "p-user@demo.pro", p: "patient123" },
-  { icon: ShieldCheck, t: "Doctor", e: "dr-smith@demo.pro", p: "clinical456" },
-  { icon: BarChart3, t: "Management", e: "mgmt@demo.pro", p: "flow789" },
-  { icon: Stethoscope, t: "Super Admin", e: "root@demo.pro", p: "system000" },
-];
+  { icon: User, role: "patient", e: "p-user@demo.pro", p: "patient123" },
+  { icon: ShieldCheck, role: "doctor", e: "dr-smith@demo.pro", p: "clinical456" },
+  { icon: BarChart3, role: "management", e: "mgmt@demo.pro", p: "flow789" },
+  { icon: Stethoscope, role: "superAdmin", e: "root@demo.pro", p: "system000" },
+] as const;
 
 const AdCard = ({ ad }: { ad: SigninAd }) => {
   const image = mediaUrl(ad.image_url);
@@ -81,6 +83,7 @@ interface SignInFormValues {
 }
 
 const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
+  const t = useTranslations("auth.signIn");
   const left = ads.filter(a => a.side === "left");
   const right = ads.filter(a => a.side === "right");
 
@@ -145,7 +148,7 @@ const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
       setValue("password", "");
       const message =
         error.message === "Invalid login credentials"
-          ? "That email and password do not match an account."
+          ? t("badCredentials")
           : error.message;
       setGeneralError(message);
       toast.error(message);
@@ -159,7 +162,7 @@ const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
         ? (data.claims.user_role as AppRole)
         : null;
 
-    toast.success("Welcome back!", { description: "Redirecting to your portal..." });
+    toast.success(t("welcomeBack"), { description: t("redirecting") });
 
     // refresh() so server components re-render with the new session cookie.
     router.replace(destinationFor(role));
@@ -173,7 +176,7 @@ const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
 
   const onInvalid: SubmitErrorHandler<SignInFormValues> = () => {
     setGeneralError(null);
-    toast.error("Please complete all required fields correctly.");
+    toast.error(t("completeFields"));
   };
 
   /**
@@ -204,7 +207,7 @@ const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
           <div className="text-center">
             <img src={BRAND_INFO.logo} alt={`${BRAND_INFO.name} logo`} className="mx-auto h-24 w-24 object-contain" />
             <h1 className="mt-3 font-display text-3xl text-primary">{BRAND_INFO.name}</h1>
-            <p className="text-sm text-muted-foreground mt-1">Welcome back!</p>
+            <p className="text-sm text-muted-foreground mt-1">{t("welcomeBack")}</p>
           </div>
 
           {/* The same as on sign-up. Someone who signed up with Google signs
@@ -214,32 +217,32 @@ const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
 
           <div className="my-6 flex items-center gap-3">
             <hr className="flex-1 border-border/60" />
-            <p className="text-[10px] tracking-widest font-bold text-muted-foreground">OR SIGN IN WITH EMAIL</p>
+            <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("orEmail")}</p>
             <hr className="flex-1 border-border/60" />
           </div>
 
           <form data-testid="signin-form" onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-5" noValidate>
             <div>
-              <Label htmlFor="signin-email" className="text-[11px] tracking-widest font-bold text-primary" required>EMAIL / USER ID</Label>
+              <Label htmlFor="signin-email" className="text-[11px] tracking-widest font-bold text-primary" required>{t("emailLabel")}</Label>
               <input
                 id="signin-email"
                 data-testid="signin-email-input"
                 type="email"
-                placeholder="name@healthflow.pro or admin-riverside"
+                placeholder={t("emailPlaceholder")}
                 aria-invalid={Boolean(errors.email)}
                 aria-describedby={errors.email ? "signin-email-error" : undefined}
                 className="mt-2 w-full bg-muted/60 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary transition-all"
                 {...register("email", {
-                  required: "Email address is required.",
+                  required: t("emailRequired"),
                   validate: (value) => {
                     const trimmed = value.trim();
 
                     if (!trimmed) {
-                      return "Email address is required.";
+                      return t("emailRequired");
                     }
 
                     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                    return emailPattern.test(trimmed) || "Please enter a valid email address.";
+                    return emailPattern.test(trimmed) || t("emailInvalid");
                   },
                 })}
               />
@@ -250,7 +253,7 @@ const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
               ) : null}
             </div>
             <div>
-              <Label htmlFor="signin-password" className="text-[11px] tracking-widest font-bold text-primary" required>PASSWORD</Label>
+              <Label htmlFor="signin-password" className="text-[11px] tracking-widest font-bold text-primary" required>{t("passwordLabel")}</Label>
               <div className="relative mt-2">
                 <input
                   id="signin-password"
@@ -261,14 +264,14 @@ const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
                   aria-describedby={errors.password ? "signin-password-error" : undefined}
                   className="w-full bg-muted/60 rounded-xl px-4 py-3 pr-10 text-sm outline-none focus:ring-2 focus:ring-primary transition-all"
                   {...register("password", {
-                    required: "Password is required.",
+                    required: t("passwordRequired"),
                     minLength: {
                       value: 8,
-                      message: "Password must be at least 8 characters.",
+                      message: t("passwordMin"),
                     },
                     maxLength: {
                       value: 128,
-                      message: "Password must be 128 characters or fewer.",
+                      message: t("passwordMax"),
                     },
                   })}
                 />
@@ -277,7 +280,7 @@ const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
                   data-testid="signin-password-toggle"
                   onClick={() => setShowPassword((current) => !current)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-label={showPassword ? t("hidePassword") : t("showPassword")}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -295,9 +298,9 @@ const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
             ) : null}
             <div className="flex items-center justify-between text-xs">
               <label className="flex items-center gap-2 text-foreground/70 cursor-pointer">
-                <input type="checkbox" className="rounded border-border" /> Remember me
+                <input type="checkbox" className="rounded border-border" /> {t("rememberMe")}
               </label>
-              <Link href="/forgot-password" className="font-semibold text-primary-glow hover:underline">Forgot password?</Link>
+              <Link href="/forgot-password" className="font-semibold text-primary-glow hover:underline">{t("forgot")}</Link>
             </div>
             <button
               type="submit"
@@ -307,28 +310,28 @@ const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
             >
               {isLoading ? (
                 <span data-testid="signin-loading" className="inline-flex items-center justify-center">
-                  Signing in...
+                  {t("signingIn")}
                 </span>
               ) : (
-                "Sign In"
+                t("submit")
               )}
             </button>
-            <p className="text-center text-xs text-muted-foreground">Don&apos;t have an account? <Link href="/signup" className="font-semibold text-primary-glow hover:underline">Create One</Link></p>
+            <p className="text-center text-xs text-muted-foreground">{t("noAccount")} <Link href="/signup" className="font-semibold text-primary-glow hover:underline">{t("createOne")}</Link></p>
           </form>
 
           <div className="mt-10 pt-6 border-t border-border/60">
-            <p className="text-center text-[10px] tracking-widest font-bold text-muted-foreground">DEMO ACCESS</p>
+            <p className="text-center text-[10px] tracking-widest font-bold text-muted-foreground">{t("demoAccess")}</p>
             {/* Always two columns. sm:grid-cols-4 fired on viewport width, but
                 this card is a fixed 520px at every breakpoint, so four cards
                 got ~80px each and the emails truncated. */}
             <div className="grid grid-cols-2 gap-2.5 mt-4">
               {demos.map(d => (
-                <button key={d.t} type="button" onClick={() => fillDemo(d.e, d.p)}
+                <button key={d.role} type="button" onClick={() => fillDemo(d.e, d.p)}
                   className="text-left rounded-xl bg-muted/40 hover:bg-chip transition-colors p-3 border border-border/40">
                   <d.icon className="h-3.5 w-3.5 text-primary" />
-                  <p className="text-xs font-semibold text-primary mt-2">{d.t}</p>
+                  <p className="text-xs font-semibold text-primary mt-2">{t(`demoRoles.${d.role}`)}</p>
                   <p className="text-[10px] text-muted-foreground mt-1 truncate">{d.e}</p>
-                  <p className="text-[10px] text-muted-foreground font-mono">pass: {d.p}</p>
+                  <p className="text-[10px] text-muted-foreground font-mono">{t("demoPass", { password: d.p })}</p>
                 </button>
               ))}
             </div>

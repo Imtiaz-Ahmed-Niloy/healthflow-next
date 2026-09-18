@@ -11,6 +11,7 @@ import {
   ChevronDown, Stethoscope, Users, Tags,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { NotificationProvider, useNotifications } from "@/components/admin/NotificationProvider";
 import { CommandPalette } from "@/components/admin/CommandPalette";
 import { Drawer } from "@/components/admin/crud";
@@ -20,51 +21,54 @@ import LanguageSwitcher from "@/components/site/LanguageSwitcher";
 import { HeaderClock } from "@/components/common/HeaderClock";
 import { useSession, displayName } from "@/lib/auth/useSession";
 import { Avatar } from "@/components/common/Avatar";
-import { roleLabel } from "@/lib/auth/permissions";
+import { useRoleLabel } from "@/i18n/useRoleLabel";
 import { BRAND_INFO } from "@/constants/brand";
 
+/**
+ * The super admin menu. `key` names the label in the "superNav" messages and
+ * `group` names its heading there.
+ */
 export const superNav = [
-  { to: "/super/dashboard", icon: LayoutDashboard, label: "Dashboard", group: "Overview" },
+  { to: "/super/dashboard", icon: LayoutDashboard, key: "dashboard", group: "overview" },
   // No separate onboarding queue: Hospital Management lists every hospital and
   // `pending` is the queue. /super/onboarding redirects there.
-  { to: "/super/hospitals", icon: Building2, label: "Hospital Management", group: "Tenants" },
-  { to: "/super/roles", icon: ShieldCheck, label: "User Role Management", group: "Tenants" },
-  { to: "/super/package-management", icon: Package, label: "Package Management", group: "Tenants" },
+  { to: "/super/hospitals", icon: Building2, key: "hospitals", group: "tenants" },
+  { to: "/super/roles", icon: ShieldCheck, key: "roles", group: "tenants" },
+  { to: "/super/package-management", icon: Package, key: "packages", group: "tenants" },
   // People, not hospital rows: one entry per doctor or patient however many
   // hospitals they're at (0077) — so they sit in their own group, not Tenants.
-  { to: "/super/doctors", icon: Stethoscope, label: "Doctor Management", group: "People" },
-  { to: "/super/specialties", icon: Tags, label: "Specialties", group: "People" },
-  { to: "/super/patients", icon: Users, label: "Patient Management", group: "People" },
-  { to: "/super/logs", icon: FileBarChart, label: "Log Reports", group: "Monitoring" },
-  { to: "/super/verification", icon: BadgeCheck, label: "Patient Verification", group: "Monitoring" },
-  
-  { to: "/super/whitelisting", icon: ListChecks, label: "Whitelisting", group: "Monitoring" },
-  
-  { to: "/super/billing", icon: Receipt, label: "Billing", group: "Commerce" },
-  { to: "/super/cms", icon: FileCode2, label: "CMS Management", group: "Content" },
-  { to: "/super/announcements", icon: Megaphone, label: "Announcements", group: "Content" },
-  { to: "/super/ads", icon: ImageIcon, label: "Advertisements", group: "Content" },
-  { to: "/super/contact-messages", icon: Mail, label: "Contact Messages", group: "Content" },
-  { to: "/super/tickets", icon: LifeBuoy, label: "Support Tickets", group: "System" },
-  { to: "/super/integrations", icon: Network, label: "Integrations", group: "System" },
-  { to: "/super/global-settings", icon: Globe2, label: "Global Settings", group: "System" },
-  { to: "/super/settings", icon: Settings, label: "Preferences", group: "System" },
-];
+  { to: "/super/doctors", icon: Stethoscope, key: "doctors", group: "people" },
+  { to: "/super/specialties", icon: Tags, key: "specialties", group: "people" },
+  { to: "/super/patients", icon: Users, key: "patients", group: "people" },
+  { to: "/super/logs", icon: FileBarChart, key: "logs", group: "monitoring" },
+  { to: "/super/verification", icon: BadgeCheck, key: "verification", group: "monitoring" },
+  { to: "/super/whitelisting", icon: ListChecks, key: "whitelisting", group: "monitoring" },
+  { to: "/super/billing", icon: Receipt, key: "billing", group: "commerce" },
+  { to: "/super/cms", icon: FileCode2, key: "cms", group: "content" },
+  { to: "/super/announcements", icon: Megaphone, key: "announcements", group: "content" },
+  { to: "/super/ads", icon: ImageIcon, key: "ads", group: "content" },
+  { to: "/super/contact-messages", icon: Mail, key: "contactMessages", group: "content" },
+  { to: "/super/tickets", icon: LifeBuoy, key: "tickets", group: "system" },
+  { to: "/super/integrations", icon: Network, key: "integrations", group: "system" },
+  { to: "/super/global-settings", icon: Globe2, key: "globalSettings", group: "system" },
+  { to: "/super/settings", icon: Settings, key: "preferences", group: "system" },
+] as const;
 
-const grouped = superNav.reduce<Record<string, typeof superNav>>((a, i) => {
+const grouped = superNav.reduce<Record<string, (typeof superNav)[number][]>>((a, i) => {
   (a[i.group] ||= []).push(i); return a;
 }, {});
 
 const CMS_SUBLINKS = [
-  { to: "/super/cms/home", label: "Home" },
-  { to: "/super/cms/features", label: "Features" },
-  { to: "/super/cms/pricing", label: "Pricing" },
-  { to: "/super/cms/about", label: "About Us" },
-  { to: "/super/cms/contact", label: "Contact" },
-  { to: "/super/cms/blog", label: "Blog" },
-];
+  { to: "/super/cms/home", key: "home" },
+  { to: "/super/cms/features", key: "features" },
+  { to: "/super/cms/pricing", key: "pricing" },
+  { to: "/super/cms/about", key: "about" },
+  { to: "/super/cms/contact", key: "contact" },
+  { to: "/super/cms/blog", key: "blog" },
+] as const;
 
 export const SuperSidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
+  const t = useTranslations("superNav");
   const pathname = usePathname();
   const cmsActive = Boolean(pathname?.startsWith("/super/cms"));
   const [cmsOpen, setCmsOpen] = useState(cmsActive);
@@ -76,13 +80,15 @@ export const SuperSidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
       <img src={BRAND_INFO.logo} alt={`${BRAND_INFO.name} logo`} className="h-12 w-12 object-contain" />
       <div>
         <div className="font-display text-xl text-primary font-bold">{BRAND_INFO.name}</div>
-        <p className="text-[10px] tracking-widest font-semibold text-primary-glow mt-0.5">SUPER ADMIN</p>
+        <p className="text-[10px] tracking-widest font-semibold text-primary-glow mt-0.5">{t("panel")}</p>
       </div>
     </Link>
     <nav className="mt-8 px-3 flex-1 flex flex-col gap-4 overflow-y-auto">
       {Object.entries(grouped).map(([g, items]) => (
         <div key={g}>
-          <p className="px-3 mb-1.5 text-[10px] tracking-widest font-bold text-muted-foreground/70">{g.toUpperCase()}</p>
+          <p className="px-3 mb-1.5 text-[10px] tracking-widest font-bold text-muted-foreground/70">
+            {t(`groups.${g as (typeof superNav)[number]["group"]}`).toUpperCase()}
+          </p>
           <div className="flex flex-col gap-0.5">
             {items.map(l => {
               if (l.to === "/super/cms") {
@@ -96,7 +102,7 @@ export const SuperSidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
                       }`}
                     >
                       <l.icon className="h-4 w-4 shrink-0" />
-                      <span className="truncate flex-1 text-left">{l.label}</span>
+                      <span className="truncate flex-1 text-left">{t(`links.${l.key}`)}</span>
                       <ChevronDown className={`h-3.5 w-3.5 transition-transform ${cmsOpen ? "rotate-180" : ""}`} />
                     </button>
                     {cmsOpen && (
@@ -111,7 +117,7 @@ export const SuperSidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
                             }`
                           }
                         >
-                          Overview
+                          {t("cmsOverview")}
                         </NavLink>
                         {CMS_SUBLINKS.map(s => (
                           <NavLink key={s.to} to={s.to} onClick={onNavigate}
@@ -120,7 +126,7 @@ export const SuperSidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
                                 isActive ? "bg-card text-primary" : "text-foreground/60 hover:text-primary hover:bg-card/40"
                               }`
                             }>
-                            {s.label}
+                            {t(`cms.${s.key}`)}
                           </NavLink>
                         ))}
                       </div>
@@ -135,7 +141,7 @@ export const SuperSidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
                       isActive ? "bg-card text-primary shadow-soft" : "text-foreground/70 hover:bg-card/60"
                     }`
                   }>
-                  <l.icon className="h-4 w-4 shrink-0" /> <span className="truncate">{l.label}</span>
+                  <l.icon className="h-4 w-4 shrink-0" /> <span className="truncate">{t(`links.${l.key}`)}</span>
                 </NavLink>
               );
             })}
@@ -149,6 +155,9 @@ export const SuperSidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
 };
 
 const TopbarInner = ({ title, subtitle, onMenu, menuOpen }: { title: string; subtitle?: string; onMenu: () => void; menuOpen: boolean }) => {
+  const tc = useTranslations("common");
+  const tn = useTranslations("adminNav");
+  const roleLabel = useRoleLabel();
   const router = useRouter();
   const { user, signOut } = useSession();
   const { items, unread, markAllRead } = useNotifications();
@@ -175,7 +184,7 @@ const TopbarInner = ({ title, subtitle, onMenu, menuOpen }: { title: string; sub
           <div className="flex items-center gap-3 lg:gap-5">
             <HeaderClock />
             <LanguageSwitcher compact />
-            <button onClick={() => setDrawer(true)} className="relative text-foreground/70 hover:text-primary">
+            <button onClick={() => setDrawer(true)} aria-label={tc("notifications")} className="relative text-foreground/70 hover:text-primary">
               <Bell className="h-5 w-5" />
               {unread > 0 && <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold grid place-items-center">{unread}</span>}
             </button>
@@ -187,20 +196,20 @@ const TopbarInner = ({ title, subtitle, onMenu, menuOpen }: { title: string; sub
               {/* Initials until there is a picture — Avatar decides. */}
               <Avatar src={user?.avatarUrl} name={displayName(user)} />
             </div>
-            <button onClick={async () => { await signOut(); toast.success("Signed out"); router.replace("/signin"); router.refresh(); }}
+            <button onClick={async () => { await signOut(); toast.success(tc("signedOut")); router.replace("/signin"); router.refresh(); }}
               className="hidden md:flex items-center gap-2 text-sm font-semibold text-foreground/70 hover:text-destructive">
-              <LogOut className="h-4 w-4" /> Sign Out
+              <LogOut className="h-4 w-4" /> {tc("signOut")}
             </button>
           </div>
         </div>
       </header>
       <CommandPalette open={palette} onClose={() => setPalette(false)} scope="super" />
-      <Drawer open={drawer} onClose={() => setDrawer(false)} title="Notifications">
+      <Drawer open={drawer} onClose={() => setDrawer(false)} title={tc("notifications")}>
         <div className="flex justify-end mb-3">
-          <button onClick={markAllRead} className="text-xs font-semibold text-primary hover:underline">Mark all as read</button>
+          <button onClick={markAllRead} className="text-xs font-semibold text-primary hover:underline">{tn("markAllRead")}</button>
         </div>
         <ul className="space-y-2">
-          {items.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No notifications</p>}
+          {items.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">{tn("none")}</p>}
           {items.map(n => (
             <li key={n.id} className={`rounded-xl p-3 ${n.read ? "bg-muted/30" : "bg-card border border-border/60"}`}>
               <div className="flex items-start justify-between gap-2">

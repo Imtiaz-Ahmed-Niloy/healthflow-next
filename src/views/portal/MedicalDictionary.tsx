@@ -3,7 +3,14 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Book, ChevronRight, Stethoscope } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { PortalLayout } from "@/components/portal/PortalLayout";
+
+/**
+ * The glossary's own entries stay in English: they are medical reference
+ * terms, the way a doctor reads them on a chart. The page around them speaks
+ * the reader's language.
+ */
 
 interface Term {
   id: string;
@@ -217,6 +224,7 @@ const defaultTerms: Term[] = [
 const categories = Array.from(new Set(defaultTerms.map((t) => t.category)));
 
 export default function MedicalDictionary() {
+  const t = useTranslations("portal.dictionary");
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -253,12 +261,10 @@ export default function MedicalDictionary() {
           <div className="flex items-center gap-3 mb-2">
             <Book className="h-6 w-6 text-primary" />
             <h1 className="font-display text-3xl text-primary font-bold">
-              Medical Dictionary
+              {t("title")}
             </h1>
           </div>
-          <p className="text-muted-foreground">
-            Search and reference essential medical terms, conditions, and procedures.
-          </p>
+          <p className="text-muted-foreground">{t("subtitle")}</p>
         </motion.div>
 
         {/* Search & Filter */}
@@ -272,7 +278,8 @@ export default function MedicalDictionary() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Search medical terms, definitions..."
+              placeholder={t("searchPlaceholder")}
+              aria-label={t("searchLabel")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border/60 bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
@@ -287,7 +294,7 @@ export default function MedicalDictionary() {
                   : "bg-card border border-border/60 text-foreground/70 hover:bg-card/80"
               }`}
             >
-              All ({totalCount})
+              {t("all", { count: totalCount })}
             </button>
             {categories.map((cat) => (
               <button
@@ -357,7 +364,7 @@ export default function MedicalDictionary() {
                       >
                         <div className="px-5 pb-5 pt-1 space-y-3">
                           <div>
-                            <p className="text-sm font-semibold text-foreground mb-1">Definition</p>
+                            <p className="text-sm font-semibold text-foreground mb-1">{t("definition")}</p>
                             <p className="text-sm text-muted-foreground leading-relaxed">
                               {term.definition}
                             </p>
@@ -365,7 +372,7 @@ export default function MedicalDictionary() {
 
                           {term.symptoms && (
                             <div>
-                              <p className="text-sm font-semibold text-foreground mb-1">Symptoms</p>
+                              <p className="text-sm font-semibold text-foreground mb-1">{t("symptoms")}</p>
                               <p className="text-sm text-muted-foreground leading-relaxed">
                                 {term.symptoms}
                               </p>
@@ -374,7 +381,7 @@ export default function MedicalDictionary() {
 
                           {term.diagnosis && (
                             <div>
-                              <p className="text-sm font-semibold text-foreground mb-1">Diagnosis</p>
+                              <p className="text-sm font-semibold text-foreground mb-1">{t("diagnosis")}</p>
                               <p className="text-sm text-muted-foreground leading-relaxed">
                                 {term.diagnosis}
                               </p>
@@ -383,7 +390,7 @@ export default function MedicalDictionary() {
 
                           {term.treatment && (
                             <div>
-                              <p className="text-sm font-semibold text-foreground mb-1">Treatment</p>
+                              <p className="text-sm font-semibold text-foreground mb-1">{t("treatment")}</p>
                               <p className="text-sm text-muted-foreground leading-relaxed">
                                 {term.treatment}
                               </p>
@@ -406,12 +413,8 @@ export default function MedicalDictionary() {
             className="text-center py-16"
           >
             <Search className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-            <p className="text-muted-foreground font-medium">
-              No medical terms found matching your search.
-            </p>
-            <p className="text-sm text-muted-foreground/70 mt-1">
-              Try a different keyword or category.
-            </p>
+            <p className="text-muted-foreground font-medium">{t("none")}</p>
+            <p className="text-sm text-muted-foreground/70 mt-1">{t("noneHint")}</p>
           </motion.div>
         )}
       </div>

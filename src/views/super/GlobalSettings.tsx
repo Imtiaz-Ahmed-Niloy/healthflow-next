@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { AlertCircle, Loader2, RotateCcw, Save, Wrench } from "lucide-react";
 import { SuperLayout } from "@/components/super/SuperLayout";
@@ -13,8 +14,8 @@ import {
   type GlobalSettingsRow,
 } from "@/redux/api/superApi";
 import {
-  TIMEZONES, TIMEZONE_LABELS, DATE_FORMATS, TIME_FORMATS, TIME_FORMAT_LABELS,
-  CURRENCIES, CURRENCY_LABELS, LANGUAGES, LANGUAGE_LABELS,
+  TIMEZONES, TIMEZONE_LABELS, DATE_FORMATS, TIME_FORMATS,
+  CURRENCIES, LANGUAGES, LANGUAGE_LABELS,
 } from "@/lib/globalSettings";
 import { formatCurrency, formatDate, formatTime, useAppSettings } from "@/lib/appSettings";
 
@@ -75,6 +76,8 @@ const Select = ({
 );
 
 const GlobalSettings = () => {
+  const t = useTranslations("super.globalSettings");
+  const tc = useTranslations("common");
   const { data, isLoading, error } = useGetGlobalSettingsQuery();
   const [save, { isLoading: saving }] = useUpdateGlobalSettingsMutation();
 
@@ -133,19 +136,17 @@ const GlobalSettings = () => {
 
     try {
       await save(patch).unwrap();
-      toast.success("Settings saved", {
-        description: "Everyone who has not set their own now follows these.",
-      });
+      toast.success(t("saved"), { description: t("savedBody") });
     } catch (cause) {
       const message =
         (cause as { data?: { error?: { message?: string } } })?.data?.error?.message
-        ?? "Please try again.";
-      toast.error("Could not save settings", { description: message });
+        ?? t("tryAgain");
+      toast.error(t("saveFailed"), { description: message });
     }
   };
 
   return (
-    <SuperLayout title="Global Settings" subtitle="Platform-wide defaults">
+    <SuperLayout title={t("title")} subtitle={t("subtitle")}>
       {isLoading || !draft ? (
         <div className="grid lg:grid-cols-2 gap-4" aria-busy="true">
           {Array.from({ length: 2 }).map((_, index) => (
@@ -155,16 +156,16 @@ const GlobalSettings = () => {
       ) : error ? (
         <div className="flex items-center gap-3 rounded-2xl bg-destructive/10 text-destructive p-4">
           <AlertCircle className="h-5 w-5 shrink-0" />
-          <p className="text-sm font-semibold">Could not load settings. Refresh to try again.</p>
+          <p className="text-sm font-semibold">{t("loadFailed")}</p>
         </div>
       ) : (
         <>
           <div className="grid lg:grid-cols-2 gap-4">
             <Card className="p-5">
-              <SectionTitle title="Regional defaults" />
+              <SectionTitle title={t("regional")} />
               <div className="grid sm:grid-cols-2 gap-4">
                 <Select
-                  id="gs-timezone" label="Timezone" value={draft.timezone}
+                  id="gs-timezone" label={t("fields.timezone")} value={draft.timezone}
                   onChange={(v) => setDraft({ ...draft, timezone: v })}
                 >
                   {TIMEZONES.map((zone) => (
@@ -173,16 +174,16 @@ const GlobalSettings = () => {
                 </Select>
 
                 <Select
-                  id="gs-currency" label="Currency" value={draft.currency}
+                  id="gs-currency" label={t("fields.currency")} value={draft.currency}
                   onChange={(v) => setDraft({ ...draft, currency: v })}
                 >
                   {CURRENCIES.map((code) => (
-                    <option key={code} value={code}>{CURRENCY_LABELS[code]}</option>
+                    <option key={code} value={code}>{t(`currencies.${code}`)}</option>
                   ))}
                 </Select>
 
                 <Select
-                  id="gs-date" label="Date format" value={draft.date_format}
+                  id="gs-date" label={t("fields.dateFormat")} value={draft.date_format}
                   onChange={(v) => setDraft({ ...draft, date_format: v })}
                 >
                   {DATE_FORMATS.map((format) => (
@@ -199,18 +200,18 @@ const GlobalSettings = () => {
                 </Select>
 
                 <Select
-                  id="gs-time" label="Clock format" value={draft.time_format}
+                  id="gs-time" label={t("fields.clock")} value={draft.time_format}
                   onChange={(v) => setDraft({ ...draft, time_format: v })}
                 >
                   {TIME_FORMATS.map((format) => (
-                    <option key={format} value={format}>{TIME_FORMAT_LABELS[format]}</option>
+                    <option key={format} value={format}>{t(`timeFormats.${format}`)}</option>
                   ))}
                 </Select>
 
                 <Select
-                  id="gs-language" label="Language" value={draft.language}
+                  id="gs-language" label={t("fields.language")} value={draft.language}
                   onChange={(v) => setDraft({ ...draft, language: v })}
-                  hint="Applies to the panels; hospital content is written in whatever language its author used."
+                  hint={t("fields.languageHint")}
                 >
                   {LANGUAGES.map((code) => (
                     <option key={code} value={code}>{LANGUAGE_LABELS[code]}</option>
@@ -218,7 +219,7 @@ const GlobalSettings = () => {
                 </Select>
 
                 <div>
-                  <Label htmlFor="gs-support">Support email</Label>
+                  <Label htmlFor="gs-support">{t("fields.supportEmail")}</Label>
                   <input
                     id="gs-support"
                     type="email"
@@ -227,28 +228,26 @@ const GlobalSettings = () => {
                     placeholder="care@healthflowbd.com"
                     className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Shown on the maintenance notice. Leave it empty rather than wrong.
-                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">{t("fields.supportHint")}</p>
                 </div>
               </div>
 
               {preview && (
                 <div className="mt-5 rounded-xl bg-muted/40 p-4">
-                  <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-2">
-                    HOW THAT READS
+                  <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-2 uppercase">
+                    {t("preview.title")}
                   </p>
                   <div className="grid sm:grid-cols-3 gap-3 text-sm">
                     <div>
-                      <p className="text-xs text-muted-foreground">Date</p>
+                      <p className="text-xs text-muted-foreground">{t("preview.date")}</p>
                       <p className="font-semibold text-primary">{preview.date}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Time now</p>
+                      <p className="text-xs text-muted-foreground">{t("preview.time")}</p>
                       <p className="font-semibold text-primary tabular-nums">{preview.time}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Amount</p>
+                      <p className="text-xs text-muted-foreground">{t("preview.amount")}</p>
                       <p className="font-semibold text-primary tabular-nums">{preview.money}</p>
                     </div>
                   </div>
@@ -257,7 +256,7 @@ const GlobalSettings = () => {
             </Card>
 
             <Card className="p-5">
-              <SectionTitle title="Maintenance notice" />
+              <SectionTitle title={t("maintenance.title")} />
 
               <label className="flex items-start gap-3 rounded-xl bg-muted/40 p-4 cursor-pointer">
                 <input
@@ -268,29 +267,25 @@ const GlobalSettings = () => {
                 />
                 <span>
                   <span className="flex items-center gap-1.5 font-semibold text-primary text-sm">
-                    <Wrench className="h-3.5 w-3.5" /> Show the maintenance banner
+                    <Wrench className="h-3.5 w-3.5" /> {t("maintenance.toggle")}
                   </span>
-                  <span className="block text-xs text-muted-foreground mt-1">
-                    A yellow strip at the top of every panel and of the public site, for
-                    everyone signed in or not.
-                  </span>
+                  <span className="block text-xs text-muted-foreground mt-1">{t("maintenance.toggleHint")}</span>
                 </span>
               </label>
 
               <div className="mt-4">
-                <Label htmlFor="gs-maintenance-message">What it says</Label>
+                <Label htmlFor="gs-maintenance-message">{t("maintenance.message")}</Label>
                 <textarea
                   id="gs-maintenance-message"
                   rows={4}
                   maxLength={500}
                   value={draft.maintenance_message}
                   onChange={(e) => setDraft({ ...draft, maintenance_message: e.target.value })}
-                  placeholder="Payroll exports are paused until 9pm while we move the reporting database."
+                  placeholder={t("maintenance.placeholder")}
                   className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {draft.maintenance_message.length}/500. Empty falls back to a general notice —
-                  say what is affected and until when if you can.
+                  {t("maintenance.count", { count: draft.maintenance_message.length })}
                 </p>
               </div>
 
@@ -301,30 +296,23 @@ const GlobalSettings = () => {
               */}
               <div className="mt-4 flex items-start gap-3 rounded-xl bg-yellow-100/60 text-yellow-900 p-3 text-xs">
                 <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                <p>
-                  This is a notice, not a lock. Everyone can still sign in and every screen
-                  still works — the banner only tells them something is going on.
-                </p>
+                <p>{t("maintenance.notLock")}</p>
               </div>
             </Card>
           </div>
 
           <Card className="p-5 mt-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs text-muted-foreground max-w-xl">
-                These are defaults. Anyone who has set their own timezone, language, date
-                format or currency under Settings keeps theirs — changing these moves
-                everyone who never picked, which is nearly everyone.
-              </p>
+              <p className="text-xs text-muted-foreground max-w-xl">{t("defaultsNote")}</p>
               <div className="flex items-center gap-2">
                 {dirty && (
                   <Btn variant="outline" onClick={() => row && setDraft(toDraft(row))}>
-                    <RotateCcw className="h-4 w-4" /> Discard
+                    <RotateCcw className="h-4 w-4" /> {t("discard")}
                   </Btn>
                 )}
                 <Btn onClick={() => void submit()} disabled={!dirty || saving}>
                   {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  {saving ? "Saving…" : dirty ? "Save changes" : "Saved"}
+                  {saving ? tc("saving") : dirty ? t("saveChanges") : t("savedState")}
                 </Btn>
               </div>
             </div>

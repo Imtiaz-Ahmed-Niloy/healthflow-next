@@ -11,89 +11,103 @@ import {
   Truck, UserPlus, CalendarDays, BellRing, BookOpen, Calculator,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { NotificationProvider, useNotifications } from "./NotificationProvider";
 import { CommandPalette } from "./CommandPalette";
 import { Drawer } from "./crud";
 import { Pill as Badge } from "./ui";
 import { useSession, displayName } from "@/lib/auth/useSession";
 import { Avatar } from "@/components/common/Avatar";
-import { roleLabel } from "@/lib/auth/permissions";
+import { useRoleLabel } from "@/i18n/useRoleLabel";
 import { formatDistanceToNow } from "date-fns";
 import LanguageSwitcher from "@/components/site/LanguageSwitcher";
 import { HeaderClock } from "@/components/common/HeaderClock";
 import { BRAND_INFO } from "@/constants/brand";
 
+/**
+ * The admin menu. `key` names the label in the "adminNav" messages and
+ * `group` names its heading there, so the menu reads in the admin's own
+ * language and the command palette can search the same words.
+ */
 export const adminNav = [
-  { to: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard", group: "Overview" },
-  { to: "/admin/doctors", icon: Stethoscope, label: "Doctors", group: "Clinical" },
-  { to: "/admin/doctor-assistants", icon: UserCog, label: "Doctor Assistants", group: "Clinical" },
-  { to: "/admin/nurses", icon: HeartPulse, label: "Nurses", group: "Clinical" },
-  { to: "/admin/support-staff", icon: Wrench, label: "Support Staff", group: "Clinical" },
-  { to: "/admin/patients", icon: UserPlus, label: "Patients", group: "Clinical" },
-  { to: "/admin/appointments", icon: CalendarDays, label: "Appointments", group: "Clinical" },
-  { to: "/admin/wards", icon: BedDouble, label: "Wards & Beds", group: "Operations" },
-  { to: "/admin/admissions", icon: UserPlus, label: "Admissions", group: "Operations" },
-  { to: "/admin/lab", icon: FlaskConical, label: "Laboratory", group: "Operations" },
-  { to: "/admin/pharmacy", icon: Pill, label: "Pharmacy", group: "Operations" },
-  { to: "/admin/hospital-profile", icon: Building2, label: "Hospital Profile", group: "Operations" },
-  { to: "/admin/hr", icon: Users2, label: "HR Dashboard", group: "HR & Administration" },
-  { to: "/admin/onboarding", icon: UserPlus, label: "Employees", group: "HR & Administration" },
-  { to: "/admin/personal-files", icon: FolderLock, label: "Personal Files", group: "HR & Administration" },
-  { to: "/admin/attendance", icon: CalendarCheck2, label: "Attendance & Leave", group: "HR & Administration" },
-  { to: "/admin/accounts", icon: BookOpen, label: "Accounts (Tally)", group: "Accounts & Finance" },
-  { to: "/admin/finance", icon: Calculator, label: "Invoices & AR/AP", group: "Accounts & Finance" },
-  { to: "/admin/payroll", icon: Wallet, label: "Payroll", group: "HR & Administration" },
-  { to: "/admin/reports", icon: FileBarChart, label: "Financial Reports", group: "Accounts & Finance" },
-  { to: "/admin/assets", icon: Boxes, label: "Assets", group: "Business" },
-  { to: "/admin/procurement", icon: ClipboardList, label: "Procurement", group: "Business" },
-  { to: "/admin/vendors", icon: Truck, label: "Vendors", group: "Business" },
-  { to: "/admin/reports", icon: FileBarChart, label: "Reports", group: "Business" },
-  { to: "/admin/notifications", icon: BellRing, label: "Notifications", group: "System" },
-  { to: "/admin/administration", icon: ShieldCheck, label: "Administration", group: "System" },
-  { to: "/admin/settings", icon: Settings, label: "Settings", group: "System" },
-];
+  { to: "/admin/dashboard", icon: LayoutDashboard, key: "dashboard", group: "overview" },
+  { to: "/admin/doctors", icon: Stethoscope, key: "doctors", group: "clinical" },
+  { to: "/admin/doctor-assistants", icon: UserCog, key: "doctorAssistants", group: "clinical" },
+  { to: "/admin/nurses", icon: HeartPulse, key: "nurses", group: "clinical" },
+  { to: "/admin/support-staff", icon: Wrench, key: "supportStaff", group: "clinical" },
+  { to: "/admin/patients", icon: UserPlus, key: "patients", group: "clinical" },
+  { to: "/admin/appointments", icon: CalendarDays, key: "appointments", group: "clinical" },
+  { to: "/admin/wards", icon: BedDouble, key: "wards", group: "operations" },
+  { to: "/admin/admissions", icon: UserPlus, key: "admissions", group: "operations" },
+  { to: "/admin/lab", icon: FlaskConical, key: "lab", group: "operations" },
+  { to: "/admin/pharmacy", icon: Pill, key: "pharmacy", group: "operations" },
+  { to: "/admin/hospital-profile", icon: Building2, key: "hospitalProfile", group: "operations" },
+  { to: "/admin/hr", icon: Users2, key: "hr", group: "hr" },
+  { to: "/admin/onboarding", icon: UserPlus, key: "employees", group: "hr" },
+  { to: "/admin/personal-files", icon: FolderLock, key: "personalFiles", group: "hr" },
+  { to: "/admin/attendance", icon: CalendarCheck2, key: "attendance", group: "hr" },
+  { to: "/admin/accounts", icon: BookOpen, key: "accounts", group: "finance" },
+  { to: "/admin/finance", icon: Calculator, key: "finance", group: "finance" },
+  { to: "/admin/payroll", icon: Wallet, key: "payroll", group: "hr" },
+  { to: "/admin/reports", icon: FileBarChart, key: "financialReports", group: "finance" },
+  { to: "/admin/assets", icon: Boxes, key: "assets", group: "business" },
+  { to: "/admin/procurement", icon: ClipboardList, key: "procurement", group: "business" },
+  { to: "/admin/vendors", icon: Truck, key: "vendors", group: "business" },
+  { to: "/admin/reports", icon: FileBarChart, key: "reports", group: "business" },
+  { to: "/admin/notifications", icon: BellRing, key: "notifications", group: "system" },
+  { to: "/admin/administration", icon: ShieldCheck, key: "administration", group: "system" },
+  { to: "/admin/settings", icon: Settings, key: "settings", group: "system" },
+] as const;
 
-const groupedNav = adminNav.reduce<Record<string, typeof adminNav>>((acc, item) => {
+const groupedNav = adminNav.reduce<Record<string, (typeof adminNav)[number][]>>((acc, item) => {
   (acc[item.group] ||= []).push(item);
   return acc;
 }, {});
 
-export const AdminSidebar = ({ onNavigate, hospital }: { onNavigate?: () => void; hospital?: string }) => (
-  <aside className="w-64 bg-chip/40 border-r border-border/50 flex flex-col py-6 sticky top-0 h-screen shrink-0 overflow-hidden">
-    <Link href="/" className="px-6 flex items-center gap-2">
-      <img src={BRAND_INFO.logo} alt={`${BRAND_INFO.name} logo`} className="h-12 w-12 object-contain" />
-      <div>
-      <div className="font-display text-xl text-primary font-bold">{BRAND_INFO.name}</div>
-      <p className="text-[10px] tracking-widest font-semibold text-primary-glow mt-0.5">HOSPITAL ADMIN</p>
-      {hospital && (
-        <p className="mt-3 text-[11px] font-bold text-primary truncate" title={hospital}>{hospital}</p>
-      )}
-      </div>
-    </Link>
-    <nav className="mt-8 px-3 flex-1 flex flex-col gap-4 overflow-y-auto">
-      {Object.entries(groupedNav).map(([group, items]) => (
-        <div key={group}>
-          <p className="px-3 mb-1.5 text-[10px] tracking-widest font-bold text-muted-foreground/70">{group.toUpperCase()}</p>
-          <div className="flex flex-col gap-0.5">
-            {items.map(l => (
-              <NavLink key={l.to} to={l.to} onClick={onNavigate}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
-                    isActive ? "bg-card text-primary shadow-soft" : "text-foreground/70 hover:bg-card/60"
-                  }`
-                }>
-                <l.icon className="h-4 w-4 shrink-0" /> <span className="truncate">{l.label}</span>
-              </NavLink>
-            ))}
-          </div>
+export const AdminSidebar = ({ onNavigate, hospital }: { onNavigate?: () => void; hospital?: string }) => {
+  const t = useTranslations("adminNav");
+  return (
+    <aside className="w-64 bg-chip/40 border-r border-border/50 flex flex-col py-6 sticky top-0 h-screen shrink-0 overflow-hidden">
+      <Link href="/" className="px-6 flex items-center gap-2">
+        <img src={BRAND_INFO.logo} alt={`${BRAND_INFO.name} logo`} className="h-12 w-12 object-contain" />
+        <div>
+        <div className="font-display text-xl text-primary font-bold">{BRAND_INFO.name}</div>
+        <p className="text-[10px] tracking-widest font-semibold text-primary-glow mt-0.5">{t("panel")}</p>
+        {hospital && (
+          <p className="mt-3 text-[11px] font-bold text-primary truncate" title={hospital}>{hospital}</p>
+        )}
         </div>
-      ))}
-    </nav>
-    <div className="px-6 pt-4 text-[10px] tracking-widest font-semibold text-muted-foreground">{BRAND_INFO.copyrightUppercase}</div>
-  </aside>
-);
+      </Link>
+      <nav className="mt-8 px-3 flex-1 flex flex-col gap-4 overflow-y-auto">
+        {Object.entries(groupedNav).map(([group, items]) => (
+          <div key={group}>
+            <p className="px-3 mb-1.5 text-[10px] tracking-widest font-bold text-muted-foreground/70">
+              {t(`groups.${group as (typeof adminNav)[number]["group"]}`).toUpperCase()}
+            </p>
+            <div className="flex flex-col gap-0.5">
+              {items.map(l => (
+                <NavLink key={l.to} to={l.to} onClick={onNavigate}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
+                      isActive ? "bg-card text-primary shadow-soft" : "text-foreground/70 hover:bg-card/60"
+                    }`
+                  }>
+                  <l.icon className="h-4 w-4 shrink-0" /> <span className="truncate">{t(`links.${l.key}`)}</span>
+                </NavLink>
+              ))}
+            </div>
+          </div>
+        ))}
+      </nav>
+      <div className="px-6 pt-4 text-[10px] tracking-widest font-semibold text-muted-foreground">{BRAND_INFO.copyrightUppercase}</div>
+    </aside>
+  );
+};
 
 const TopbarInner = ({ title, subtitle, onMenu, menuOpen, hospital }: { title: string; subtitle?: string; onMenu: () => void; menuOpen: boolean; hospital?: string }) => {
+  const tc = useTranslations("common");
+  const tn = useTranslations("adminNav");
+  const roleLabel = useRoleLabel();
   const router = useRouter();
   const { items, unread, markAllRead } = useNotifications();
   const [palette, setPalette] = useState(false);
@@ -143,7 +157,7 @@ const TopbarInner = ({ title, subtitle, onMenu, menuOpen, hospital }: { title: s
             {/* The role switcher that used to live here let anyone view the
                 panel as any role by writing to localStorage. Role now comes
                 from the signed-in user's verified token and cannot be picked. */}
-            <button onClick={() => setDrawer(true)} className="relative text-foreground/70 hover:text-primary">
+            <button onClick={() => setDrawer(true)} aria-label={tc("notifications")} className="relative text-foreground/70 hover:text-primary">
               <Bell className="h-5 w-5" />
               {unread > 0 && <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold grid place-items-center">{unread}</span>}
             </button>
@@ -159,20 +173,20 @@ const TopbarInner = ({ title, subtitle, onMenu, menuOpen, hospital }: { title: s
                 ? <Avatar src={hospitalLogo.src} name={hospitalLogo.name} className="h-10 w-10 object-contain bg-white border border-border/60 p-0.5" />
                 : <Avatar src={user?.avatarUrl} name={displayName(user)} />}
             </div>
-            <button onClick={async () => { await signOut(); toast.success("Signed out"); router.replace("/signin"); router.refresh(); }}
+            <button onClick={async () => { await signOut(); toast.success(tc("signedOut")); router.replace("/signin"); router.refresh(); }}
               className="hidden md:flex items-center gap-2 text-sm font-semibold text-foreground/70 hover:text-destructive">
-              <LogOut className="h-4 w-4" /> Sign Out
+              <LogOut className="h-4 w-4" /> {tc("signOut")}
             </button>
           </div>
         </div>
       </header>
       <CommandPalette open={palette} onClose={() => setPalette(false)} scope="admin" />
-      <Drawer open={drawer} onClose={() => setDrawer(false)} title="Notifications">
+      <Drawer open={drawer} onClose={() => setDrawer(false)} title={tc("notifications")}>
         <div className="flex justify-end mb-3">
-          <button onClick={markAllRead} className="text-xs font-semibold text-primary hover:underline">Mark all as read</button>
+          <button onClick={markAllRead} className="text-xs font-semibold text-primary hover:underline">{tn("markAllRead")}</button>
         </div>
         <ul className="space-y-2">
-          {items.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No notifications</p>}
+          {items.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">{tn("none")}</p>}
           {items.map(n => (
             <li key={n.id} className={`rounded-xl p-3 ${n.read ? "bg-muted/30" : "bg-card border border-border/60"}`}>
               <div className="flex items-start justify-between gap-2">
@@ -190,6 +204,7 @@ const TopbarInner = ({ title, subtitle, onMenu, menuOpen, hospital }: { title: s
 };
 
 export const AdminLayout = ({ children, title, subtitle }: { children: ReactNode; title: string; subtitle?: string }) => {
+  const t = useTranslations("adminNav");
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const { user, isLoading } = useSession();
@@ -199,10 +214,10 @@ export const AdminLayout = ({ children, title, subtitle }: { children: ReactNode
   // a session expires while the tab is open.
   useEffect(() => {
     if (!isLoading && !user) {
-      toast.error("Please sign in to access the hospital admin panel.");
+      toast.error(t("signInRequired"));
       router.replace("/signin");
     }
-  }, [isLoading, user, router]);
+  }, [isLoading, user, router, t]);
 
   if (isLoading || !user) return null;
 
