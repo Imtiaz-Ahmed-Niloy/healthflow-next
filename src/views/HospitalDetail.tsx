@@ -108,13 +108,16 @@ const HospitalDetail = () => {
             </Link>
             <div className="flex flex-col-reverse gap-6 md:flex-row md:items-end md:justify-between md:gap-10">
               <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-                <span className="inline-flex items-center rounded-full bg-accent/90 text-primary px-3 py-1 text-[11px] font-semibold">
-                  {hospital.tag.toUpperCase()}
-                </span>
-                <h1 className="font-display text-4xl md:text-6xl mt-4 max-w-3xl leading-tight">{hospital.name}</h1>
+                {/* Partner hospitals only; a pending one has no tag. */}
+                {hospital.tag && (
+                  <span className="mb-4 inline-flex items-center rounded-full bg-accent/90 text-primary px-3 py-1 text-[11px] font-semibold">
+                    {hospital.tag.toUpperCase()}
+                  </span>
+                )}
+                <h1 className="font-display text-4xl md:text-6xl max-w-3xl leading-tight">{hospital.name}</h1>
                 <div className="flex flex-wrap gap-5 mt-5 text-sm opacity-95">
                   <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" />{hospital.location}</span>
-                  <span className="inline-flex items-center gap-1.5"><Award className="h-4 w-4" />{hospital.cert}</span>
+                  {hospital.cert && <span className="inline-flex items-center gap-1.5"><Award className="h-4 w-4" />{hospital.cert}</span>}
                   <span className="inline-flex items-center gap-1.5"><Star className="h-4 w-4 fill-accent text-accent" />{hospital.rating} ({t("reviews", { count: hospital.reviews })})</span>
                   <span className="inline-flex items-center gap-1.5"><Calendar className="h-4 w-4" />{t("est", { year: hospital.founded })}</span>
                 </div>

@@ -33,9 +33,12 @@ export const HospitalCard = ({ h, i = 0 }: { h: Hospital; i?: number }) => {
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-primary/70 via-transparent" />
-        <span className="absolute top-3 left-3 inline-flex items-center rounded-full bg-accent/90 text-primary px-3 py-1 text-[11px] font-semibold">
-          {h.tag}
-        </span>
+        {/* Partner hospitals only; a pending one has no tag. */}
+        {h.tag && (
+          <span className="absolute top-3 left-3 inline-flex items-center rounded-full bg-accent/90 text-primary px-3 py-1 text-[11px] font-semibold">
+            {h.tag}
+          </span>
+        )}
         {h.rating > 0 && (
           <span className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-card/95 px-2.5 py-1 text-[11px] font-semibold text-primary">
             <Star className="h-3 w-3 fill-primary-glow text-primary-glow" /> {h.rating}
@@ -46,7 +49,7 @@ export const HospitalCard = ({ h, i = 0 }: { h: Hospital; i?: number }) => {
         <h3 className="font-display text-xl text-primary leading-tight">{h.name}</h3>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-muted-foreground">
           {h.location && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{h.location}</span>}
-          <span className="inline-flex items-center gap-1"><Award className="h-3 w-3" />{h.cert}</span>
+          {h.cert && <span className="inline-flex items-center gap-1"><Award className="h-3 w-3" />{h.cert}</span>}
         </div>
         {h.summary && <p className="text-sm text-foreground/75 mt-3 leading-relaxed line-clamp-3">{h.summary}</p>}
         {h.specialties.length > 0 && (

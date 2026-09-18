@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
-import { MapPin, Award, Star, Phone, ArrowLeft, Search, BedDouble, Stethoscope, SlidersHorizontal, X } from "lucide-react";
+import { MapPin, Award, Star, ArrowLeft, Search, BedDouble, Stethoscope, SlidersHorizontal, X, MessageSquareText } from "lucide-react";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import { useHospitals } from "@/hooks/useHospitals";
@@ -198,7 +198,9 @@ const Hospitals = () => {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: i * 0.08 }}
-              className="group rounded-3xl overflow-hidden bg-card border border-border/60 shadow-soft hover:shadow-card hover:-translate-y-1 transition-all"
+              // A column, so the stats and the button sit on the card's floor
+              // however long its summary and specialties run.
+              className="group flex flex-col rounded-3xl overflow-hidden bg-card border border-border/60 shadow-soft hover:shadow-card hover:-translate-y-1 transition-all"
             >
               <div className="relative h-48 overflow-hidden">
                 <img
@@ -208,31 +210,35 @@ const Hospitals = () => {
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-primary/70 via-transparent" />
-                <span className="absolute top-3 left-3 inline-flex items-center rounded-full bg-accent/90 text-primary px-3 py-1 text-[11px] font-semibold">
-                  {h.tag}
-                </span>
+                {/* Partner hospitals only; a pending one has no tag. */}
+                {h.tag && (
+                  <span className="absolute top-3 left-3 inline-flex items-center rounded-full bg-accent/90 text-primary px-3 py-1 text-[11px] font-semibold">
+                    {h.tag}
+                  </span>
+                )}
                 <span className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-card/95 px-2.5 py-1 text-[11px] font-semibold text-primary">
                   <Star className="h-3 w-3 fill-primary-glow text-primary-glow" /> {h.rating}
                 </span>
               </div>
-              <div className="p-5">
+              <div className="flex flex-1 flex-col p-5">
                 <h3 className="font-display text-xl text-primary leading-tight">{h.name}</h3>
                 <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
                   <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{h.location}</span>
-                  <span className="inline-flex items-center gap-1"><Award className="h-3 w-3" />{h.cert}</span>
+                  {h.cert && <span className="inline-flex items-center gap-1"><Award className="h-3 w-3" />{h.cert}</span>}
                 </div>
                 <p className="text-sm text-foreground/75 mt-3 leading-relaxed line-clamp-3">{h.summary}</p>
-                <div className="flex flex-wrap gap-1.5 mt-4">
+                <div className="flex flex-wrap gap-1.5 mt-4 mb-5">
                   {h.specialties.map((s) => (
                     <span key={s} className="text-[10px] font-medium px-2 py-1 rounded-full bg-muted text-foreground/70">
                       {s}
                     </span>
                   ))}
                 </div>
-                <div className="flex items-center justify-between mt-5 pt-4 border-t border-border/60 text-xs text-muted-foreground">
+                <div className="flex items-center justify-between mt-auto pt-4 border-t border-border/60 text-xs text-muted-foreground">
                   <span className="inline-flex items-center gap-1"><BedDouble className="h-3.5 w-3.5" />{th("beds", { count: h.beds })}</span>
-                  <span className="inline-flex items-center gap-1"><Stethoscope className="h-3.5 w-3.5" />{t("reviews", { count: h.reviews })}</span>
-                  <span className="inline-flex items-center gap-1"><Phone className="h-3.5 w-3.5" />{th("call")}</span>
+                  {/* Doctors, not a "Call" label that went nowhere. */}
+                  <span className="inline-flex items-center gap-1"><Stethoscope className="h-3.5 w-3.5" />{th("doctors", { count: h.doctors })}</span>
+                  <span className="inline-flex items-center gap-1"><MessageSquareText className="h-3.5 w-3.5" />{t("reviews", { count: h.reviews })}</span>
                 </div>
                 <Link href={`/hospitals/${h.slug}`} className="mt-4 block text-center w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors">
                   {th("view")}

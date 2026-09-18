@@ -4393,6 +4393,7 @@ export type Database = {
           facilities: string | null
           founded_year: number | null
           id: string | null
+          is_partner: boolean | null
           location: string | null
           logo_url: string | null
           name: string | null
@@ -4423,6 +4424,7 @@ export type Database = {
           facilities?: string | null
           founded_year?: number | null
           id?: string | null
+          is_partner?: boolean | null
           location?: string | null
           logo_url?: string | null
           name?: string | null
@@ -4453,6 +4455,7 @@ export type Database = {
           facilities?: string | null
           founded_year?: number | null
           id?: string | null
+          is_partner?: boolean | null
           location?: string | null
           logo_url?: string | null
           name?: string | null

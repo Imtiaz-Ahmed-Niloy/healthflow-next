@@ -130,6 +130,8 @@ type PublicHospital = {
   founded_year: number | null;
   rating: number | null;
   reviews_count: number | null;
+  /** Approved on HealthFlow (0097). The list also carries pending hospitals, without the badge. */
+  is_partner: boolean | null;
 };
 
 /**
@@ -243,10 +245,12 @@ const mapPublicToHospital = (r: PublicHospital, w: Words, locale: Locale, doctor
   return {
     slug: r.slug || slugify(r.name || r.id || ""),
     name: r.name || w.untitled,
-    // One badge for every hospital on the public pages. The tagline ("Medical
-    // College", "Diagnostic") used to fill it, which read as a set of
-    // categories; it still shows as the summary when there is no summary.
-    tag: w.partner,
+    // One badge, and only on a partner — an approved hospital. The directory
+    // also lists pending ones (0097), which get none; an empty tag is how the
+    // cards know to leave it off. The tagline ("Medical College",
+    // "Diagnostic") used to fill it, which read as a set of categories; it
+    // still shows as the summary when there is no summary.
+    tag: r.is_partner ? w.partner : "",
     location: hospitalLocation(r),
     division: r.division,
     district: r.district,
@@ -258,7 +262,9 @@ const mapPublicToHospital = (r: PublicHospital, w: Words, locale: Locale, doctor
     doctors: Number(r.doctor_count) || 0,
     founded: Number(r.founded_year) || new Date().getFullYear(),
     specialties: splitList(r.specialties),
-    cert: w.verified,
+    // "Verified partner" is the badge's claim too: partners only, empty for a
+    // pending hospital so the pages leave the line off.
+    cert: r.is_partner ? w.verified : "",
     phone: phones[0] ?? "",
     email: emails[0] ?? "",
     website: websites[0] ?? "",
@@ -337,7 +343,10 @@ const buildHospitals = (rows: ApprovedRows, w: Words, locale: Locale): Hospital[
     if (list) list.push(mapPublicToDoctor(row, w, locale));
     else bySlug.set(row.hospital_slug, [mapPublicToDoctor(row, w, locale)]);
   }
-  return rows.hospitals.map((r) => mapPublicToHospital(r, w, locale, r.slug ? bySlug.get(r.slug) ?? [] : []));
+  // Partners first, newest first within each group (the fetch's own order —
+  // Array.prototype.sort is stable).
+  const partnersFirst = [...rows.hospitals].sort((a, b) => Number(!!b.is_partner) - Number(!!a.is_partner));
+  return partnersFirst.map((r) => mapPublicToHospital(r, w, locale, r.slug ? bySlug.get(r.slug) ?? [] : []));
 };
 
 const useWords = (): Words => {
