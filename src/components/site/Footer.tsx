@@ -69,7 +69,7 @@ const Footer = () => {
               {/* The mark is dark teal on transparent — unreadable on this band.
                   brightness-0 flattens it to black, invert takes that to white,
                   which is the white logo without shipping a second file. */}
-              <img src={BRAND_INFO.logoMark} alt="" width={44} height={44} className="h-11 w-11 object-contain brightness-0 invert" />
+              <img src={BRAND_INFO.logoMark} alt="" className="h-9 w-auto brightness-0 invert" />
               <span className="font-display text-2xl">{content.brand}</span>
             </Link>
             <p className="mt-4 max-w-md text-base leading-relaxed opacity-90">{content.tagline}</p>

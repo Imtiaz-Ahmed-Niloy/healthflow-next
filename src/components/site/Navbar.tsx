@@ -47,7 +47,7 @@ const Navbar = ({ transparentAtTop = false }: { transparentAtTop?: boolean }) =>
     <header className={`sticky top-0 z-50 border-b transition-colors duration-300 ${clear ? "border-transparent bg-transparent" : "backdrop-blur-md bg-background/80 border-border/50"}`}>
       <nav className="container mx-auto flex items-center justify-between py-4">
         <Link href="/" className="flex items-center gap-2 font-display text-2xl font-semibold text-primary">
-          <img src={BRAND_INFO.logoMark} alt={`${BRAND_INFO.name} logo`} className="h-12 w-12 object-contain" />
+          <img src={BRAND_INFO.logoMark} alt={`${BRAND_INFO.name} logo`} className="h-9 w-auto" />
           {BRAND_INFO.name}
         </Link>
         <ul className="hidden md:flex items-center gap-10 text-sm font-medium text-foreground/80">

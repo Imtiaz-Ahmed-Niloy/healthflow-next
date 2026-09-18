@@ -205,8 +205,10 @@ const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
           className="rounded-3xl bg-card shadow-soft p-8 md:p-10">
           <div className="text-center">
-            <img src={BRAND_INFO.logo} alt={`${BRAND_INFO.name} logo`} className="mx-auto h-24 w-24 object-contain" />
-            <h1 className="mt-3 font-display text-3xl text-primary">{BRAND_INFO.name}</h1>
+            {/* The stacked logo carries the wordmark, so the name is not printed
+                again under it — the heading stays for screen readers. */}
+            <img src={BRAND_INFO.logo} alt="" className="mx-auto h-28 w-auto" />
+            <h1 className="sr-only">{BRAND_INFO.name}</h1>
             <p className="text-sm text-muted-foreground mt-1">{t("welcomeBack")}</p>
           </div>
 

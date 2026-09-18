@@ -29,7 +29,7 @@ export const PatientSidebar = () => {
   return (
     <aside className="w-64 bg-chip/40 border-r border-border/50 flex flex-col py-6 sticky top-0 h-screen shrink-0">
       <Link href="/" className="px-6 flex items-center gap-2">
-        <img src={BRAND_INFO.logo} alt={`${BRAND_INFO.name} logo`} className="h-12 w-12 object-contain" />
+        <img src={BRAND_INFO.logoMark} alt={`${BRAND_INFO.name} logo`} className="h-8 w-auto shrink-0" />
         <div>
           <div className="font-display text-xl text-primary font-bold">{BRAND_INFO.name}</div>
           <p className="text-[10px] tracking-widest font-semibold text-primary-glow mt-0.5">{t("sidebar.patientPortal")}</p>
