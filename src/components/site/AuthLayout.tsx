@@ -73,7 +73,9 @@ export const AuthLayout = ({ children }: { children: React.ReactNode }) => (
     <PromoBar />
     <AuthHeader />
     <div className="relative isolate flex-1">
-      <div aria-hidden className="absolute inset-0 hidden md:block">
+      {/* Behind the form and click-through: a positioned layer paints over
+          an unpositioned <main>, and without these it swallowed every click. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 hidden md:block">
         <SectionGlow {...GLOW.hero} fade="both" />
       </div>
       <main className="container mx-auto py-12">{children}</main>
