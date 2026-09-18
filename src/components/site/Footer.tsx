@@ -4,7 +4,7 @@ import { Facebook, Instagram, Linkedin, Mail, Phone, Twitter } from "lucide-reac
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { BRAND_INFO } from "@/constants/brand";
-import { useFooterContent } from "@/data/footerContent";
+import { defaultFooterContent, useFooterContent } from "@/data/footerContent";
 import { useIsPageVisible } from "./PublishedPages";
 
 /**
@@ -15,11 +15,31 @@ import { useIsPageVisible } from "./PublishedPages";
  * is gone: there is nothing behind it to send anyone an email, and a form that
  * quietly does nothing is worse than no form.
  */
+/** The default columns and links, by the English words and paths they ship with. */
+const COLUMN_KEYS = { Resources: "resources", Legal: "legal" } as const;
+const LINK_KEYS = {
+  "/help-center": "helpCenter", "/blog": "blog", "/career": "career",
+  "/privacy": "privacy", "/terms": "terms", "/data-use": "dataUse", "/cookies": "cookies",
+} as const;
+
 const Footer = () => {
   const t = useTranslations("footer");
-  // The footer's words are the CMS's (/super/cms); only its labels are here.
   const { content } = useFooterContent();
   const isVisible = useIsPageVisible();
+
+  /**
+   * Text still at its shipped default is translated; text someone changed is
+   * shown as they wrote it. The overrides live in this browser's storage only
+   * (data/footerContent.ts), so in practice every visitor sees the defaults.
+   */
+  const text = (value: string, fallback: string, translated: string) =>
+    value === fallback ? translated : value;
+  const columnTitle = (title: string) =>
+    title in COLUMN_KEYS ? t(`columns.${COLUMN_KEYS[title as keyof typeof COLUMN_KEYS]}`) : title;
+  const linkLabel = (label: string, to: string) => {
+    const shipped = defaultFooterContent.columns.flatMap(c => c.links).find(l => l.to === to)?.label;
+    return to in LINK_KEYS && label === shipped ? t(`links.${LINK_KEYS[to as keyof typeof LINK_KEYS]}`) : label;
+  };
 
   // Drop links to unpublished pages. A column whose every link is gone goes
   // with them, rather than leaving a bare heading behind.
@@ -72,8 +92,8 @@ const Footer = () => {
               <img src={BRAND_INFO.logoMark} alt="" className="h-9 w-auto brightness-0 invert" />
               <span className="font-display text-2xl">{content.brand}</span>
             </Link>
-            <p className="mt-4 max-w-md text-base leading-relaxed opacity-90">{content.tagline}</p>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed opacity-70">{content.description}</p>
+            <p className="mt-4 max-w-md text-base leading-relaxed opacity-90">{text(content.tagline, defaultFooterContent.tagline, t("tagline"))}</p>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed opacity-70">{text(content.description, defaultFooterContent.description, t("description"))}</p>
 
             {/* Email and phone as chips, sharing the social buttons' border and
                 tile so the whole block below the description reads as one set
@@ -124,7 +144,7 @@ const Footer = () => {
           <div className={`md:col-span-4 lg:col-span-3 grid grid-cols-2 ${columnTracks} gap-8 lg:gap-10`}>
             {columns.map(c => (
               <div key={c.title}>
-                <h4 className="text-xs font-bold tracking-widest opacity-60">{c.title}</h4>
+                <h4 className="text-xs font-bold tracking-widest opacity-60">{columnTitle(c.title)}</h4>
                 <ul className="mt-4 space-y-2.5 text-sm">
                   {c.links.map(l => (
                     <li key={l.label}>
@@ -132,7 +152,7 @@ const Footer = () => {
                         href={l.to}
                         className="inline-block opacity-80 transition-all hover:opacity-100 hover:translate-x-0.5"
                       >
-                        {l.label}
+                        {linkLabel(l.label, l.to)}
                       </Link>
                     </li>
                   ))}
@@ -145,7 +165,7 @@ const Footer = () => {
 
       <div className="relative border-t border-surface-dark-foreground/10">
         <div className="container mx-auto py-5 text-xs opacity-60">
-          <span>{content.rights}</span>
+          <span>{text(content.rights, defaultFooterContent.rights, t("rights"))}</span>
         </div>
       </div>
     </footer>

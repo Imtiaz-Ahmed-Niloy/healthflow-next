@@ -1187,6 +1187,7 @@
       "primaryButton": "Primary button",
       "secondaryButton": "Secondary button",
       "optional": "Optional",
+      "languageNote": "Editing the {language} page. Save before switching — each language saves separately.",
       "icon": "Icon",
       "name": "Name",
       "value": "Value",
@@ -1208,7 +1209,10 @@
         "testimonials": "Testimonials",
         "lineBreaks": "Line breaks are kept exactly as you type them.",
         "accent": "Headline accent (italic)",
-        "liveOnSave": "Edits go live on the homepage as soon as you save."
+        "liveOnSave": "Edits go live on the homepage as soon as you save.",
+        "language": "Language being edited",
+        "editing": "Editing the {language} version. Visitors see the version for the language they picked.",
+        "statsBnHint": "Bangla labels for each figure. The figures themselves are typed on the English side and shared by both."
       },
       "testimonials": {
         "required": "Name and quote are required",
@@ -1364,6 +1368,7 @@
         "resetFailed": "Could not reset pricing page",
         "resetDefault": "Reset to default",
         "savePublish": "Save & publish",
+        "wordsOnly": "Bangla words only. Prices, the featured plan and the list of plans are set on the English side and apply to both.",
         "plans": "Plans",
         "addPlan": "Add plan",
         "planN": "Plan #{n}",

@@ -1,5 +1,7 @@
 import Contact from "@/views/Contact";
 import { notFound } from "next/navigation";
+import { getLocale } from "next-intl/server";
+import type { Locale } from "@/i18n/config";
 import { createPublicSupabase } from "@/lib/supabase/server";
 import { pageIsDrafted } from "@/lib/cms/pages";
 import { blocksToContactContent } from "@/data/contactContent";
@@ -27,8 +29,10 @@ export default async function ContactPage() {
   // absent row with no error means a super admin drafted this page.
   if (pageIsDrafted(data, error)) notFound();
 
-  const hero = blocksToHero(data?.blocks, "contact");
-  const content = blocksToContactContent(data?.blocks);
+  // The CMS keeps the page in both languages; render the visitor's.
+  const locale = (await getLocale()) as Locale;
+  const hero = blocksToHero(data?.blocks, "contact", locale);
+  const content = blocksToContactContent(data?.blocks, locale);
 
   return <Contact hero={hero} content={content} />;
 }

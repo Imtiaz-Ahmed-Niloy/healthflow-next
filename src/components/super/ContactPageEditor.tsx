@@ -13,6 +13,8 @@ import PageHeroEditor from "@/components/super/PageHeroEditor";
 import { usePageHero } from "@/data/usePageHero";
 import type { ContactContent, ContactChannel } from "@/data/contactContent";
 import { useContactContent } from "@/data/useContactContent";
+import CmsLanguageSwitch from "@/components/super/CmsLanguageSwitch";
+import type { Locale } from "@/i18n/config";
 
 /** Icon names are lucide component names, stored as is — not words to translate. */
 const ICONS = ["Mail","Phone","MessageCircle","MapPin","Globe","Leaf","Headphones","LifeBuoy","Clock","Building2"];
@@ -30,11 +32,12 @@ const IconSelect = ({ value, onChange }: { value: string; onChange: (v: string) 
 const describeError = (cause: unknown, fallback: string) =>
   (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? fallback;
 
-const ContactPageEditor = () => {
+/** One language's copy of the contact page, stored as typed in `lang`. */
+const ContactEditorBody = ({ lang }: { lang: Locale }) => {
   const t = useTranslations("super.cmsEditor");
-  const heroApi = usePageHero("contact");
+  const heroApi = usePageHero("contact", lang);
 
-  const { content, save, reset } = useContactContent();
+  const { content, save, reset } = useContactContent(lang);
   const [draft, setDraft] = useState<ContactContent>(content);
   const [dirty, setDirty] = useState(false);
 
@@ -142,6 +145,18 @@ const ContactPageEditor = () => {
       </TabsContent>
 
     </Tabs>
+  );
+};
+
+/** The contact page in English and Bangla, one at a time. */
+const ContactPageEditor = () => {
+  const [lang, setLang] = useState<Locale>("en");
+  return (
+    <div className="space-y-4">
+      <CmsLanguageSwitch value={lang} onChange={setLang} />
+      {/* Keyed by language: each copy is its own draft, never carried across. */}
+      <ContactEditorBody key={lang} lang={lang} />
+    </div>
   );
 };
 export default ContactPageEditor;

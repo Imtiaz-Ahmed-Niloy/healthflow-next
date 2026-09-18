@@ -1,9 +1,11 @@
 import About from "@/views/About";
 import { notFound } from "next/navigation";
+import { getLocale } from "next-intl/server";
 import { createPublicSupabase } from "@/lib/supabase/server";
 import { pageIsDrafted } from "@/lib/cms/pages";
 import { blocksToAboutContent } from "@/data/aboutContent";
 import { blocksToHero } from "@/data/cmsPageHero";
+import type { Locale } from "@/i18n/config";
 
 // Revalidate every 60s. Edits in the CMS show up within a minute without
 // needing a redeploy or a cache purge.
@@ -27,8 +29,10 @@ export default async function AboutPage() {
   // absent row with no error means a super admin drafted this page.
   if (pageIsDrafted(data, error)) notFound();
 
-  const hero = blocksToHero(data?.blocks, "about");
-  const content = blocksToAboutContent(data?.blocks);
+  // The CMS keeps the page in both languages; render the visitor's.
+  const locale = (await getLocale()) as Locale;
+  const hero = blocksToHero(data?.blocks, "about", locale);
+  const content = blocksToAboutContent(data?.blocks, locale);
 
   return <About hero={hero} content={content} />;
 }

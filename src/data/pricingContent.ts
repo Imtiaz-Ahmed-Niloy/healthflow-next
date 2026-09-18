@@ -1,3 +1,7 @@
+import type { Locale } from "@/i18n/config";
+import { blocksFor } from "@/data/cmsLocale";
+import { withDefaultMarks } from "@/lib/markedTitle";
+
 export type PricingFeature = { text: string; on: boolean };
 export type PricingPlan = {
   name: string;
@@ -34,7 +38,7 @@ export type PricingContent = {
  */
 export const defaultPricingContent: PricingContent = {
   hero: {
-    title: "Pay for the prescriptions you write",
+    title: "Pay for the [prescriptions you write]",
     subtitle:
       "HealthFlow runs your appointments, patient records and prescriptions on one system, and the bigger plans add the rest of the hospital. You pay only for the prescriptions your doctors write. A month with none costs nothing.",
   },
@@ -132,6 +136,111 @@ export const defaultPricingContent: PricingContent = {
   ],
 };
 
+/**
+ * The same page in Bangla — what a Bangla visitor sees until the CMS has its
+ * own. Prices and which plan is featured are never read from here; they are
+ * always the English plans' (see blocksToPricingContent).
+ */
+export const defaultPricingContentBn: PricingContent = {
+  hero: {
+    title: "যত [প্রেসক্রিপশন], ততটুকুই খরচ",
+    subtitle:
+      "HealthFlow একটি ব্যবস্থায় আপনার অ্যাপয়েন্টমেন্ট, রোগীর রেকর্ড ও প্রেসক্রিপশন চালায়, আর বড় প্ল্যানগুলো হাসপাতালের বাকি কাজও যোগ করে। আপনি শুধু আপনার ডাক্তারদের লেখা প্রেসক্রিপশনের জন্য টাকা দেন। যে মাসে কোনো প্রেসক্রিপশন নেই, সে মাসে কোনো খরচ নেই।",
+  },
+  plans: [
+    {
+      name: "বেসিক",
+      price: "10",
+      tag: "ক্লিনিক ও ডাক্তারের চেম্বারের জন্য।",
+      cta: "যোগাযোগ করুন",
+      featured: false,
+      features: [
+        { text: "রোগীর সরাসরি সারিসহ ডাক্তার পোর্টাল", on: true },
+        { text: "ডিজিটাল প্রেসক্রিপশন", on: true },
+        { text: "অ্যাপয়েন্টমেন্ট ও রোগীর রেকর্ড", on: true },
+        { text: "আপনার রোগীদের জন্য রোগী পোর্টাল", on: true },
+        { text: "HealthFlow-এ আপনার হাসপাতালের তালিকা", on: true },
+        { text: "ওয়ার্ড, বেড ও ভর্তি", on: false },
+        { text: "ল্যাবরেটরি ও ফার্মেসি", on: false },
+      ],
+    },
+    {
+      name: "প্রফেশনাল",
+      price: "30",
+      tag: "ওয়ার্ড, ল্যাব ও ফার্মেসিসহ হাসপাতালের জন্য।",
+      cta: "যোগাযোগ করুন",
+      featured: true,
+      features: [
+        { text: "বেসিকের সবকিছু", on: true },
+        { text: "ওয়ার্ড, বেড ও ভর্তি", on: true },
+        { text: "ল্যাবরেটরি অর্ডার ও ফলাফল", on: true },
+        { text: "পুনঃঅর্ডার সতর্কতাসহ ফার্মেসির মজুদ", on: true },
+        { text: "রোগীর বিলিং ও ইনভয়েস", on: true },
+        { text: "কর্মী, হাজিরা ও ছুটি", on: true },
+        { text: "বেতন ও হিসাব", on: false },
+      ],
+    },
+    {
+      name: "এন্টারপ্রাইজ",
+      price: "50",
+      tag: "যেসব হাসপাতাল ব্যাক অফিসও এখানে চালায়।",
+      cta: "যোগাযোগ করুন",
+      featured: false,
+      features: [
+        { text: "প্রফেশনালের সবকিছু", on: true },
+        { text: "বেতন ও পে-স্লিপ", on: true },
+        { text: "ট্যালি-ধাঁচের হিসাব, বাজেট ও খরচ কেন্দ্র", on: true },
+        { text: "ক্রয়, সরবরাহকারী ও সম্পদ", on: true },
+        { text: "আর্থিক রিপোর্ট", on: true },
+        { text: "সীমাহীন কর্মী অ্যাকাউন্ট", on: true },
+        { text: "নির্দিষ্ট অ্যাকাউন্ট ম্যানেজার", on: true },
+      ],
+    },
+  ],
+  compareRows: [
+    { label: "কর্মী অ্যাকাউন্ট", values: ["5টি পর্যন্ত", "25টি পর্যন্ত", "সীমাহীন"], bold: [3] },
+    { label: "ডকুমেন্ট সংরক্ষণ", values: ["5 GB", "20 GB", "সীমাহীন"], bold: [3] },
+    { label: "ডাক্তার পোর্টাল ও প্রেসক্রিপশন", values: ["✓", "✓", "✓"] },
+    { label: "অ্যাপয়েন্টমেন্ট ও রোগীর রেকর্ড", values: ["✓", "✓", "✓"] },
+    { label: "রোগী পোর্টাল", values: ["✓", "✓", "✓"] },
+    { label: "ওয়ার্ড, বেড ও ভর্তি", values: ["—", "✓", "✓"] },
+    { label: "ল্যাবরেটরি ও ফার্মেসি", values: ["—", "✓", "✓"] },
+    { label: "রোগীর বিলিং ও ইনভয়েস", values: ["—", "✓", "✓"] },
+    { label: "কর্মী, হাজিরা ও ছুটি", values: ["—", "✓", "✓"] },
+    { label: "বেতন", values: ["—", "—", "✓"] },
+    { label: "হিসাব ও আর্থিক রিপোর্ট", values: ["—", "—", "✓"] },
+    { label: "ক্রয়, সরবরাহকারী ও সম্পদ", values: ["—", "—", "✓"] },
+    { label: "রোলভিত্তিক অ্যাক্সেস ও অডিট লগ", values: ["✓", "✓", "✓"] },
+    { label: "সহায়তা", values: ["ইমেইল", "অগ্রাধিকার", "নির্দিষ্ট অ্যাকাউন্ট ম্যানেজার"], bold: [3] },
+  ],
+  faqs: [
+    {
+      q: "প্রেসক্রিপশন হিসেবে কী গণ্য হয়?",
+      a: "HealthFlow-এ একজন ডাক্তারের সম্পন্ন করা এমন পরামর্শ, যাতে অন্তত একটি ওষুধ আছে। বাতিল অ্যাপয়েন্টমেন্ট, না আসা রোগী এবং ওষুধ ছাড়া শেষ হওয়া ভিজিট গণ্য হয় না।",
+    },
+    {
+      q: "আমাদের কীভাবে বিল করা হয়?",
+      a: "মাসে একবার। ইনভয়েসে সেই মাসে আপনার ডাক্তারদের লেখা প্রেসক্রিপশন গুনে আপনার প্ল্যানের দরে গুণ করা হয়, আপনার ছাড় থাকলে তা বাদ দিয়ে। ইস্যুর 14 দিনের মধ্যে পরিশোধ করতে হয়।",
+    },
+    {
+      q: "কোনো মাসে একটিও প্রেসক্রিপশন না লিখলে?",
+      a: "তাহলে সে মাসের কোনো ইনভয়েস হবে না। আপনাকে কিছুই দিতে হবে না।",
+    },
+    {
+      q: "পরে কি প্ল্যান বদলানো যাবে?",
+      a: "হ্যাঁ। আমাদের জানালেই আমরা বদলে দেব, আর পরের ইনভয়েস থেকে নতুন দর প্রযোজ্য হবে।",
+    },
+    {
+      q: "আমাদের হাসপাতালের তথ্য কি আলাদা রাখা হয়?",
+      a: "হ্যাঁ। প্রতিটি হাসপাতালের রেকর্ড ডেটাবেসেই অন্য সব হাসপাতাল থেকে আলাদা করে রাখা হয়। হাসপাতালের ভেতরেও প্রতিটি রোল শুধু যা দরকার তা-ই দেখে — যেমন ডাক্তার বেতনের তথ্য দেখেন না — আর প্রতিটি পরিবর্তন অডিট লগে লেখা থাকে।",
+    },
+    {
+      q: "কীভাবে শুরু করব?",
+      a: "আমাদের সাথে যোগাযোগ করুন। আমরা আপনার হাসপাতালের লাইসেন্স যাচাই করে অ্যাকাউন্ট তৈরি করব এবং কর্মীদের লগইন দেব। রোগীরা নিজেরাই সাইন আপ করবেন।",
+    },
+  ],
+};
+
 type PricingBlocks = Partial<PricingContent>;
 
 const normalizeFeature = (f: unknown): PricingFeature => {
@@ -172,17 +281,45 @@ const fitRowToPlans = (row: CompareRow, planCount: number): CompareRow =>
     ? row
     : { ...row, values: Array.from({ length: planCount }, (_, i) => row.values[i] ?? "—") };
 
-export const blocksToPricingContent = (blocks: unknown): PricingContent => {
-  const b = (blocks ?? {}) as PricingBlocks;
-  const plans = Array.isArray(b.plans) ? b.plans.map(normalizePlan) : defaultPricingContent.plans;
+/** One language's page, read from its own blocks. */
+const parsePricing = (b: PricingBlocks, d: PricingContent): PricingContent => {
+  const plans = Array.isArray(b.plans) ? b.plans.map(normalizePlan) : d.plans;
   const rawRows = Array.isArray(b.compareRows)
     ? b.compareRows.map(normalizeCompareRow)
-    : defaultPricingContent.compareRows;
+    : d.compareRows;
+  const hero = { ...d.hero, ...(b.hero ?? {}) };
   return {
-    hero: { ...defaultPricingContent.hero, ...(b.hero ?? {}) },
+    hero: { ...hero, title: withDefaultMarks(hero.title, d.hero.title) },
     plans,
     compareRows: rawRows.map(row => fitRowToPlans(row, plans.length)),
-    faqs: Array.isArray(b.faqs) ? b.faqs : defaultPricingContent.faqs,
+    faqs: Array.isArray(b.faqs) ? b.faqs : d.faqs,
+  };
+};
+
+export const defaultPricingFor = (locale: Locale): PricingContent =>
+  locale === "bn" ? defaultPricingContentBn : defaultPricingContent;
+
+/**
+ * The page in one language (see cmsLocale for the row's layout).
+ *
+ * Bangla supplies only words. What a plan costs, whether it is featured and
+ * how many plans there are always come from the English plans, so a price
+ * changed in English can never be left stale for Bangla visitors. A plan with
+ * no Bangla copy yet shows its English one.
+ */
+export const blocksToPricingContent = (blocks: unknown, locale: Locale = "en"): PricingContent => {
+  const english = parsePricing(blocksFor(blocks, "en") as PricingBlocks, defaultPricingContent);
+  if (locale !== "bn") return english;
+
+  const bangla = parsePricing(blocksFor(blocks, "bn") as PricingBlocks, defaultPricingContentBn);
+  const plans = english.plans.map((plan, i) => {
+    const words = bangla.plans[i];
+    return words ? { ...words, price: plan.price, featured: plan.featured } : plan;
+  });
+  return {
+    ...bangla,
+    plans,
+    compareRows: bangla.compareRows.map(row => fitRowToPlans(row, plans.length)),
   };
 };
 

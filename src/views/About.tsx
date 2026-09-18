@@ -7,6 +7,8 @@ import * as Icons from "lucide-react";
 import { Quote } from "lucide-react";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
+import SectionGlow, { GLOW } from "@/components/site/SectionGlow";
+import { GradientText, gradient } from "@/components/site/GradientWords";
 const heroImg = "/assets/about-hero.jpg";
 import type { CmsHeroFields } from "@/data/cmsPageHero";
 import type { AboutContent, JourneyStep } from "@/data/aboutContent";
@@ -101,8 +103,12 @@ const JourneyTimeline = ({ steps }: { steps: JourneyStep[] }) => {
   );
 };
 
-const SectionHeader = ({ title, subtitle, centered = true, light = false }: { title: string; subtitle?: string; centered?: boolean; light?: boolean }) => (
-  <div className={`${centered ? "text-center" : ""} max-w-2xl ${centered ? "mx-auto" : ""}`}>
+/** `title` is a node so a title can carry its gradient words (GradientText or t.rich). */
+const SectionHeader = ({ title, subtitle, centered = true, light = false }: { title: React.ReactNode; subtitle?: string; centered?: boolean; light?: boolean }) => (
+  // Wide enough for a section title to sit on one line in either language
+  // (Bangla sets wider than English at the same size); the subtitle keeps its
+  // own narrower measure below.
+  <div className={`${centered ? "text-center" : ""} max-w-4xl ${centered ? "mx-auto" : ""}`}>
     <h2 className={`font-display text-3xl md:text-5xl ${light ? "text-white" : "text-primary"} leading-tight`}>{title}</h2>
     {subtitle && <p className={`mt-4 ${light ? "text-white/70" : "text-muted-foreground"} max-w-lg whitespace-pre-line ${centered ? "mx-auto" : ""}`}>{subtitle}</p>}
   </div>
@@ -114,25 +120,29 @@ const About = ({ hero, content }: { hero: CmsHeroFields; content: AboutContent }
   const { pillars, journey, ceoMessage, vision, mission, objectives } = content;
 
   return (
-    <div className="min-h-screen bg-gradient-hero">
+    // The homepage's surface: its page colour, a glow behind each light
+    // section, and the brand gradient on part of each title.
+    <div className="min-h-screen lp-page-bg overflow-x-clip">
       <Navbar />
       <main>
         {/* Hero */}
-        <section className="container mx-auto pt-8">
+        <section className="relative isolate container mx-auto pt-8">
+          <SectionGlow {...GLOW.hero} bleed />
           <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8 }}
             className="relative rounded-3xl overflow-hidden">
             <img src={heroImg} alt={t("heroAlt")} width={1600} height={900} className="w-full h-[460px] object-cover" />
             <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/70 to-background/10" />
             <div className="absolute inset-0 p-8 md:p-14 flex flex-col justify-center max-w-2xl">
-              <h1 className="font-display text-4xl md:text-6xl text-primary mt-4 leading-tight">{hero.title}</h1>
+              <h1 className="font-display text-4xl md:text-6xl text-primary mt-4 leading-tight"><GradientText text={hero.title} /></h1>
               <p className="mt-5 text-muted-foreground max-w-md whitespace-pre-line">{hero.description}</p>
             </div>
           </motion.div>
         </section>
 
         {/* Vision & Mission - dual cards */}
-        <section className="container mx-auto py-20">
-          <SectionHeader title={t("whyWeExist")} />
+        <section className="relative isolate container mx-auto py-20">
+          <SectionGlow {...GLOW.teal} bleed />
+          <SectionHeader title={t.rich("whyWeExist", gradient)} />
           <div className="grid md:grid-cols-2 gap-6 mt-12">
             <TiltCard maxTilt={6} lift={5}
               className="relative flex flex-col overflow-hidden rounded-3xl bg-gradient-dark text-surface-dark-foreground p-8 md:p-10">
@@ -160,15 +170,17 @@ const About = ({ hero, content }: { hero: CmsHeroFields; content: AboutContent }
         </section>
 
         {/* HealthFlow Journey - Timeline */}
-        <section className="bg-muted/60 py-20">
+        <section className="relative isolate py-20">
+          <SectionGlow {...GLOW.emerald} />
           <div className="container mx-auto">
-            <SectionHeader title={journey.title} subtitle={journey.subtitle} />
+            <SectionHeader title={<GradientText text={journey.title} />} subtitle={journey.subtitle} />
             <JourneyTimeline steps={journey.steps} />
           </div>
         </section>
 
         {/* CEO Message */}
-        <section className="container mx-auto py-20">
+        <section className="relative isolate container mx-auto py-20">
+          <SectionGlow {...GLOW.cyan} bleed />
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-10">
             </div>
@@ -189,9 +201,10 @@ const About = ({ hero, content }: { hero: CmsHeroFields; content: AboutContent }
         </section>
 
         {/* Core Objectives - Bento Grid */}
-        <section className="bg-muted/60 py-20">
+        <section className="relative isolate py-20">
+          <SectionGlow {...GLOW.teal} />
           <div className="container mx-auto">
-            <SectionHeader title={objectives.title} subtitle={objectives.subtitle} />
+            <SectionHeader title={<GradientText text={objectives.title} />} subtitle={objectives.subtitle} />
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-12">
               {objectives.items.map((obj, i) => (
                 <TiltCard
@@ -211,9 +224,10 @@ const About = ({ hero, content }: { hero: CmsHeroFields; content: AboutContent }
         </section>
 
         {/* Foundational Pillars */}
-        <section className="container mx-auto py-20">
+        <section className="relative isolate container mx-auto py-20">
+          <SectionGlow {...GLOW.emerald} bleed />
           <div className="text-center">
-            <h2 className="font-display text-3xl md:text-4xl text-primary inline-block">{pillars.title}</h2>
+            <h2 className="font-display text-3xl md:text-4xl text-primary inline-block"><GradientText text={pillars.title} /></h2>
             <div className="mx-auto mt-3 h-0.5 w-16 bg-primary-glow rounded-full" />
           </div>
           <div className="grid md:grid-cols-3 gap-0 mt-12 rounded-3xl border border-border/60 bg-card overflow-hidden divide-y md:divide-y-0 md:divide-x divide-border/60">

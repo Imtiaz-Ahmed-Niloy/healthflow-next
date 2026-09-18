@@ -1,5 +1,7 @@
 import Index from "@/views/Index";
 import { notFound } from "next/navigation";
+import { getLocale } from "next-intl/server";
+import type { Locale } from "@/i18n/config";
 import { createPublicSupabase } from "@/lib/supabase/server";
 import { pageIsDrafted } from "@/lib/cms/pages";
 import { blocksToHomeContent } from "@/data/homeContent";
@@ -42,7 +44,8 @@ export default async function HomePage() {
   if (pageIsDrafted(homeResult.data, homeResult.error)) notFound();
 
   const homeContent = blocksToHomeContent(homeResult.data?.blocks);
-  const pricingPlans = blocksToPricingContent(pricingResult.data?.blocks).plans;
+  // The teaser shows the plans in the visitor's language, like /pricing does.
+  const pricingPlans = blocksToPricingContent(pricingResult.data?.blocks, (await getLocale()) as Locale).plans;
   const announcements = (announcementsResult.data ?? []) as Announcement[];
 
   return (

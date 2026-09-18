@@ -1,3 +1,5 @@
+import { withDefaultMarks } from "@/lib/markedTitle";
+
 export type ArchFeature = {
   icon: string;
   title: string;
@@ -40,7 +42,7 @@ export type FeaturesContent = {
 
 export const defaultFeaturesContent: FeaturesContent = {
   architecture: {
-    title: "Intelligent Architecture",
+    title: "Intelligent [Architecture]",
     subtitle:
       "Our platform integrates the most advanced medical tools into a single, cohesive workflow that prioritizes human well-being.",
     tabs: ["AI Features", "Features for Patient", "Features for Doctors", "Features for Management"],
@@ -91,7 +93,7 @@ export const defaultFeaturesContent: FeaturesContent = {
     ],
   },
   core: {
-    title: "Platform Core Features",
+    title: "Platform [Core Features]",
     subtitle: "Discover how HealthFlow integrates restorative care with modern clinical precision.",
     items: [
       { icon: "FileText", title: "Smart Diagnostics", desc: "AI-driven patient insights that reduce cognitive load for clinicians during consultations.", chips: ["CLINICAL", "AI-POWERED"] },
@@ -116,10 +118,15 @@ type FeaturesBlocks = {
 
 export const blocksToFeaturesContent = (blocks: unknown): FeaturesContent => {
   const b = (blocks ?? {}) as FeaturesBlocks;
+  const d = defaultFeaturesContent;
+  const architecture = { ...d.architecture, ...(b.architecture ?? {}) };
+  const core = { ...d.core, ...(b.core ?? {}) };
+  // Section titles carry [gradient] marks (lib/markedTitle); a stored title
+  // still at its default gets them back.
   return {
-    architecture: { ...defaultFeaturesContent.architecture, ...(b.architecture ?? {}) },
-    logic: { ...defaultFeaturesContent.logic, ...(b.logic ?? {}) },
-    core: { ...defaultFeaturesContent.core, ...(b.core ?? {}) },
+    architecture: { ...architecture, title: withDefaultMarks(architecture.title, d.architecture.title) },
+    logic: { ...d.logic, ...(b.logic ?? {}) },
+    core: { ...core, title: withDefaultMarks(core.title, d.core.title) },
   };
 };
 

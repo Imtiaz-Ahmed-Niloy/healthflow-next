@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import CountUp from "@/components/site/CountUp";
-import type { HomeContent } from "@/data/homeContent";
+import type { HomeCopy } from "@/data/homeContent";
 
 /**
  * The numbers, on the dark band.
@@ -16,7 +16,7 @@ import type { HomeContent } from "@/data/homeContent";
  * band on their own; a card here only puts a rectangle between them and the
  * surface they are meant to sit on. The rules between them separate instead.
  */
-const Stats = ({ content }: { content: HomeContent }) => {
+const Stats = ({ content }: { content: HomeCopy }) => {
   return (
     // Full bleed: the band runs the width of the window, so no container and no
     // corners. Only what is inside it is held to the page's column.

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useLocale } from "next-intl";
 import Navbar from "@/components/site/Navbar";
 import Hero from "@/components/site/Hero";
 import SearchBar from "@/components/site/SearchBar";
@@ -13,7 +14,8 @@ import Footer from "@/components/site/Footer";
 import Chatbot from "@/components/site/Chatbot";
 import AnnouncementPopup from "@/components/site/AnnouncementPopup";
 import SectionGlow from "@/components/site/SectionGlow";
-import type { HomeContent } from "@/data/homeContent";
+import { homeCopyFor, type HomeContent } from "@/data/homeContent";
+import type { Locale } from "@/i18n/config";
 import type { PricingPlan } from "@/data/pricingContent";
 import type { Announcement } from "@/data/announcements";
 
@@ -26,6 +28,8 @@ const Index = ({
   pricingPlans: PricingPlan[];
   announcements: Announcement[];
 }) => {
+  // The CMS keeps the hero and stats in both languages; show the visitor's.
+  const homeCopy = homeCopyFor(homeContent, useLocale() as Locale);
   const [division, setDivision] = useState("");
   const [zilla, setZilla] = useState("");
   const [upazila, setUpazila] = useState("");
@@ -54,9 +58,9 @@ const Index = ({
               { color: "emerald", drift: "c", className: "left-1/3 top-[20rem] hidden h-[22rem] w-[28rem] sm:block" },
             ]}
           />
-          <Hero content={homeContent} />
+          <Hero content={homeCopy} />
         </div>
-        <Stats content={homeContent} />
+        <Stats content={homeCopy} />
         {/* The search sits on the light surface under the dark band, right
             above the specialists it filters. */}
         <div className="relative isolate">

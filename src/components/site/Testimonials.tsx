@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Quote } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useTestimonials, type TestimonialAudience } from "@/data/testimonials";
@@ -60,6 +60,29 @@ const Testimonials = () => {
 
   const go = (n: number) => setIndex(Math.max(0, Math.min(maxIndex, n)));
 
+  // Swipe on touch screens, where the hover arrows never show. A mostly
+  // sideways drag of 40px or more moves one card; anything more vertical is
+  // left to scroll the page. Autoplay holds while a finger is down.
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    const p = e.touches[0];
+    touchStart.current = { x: p.clientX, y: p.clientY };
+    setPaused(true);
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const start = touchStart.current;
+    touchStart.current = null;
+    setPaused(false);
+    if (!start) return;
+    const p = e.changedTouches[0];
+    const dx = p.clientX - start.x;
+    const dy = p.clientY - start.y;
+    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
+    go(dx < 0 ? index + 1 : index - 1);
+  };
+
   // Only meaningful three-up: with one or two on screen there is no middle, and
   // shrinking half of a pair just looks lopsided.
   const focused = perView >= 3 ? index + 1 : -1;
@@ -89,6 +112,9 @@ const Testimonials = () => {
           className="relative group mt-10"
           onMouseEnter={() => setPaused(true)}
           onMouseLeave={() => setPaused(false)}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+          onTouchCancel={() => { touchStart.current = null; setPaused(false); }}
         >
           {/* Vertical padding on the rail so the full-size middle card has room
               to stand taller than its neighbours without being clipped. */}

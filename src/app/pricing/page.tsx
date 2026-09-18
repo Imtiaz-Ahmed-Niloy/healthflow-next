@@ -1,5 +1,7 @@
 import Pricing from "@/views/Pricing";
 import { notFound } from "next/navigation";
+import { getLocale } from "next-intl/server";
+import type { Locale } from "@/i18n/config";
 import { createPublicSupabase } from "@/lib/supabase/server";
 import { pageIsDrafted } from "@/lib/cms/pages";
 import { blocksToPricingContent } from "@/data/pricingContent";
@@ -26,7 +28,8 @@ export default async function PricingPage() {
   // absent row with no error means a super admin drafted this page.
   if (pageIsDrafted(data, error)) notFound();
 
-  const content = blocksToPricingContent(data?.blocks);
+  // The CMS keeps the page in both languages; render the visitor's.
+  const content = blocksToPricingContent(data?.blocks, (await getLocale()) as Locale);
 
   return <Pricing {...content} />;
 }

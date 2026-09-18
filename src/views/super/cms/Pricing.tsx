@@ -12,6 +12,8 @@ import { Plus, Trash2, Save, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import type { PricingContent, PricingPlan, Faq } from "@/data/pricingContent";
 import { usePricingContent } from "@/data/usePricingContent";
+import CmsLanguageSwitch from "@/components/super/CmsLanguageSwitch";
+import type { Locale } from "@/i18n/config";
 
 const describeError = (cause: unknown, fallback: string) =>
   (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? fallback;
@@ -20,11 +22,16 @@ const describeError = (cause: unknown, fallback: string) =>
  * The controls translate; the plans, specs and FAQs typed into them are stored
  * as written. New rows start from English placeholder text, which is content
  * to overwrite rather than interface.
+ *
+ * One language at a time. The Bangla side edits words only: prices, which
+ * plan is featured and the plan list itself belong to English, and the site
+ * reads them from there (see blocksToPricingContent), so they are locked here.
  */
-const CmsPricing = () => {
+const PricingEditorBody = ({ lang }: { lang: Locale }) => {
   const t = useTranslations("super.cmsEditor");
   const tp = useTranslations("super.cmsEditor.pricing");
-  const { content, save, reset } = usePricingContent();
+  const wordsOnly = lang === "bn";
+  const { content, save, reset } = usePricingContent(lang);
   const [data, setData] = useState<PricingContent>(content);
   const [dirty, setDirty] = useState(false);
 
@@ -123,7 +130,7 @@ const CmsPricing = () => {
   };
 
   return (
-    <SuperLayout title={t("pages.pricing.title")} subtitle={t("pages.pricing.subtitle")}>
+    <>
       <div className="flex flex-wrap gap-2 justify-end mb-4">
         <Btn variant="outline" onClick={handleReset}><RotateCcw className="h-4 w-4" />{tp("resetDefault")}</Btn>
         <Btn onClick={handleSave}><Save className="h-4 w-4" />{tp("savePublish")}</Btn>
@@ -150,14 +157,14 @@ const CmsPricing = () => {
       <Card className="p-6 mb-6">
         <div className="flex items-center justify-between">
           <SectionTitle title={tp("plans")} />
-          <Btn onClick={addPlan}><Plus className="h-4 w-4" />{tp("addPlan")}</Btn>
+          {!wordsOnly && <Btn onClick={addPlan}><Plus className="h-4 w-4" />{tp("addPlan")}</Btn>}
         </div>
         <div className="grid lg:grid-cols-3 gap-4 mt-4">
           {data.plans.map((p, pi) => (
             <Card key={pi} className="p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-muted-foreground uppercase">{tp("planN", { n: pi + 1 })}</span>
-                <button onClick={() => removePlan(pi)} aria-label={tp("removePlan")} className="text-destructive hover:opacity-70"><Trash2 className="h-4 w-4" /></button>
+                {!wordsOnly && <button onClick={() => removePlan(pi)} aria-label={tp("removePlan")} className="text-destructive hover:opacity-70"><Trash2 className="h-4 w-4" /></button>}
               </div>
               <div>
                 <Label>{t("name")}</Label>
@@ -166,7 +173,7 @@ const CmsPricing = () => {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <Label>{tp("price")}</Label>
-                  <Input value={p.price} onChange={e => updatePlan(pi, { price: e.target.value })} />
+                  <Input value={p.price} onChange={e => updatePlan(pi, { price: e.target.value })} disabled={wordsOnly} />
                 </div>
                 <div>
                   <Label>{tp("cta")}</Label>
@@ -178,7 +185,7 @@ const CmsPricing = () => {
                 <Input value={p.tag} onChange={e => updatePlan(pi, { tag: e.target.value })} />
               </div>
               <div className="flex items-center gap-2">
-                <Switch checked={p.featured} onCheckedChange={v => updatePlan(pi, { featured: v })} />
+                <Switch checked={p.featured} onCheckedChange={v => updatePlan(pi, { featured: v })} disabled={wordsOnly} />
                 <Label className="m-0">{tp("featured")}</Label>
               </div>
               <div>
@@ -260,6 +267,22 @@ const CmsPricing = () => {
         <Btn variant="outline" onClick={handleReset}><RotateCcw className="h-4 w-4" />{t("reset")}</Btn>
         <Btn onClick={handleSave}><Save className="h-4 w-4" />{tp("savePublish")}</Btn>
       </div>
+    </>
+  );
+};
+
+/** The pricing page in English and Bangla, one at a time. */
+const CmsPricing = () => {
+  const t = useTranslations("super.cmsEditor");
+  const [lang, setLang] = useState<Locale>("en");
+  return (
+    <SuperLayout title={t("pages.pricing.title")} subtitle={t("pages.pricing.subtitle")}>
+      <div className="mb-4 space-y-2">
+        <CmsLanguageSwitch value={lang} onChange={setLang} />
+        {lang === "bn" && <p className="text-xs text-muted-foreground">{t("pricing.wordsOnly")}</p>}
+      </div>
+      {/* Keyed by language: each copy is its own draft, never carried across. */}
+      <PricingEditorBody key={lang} lang={lang} />
     </SuperLayout>
   );
 };

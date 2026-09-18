@@ -4,10 +4,12 @@ import { useMemo } from "react";
 import { pathForSlug } from "@/constants/sitePages";
 import {
   blocksToContactContent,
-  defaultContactContent,
+  defaultContactFor,
   contactContentToBlocks,
   type ContactContent,
 } from "@/data/contactContent";
+import { mergeBlocksFor } from "@/data/cmsLocale";
+import type { Locale } from "@/i18n/config";
 
 type CmsPageRow = Tables<"cms_pages">;
 type CmsPageInsert = TablesInsert<"cms_pages">;
@@ -18,18 +20,19 @@ const cmsPagesApi = createResourceApi<CmsPageRow, CmsPageInsert, CmsPageUpdate>(
 /**
  * The contact row also carries a `hero` block, written independently by
  * usePageHero. Saves here merge onto the row's current blocks rather than
- * replacing them, so this hook never clobbers what the hero tab just saved.
+ * replacing them, so this hook never clobbers what the hero tab just saved —
+ * nor the other language's copy (see cmsLocale).
  */
-export const useContactContent = () => {
+export const useContactContent = (locale: Locale = "en") => {
   const listResult = cmsPagesApi.useList({ filters: { slug: "contact" }, limit: 1 });
   const row = listResult.data?.data?.[0];
-  const content = useMemo(() => blocksToContactContent(row?.blocks), [row?.blocks]);
+  const content = useMemo(() => blocksToContactContent(row?.blocks, locale), [row?.blocks, locale]);
 
   const [create] = cmsPagesApi.useCreate();
   const [update] = cmsPagesApi.useUpdate();
 
   const persist = async (next: ContactContent) => {
-    const blocks = { ...(row?.blocks as Record<string, unknown> ?? {}), ...contactContentToBlocks(next) };
+    const blocks = mergeBlocksFor(row?.blocks, locale, contactContentToBlocks(next));
     if (row) {
       await update(row.id, { blocks }).unwrap();
     } else {
@@ -38,7 +41,7 @@ export const useContactContent = () => {
   };
 
   const save = (next: ContactContent) => persist(next);
-  const reset = () => persist(defaultContactContent);
+  const reset = () => persist(defaultContactFor(locale));
 
   return { content, save, reset };
 };

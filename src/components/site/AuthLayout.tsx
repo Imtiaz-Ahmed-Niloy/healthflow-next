@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { BRAND_INFO } from "@/constants/brand";
 import LanguageSwitcher from "@/components/site/LanguageSwitcher";
+import SectionGlow, { GLOW } from "@/components/site/SectionGlow";
 
 export const PromoBar = () => {
   const t = useTranslations("auth.layout");
@@ -70,11 +71,19 @@ export const AuthFooter = () => {
   );
 };
 
+/**
+ * Sign in, sign up and password reset: the homepage's page colour with its
+ * hero glow behind the form, faded at both edges since it sits between the
+ * header and the footer rather than under a see-through navbar.
+ */
 export const AuthLayout = ({ children }: { children: React.ReactNode }) => (
-  <div className="min-h-screen flex flex-col bg-gradient-hero">
+  <div className="min-h-screen flex flex-col lp-page-bg overflow-x-clip">
     <PromoBar />
     <AuthHeader />
-    <main className="flex-1 container mx-auto py-12">{children}</main>
+    <div className="relative isolate flex-1">
+      <SectionGlow {...GLOW.hero} fade="both" />
+      <main className="container mx-auto py-12">{children}</main>
+    </div>
     <AuthFooter />
   </div>
 );

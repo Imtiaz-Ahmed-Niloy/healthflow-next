@@ -7,23 +7,32 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
+import SectionGlow, { GLOW } from "@/components/site/SectionGlow";
+import { GradientText, gradient } from "@/components/site/GradientWords";
 import type { PricingContent } from "@/data/pricingContent";
 
 const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
   const t = useTranslations("pricingPage");
   // Plans, the comparison and the FAQ are the CMS's (/super/cms/pricing).
   return (
-    <div className="min-h-screen bg-gradient-hero">
+    // The homepage's surface: its page colour, a glow behind each light
+    // section, and the brand gradient on part of each title.
+    <div className="min-h-screen lp-page-bg overflow-x-clip">
       <Navbar />
       <main>
-        <section className="container mx-auto pt-16 pb-12 text-center">
+        <section className="relative isolate container mx-auto pt-16 pb-12 text-center">
+          <SectionGlow {...GLOW.hero} bleed />
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-            <h1 className="font-display text-4xl md:text-6xl text-primary">{hero.title}</h1>
+            {/* One line from tablets up: the size steps with the container so
+                the headline (about 35 characters) fits its width at each
+                breakpoint instead of breaking onto a second line. */}
+            <h1 className="font-display text-3xl md:text-4xl lg:text-5xl xl:text-6xl text-primary"><GradientText text={hero.title} /></h1>
             <p className="text-muted-foreground mt-4 max-w-2xl mx-auto whitespace-pre-line">{hero.subtitle}</p>
           </motion.div>
         </section>
 
-        <section className="container mx-auto pb-20">
+        <section className="relative isolate container mx-auto pb-20">
+          <SectionGlow {...GLOW.emerald} bleed />
           <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto items-start">
             {plans.map((p, i) => (
               <TiltCard key={p.name}
@@ -35,7 +44,7 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
                 <h3 className="font-display text-2xl text-primary">{p.name}</h3>
                 <p className="text-sm text-muted-foreground mt-1">{p.tag}</p>
                 <div className="mt-5 flex items-baseline gap-1">
-                  <span className="font-display text-5xl text-primary">৳{p.price}</span>
+                  <span className="font-display text-5xl text-primary">{t("price", { amount: p.price })}</span>
                   <span className="text-sm text-muted-foreground">{t("perPrescription")}</span>
                 </div>
                 <ul className="mt-6 space-y-3">
@@ -58,9 +67,10 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
           </div>
         </section>
 
-        <section className="container mx-auto py-12">
+        <section className="relative isolate container mx-auto py-12">
+          <SectionGlow {...GLOW.teal} bleed />
           <div className="text-center max-w-2xl mx-auto mb-10">
-            <h2 className="font-display text-3xl md:text-4xl text-primary">{t("compareTitle")}</h2>
+            <h2 className="font-display text-3xl md:text-4xl text-primary">{t.rich("compareTitle", gradient)}</h2>
             <p className="text-muted-foreground mt-2 text-sm">{t("compareSub")}</p>
           </div>
           <div className="overflow-x-auto">
@@ -92,7 +102,8 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
           </div>
         </section>
 
-        <section className="container mx-auto py-16">
+        <section className="relative isolate container mx-auto py-16">
+          <SectionGlow {...GLOW.cyan} bleed />
           {/* A white panel, not a tint of the page: bg-muted sat a couple of
              percent off the cream gradient behind it, so the section had no
              edge at all. Card white plus a border and an accent wash gives it
@@ -102,7 +113,7 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
             <div aria-hidden className="pointer-events-none absolute -bottom-28 -left-24 h-72 w-72 rounded-full bg-secondary/60 blur-3xl" />
 
             <div className="relative text-center max-w-2xl mx-auto">
-              <h2 className="font-display text-3xl md:text-4xl text-primary">{t("faqTitle")}</h2>
+              <h2 className="font-display text-3xl md:text-4xl text-primary">{t.rich("faqTitle", gradient)}</h2>
               <p className="text-muted-foreground mt-3 text-sm">{t("faqSub")}</p>
             </div>
 

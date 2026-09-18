@@ -36,7 +36,9 @@ const Pricing = ({ plans }: { plans: PricingPlan[] }) => {
           <p className="opacity-70 mt-3 text-sm">{t("pricing.subheading")}</p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6 md:gap-5 max-w-5xl mx-auto md:items-center">
+        {/* More room between stacked cards on a phone: the recommended one is
+            scaled up and its badge sits above its edge, both eating the gap. */}
+        <div className="grid md:grid-cols-3 gap-10 md:gap-5 max-w-5xl mx-auto md:items-center">
           {plans.map((p, i) => (
             // The recommended plan sits proud of the row. That scale is a prop
             // rather than a class because TiltCard writes its own transform.
@@ -58,7 +60,7 @@ const Pricing = ({ plans }: { plans: PricingPlan[] }) => {
               <p className={`text-sm mt-1 ${p.featured ? "text-muted-foreground" : "opacity-70"}`}>{p.tag}</p>
 
               <div className="mt-4 flex items-baseline gap-2">
-                <span className={`font-display text-5xl ${p.featured ? "text-primary" : ""}`}>৳{p.price}</span>
+                <span className={`font-display text-5xl ${p.featured ? "text-primary" : ""}`}>{t("pricing.price", { amount: p.price })}</span>
                 <span className={`text-sm ${p.featured ? "text-muted-foreground" : "opacity-60"}`}>{t("pricing.perPrescription")}</span>
               </div>
 

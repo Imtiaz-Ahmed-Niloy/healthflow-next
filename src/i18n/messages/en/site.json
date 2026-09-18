@@ -12,7 +12,23 @@
   },
   "footer": {
     "email": "Email",
-    "phone": "Phone"
+    "phone": "Phone",
+    "tagline": "Connecting Healthcare, Empowering Lives",
+    "description": "HealthFlow gives a hospital one system where six used to be: appointments and patient records, wards, beds and admissions, the laboratory and the pharmacy, staff, roles, and the billing that follows all of it. Doctors work a live patient queue and write prescriptions on the same screen, and patients get a portal of their own for appointments, medical records and invoices.",
+    "rights": "© HealthFlow. All rights reserved.",
+    "columns": {
+      "resources": "Resources",
+      "legal": "Legal"
+    },
+    "links": {
+      "helpCenter": "Help Center",
+      "blog": "Blog",
+      "career": "Career",
+      "privacy": "Privacy",
+      "terms": "Terms",
+      "dataUse": "Data Use",
+      "cookies": "Cookies"
+    }
   },
   "hero": {
     "images": {
@@ -55,6 +71,7 @@
     "heading": "Plans for <g>every hospital</g>",
     "subheading": "You pay only for the prescriptions your doctors write.\nA month with none costs nothing.",
     "recommended": "RECOMMENDED",
+    "price": "BDT {amount}",
     "perPrescription": "Per Prescription"
   },
   "directory": {
@@ -277,7 +294,7 @@
   },
   "aboutPage": {
     "heroAlt": "HealthFlow clinical environment",
-    "whyWeExist": "Why We Exist",
+    "whyWeExist": "Why We <g>Exist</g>",
     "lookingAhead": "LOOKING AHEAD",
     "drivenByPurpose": "DRIVEN BY PURPOSE"
   },
@@ -295,11 +312,12 @@
   },
   "pricingPage": {
     "mostPopular": "MOST POPULAR",
+    "price": "BDT {amount}",
     "perPrescription": "Per Prescription",
-    "compareTitle": "Compare the plans",
+    "compareTitle": "Compare the <g>plans</g>",
     "compareSub": "What each plan includes, side by side.",
     "included": "Included",
-    "faqTitle": "Frequently Asked Questions",
+    "faqTitle": "Frequently Asked <g>Questions</g>",
     "faqSub": "How billing works, and what you are paying for."
   },
   "blogPage": {

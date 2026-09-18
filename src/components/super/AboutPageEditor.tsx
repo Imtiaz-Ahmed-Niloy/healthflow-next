@@ -14,6 +14,8 @@ import PageHeroEditor from "@/components/super/PageHeroEditor";
 import { usePageHero } from "@/data/usePageHero";
 import type { AboutContent, Pillar, TeamMember, Stat, JourneyStep, CoreObjective } from "@/data/aboutContent";
 import { useAboutContent } from "@/data/useAboutContent";
+import CmsLanguageSwitch from "@/components/super/CmsLanguageSwitch";
+import type { Locale } from "@/i18n/config";
 
 /** Icon names are lucide component names, stored as is — not words to translate. */
 const ICONS = ["Leaf","HeartPulse","ShieldCheck","Sparkles","Globe","Stethoscope","Activity","Brain","Users","Heart","Award","Compass","Cpu","TrendingUp","Handshake","Eye","Target","Quote"];
@@ -31,12 +33,15 @@ const IconSelect = ({ value, onChange }: { value: string; onChange: (v: string) 
 const describeError = (cause: unknown, fallback: string) =>
   (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? fallback;
 
-/** The controls translate; the page copy typed into them is stored as written. */
-const AboutPageEditor = () => {
+/**
+ * One language's copy of the about page. The controls translate; the page
+ * copy typed into them is stored as written, in `lang`.
+ */
+const AboutEditorBody = ({ lang }: { lang: Locale }) => {
   const t = useTranslations("super.cmsEditor");
-  const heroApi = usePageHero("about");
+  const heroApi = usePageHero("about", lang);
 
-  const { content, save, reset } = useAboutContent();
+  const { content, save, reset } = useAboutContent(lang);
   const [draft, setDraft] = useState<AboutContent>(content);
   const [dirty, setDirty] = useState(false);
 
@@ -260,6 +265,18 @@ const AboutPageEditor = () => {
         </Card>
       </TabsContent>
     </Tabs>
+  );
+};
+
+/** The about page in English and Bangla, one at a time. */
+const AboutPageEditor = () => {
+  const [lang, setLang] = useState<Locale>("en");
+  return (
+    <div className="space-y-4">
+      <CmsLanguageSwitch value={lang} onChange={setLang} />
+      {/* Keyed by language: each copy is its own draft, never carried across. */}
+      <AboutEditorBody key={lang} lang={lang} />
+    </div>
   );
 };
 export default AboutPageEditor;

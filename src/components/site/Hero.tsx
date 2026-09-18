@@ -5,7 +5,7 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import type { HomeContent } from "@/data/homeContent";
+import type { HomeCopy } from "@/data/homeContent";
 
 /**
  * The pictures the hero cycles through, in order.
@@ -48,7 +48,8 @@ const CROSSFADE = { duration: 0.9, ease: "easeInOut" } as const;
 /** How long each picture holds before the next one fades in. */
 const SLIDE_MS = 5000;
 
-const Hero = ({ content }: { content: HomeContent }) => {
+/** `content` is already in the page's language — see homeCopyFor. */
+const Hero = ({ content }: { content: HomeCopy }) => {
   const t = useTranslations("hero");
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale } from "next-intl/server";
@@ -26,6 +26,13 @@ export const metadata: Metadata = {
     template: `%s — ${BRAND_INFO.name}`,
   },
   description: BRAND_INFO.tagline,
+};
+
+// The site has one, light, theme. Saying so stops a phone browser's own dark
+// mode (Chrome's auto-dark, Samsung Internet) from repainting the pale
+// sections dark.
+export const viewport: Viewport = {
+  colorScheme: "only light",
 };
 
 export default async function RootLayout({

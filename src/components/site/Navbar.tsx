@@ -46,8 +46,8 @@ const Navbar = ({ transparentAtTop = false }: { transparentAtTop?: boolean }) =>
   return (
     <header className={`sticky top-0 z-50 border-b transition-colors duration-300 ${clear ? "border-transparent bg-transparent" : "backdrop-blur-md bg-background/80 border-border/50"}`}>
       <nav className="container mx-auto flex items-center justify-between py-4">
-        <Link href="/" className="flex items-center gap-2 font-display text-2xl font-semibold text-primary">
-          <img src={BRAND_INFO.logoMark} alt={`${BRAND_INFO.name} logo`} className="h-9 w-auto" />
+        <Link href="/" className="flex items-center gap-1.5 md:gap-2 font-display text-xl md:text-2xl font-semibold text-primary">
+          <img src={BRAND_INFO.logoMark} alt={`${BRAND_INFO.name} logo`} className="h-7 md:h-9 w-auto" />
           {BRAND_INFO.name}
         </Link>
         <ul className="hidden md:flex items-center gap-10 text-sm font-medium text-foreground/80">
@@ -89,7 +89,9 @@ const Navbar = ({ transparentAtTop = false }: { transparentAtTop?: boolean }) =>
       {open && (
         <div className="md:hidden border-t border-border/50 bg-background animate-fade-up">
           <ul className="container mx-auto py-4 flex flex-col gap-3 text-sm font-medium">
-            {links.map((l) => (
+            {/* Features is desktop-only: the phone menu keeps to pricing,
+                about and contact. */}
+            {links.filter(l => l.to !== "/features").map((l) => (
               <li key={l.to}>
                 <NavLink to={l.to} onClick={() => setOpen(false)} className="block py-1">{l.label}</NavLink>
               </li>

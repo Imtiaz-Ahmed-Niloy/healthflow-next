@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
+import SectionGlow, { GLOW } from "@/components/site/SectionGlow";
+import { GradientText } from "@/components/site/GradientWords";
 import type { CmsHeroFields } from "@/data/cmsPageHero";
 import type { ContactContent } from "@/data/contactContent";
 import { BRAND_INFO } from "@/constants/brand";
@@ -61,19 +63,20 @@ const Contact = ({ hero, content }: { hero: CmsHeroFields; content: ContactConte
   };
 
   return (
-    <div className="min-h-screen bg-gradient-hero">
+    // The homepage's surface: its page colour, a glow behind each light
+    // section, and the brand gradient on part of the title.
+    <div className="min-h-screen lp-page-bg overflow-x-clip">
       <Navbar />
 
       <main>
-        {/* The masthead sits on its own tinted band, so the page opens with
-            something rather than dropping straight into a form. */}
-        <section className="relative overflow-hidden border-b border-border/50">
-          <div aria-hidden className="absolute -top-40 -left-24 h-[26rem] w-[26rem] rounded-full bg-accent/40 blur-[120px]" />
-          <div aria-hidden className="absolute -bottom-48 right-[8%] h-[24rem] w-[24rem] rounded-full bg-chip/50 blur-[110px]" />
+        {/* The masthead opens on the homepage hero's glow, so the page starts
+            with colour rather than dropping straight into a form. */}
+        <section className="relative isolate">
+          <SectionGlow {...GLOW.hero} />
 
           <div className="relative container mx-auto py-16 md:py-20">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-              <h1 className="font-display text-4xl md:text-6xl text-primary leading-[1.05]">{hero.title}</h1>
+              <h1 className="font-display text-4xl md:text-6xl text-primary leading-[1.05]"><GradientText text={hero.title} /></h1>
               <p className="text-muted-foreground mt-5 text-lg whitespace-pre-line">{hero.description}</p>
             </motion.div>
           </div>
@@ -81,7 +84,8 @@ const Contact = ({ hero, content }: { hero: CmsHeroFields; content: ContactConte
 
         {/* Five columns rather than two halves: a form wants room to breathe,
             and the column beside it is short lines that do not. */}
-        <div className="container mx-auto grid lg:grid-cols-5 gap-8 lg:gap-10 py-16">
+        <div className="relative isolate container mx-auto grid lg:grid-cols-5 gap-8 lg:gap-10 py-16">
+          <SectionGlow {...GLOW.teal} bleed />
           <motion.form onSubmit={onSubmit}
             initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}
             className="lg:col-span-3 rounded-3xl bg-card border border-border/60 shadow-card p-7 md:p-9">

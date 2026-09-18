@@ -68,6 +68,15 @@
 
 @layer utilities {
   .font-display { font-family: 'Inter', system-ui, sans-serif; }
+
+  /* Bangla headings. Inter has no Bengali letters, so these fall back to the
+     system's Bengali font, whose vowel signs reach well above and below the
+     line: at the Latin-tuned 1.1–1.25 two wrapped lines collide. The negative
+     tracking also squeezes conjuncts together. Both are reset for Bangla only;
+     `:lang(bn)` follows <html lang>, which the root layout sets from the
+     language cookie. */
+  :lang(bn) :is(h1, h2, h3, h4),
+  :lang(bn) .font-display { line-height: 1.4; letter-spacing: 0; }
   .text-balance { text-wrap: balance; }
   .bg-gradient-hero { background: var(--gradient-hero); }
   .bg-gradient-dark { background: var(--gradient-dark); }
@@ -141,6 +150,19 @@
 @media (prefers-reduced-motion: reduce) {
   .lp-drift-a, .lp-drift-b, .lp-drift-c { animation: none; }
 }
+
+/* Phones: a 60px blur on a moving, masked layer the width of the screen is
+   more than mobile GPUs hold, and they paint the whole layer black. The orbs
+   are radial gradients that already fade to nothing, so they look almost the
+   same unblurred and still. */
+@media (max-width: 767px) {
+  .lp-orb { filter: none; }
+  .lp-drift-a, .lp-drift-b, .lp-drift-c { animation: none; will-change: auto; }
+}
+
+/* Backs up the viewport's color-scheme in layout.tsx for browsers that read
+   only the CSS. */
+:root { color-scheme: only light; }
 
 /* Prescription print (Prescription.tsx's #rx-print-area). Used to print via
    a popup window that re-fetched the Tailwind CDN script and raced

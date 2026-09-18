@@ -139,20 +139,23 @@ const SearchBar = ({
     <form onSubmit={handleSubmit} className="container mx-auto pt-12 md:pt-16">
       <div className="mx-auto max-w-4xl">
         {/* Pill search bar */}
-        <div className="relative flex items-center rounded-full bg-card border border-white/80 shadow-card pl-6 pr-2 py-2">
+        <div className="relative flex items-center rounded-full bg-card border border-white/80 shadow-card pl-4 sm:pl-6 pr-1.5 sm:pr-2 py-1.5 sm:py-2">
           <Search className="h-5 w-5 text-foreground/80 shrink-0" strokeWidth={2.25} />
+          {/* min-w-0: an input keeps a built-in width of about 20 characters
+              and will not shrink below it, which pushed the button out of the
+              pill on a phone. */}
           <input
             value={q}
             onChange={(e) => {
               setQ(e.target.value);
               if (e.target.value.trim()) setFilterOpen(true);
             }}
-            className="flex-1 bg-transparent px-3 py-2 text-base outline-none placeholder:text-muted-foreground"
+            className="min-w-0 flex-1 bg-transparent px-2 sm:px-3 py-2 text-base outline-none placeholder:text-muted-foreground placeholder:truncate"
             placeholder={t("placeholder")}
           />
           <button
             type="submit"
-            className="rounded-full bg-primary px-7 sm:px-10 py-3 text-base font-medium text-primary-foreground hover:bg-primary-glow transition-colors"
+            className="shrink-0 rounded-full bg-primary px-5 sm:px-10 py-2.5 sm:py-3 text-sm sm:text-base font-medium text-primary-foreground hover:bg-primary-glow transition-colors"
           >
             {t("search")}
           </button>

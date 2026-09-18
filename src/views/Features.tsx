@@ -6,6 +6,8 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
+import SectionGlow, { GLOW } from "@/components/site/SectionGlow";
+import { GradientText } from "@/components/site/GradientWords";
 const dashboard = "/assets/feature-dashboard.jpg";
 const n1 = "/assets/medical-1.jpg";
 const n2 = "/assets/medical-2.jpg";
@@ -26,14 +28,17 @@ const Features = ({ hero, content }: { hero: CmsHeroFields; content: FeaturesCon
   const [active, setActive] = useState(architecture.tabs[0] ?? "");
 
   return (
-    <div className="min-h-screen bg-gradient-hero">
+    // The homepage's surface: its page colour, a glow behind each light
+    // section, and the brand gradient on part of each title.
+    <div className="min-h-screen lp-page-bg overflow-x-clip">
       <Navbar />
       <main>
         {/* Hero */}
-        <section className="container mx-auto pt-12 pb-16">
+        <section className="relative isolate container mx-auto pt-12 pb-16">
+          <SectionGlow {...GLOW.hero} bleed />
           <div className="grid lg:grid-cols-2 gap-10 items-center">
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
-              <h1 className="mt-6 font-display text-4xl md:text-6xl text-primary leading-[1.05]">{hero.title}</h1>
+              <h1 className="mt-6 font-display text-4xl md:text-6xl text-primary leading-[1.05]"><GradientText text={hero.title} /></h1>
               <p className="mt-5 text-muted-foreground max-w-lg whitespace-pre-line">{hero.description}</p>
               <div className="mt-7 flex gap-3">
                 {hero.primaryCta && <button className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors">{hero.primaryCta}</button>}
@@ -47,9 +52,10 @@ const Features = ({ hero, content }: { hero: CmsHeroFields; content: FeaturesCon
         </section>
 
         {/* Intelligent Architecture */}
-        <section className="container mx-auto py-16">
+        <section className="relative isolate container mx-auto py-16">
+          <SectionGlow {...GLOW.teal} bleed />
           <div className="text-center max-w-2xl mx-auto">
-            <h2 className="font-display text-3xl md:text-4xl text-primary">{architecture.title}</h2>
+            <h2 className="font-display text-3xl md:text-4xl text-primary"><GradientText text={architecture.title} /></h2>
             <p className="text-muted-foreground mt-3 whitespace-pre-line">{architecture.subtitle}</p>
           </div>
           {architecture.tabs.length > 0 && (
@@ -116,10 +122,11 @@ const Features = ({ hero, content }: { hero: CmsHeroFields; content: FeaturesCon
         </section>
 
         {/* Platform Core Features */}
-        <section className="container mx-auto py-20">
+        <section className="relative isolate container mx-auto py-20">
+          <SectionGlow {...GLOW.cyan} bleed />
           <div className="grid lg:grid-cols-2 gap-12">
             <div>
-              <h2 className="font-display text-3xl md:text-4xl text-primary">{core.title}</h2>
+              <h2 className="font-display text-3xl md:text-4xl text-primary"><GradientText text={core.title} /></h2>
               <p className="text-muted-foreground mt-3 max-w-sm whitespace-pre-line">{core.subtitle}</p>
             </div>
             <div className="space-y-3">

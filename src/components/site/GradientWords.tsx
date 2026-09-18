@@ -17,3 +17,17 @@ export const gradient = {
 export const gradientLight = {
   g: (chunks: ReactNode) => <span className="lp-gradient-text-light">{chunks}</span>,
 };
+
+/**
+ * A CMS title with its [marked] words in the gradient (lib/markedTitle.ts).
+ * A title with no brackets renders as plain text.
+ */
+export const GradientText = ({ text, light = false }: { text: string; light?: boolean }) => (
+  <>
+    {text.split(/(\[[^\]]*\])/g).map((part, i) =>
+      part.startsWith("[") && part.endsWith("]")
+        ? <span key={i} className={light ? "lp-gradient-text-light" : "lp-gradient-text"}>{part.slice(1, -1)}</span>
+        : part,
+    )}
+  </>
+);
