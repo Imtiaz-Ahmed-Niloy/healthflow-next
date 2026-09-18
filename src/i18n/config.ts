@@ -20,6 +20,9 @@ export const isLocale = (value: unknown): value is Locale =>
 /** How each language names itself, for the switchers. */
 export const LOCALE_LABELS: Record<Locale, string> = { en: "English", bn: "বাংলা" };
 
+/** The same, short, for a toggle in a top bar where the full names do not fit. */
+export const LOCALE_SHORT_LABELS: Record<Locale, string> = { en: "EN", bn: "বাং" };
+
 /**
  * The page's language, read straight from the cookie.
  *

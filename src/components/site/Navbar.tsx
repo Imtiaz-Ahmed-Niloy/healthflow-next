@@ -87,29 +87,48 @@ const Navbar = ({ transparentAtTop = false }: { transparentAtTop?: boolean }) =>
         </button>
       </nav>
       {open && (
-        <div className="md:hidden border-t border-border/50 bg-background animate-fade-up">
-          <ul className="container mx-auto py-4 flex flex-col gap-3 text-sm font-medium">
+        // A white sheet under the bar: the links as a ruled list, then the
+        // account buttons, then the language, centred, at the foot.
+        <div className="md:hidden border-t border-border/50 bg-card rounded-b-3xl shadow-card animate-fade-up">
+          <ul className="container mx-auto pt-2 pb-6 flex flex-col text-sm font-medium">
             {/* Features is desktop-only: the phone menu keeps to pricing,
                 about and contact. */}
             {links.filter(l => l.to !== "/features").map((l) => (
-              <li key={l.to}>
-                <NavLink to={l.to} onClick={() => setOpen(false)} className="block py-1">{l.label}</NavLink>
+              <li key={l.to} className="border-b border-border/50">
+                <NavLink
+                  to={l.to}
+                  onClick={() => setOpen(false)}
+                  className={({ isActive }) =>
+                    `block py-3.5 text-base transition-colors ${isActive ? "text-primary-glow font-semibold" : "text-foreground/80 hover:text-primary"}`
+                  }
+                >
+                  {l.label}
+                </NavLink>
               </li>
             ))}
-            <li className="pt-2"><LanguageSwitcher /></li>
             {sessionLoading ? null : user ? (
-              <li>
+              <li className="pt-5">
                 <Link href={home} onClick={() => setOpen(false)} className="flex items-center gap-2 py-1 font-semibold">
                   <Avatar src={user.avatarUrl} name={displayName(user)} className="h-7 w-7 text-[10px]" />
                   {displayName(user)}
                 </Link>
               </li>
             ) : (
-              <>
-                <li><Link href="/signin" onClick={() => setOpen(false)} className="block py-1">{t("nav.signIn")}</Link></li>
-                <li><Link href="/signup" onClick={() => setOpen(false)} className="inline-flex rounded-full bg-primary px-5 py-2 text-primary-foreground">{t("nav.getStarted")}</Link></li>
-              </>
+              // Two equal buttons across the full width, rather than a text
+              // link and a small pill.
+              <li className="pt-5 grid grid-cols-2 gap-3">
+                <Link href="/signin" onClick={() => setOpen(false)}
+                  className="rounded-full border border-border py-3 text-center font-semibold text-primary transition-colors hover:bg-muted/60">
+                  {t("nav.signIn")}
+                </Link>
+                <Link href="/signup" onClick={() => setOpen(false)}
+                  className="rounded-full bg-primary py-3 text-center font-semibold text-primary-foreground transition-colors hover:bg-primary-glow">
+                  {t("nav.getStarted")}
+                </Link>
+              </li>
             )}
+            {/* The language last, under the account actions. */}
+            <li className="pt-5 flex justify-center"><LanguageSwitcher /></li>
           </ul>
         </div>
       )}
