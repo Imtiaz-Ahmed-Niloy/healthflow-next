@@ -8,6 +8,7 @@ import LanguageSwitcher from "@/components/site/LanguageSwitcher";
 import SectionGlow, { GLOW } from "@/components/site/SectionGlow";
 import Footer from "@/components/site/Footer";
 import { useAtTop } from "@/components/site/Navbar";
+import { useIsPageVisible } from "@/components/site/PublishedPages";
 
 export const PromoBar = () => {
   const t = useTranslations("auth.layout");
@@ -27,12 +28,15 @@ export const AuthHeader = () => {
   const onSignUp = pathname === "/signup";
   const atTop = useAtTop();
   const t = useTranslations();
+  const isVisible = useIsPageVisible();
+  // As the main navbar: a page unpublished in the CMS drops out of the links
+  // rather than leading to a 404.
   const navLinks = [
     { label: t("nav.features"), to: "/features" },
     { label: t("nav.pricing"), to: "/pricing" },
     { label: t("nav.about"), to: "/about" },
     { label: t("nav.contact"), to: "/contact" },
-  ];
+  ].filter(l => isVisible(l.to));
   return (
     // See-through at the top of the page, like the main navbar, so the glow
     // runs up behind it; frosted from the first pixel of scroll.

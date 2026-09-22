@@ -2,7 +2,7 @@ import "server-only";
 
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import type { Database } from "./types";
 
 export type AppRole = Database["public"]["Enums"]["app_role"];
@@ -30,6 +30,13 @@ export type AuthContext = {
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
 
+/** The app's access token from `Authorization: Bearer …`, or null for a browser request. */
+const bearerToken = async () => {
+  const header = (await headers()).get("authorization");
+  const match = header?.match(/^Bearer\s+(\S+)$/i);
+  return match?.[1] ?? null;
+};
+
 /**
  * Request-scoped client that acts AS THE SIGNED-IN USER.
  *
@@ -38,8 +45,22 @@ const SUPABASE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KE
  * to filter by tenant_id.
  *
  * Note `cookies()` is awaited — in Next 15 it returns a Promise.
+ *
+ * The mobile apps (healthflow-doctor, healthflow-patient) have no cookie: they
+ * send their Supabase access token as `Authorization: Bearer <jwt>`. When one
+ * is present the client runs as that token instead, so RLS sees the same user
+ * either way. The token is only passed through — getAuthContext() below is
+ * what verifies it.
  */
 export const createServerSupabase = async () => {
+  const token = await bearerToken();
+  if (token) {
+    return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    }) as unknown as ReturnType<typeof createServerClient<Database>>;
+  }
+
   const cookieStore = await cookies();
 
   return createServerClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
@@ -105,11 +126,12 @@ export const createPublicSupabase = () => {
  *
  * Uses getClaims(), which verifies the JWT signature. Do not swap this for
  * getSession() — that reads the cookie without verifying it, so a forged
- * cookie would be trusted.
+ * cookie would be trusted. An app's bearer token is verified the same way.
  */
 export const getAuthContext = async (): Promise<AuthContext | null> => {
   const supabase = await createServerSupabase();
-  const { data, error } = await supabase.auth.getClaims();
+  const token = await bearerToken();
+  const { data, error } = await supabase.auth.getClaims(token ?? undefined);
 
   if (error || !data?.claims?.sub) return null;
 

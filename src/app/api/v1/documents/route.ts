@@ -70,6 +70,20 @@ const keySchema = z
     "That is not a document key",
   );
 
+/**
+ * The minute-long link, sent where it is needed. A browser follows the 307
+ * straight to the file. The mobile apps ask with `?as=json` and get the link
+ * back instead, because they open it in the phone's own viewer rather than
+ * following a redirect inside a fetch.
+ */
+const answer = (request: Request, url: string) =>
+  new URL(request.url).searchParams.get("as") === "json"
+    ? NextResponse.json({ data: { url } }, { headers: { "Cache-Control": "no-store" } })
+    // 307 rather than 302: the browser must not turn this into a GET of its own
+    // invention, and the redirect must never be cached — a link that outlives
+    // its minute is the one thing this route exists to prevent.
+    : NextResponse.redirect(url, { status: 307, headers: { "Cache-Control": "no-store" } });
+
 export const GET = async (request: Request) => {
   const auth = await getAuthContext();
   if (!auth) return fail("Not signed in", 401);
@@ -98,7 +112,7 @@ export const GET = async (request: Request) => {
 
     const client = createR2Client(config);
     const url = await getSignedUrl(client, new GetObjectCommand({ Bucket: R2_BUCKET, Key: key }), { expiresIn: 60 });
-    return NextResponse.redirect(url, { status: 307, headers: { "Cache-Control": "no-store" } });
+    return answer(request, url);
   }
 
   // A patient's identity paper. RLS shows the row to its owner and to a super
@@ -148,11 +162,5 @@ export const GET = async (request: Request) => {
     { expiresIn: 60 },
   );
 
-  // 307 rather than 302: the browser must not turn this into a GET of its own
-  // invention, and the redirect must never be cached — a link that outlives
-  // its minute is the one thing this route exists to prevent.
-  return NextResponse.redirect(url, {
-    status: 307,
-    headers: { "Cache-Control": "no-store" },
-  });
+  return answer(request, url);
 };

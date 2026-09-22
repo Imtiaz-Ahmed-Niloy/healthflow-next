@@ -5,7 +5,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
   
   const routes = [
     "",
-    "/features",
+    // /features is unpublished in the CMS (2026-09-19); add it back here if
+    // it is published again.
     "/pricing",
     "/about",
     "/contact",
