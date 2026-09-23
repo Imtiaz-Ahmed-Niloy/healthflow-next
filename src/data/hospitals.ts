@@ -35,6 +35,8 @@ export type ManagementMember = {
   email: string;
   linkedin: string;
   tenure: string;
+  /** Real hospitals carry this (management_body's `phone`); the invented demo rows don't. */
+  phone?: string;
 };
 
 export type Room = {

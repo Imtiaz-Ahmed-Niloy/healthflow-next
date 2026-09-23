@@ -96,11 +96,11 @@
       "beds": "Beds",
       "specialists": "Specialists",
       "rating": "Patient Rating",
-      "specialties": "Specialties"
+      "specialties": "Departments"
     },
     "about": "About {name}",
     "summary": "Summary",
-    "specialties": "Specialties",
+    "specialties": "Departments",
     "facilities": "Facilities & Amenities",
     "awards": "Awards & Recognition",
     "contact": "Contact & Visit",
@@ -141,8 +141,7 @@
         "All": "All",
         "Ward": "Ward",
         "Cabin": "Cabin",
-        "ICU": "ICU",
-        "Bed": "Bed"
+        "ICU": "ICU"
       },
       "total": "Total Rooms",
       "availableNow": "Available Now",
@@ -158,13 +157,17 @@
       "meals": "3 meals included on all stays",
       "wifi": "Complimentary high-speed Wi-Fi",
       "housekeeping": "Daily housekeeping & linen change",
-      "nurseCall": "24/7 nurse call response in under 2 min"
+      "nurseCall": "24/7 nurse call response in under 2 min",
+      "noRooms": "This hospital has not listed any rooms yet.",
+      "noRoomMatch": "No rooms match your filters."
     },
     "management": {
       "label": "Leadership",
       "title": "Hospital Management",
       "sub": "The executive team guiding {name}.",
-      "email": "Email"
+      "email": "Email",
+      "phone": "Phone",
+      "noManagement": "This hospital has not listed its leadership team yet."
     },
     "related": "Other Hospitals You May Like"
   },

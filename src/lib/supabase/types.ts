@@ -10,93 +10,10 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
-      advice: {
-        Row: {
-          category: string | null
-          created_at: string
-          id: string
-          is_active: boolean
-          sort_order: number
-          text: string
-          updated_at: string
-        }
-        Insert: {
-          category?: string | null
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          sort_order?: number
-          text: string
-          updated_at?: string
-        }
-        Update: {
-          category?: string | null
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          sort_order?: number
-          text?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      ads: {
-        Row: {
-          active: boolean
-          badge: string | null
-          badge_tone: string
-          body: string | null
-          created_at: string
-          ends_on: string | null
-          id: string
-          image_url: string | null
-          link_url: string | null
-          position: number
-          placement: Database["public"]["Enums"]["ad_placement"]
-          side: Database["public"]["Enums"]["ad_side"]
-          starts_on: string | null
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          active?: boolean
-          badge?: string | null
-          badge_tone?: string
-          body?: string | null
-          created_at?: string
-          ends_on?: string | null
-          id?: string
-          image_url?: string | null
-          link_url?: string | null
-          position?: number
-          side: Database["public"]["Enums"]["ad_side"]
-          starts_on?: string | null
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          active?: boolean
-          badge?: string | null
-          badge_tone?: string
-          body?: string | null
-          created_at?: string
-          ends_on?: string | null
-          id?: string
-          image_url?: string | null
-          link_url?: string | null
-          position?: number
-          placement?: Database["public"]["Enums"]["ad_placement"]
-          side?: Database["public"]["Enums"]["ad_side"]
-          starts_on?: string | null
-          title?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       admissions: {
         Row: {
           admitted_at: string
@@ -177,6 +94,90 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ads: {
+        Row: {
+          active: boolean
+          badge: string | null
+          badge_tone: string
+          body: string | null
+          created_at: string
+          ends_on: string | null
+          id: string
+          image_url: string | null
+          link_url: string | null
+          placement: Database["public"]["Enums"]["ad_placement"]
+          position: number
+          side: Database["public"]["Enums"]["ad_side"]
+          starts_on: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          badge?: string | null
+          badge_tone?: string
+          body?: string | null
+          created_at?: string
+          ends_on?: string | null
+          id?: string
+          image_url?: string | null
+          link_url?: string | null
+          placement?: Database["public"]["Enums"]["ad_placement"]
+          position?: number
+          side: Database["public"]["Enums"]["ad_side"]
+          starts_on?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          badge?: string | null
+          badge_tone?: string
+          body?: string | null
+          created_at?: string
+          ends_on?: string | null
+          id?: string
+          image_url?: string | null
+          link_url?: string | null
+          placement?: Database["public"]["Enums"]["ad_placement"]
+          position?: number
+          side?: Database["public"]["Enums"]["ad_side"]
+          starts_on?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      advice: {
+        Row: {
+          category: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          sort_order: number
+          text: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          text: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          text?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       announcements: {
         Row: {
@@ -730,6 +731,65 @@ export type Database = {
           },
         ]
       }
+      budgets: {
+        Row: {
+          account_id: string
+          created_at: string
+          id: string
+          period: string
+          planned: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          id?: string
+          period: string
+          planned?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          id?: string
+          period?: string
+          planned?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budgets_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budgets_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_balances"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "budgets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budgets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cabins: {
         Row: {
           admitted_on: string | null
@@ -802,6 +862,7 @@ export type Database = {
           created_at: string
           details: string | null
           employee_id: string | null
+          fields: Json
           id: string
           issued_by: string | null
           issued_on: string | null
@@ -817,6 +878,7 @@ export type Database = {
           created_at?: string
           details?: string | null
           employee_id?: string | null
+          fields?: Json
           id?: string
           issued_by?: string | null
           issued_on?: string | null
@@ -832,6 +894,7 @@ export type Database = {
           created_at?: string
           details?: string | null
           employee_id?: string | null
+          fields?: Json
           id?: string
           issued_by?: string | null
           issued_on?: string | null
@@ -1016,6 +1079,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "community_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "community_posts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "community_comments_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -1027,13 +1097,6 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "community_comments_post_id_fkey"
-            columns: ["post_id"]
-            isOneToOne: false
-            referencedRelation: "community_posts"
             referencedColumns: ["id"]
           },
         ]
@@ -1144,6 +1207,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "community_reactions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "community_posts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "community_reactions_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -1155,13 +1225,6 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "community_reactions_post_id_fkey"
-            columns: ["post_id"]
-            isOneToOne: false
-            referencedRelation: "community_posts"
             referencedColumns: ["id"]
           },
         ]
@@ -1198,6 +1261,51 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      cost_centers: {
+        Row: {
+          active: boolean
+          budget: number
+          created_at: string
+          id: string
+          name: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          budget?: number
+          created_at?: string
+          id?: string
+          name: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          budget?: number
+          created_at?: string
+          id?: string
+          name?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_centers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_centers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       doctor_assistants: {
         Row: {
@@ -2170,6 +2278,13 @@ export type Database = {
             foreignKeyName: "journal_entries_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
@@ -2223,6 +2338,13 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
             referencedColumns: ["id"]
           },
           {
@@ -2300,6 +2422,13 @@ export type Database = {
             columns: ["lab_test_id"]
             isOneToOne: false
             referencedRelation: "lab_tests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_orders_lab_test_id_fkey"
+            columns: ["lab_test_id"]
+            isOneToOne: false
+            referencedRelation: "lab_tests_public"
             referencedColumns: ["id"]
           },
           {
@@ -2488,56 +2617,11 @@ export type Database = {
             foreignKeyName: "ledger_accounts_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      budgets: {
-        Row: {
-          account_id: string
-          created_at: string
-          id: string
-          period: string
-          planned: number
-          tenant_id: string
-          updated_at: string
-        }
-        Insert: {
-          account_id: string
-          created_at?: string
-          id?: string
-          period: string
-          planned?: number
-          tenant_id: string
-          updated_at?: string
-        }
-        Update: {
-          account_id?: string
-          created_at?: string
-          id?: string
-          period?: string
-          planned?: number
-          tenant_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "budgets_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "ledger_accounts"
+            referencedRelation: "hospitals_public"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "budgets_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "ledger_balances"
-            referencedColumns: ["account_id"]
-          },
-          {
-            foreignKeyName: "budgets_tenant_id_fkey"
+            foreignKeyName: "ledger_accounts_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -2545,37 +2629,58 @@ export type Database = {
           },
         ]
       }
-      cost_centers: {
+      notification_reads: {
         Row: {
-          active: boolean
-          budget: number
           created_at: string
           id: string
-          name: string
+          notification_id: string
+          profile_id: string
+          read_at: string
           tenant_id: string
           updated_at: string
         }
         Insert: {
-          active?: boolean
-          budget?: number
           created_at?: string
           id?: string
-          name: string
+          notification_id: string
+          profile_id: string
+          read_at?: string
           tenant_id: string
           updated_at?: string
         }
         Update: {
-          active?: boolean
-          budget?: number
           created_at?: string
           id?: string
-          name?: string
+          notification_id?: string
+          profile_id?: string
+          read_at?: string
           tenant_id?: string
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "cost_centers_tenant_id_fkey"
+            foreignKeyName: "notification_reads_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_reads_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_reads_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_reads_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -2583,44 +2688,53 @@ export type Database = {
           },
         ]
       }
-      stock_items: {
+      notifications: {
         Row: {
+          body: string | null
           created_at: string
+          entity_id: string | null
+          entity_type: string | null
           id: string
-          name: string
-          qty: number
-          rate: number
-          reorder: number
+          kind: string
           tenant_id: string
-          unit: string
+          title: string
+          tone: Database["public"]["Enums"]["notification_tone"]
           updated_at: string
-          value: number | null
         }
         Insert: {
+          body?: string | null
           created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
           id?: string
-          name: string
-          qty?: number
-          rate?: number
-          reorder?: number
+          kind: string
           tenant_id: string
-          unit?: string
+          title: string
+          tone?: Database["public"]["Enums"]["notification_tone"]
           updated_at?: string
         }
         Update: {
+          body?: string | null
           created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
           id?: string
-          name?: string
-          qty?: number
-          rate?: number
-          reorder?: number
+          kind?: string
           tenant_id?: string
-          unit?: string
+          title?: string
+          tone?: Database["public"]["Enums"]["notification_tone"]
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "stock_items_tenant_id_fkey"
+            foreignKeyName: "notifications_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -3419,83 +3533,6 @@ export type Database = {
           },
         ]
       }
-      platform_invoices: {
-        Row: {
-          billing_month: string
-          created_at: string
-          discount_pct: number
-          due_date: string
-          id: string
-          issued_on: string
-          notes: string | null
-          package_id: string | null
-          package_name: string
-          paid_at: string | null
-          prescriptions: number
-          status: Database["public"]["Enums"]["platform_invoice_status"]
-          tenant_id: string
-          total: number | null
-          unit_price: number
-          updated_at: string
-        }
-        Insert: {
-          billing_month: string
-          created_at?: string
-          discount_pct?: number
-          due_date: string
-          id?: string
-          issued_on?: string
-          notes?: string | null
-          package_id?: string | null
-          package_name: string
-          paid_at?: string | null
-          prescriptions: number
-          status?: Database["public"]["Enums"]["platform_invoice_status"]
-          tenant_id: string
-          unit_price: number
-          updated_at?: string
-        }
-        Update: {
-          billing_month?: string
-          created_at?: string
-          discount_pct?: number
-          due_date?: string
-          id?: string
-          issued_on?: string
-          notes?: string | null
-          package_id?: string | null
-          package_name?: string
-          paid_at?: string | null
-          prescriptions?: number
-          status?: Database["public"]["Enums"]["platform_invoice_status"]
-          tenant_id?: string
-          unit_price?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "platform_invoices_package_id_fkey"
-            columns: ["package_id"]
-            isOneToOne: false
-            referencedRelation: "packages"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "platform_invoices_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "hospitals_public"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "platform_invoices_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       personal_files: {
         Row: {
           created_at: string
@@ -3600,6 +3637,85 @@ export type Database = {
           },
           {
             foreignKeyName: "pharmacy_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_invoices: {
+        Row: {
+          billing_month: string
+          created_at: string
+          discount_pct: number
+          due_date: string
+          id: string
+          issued_on: string
+          notes: string | null
+          package_id: string | null
+          package_name: string
+          paid_at: string | null
+          prescriptions: number
+          status: Database["public"]["Enums"]["platform_invoice_status"]
+          tenant_id: string
+          total: number | null
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          billing_month: string
+          created_at?: string
+          discount_pct?: number
+          due_date: string
+          id?: string
+          issued_on?: string
+          notes?: string | null
+          package_id?: string | null
+          package_name: string
+          paid_at?: string | null
+          prescriptions: number
+          status?: Database["public"]["Enums"]["platform_invoice_status"]
+          tenant_id: string
+          total?: number | null
+          unit_price: number
+          updated_at?: string
+        }
+        Update: {
+          billing_month?: string
+          created_at?: string
+          discount_pct?: number
+          due_date?: string
+          id?: string
+          issued_on?: string
+          notes?: string | null
+          package_id?: string | null
+          package_name?: string
+          paid_at?: string | null
+          prescriptions?: number
+          status?: Database["public"]["Enums"]["platform_invoice_status"]
+          tenant_id?: string
+          total?: number | null
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_invoices_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_invoices_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -3815,6 +3931,20 @@ export type Database = {
             referencedRelation: "doctors"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "saved_doctors_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_doctors_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       specialties: {
@@ -3843,6 +3973,60 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      stock_items: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          qty: number
+          rate: number
+          reorder: number
+          tenant_id: string
+          unit: string
+          updated_at: string
+          value: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          qty?: number
+          rate?: number
+          reorder?: number
+          tenant_id: string
+          unit?: string
+          updated_at?: string
+          value?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          qty?: number
+          rate?: number
+          reorder?: number
+          tenant_id?: string
+          unit?: string
+          updated_at?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       support_staff: {
         Row: {
@@ -3975,7 +4159,9 @@ export type Database = {
           doctor_count: number | null
           facilities: string | null
           founded_year: number | null
+          has_name: boolean
           id: string
+          kind: Database["public"]["Enums"]["tenant_kind"]
           location: string | null
           logo_url: string | null
           management_body: Json
@@ -3992,8 +4178,6 @@ export type Database = {
           owner_nid: string | null
           owner_phone: string | null
           owner_profile_id: string | null
-          kind: Database["public"]["Enums"]["tenant_kind"]
-          has_name: boolean
           owner_since: string | null
           ownership_type: string | null
           package_id: string | null
@@ -4036,7 +4220,9 @@ export type Database = {
           doctor_count?: number | null
           facilities?: string | null
           founded_year?: number | null
+          has_name?: boolean
           id?: string
+          kind?: Database["public"]["Enums"]["tenant_kind"]
           location?: string | null
           logo_url?: string | null
           management_body?: Json
@@ -4053,8 +4239,6 @@ export type Database = {
           owner_nid?: string | null
           owner_phone?: string | null
           owner_profile_id?: string | null
-          kind?: Database["public"]["Enums"]["tenant_kind"]
-          has_name?: boolean
           owner_since?: string | null
           ownership_type?: string | null
           package_id?: string | null
@@ -4097,7 +4281,9 @@ export type Database = {
           doctor_count?: number | null
           facilities?: string | null
           founded_year?: number | null
+          has_name?: boolean
           id?: string
+          kind?: Database["public"]["Enums"]["tenant_kind"]
           location?: string | null
           logo_url?: string | null
           management_body?: Json
@@ -4114,8 +4300,6 @@ export type Database = {
           owner_nid?: string | null
           owner_phone?: string | null
           owner_profile_id?: string | null
-          kind?: Database["public"]["Enums"]["tenant_kind"]
-          has_name?: boolean
           owner_since?: string | null
           ownership_type?: string | null
           package_id?: string | null
@@ -4137,6 +4321,13 @@ export type Database = {
           websites?: string[]
         }
         Relationships: [
+          {
+            foreignKeyName: "tenants_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tenants_package_id_fkey"
             columns: ["package_id"]
@@ -4260,8 +4451,281 @@ export type Database = {
           },
         ]
       }
+      work_orders: {
+        Row: {
+          bill_to_address: string | null
+          bill_to_contact: string | null
+          bill_to_name: string | null
+          bill_to_phone: string | null
+          completed_on: string | null
+          created_at: string
+          customer_code: string | null
+          department: string | null
+          id: string
+          issued_on: string
+          items: Json
+          job: string | null
+          other: number
+          reference: string
+          requested_by: string | null
+          requisition_id: string | null
+          shipping: number
+          status: Database["public"]["Enums"]["work_order_status"]
+          subtotal: number
+          tenant_id: string
+          terms: string | null
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          bill_to_address?: string | null
+          bill_to_contact?: string | null
+          bill_to_name?: string | null
+          bill_to_phone?: string | null
+          completed_on?: string | null
+          created_at?: string
+          customer_code?: string | null
+          department?: string | null
+          id?: string
+          issued_on?: string
+          items?: Json
+          job?: string | null
+          other?: number
+          reference: string
+          requested_by?: string | null
+          requisition_id?: string | null
+          shipping?: number
+          status?: Database["public"]["Enums"]["work_order_status"]
+          subtotal?: number
+          tenant_id: string
+          terms?: string | null
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          bill_to_address?: string | null
+          bill_to_contact?: string | null
+          bill_to_name?: string | null
+          bill_to_phone?: string | null
+          completed_on?: string | null
+          created_at?: string
+          customer_code?: string | null
+          department?: string | null
+          id?: string
+          issued_on?: string
+          items?: Json
+          job?: string | null
+          other?: number
+          reference?: string
+          requested_by?: string | null
+          requisition_id?: string | null
+          shipping?: number
+          status?: Database["public"]["Enums"]["work_order_status"]
+          subtotal?: number
+          tenant_id?: string
+          terms?: string | null
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_orders_requisition_id_fkey"
+            columns: ["requisition_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_requisitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
+      doctors_public: {
+        Row: {
+          availability: string | null
+          bio: string | null
+          bmdc_number: string | null
+          consultation_duration_minutes: number | null
+          consultation_fee: number | null
+          created_at: string | null
+          district: string | null
+          division: string | null
+          education: string | null
+          experience_years: number | null
+          expertise: string | null
+          gender: Database["public"]["Enums"]["patient_gender"] | null
+          hospital_name: string | null
+          hospital_slug: string | null
+          id: string | null
+          languages: string | null
+          location: string | null
+          name: string | null
+          patients_treated: number | null
+          person_slug: string | null
+          photo_url: string | null
+          practice_address: string | null
+          practice_kind: string | null
+          practice_phone: string | null
+          rating: number | null
+          slug: string | null
+          specialty: string | null
+          status: Database["public"]["Enums"]["doctor_status"] | null
+          subdistrict: string | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctors_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctors_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hospital_rooms_public: {
+        Row: {
+          available: number | null
+          category: string | null
+          hospital_slug: string | null
+          included: string[] | null
+          price: number | null
+          room_id: string | null
+          total: number | null
+          type: string | null
+        }
+        Relationships: []
+      }
+      hospitals_public: {
+        Row: {
+          about: string | null
+          additional_emails: string[] | null
+          additional_phones: string[] | null
+          address: string | null
+          beds: number | null
+          contact_email: string | null
+          contact_phone: string | null
+          cover_image_url: string | null
+          created_at: string | null
+          district: string | null
+          division: string | null
+          doctor_count: number | null
+          facilities: string | null
+          founded_year: number | null
+          id: string | null
+          is_partner: boolean | null
+          location: string | null
+          logo_url: string | null
+          management_body: Json | null
+          name: string | null
+          opening_hours: Json | null
+          rating: number | null
+          reviews_count: number | null
+          slug: string | null
+          social: Json | null
+          specialties: string | null
+          subdistrict: string | null
+          summary: string | null
+          tagline: string | null
+          websites: string[] | null
+        }
+        Insert: {
+          about?: string | null
+          additional_emails?: string[] | null
+          additional_phones?: string[] | null
+          address?: string | null
+          beds?: number | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          cover_image_url?: string | null
+          created_at?: string | null
+          district?: string | null
+          division?: string | null
+          doctor_count?: number | null
+          facilities?: string | null
+          founded_year?: number | null
+          id?: string | null
+          is_partner?: never
+          location?: string | null
+          logo_url?: string | null
+          management_body?: Json | null
+          name?: string | null
+          opening_hours?: Json | null
+          rating?: number | null
+          reviews_count?: number | null
+          slug?: string | null
+          social?: Json | null
+          specialties?: string | null
+          subdistrict?: string | null
+          summary?: string | null
+          tagline?: string | null
+          websites?: string[] | null
+        }
+        Update: {
+          about?: string | null
+          additional_emails?: string[] | null
+          additional_phones?: string[] | null
+          address?: string | null
+          beds?: number | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          cover_image_url?: string | null
+          created_at?: string | null
+          district?: string | null
+          division?: string | null
+          doctor_count?: number | null
+          facilities?: string | null
+          founded_year?: number | null
+          id?: string | null
+          is_partner?: never
+          location?: string | null
+          logo_url?: string | null
+          management_body?: Json | null
+          name?: string | null
+          opening_hours?: Json | null
+          rating?: number | null
+          reviews_count?: number | null
+          slug?: string | null
+          social?: Json | null
+          specialties?: string | null
+          subdistrict?: string | null
+          summary?: string | null
+          tagline?: string | null
+          websites?: string[] | null
+        }
+        Relationships: []
+      }
+      lab_tests_public: {
+        Row: {
+          category: string | null
+          hospital_slug: string | null
+          id: string | null
+          name: string | null
+          price: number | null
+          turnaround: string | null
+        }
+        Relationships: []
+      }
       ledger_balances: {
         Row: {
           account_id: string | null
@@ -4277,6 +4741,13 @@ export type Database = {
           tenant_id: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "ledger_accounts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals_public"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ledger_accounts_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -4321,54 +4792,11 @@ export type Database = {
             foreignKeyName: "journal_lines_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      doctors_public: {
-        Row: {
-          availability: string | null
-          bio: string | null
-          bmdc_number: string | null
-          consultation_duration_minutes: number | null
-          consultation_fee: number | null
-          created_at: string | null
-          district: string | null
-          division: string | null
-          education: string | null
-          experience_years: number | null
-          expertise: string | null
-          gender: Database["public"]["Enums"]["patient_gender"] | null
-          hospital_name: string | null
-          hospital_slug: string | null
-          id: string | null
-          languages: string | null
-          location: string | null
-          name: string | null
-          patients_treated: number | null
-          photo_url: string | null
-          person_slug: string | null
-          practice_address: string | null
-          practice_kind: string | null
-          practice_phone: string | null
-          rating: number | null
-          slug: string | null
-          specialty: string | null
-          status: Database["public"]["Enums"]["doctor_status"] | null
-          subdistrict: string | null
-          tenant_id: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "doctors_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
             referencedRelation: "hospitals_public"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "doctors_tenant_id_fkey"
+            foreignKeyName: "journal_lines_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -4376,115 +4804,73 @@ export type Database = {
           },
         ]
       }
-      hospitals_public: {
-        Row: {
-          about: string | null
-          additional_emails: string[] | null
-          additional_phones: string[] | null
-          address: string | null
-          beds: number | null
-          contact_email: string | null
-          contact_phone: string | null
-          cover_image_url: string | null
-          created_at: string | null
-          district: string | null
-          division: string | null
-          doctor_count: number | null
-          facilities: string | null
-          founded_year: number | null
-          id: string | null
-          is_partner: boolean | null
-          location: string | null
-          logo_url: string | null
-          name: string | null
-          opening_hours: Json | null
-          rating: number | null
-          reviews_count: number | null
-          slug: string | null
-          social: Json | null
-          specialties: string | null
-          subdistrict: string | null
-          summary: string | null
-          tagline: string | null
-          websites: string[] | null
-        }
-        Insert: {
-          about?: string | null
-          additional_emails?: string[] | null
-          additional_phones?: string[] | null
-          address?: string | null
-          beds?: number | null
-          contact_email?: string | null
-          contact_phone?: string | null
-          cover_image_url?: string | null
-          created_at?: string | null
-          district?: string | null
-          division?: string | null
-          doctor_count?: number | null
-          facilities?: string | null
-          founded_year?: number | null
-          id?: string | null
-          is_partner?: boolean | null
-          location?: string | null
-          logo_url?: string | null
-          name?: string | null
-          opening_hours?: Json | null
-          rating?: number | null
-          reviews_count?: number | null
-          slug?: string | null
-          social?: Json | null
-          specialties?: string | null
-          subdistrict?: string | null
-          summary?: string | null
-          tagline?: string | null
-          websites?: string[] | null
-        }
-        Update: {
-          about?: string | null
-          additional_emails?: string[] | null
-          additional_phones?: string[] | null
-          address?: string | null
-          beds?: number | null
-          contact_email?: string | null
-          contact_phone?: string | null
-          cover_image_url?: string | null
-          created_at?: string | null
-          district?: string | null
-          division?: string | null
-          doctor_count?: number | null
-          facilities?: string | null
-          founded_year?: number | null
-          id?: string | null
-          is_partner?: boolean | null
-          location?: string | null
-          logo_url?: string | null
-          name?: string | null
-          opening_hours?: Json | null
-          rating?: number | null
-          reviews_count?: number | null
-          slug?: string | null
-          social?: Json | null
-          specialties?: string | null
-          subdistrict?: string | null
-          summary?: string | null
-          tagline?: string | null
-          websites?: string[] | null
-        }
-        Relationships: []
-      }
     }
     Functions: {
+      add_doctor_to_hospital: {
+        Args: {
+          p_availability?: string
+          p_consultation_fee?: number
+          p_doctor_id?: string
+          p_profile_id?: string
+        }
+        Returns: string
+      }
+      admission_bill: {
+        Args: { a: Database["public"]["Tables"]["admissions"]["Row"] }
+        Returns: Json
+      }
+      apply_role_gate: {
+        Args: {
+          p_read_roles: Database["public"]["Enums"]["app_role"][]
+          p_table: unknown
+          p_write_roles?: Database["public"]["Enums"]["app_role"][]
+        }
+        Returns: undefined
+      }
       apply_tenant_rls: { Args: { p_table: unknown }; Returns: undefined }
       attach_audit: {
         Args: { p_log_values?: boolean; p_table: unknown }
         Returns: undefined
       }
+      auth_doctor_id: { Args: never; Returns: string }
       auth_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
-      auth_doctor_id: { Args: never; Returns: string }
       auth_tenant_id: { Args: never; Returns: string }
+      auth_tenant_ids: { Args: never; Returns: string[] }
+      bd_matches: {
+        Args: {
+          p: string
+          p_aliases: string[]
+          p_bn_name: string
+          p_name: string
+        }
+        Returns: boolean
+      }
+      bd_norm: { Args: { p: string }; Returns: string }
+      chamber_caller_owner: { Args: { p_profile_id: string }; Returns: string }
+      chamber_hours: { Args: { p_availability: string }; Returns: string }
+      chamber_made_name: {
+        Args: { p_doctor: string; p_location: string }
+        Returns: string
+      }
+      create_chamber: {
+        Args: {
+          p_address?: string
+          p_availability?: string
+          p_consultation_fee?: number
+          p_district?: string
+          p_division?: string
+          p_has_name?: boolean
+          p_location?: string
+          p_name: string
+          p_phone?: string
+          p_profile_id?: string
+          p_subdistrict?: string
+        }
+        Returns: string
+      }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
       generate_platform_invoices: {
         Args: { p_month: string }
@@ -4497,33 +4883,75 @@ export type Database = {
           total: number
         }[]
       }
+      is_my_patient_record: { Args: { p_patient_id: string }; Returns: boolean }
+      is_operating_hours: { Args: { p_value: Json }; Returns: boolean }
+      is_super_admin: { Args: never; Returns: boolean }
+      move_walk_in: {
+        Args: { p_appointment_id: string; p_tenant_id: string }
+        Returns: string
+      }
       post_journal_entry: {
         Args: { p_entry_id: string }
-        Returns: Database["public"]["Tables"]["journal_entries"]["Row"]
-      }
-      record_voucher: {
-        Args: {
-          p_cost_center_id?: string | null
-          p_entry_date: string
-          p_entry_no: string
-          p_lines: Json
-          p_narration: string | null
-          p_party: string | null
-          p_post?: boolean
-          p_type: Database["public"]["Enums"]["voucher_type"]
+        Returns: {
+          cost_center_id: string | null
+          created_at: string
+          entry_date: string
+          entry_no: string
+          id: string
+          narration: string | null
+          party: string | null
+          reconciled_on: string | null
+          status: Database["public"]["Enums"]["journal_status"]
+          tenant_id: string
+          type: Database["public"]["Enums"]["voucher_type"]
+          updated_at: string
         }
-        Returns: Database["public"]["Tables"]["journal_entries"]["Row"]
+        SetofOptions: {
+          from: "*"
+          to: "journal_entries"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
-      seed_chart_of_accounts: {
-        Args: never
-        Returns: Database["public"]["Tables"]["ledger_accounts"]["Row"][]
-      }
-      is_my_patient_record: { Args: { p_patient_id: string }; Returns: boolean }
-      is_super_admin: { Args: never; Returns: boolean }
-      shares_hospital_with: { Args: { p_profile_id: string }; Returns: boolean }
       record_medicine_usage: {
         Args: { p_doctor_id: string; p_medicines: Json; p_tenant_id: string }
         Returns: undefined
+      }
+      record_voucher: {
+        Args: {
+          p_cost_center_id?: string
+          p_entry_date: string
+          p_entry_no: string
+          p_lines: Json
+          p_narration: string
+          p_party: string
+          p_post?: boolean
+          p_type: Database["public"]["Enums"]["voucher_type"]
+        }
+        Returns: {
+          cost_center_id: string | null
+          created_at: string
+          entry_date: string
+          entry_no: string
+          id: string
+          narration: string | null
+          party: string | null
+          reconciled_on: string | null
+          status: Database["public"]["Enums"]["journal_status"]
+          tenant_id: string
+          type: Database["public"]["Enums"]["voucher_type"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "journal_entries"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      release_doctor_affiliation: {
+        Args: { p_doctor_id: string }
+        Returns: string
       }
       restore_staff_access: {
         Args: {
@@ -4534,68 +4962,51 @@ export type Database = {
         Returns: boolean
       }
       revoke_staff_access: { Args: { p_profile_id: string }; Returns: boolean }
-      release_doctor_affiliation: { Args: { p_doctor_id: string }; Returns: string }
-      auth_tenant_ids: { Args: never; Returns: string[] }
-      set_account_active: { Args: { p_profile_id: string; p_active: boolean }; Returns: boolean }
-      admission_bill: { Args: { a: Database["public"]["Tables"]["admissions"]["Row"] }; Returns: Json }
       search_doctors_to_add: {
         Args: { p_query: string }
         Returns: {
-          profile_id: string | null
-          doctor_id: string | null
-          name: string
-          specialty: string | null
-          photo_url: string | null
-          bmdc_number: string | null
-          email_hint: string | null
-          phone_hint: string | null
-          hospitals: string[]
+          bmdc_number: string
+          doctor_id: string
+          email_hint: string
           has_login: boolean
+          hospitals: string[]
+          name: string
+          phone_hint: string
+          photo_url: string
+          profile_id: string
+          specialty: string
         }[]
       }
-      create_chamber: {
-        Args: {
-          p_name: string
-          p_address?: string | null
-          p_location?: string | null
-          p_division?: string | null
-          p_district?: string | null
-          p_subdistrict?: string | null
-          p_phone?: string | null
-          p_consultation_fee?: number | null
-          p_availability?: string | null
-          p_profile_id?: string | null
-          p_has_name?: boolean | null
+      seed_chart_of_accounts: {
+        Args: never
+        Returns: {
+          active: boolean
+          code: string
+          created_at: string
+          group: Database["public"]["Enums"]["ledger_group"]
+          id: string
+          name: string
+          opening_balance: number
+          subgroup: string
+          tenant_id: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "ledger_accounts"
+          isOneToOne: false
+          isSetofReturn: true
         }
+      }
+      set_account_active: {
+        Args: { p_active: boolean; p_profile_id: string }
+        Returns: boolean
+      }
+      set_chamber_open: {
+        Args: { p_open: boolean; p_tenant_id: string }
         Returns: string
       }
-      update_chamber: {
-        Args: {
-          p_tenant_id: string
-          p_name: string
-          p_address?: string | null
-          p_location?: string | null
-          p_division?: string | null
-          p_district?: string | null
-          p_subdistrict?: string | null
-          p_phone?: string | null
-          p_consultation_fee?: number | null
-          p_availability?: string | null
-          p_has_name?: boolean | null
-        }
-        Returns: string
-      }
-      set_chamber_open: { Args: { p_tenant_id: string; p_open: boolean }; Returns: string }
-      move_walk_in: { Args: { p_appointment_id: string; p_tenant_id: string }; Returns: string }
-      add_doctor_to_hospital: {
-        Args: {
-          p_profile_id?: string | null
-          p_consultation_fee?: number | null
-          p_availability?: string | null
-          p_doctor_id?: string | null
-        }
-        Returns: string
-      }
+      shares_hospital_with: { Args: { p_profile_id: string }; Returns: boolean }
       transfer_admission: {
         Args: { p_admission_id: string; p_bed_id?: string; p_cabin_id?: string }
         Returns: {
@@ -4615,6 +5026,22 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      update_chamber: {
+        Args: {
+          p_address?: string
+          p_availability?: string
+          p_consultation_fee?: number
+          p_district?: string
+          p_division?: string
+          p_has_name?: boolean
+          p_location?: string
+          p_name: string
+          p_phone?: string
+          p_subdistrict?: string
+          p_tenant_id: string
+        }
+        Returns: string
       }
     }
     Enums: {
@@ -4677,6 +5104,16 @@ export type Database = {
       id_document_kind: "birth_certificate" | "nid" | "passport"
       id_verification_status: "pending" | "verified" | "rejected"
       journal_status: "draft" | "posted"
+      lab_order_status:
+        | "pending"
+        | "sample_collected"
+        | "processing"
+        | "reported"
+      leave_status: "pending" | "approved" | "rejected"
+      leave_type: "sick" | "casual" | "vacation" | "maternity" | "unpaid"
+      ledger_group: "asset" | "liability" | "income" | "expense" | "capital"
+      marital_status: "single" | "married" | "divorced" | "widowed"
+      notification_tone: "info" | "ok" | "warn" | "bad"
       patient_document_kind:
         | "prescription"
         | "lab_report"
@@ -4685,15 +5122,6 @@ export type Database = {
         | "vaccination"
         | "insurance"
         | "other"
-      lab_order_status:
-        | "pending"
-        | "sample_collected"
-        | "processing"
-        | "reported"
-      leave_status: "pending" | "approved" | "rejected"
-      ledger_group: "asset" | "liability" | "income" | "expense" | "capital"
-      leave_type: "sick" | "casual" | "vacation" | "maternity" | "unpaid"
-      marital_status: "single" | "married" | "divorced" | "widowed"
       patient_gender: "male" | "female" | "other"
       patient_history_kind: "allergy" | "illness" | "medication" | "procedure"
       payroll_run_status: "draft" | "approved" | "paid"
@@ -4723,6 +5151,7 @@ export type Database = {
         | "icu"
         | "maternity"
         | "pediatric"
+      work_order_status: "draft" | "issued" | "completed" | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -4738,12 +5167,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -4767,11 +5196,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -4792,11 +5221,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -4817,11 +5246,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -4834,11 +5263,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -4850,6 +5279,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      ad_placement: ["signin"],
+      ad_side: ["left", "right"],
       admission_priority: ["routine", "urgent", "critical"],
       admission_status: [
         "admitted",
@@ -4908,6 +5339,10 @@ export const Constants = {
       community_reaction: ["like", "love", "insightful"],
       doctor_status: ["active", "on_leave", "suspended"],
       finance_invoice_kind: ["receivable", "payable"],
+      id_document_holder: ["self", "emergency_contact"],
+      id_document_kind: ["birth_certificate", "nid", "passport"],
+      id_verification_status: ["pending", "verified", "rejected"],
+      journal_status: ["draft", "posted"],
       lab_order_status: [
         "pending",
         "sample_collected",
@@ -4916,7 +5351,18 @@ export const Constants = {
       ],
       leave_status: ["pending", "approved", "rejected"],
       leave_type: ["sick", "casual", "vacation", "maternity", "unpaid"],
+      ledger_group: ["asset", "liability", "income", "expense", "capital"],
       marital_status: ["single", "married", "divorced", "widowed"],
+      notification_tone: ["info", "ok", "warn", "bad"],
+      patient_document_kind: [
+        "prescription",
+        "lab_report",
+        "imaging",
+        "discharge_summary",
+        "vaccination",
+        "insurance",
+        "other",
+      ],
       patient_gender: ["male", "female", "other"],
       patient_history_kind: ["allergy", "illness", "medication", "procedure"],
       payroll_run_status: ["draft", "approved", "paid"],
@@ -4932,6 +5378,16 @@ export const Constants = {
       support_ticket_status: ["pending", "processing", "resolved"],
       tenant_kind: ["hospital", "chamber"],
       tenant_status: ["pending", "approved", "suspended"],
+      voucher_type: [
+        "payment",
+        "receipt",
+        "contra",
+        "journal",
+        "sales",
+        "purchase",
+        "credit_note",
+        "debit_note",
+      ],
       ward_category: [
         "general",
         "semi_private",
@@ -4939,6 +5395,7 @@ export const Constants = {
         "maternity",
         "pediatric",
       ],
+      work_order_status: ["draft", "issued", "completed", "cancelled"],
     },
   },
 } as const

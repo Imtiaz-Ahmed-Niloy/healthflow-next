@@ -1,101 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@/i18n/config";
-import { hospitals as staticHospitals, baseLabTests, baseRooms, baseManagement, type Hospital, type Doctor } from "@/data/hospitals";
+import { hospitals as staticHospitals, type Hospital, type Doctor, type Room, type ManagementMember } from "@/data/hospitals";
 import { slugify } from "@/lib/slug";
 import { mediaUrl } from "@/lib/media";
 import { parseWeek, summariseWeek } from "@/lib/hours";
 import { availabilityLabel } from "@/lib/availability";
 import { supabase } from "@/lib/supabase/client";
 const atriumFallback = "/assets/hub-atrium.jpg";
-
-const DOCTORS_KEY = "hf:doctors";
-const LAB_CATALOG_KEY = "hf:lab-catalog";
-
-type AdminLabItem = {
-  id: string;
-  name: string;
-  category?: string;
-  price?: string;
-  turnaround?: string;
-  hospital?: string;
-  status?: string;
-};
-
-const readAdminLabTests = (): AdminLabItem[] => {
-  try {
-    const raw = localStorage.getItem(LAB_CATALOG_KEY);
-    if (!raw) return [];
-    const arr = JSON.parse(raw) as AdminLabItem[];
-    return Array.isArray(arr) ? arr.filter(t => t && t.name && (t.status ?? "Active") !== "Inactive") : [];
-  } catch { return []; }
-};
-
-const labTestsForHospital = (hospitalName: string, hospitalSlug: string) => {
-  const target = hospitalName.toLowerCase().trim();
-  return readAdminLabTests()
-    .filter(t => {
-      const h = (t.hospital || "").toLowerCase().trim();
-      return !h || h === "all hospitals" || h === "all" || h === target || slugify(t.hospital || "") === hospitalSlug;
-    })
-    .map(t => ({
-      name: t.name,
-      category: t.category || "General",
-      price: Number(t.price) || 0,
-      turnaround: t.turnaround || "—",
-    }));
-};
-
-type AdminDoctor = {
-  id: string;
-  name: string;
-  specialty: string;
-  experience?: string;
-  rating?: string;
-  fee?: string;
-  patients?: string;
-  available?: string;
-  photo?: string;
-  education?: string;
-  languages?: string;
-  hospital?: string;
-  status?: string;
-};
-
-export const mapAdminDoctor = (d: AdminDoctor): Doctor => ({
-  name: d.name,
-  specialty: d.specialty || "General",
-  experience: Number(d.experience) || 1,
-  rating: Number(d.rating) || 4.7,
-  fee: Number(d.fee) || 100,
-  available: d.available || "Mon-Fri",
-  photo: mediaUrl(d.photo),
-  education: d.education || "MBBS",
-  languages: (d.languages || "English").split(",").map(s => s.trim()).filter(Boolean),
-  patients: Number(d.patients) || 100,
-});
-
-export const readAdminDoctors = (): AdminDoctor[] => {
-  try {
-    const raw = localStorage.getItem(DOCTORS_KEY);
-    if (!raw) return [];
-    const arr = JSON.parse(raw) as AdminDoctor[];
-    return Array.isArray(arr) ? arr.filter(d => d && d.name && (d.status ?? "Active") !== "Suspended") : [];
-  } catch { return []; }
-};
-
-export type { AdminDoctor };
-
-const doctorsForHospital = (hospitalName: string, hospitalSlug: string): Doctor[] => {
-  const target = hospitalName.toLowerCase().trim();
-  const targetSlug = hospitalSlug;
-  return readAdminDoctors()
-    .filter(d => {
-      const h = (d.hospital || "").toLowerCase().trim();
-      return h === target || slugify(d.hospital || "") === targetSlug;
-    })
-    .map(mapAdminDoctor);
-};
 
 const splitList = (s?: string | null) =>
   (s || "").split(",").map((x) => x.trim()).filter(Boolean);
@@ -132,6 +44,30 @@ type PublicHospital = {
   reviews_count: number | null;
   /** Approved on HealthFlow (0097). The list also carries pending hospitals, without the badge. */
   is_partner: boolean | null;
+  // jsonb array of { name, role, phone, email } — captured on the "Owner &
+  // Management" step of the hospital form (src/data/hospitalFields.ts).
+  management_body: unknown;
+};
+
+/** One row of `public.lab_tests_public` (0098). */
+type PublicLabTest = {
+  hospital_slug: string | null;
+  name: string | null;
+  category: string | null;
+  price: number | null;
+  turnaround: string | null;
+};
+
+/** One row of `public.hospital_rooms_public` (0098) — a ward, or a cabin category, grouped with its bed/cabin counts. */
+type PublicRoom = {
+  room_id: string | null;
+  hospital_slug: string | null;
+  type: string | null;
+  category: string | null;
+  price: number | null;
+  included: string[] | null;
+  total: number | null;
+  available: number | null;
 };
 
 /**
@@ -225,6 +161,59 @@ const mapPublicToDoctor = (r: PublicDoctor, w: Words, locale: Locale): Doctor =>
   patients: Number(r.patients_treated) || 0,
 });
 
+const mapPublicToLabTest = (r: PublicLabTest) => ({
+  name: r.name || "",
+  category: r.category || "General",
+  price: Number(r.price) || 0,
+  turnaround: r.turnaround || "—",
+});
+
+/**
+ * A real ward or cabin-category row. `capacity`/`amenities`/`size`/`view` are
+ * blank rather than invented — wards and cabins don't record a room "view",
+ * and a cabin category groups rows whose capacity can differ, so there is no
+ * single true value to print. The card these feed (HospitalDetail) only
+ * reads type/category/price/included/available/total for that reason.
+ */
+const mapPublicToRoom = (r: PublicRoom): Room => ({
+  type: r.type || "",
+  category: r.category === "ICU" || r.category === "Cabin" ? r.category : "Ward",
+  capacity: "",
+  price: Number(r.price) || 0,
+  amenities: "",
+  size: "",
+  view: "",
+  included: r.included ?? [],
+  available: Number(r.available) || 0,
+  total: Number(r.total) || 0,
+});
+
+/**
+ * `management_body` — [{ name, role, phone, email }], typed as posted by
+ * PeopleField (src/components/admin/ResourcePage.tsx) and validated by
+ * managementBodySchema (src/server/resources/hospitals.ts). bio/photo/
+ * linkedin/tenure are left blank: nothing in the admin form collects them,
+ * so inventing values here would be the same fabrication this replaces.
+ */
+const mapManagementBody = (value: unknown): ManagementMember[] => {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+    const { name, role, phone, email } = entry as { name?: unknown; role?: unknown; phone?: unknown; email?: unknown };
+    if (typeof name !== "string" || !name.trim()) return [];
+    return [{
+      name: name.trim(),
+      role: typeof role === "string" ? role.trim() : "",
+      bio: "",
+      photo: "",
+      email: typeof email === "string" ? email.trim() : "",
+      linkedin: "",
+      tenure: "",
+      phone: typeof phone === "string" ? phone.trim() : "",
+    }];
+  });
+};
+
 /**
  * Maps a public view row onto the shape the marketing pages already render.
  *
@@ -237,7 +226,14 @@ const mapPublicToDoctor = (r: PublicDoctor, w: Words, locale: Locale): Doctor =>
  * doctors on every hospital in the country, complete with fees and ratings, on
  * a page the public reads as the hospital's own roster.
  */
-const mapPublicToHospital = (r: PublicHospital, w: Words, locale: Locale, doctors: Doctor[] = []): Hospital => {
+const mapPublicToHospital = (
+  r: PublicHospital,
+  w: Words,
+  locale: Locale,
+  doctors: Doctor[] = [],
+  labTests: ReturnType<typeof mapPublicToLabTest>[] = [],
+  rooms: Room[] = [],
+): Hospital => {
   const phones = contactList(r.contact_phone, r.additional_phones);
   const emails = contactList(r.contact_email, r.additional_emails);
   const websites = contactList(null, r.websites);
@@ -295,9 +291,9 @@ const mapPublicToHospital = (r: PublicHospital, w: Words, locale: Locale, doctor
       return w.defaultHours;
     })(),
     doctors_list: doctors,
-    lab_tests: baseLabTests,
-    rooms: baseRooms,
-    management: baseManagement,
+    lab_tests: labTests,
+    rooms,
+    management: mapManagementBody(r.management_body),
   };
 };
 
@@ -312,41 +308,65 @@ const mapPublicToHospital = (r: PublicHospital, w: Words, locale: Locale, doctor
  * Before 0008 this job was done by reading the super admin's localStorage, so
  * the public site only ever showed hospitals typed in the same browser.
  */
-type ApprovedRows = { hospitals: PublicHospital[]; doctors: PublicDoctor[] };
+type ApprovedRows = {
+  hospitals: PublicHospital[];
+  doctors: PublicDoctor[];
+  labTests: PublicLabTest[];
+  rooms: PublicRoom[];
+};
 
 const fetchApproved = async (): Promise<ApprovedRows> => {
-  // Both views in parallel. `doctors_public` (0022) is already filtered to
-  // active doctors at approved hospitals, so no extra guard is needed here —
-  // and it carries hospital_slug, so the two are joined in memory rather than
-  // with a request per hospital.
-  const [hospitalRes, doctorRes] = await Promise.all([
+  // All four views in parallel. `doctors_public` (0022), `lab_tests_public`
+  // and `hospital_rooms_public` (both 0098) each carry hospital_slug, so
+  // every one is joined to its hospital in memory rather than with a request
+  // per hospital.
+  const [hospitalRes, doctorRes, labTestRes, roomRes] = await Promise.all([
     supabase.from("hospitals_public").select("*").order("created_at", { ascending: false }),
     supabase.from("doctors_public").select("*").order("rating", { ascending: false, nullsFirst: false }),
+    supabase.from("lab_tests_public").select("*"),
+    supabase.from("hospital_rooms_public").select("*"),
   ]);
 
-  if (hospitalRes.error || !hospitalRes.data) return { hospitals: [], doctors: [] };
+  if (hospitalRes.error || !hospitalRes.data) return { hospitals: [], doctors: [], labTests: [], rooms: [] };
 
-  // A failed doctor read must not blank the hospital list — the page is still
-  // worth rendering without its roster.
+  // A failed doctor/lab/room read must not blank the hospital list — the page
+  // is still worth rendering without that section.
   return {
     hospitals: hospitalRes.data.filter((r) => r.name),
     doctors: (doctorRes.data ?? []) as PublicDoctor[],
+    labTests: (labTestRes.data ?? []) as PublicLabTest[],
+    rooms: (roomRes.data ?? []) as PublicRoom[],
   };
+};
+
+/** Groups rows carrying `hospital_slug` into a Map, applying `map` to each. */
+const groupBySlug = <T extends { hospital_slug: string | null }, U>(rows: T[], map: (row: T) => U | null): Map<string, U[]> => {
+  const bySlug = new Map<string, U[]>();
+  for (const row of rows) {
+    if (!row.hospital_slug) continue;
+    const mapped = map(row);
+    if (mapped === null) continue;
+    const list = bySlug.get(row.hospital_slug);
+    if (list) list.push(mapped);
+    else bySlug.set(row.hospital_slug, [mapped]);
+  }
+  return bySlug;
 };
 
 /** The rows as hospitals, labelled in the page's language. */
 const buildHospitals = (rows: ApprovedRows, w: Words, locale: Locale): Hospital[] => {
-  const bySlug = new Map<string, Doctor[]>();
-  for (const row of rows.doctors) {
-    if (!row.hospital_slug || !row.name) continue;
-    const list = bySlug.get(row.hospital_slug);
-    if (list) list.push(mapPublicToDoctor(row, w, locale));
-    else bySlug.set(row.hospital_slug, [mapPublicToDoctor(row, w, locale)]);
-  }
+  const doctorsBySlug = groupBySlug(rows.doctors, (row) => (row.name ? mapPublicToDoctor(row, w, locale) : null));
+  const labTestsBySlug = groupBySlug(rows.labTests, (row) => (row.name ? mapPublicToLabTest(row) : null));
+  const roomsBySlug = groupBySlug(rows.rooms, (row) => (row.type ? mapPublicToRoom(row) : null));
   // Partners first, newest first within each group (the fetch's own order —
   // Array.prototype.sort is stable).
   const partnersFirst = [...rows.hospitals].sort((a, b) => Number(!!b.is_partner) - Number(!!a.is_partner));
-  return partnersFirst.map((r) => mapPublicToHospital(r, w, locale, r.slug ? bySlug.get(r.slug) ?? [] : []));
+  return partnersFirst.map((r) => mapPublicToHospital(
+    r, w, locale,
+    r.slug ? doctorsBySlug.get(r.slug) ?? [] : [],
+    r.slug ? labTestsBySlug.get(r.slug) ?? [] : [],
+    r.slug ? roomsBySlug.get(r.slug) ?? [] : [],
+  ));
 };
 
 const useWords = (): Words => {
@@ -368,21 +388,6 @@ const useWords = (): Words => {
   };
 };
 
-/** Injects admin-managed doctors and lab tests into whichever hospitals match. */
-const withLocalExtras = (list: Hospital[]): Hospital[] =>
-  list.map((h) => {
-    let next = h;
-    const extras = doctorsForHospital(h.name, h.slug);
-    if (extras.length) {
-      const existing = new Set(h.doctors_list.map((d) => d.name.toLowerCase()));
-      const fresh = extras.filter((d) => !existing.has(d.name.toLowerCase()));
-      next = { ...next, doctors_list: [...fresh, ...next.doctors_list], doctors: next.doctors + fresh.length };
-    }
-    // Replaced entirely so add/edit/delete in /admin/lab is reflected.
-    next = { ...next, lab_tests: labTestsForHospital(h.name, h.slug) };
-    return next;
-  });
-
 const dedupeBySlug = (list: Hospital[]): Hospital[] => {
   const seen = new Set<string>();
   return list.filter((h) => {
@@ -393,19 +398,14 @@ const dedupeBySlug = (list: Hospital[]): Hospital[] => {
 };
 
 /**
- * Static marketing hospitals only, synchronously.
- *
- * Kept for DoctorDetail, which needs a hospital list during render and is itself
- * still driven by localStorage doctors. It does NOT include database partners —
- * anything needing those must use the hooks below.
+ * Static marketing hospitals only, synchronously. Does NOT include database
+ * partners — anything needing those must use the hooks below.
  */
-export const getAllHospitals = (): Hospital[] =>
-  withLocalExtras(dedupeBySlug([...staticHospitals]));
+export const getAllHospitals = (): Hospital[] => dedupeBySlug([...staticHospitals]);
 
 const useApprovedHospitals = () => {
-  const [rows, setRows] = useState<ApprovedRows>({ hospitals: [], doctors: [] });
+  const [rows, setRows] = useState<ApprovedRows>({ hospitals: [], doctors: [], labTests: [], rooms: [] });
   const [loading, setLoading] = useState(true);
-  const [localTick, setLocalTick] = useState(0);
   const locale = useLocale();
   const w = useWords();
   // `w` is rebuilt each render; the words only change with the language.
@@ -422,32 +422,13 @@ const useApprovedHospitals = () => {
     return () => { active = false; };
   }, []);
 
-  useEffect(() => {
-    const bump = () => setLocalTick((n) => n + 1);
-    const onStorage = (e: StorageEvent) => {
-      if (!e.key || e.key === DOCTORS_KEY || e.key === LAB_CATALOG_KEY) bump();
-    };
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("focus", bump);
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("focus", bump);
-    };
-  }, []);
-
   // Approved rows only. `staticHospitals` used to be merged in behind them,
   // which meant the public site advertised 70 hospitals that existed nowhere
   // but this repo — a "Verified Health Hub" of hardcoded strings. Those rows
   // now live in `tenants` with status 'approved', so the same hospitals still
   // render; the difference is that a super admin can now suspend one and have
   // it actually disappear, which the fallback silently prevented.
-  //
-  // localTick is a deliberate dependency: it is how an edit in another tab to
-  // the not-yet-migrated doctor and lab catalogues forces a re-merge.
-  const hospitals = useMemo(
-    () => withLocalExtras(dedupeBySlug(approved)),
-    [approved, localTick],
-  );
+  const hospitals = useMemo(() => dedupeBySlug(approved), [approved]);
 
   return { hospitals, loading };
 };

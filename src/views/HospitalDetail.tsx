@@ -8,9 +8,8 @@ import { useTranslations } from "next-intl";
 import {
   MapPin, Award, Star, Phone, Mail, Globe, ArrowLeft, BedDouble,
   Stethoscope, Calendar, Clock, CheckCircle2, Building2, Search,
-  FlaskConical, Hotel, Users, GraduationCap, Languages, Heart,
-  Linkedin, Briefcase, Maximize2, Eye, Wifi, Utensils, Sparkles,
-  Facebook, Twitter, Instagram, Youtube,
+  FlaskConical, Hotel, Users, Sparkles,
+  Facebook, Twitter, Instagram, Youtube, Linkedin,
 } from "lucide-react";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
@@ -18,35 +17,45 @@ import { Avatar } from "@/components/common/Avatar";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useHospital } from "@/hooks/useHospitals";
-import { slugify } from "@/lib/slug";
+import { useDoctors } from "@/hooks/useDoctors";
+import { DoctorCard } from "@/components/site/DoctorCard";
+import { useFormatters } from "@/lib/appSettings";
 
 const HospitalDetail = () => {
   const t = useTranslations("hospitalDetail");
+  const { formatCurrency } = useFormatters();
   const slug = useParams<{ slug: string }>()?.slug;
   const { hospital, hospitals, loading } = useHospital(slug ?? "");
+  const { doctors: allDoctors } = useDoctors();
 
   const [docQuery, setDocQuery] = useState("");
   const [docSpec, setDocSpec] = useState("All");
   const [labCat, setLabCat] = useState("All");
-  const [roomCat, setRoomCat] = useState<"All" | "Ward" | "Cabin" | "ICU" | "Bed">("All");
+  const [roomCat, setRoomCat] = useState<"All" | "Ward" | "Cabin" | "ICU">("All");
 
+  // The same doctor cards as the home page and /doctors: real rows from
+  // doctors_public (via useDoctors), filtered to whoever practises here.
+  const hospitalDoctors = useMemo(
+    () => (hospital ? allDoctors.filter((d) => d.places.some((p) => p.hospitalSlug === hospital.slug)) : []),
+    [allDoctors, hospital],
+  );
   const specialties = useMemo(
-    () => ["All", ...Array.from(new Set(hospital?.doctors_list.map((d) => d.specialty) ?? []))],
-    [hospital],
+    () => ["All", ...Array.from(new Set(hospitalDoctors.map((d) => d.specialty)))],
+    [hospitalDoctors],
   );
   const labCats = useMemo(
     () => ["All", ...Array.from(new Set(hospital?.lab_tests.map((test) => test.category) ?? []))],
     [hospital],
   );
-  const filteredDoctors = useMemo(() => {
-    if (!hospital) return [];
-    return hospital.doctors_list.filter(
+  const filteredDoctors = useMemo(
+    () => hospitalDoctors.filter(
       (d) =>
         (docSpec === "All" || d.specialty === docSpec) &&
         (d.name.toLowerCase().includes(docQuery.toLowerCase()) ||
           d.specialty.toLowerCase().includes(docQuery.toLowerCase())),
-    );
-  }, [hospital, docQuery, docSpec]);
+    ),
+    [hospitalDoctors, docQuery, docSpec],
+  );
   const filteredLabs = useMemo(
     () => (hospital?.lab_tests ?? []).filter((test) => labCat === "All" || test.category === labCat),
     [hospital, labCat],
@@ -114,13 +123,7 @@ const HospitalDetail = () => {
                     {hospital.tag.toUpperCase()}
                   </span>
                 )}
-                <h1 className="font-display text-4xl md:text-6xl max-w-3xl leading-tight">{hospital.name}</h1>
-                <div className="flex flex-wrap gap-5 mt-5 text-sm opacity-95">
-                  <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" />{hospital.location}</span>
-                  {hospital.cert && <span className="inline-flex items-center gap-1.5"><Award className="h-4 w-4" />{hospital.cert}</span>}
-                  <span className="inline-flex items-center gap-1.5"><Star className="h-4 w-4 fill-accent text-accent" />{hospital.rating} ({t("reviews", { count: hospital.reviews })})</span>
-                  <span className="inline-flex items-center gap-1.5"><Calendar className="h-4 w-4" />{t("est", { year: hospital.founded })}</span>
-                </div>
+                <h1 className="font-display text-3xl sm:text-4xl md:text-5xl leading-tight">{hospital.name}</h1>
               </motion.div>
 
               {/* The hospital's own logo, beside the title on the cover photo.
@@ -253,6 +256,12 @@ const HospitalDetail = () => {
               className="rounded-3xl bg-card border border-border/60 shadow-card p-6 sticky top-24"
             >
               <h3 className="font-display text-xl text-primary">{t("contact")}</h3>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5 text-primary" />{hospital.location}</span>
+                {hospital.cert && <span className="inline-flex items-center gap-1 text-primary font-medium"><Award className="h-3.5 w-3.5" />{hospital.cert}</span>}
+                <span className="inline-flex items-center gap-1"><Star className="h-3.5 w-3.5 fill-accent text-accent" />{hospital.rating} ({t("reviews", { count: hospital.reviews })})</span>
+                <span className="inline-flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{t("est", { year: hospital.founded })}</span>
+              </div>
               {(() => {
                 const phones = hospital.phones?.length ? hospital.phones : (hospital.phone ? [hospital.phone] : []);
                 const emails = hospital.emails?.length ? hospital.emails : (hospital.email ? [hospital.email] : []);
@@ -338,11 +347,8 @@ const HospitalDetail = () => {
                 </div>
               </div>
 
-              <Link href="/patient/find-doctors" className="mt-6 block w-full text-center rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors">
-                {t("book")}
-              </Link>
               {hospital.phone && (
-                <a href={`tel:${hospital.phone}`} className="mt-3 block w-full text-center rounded-full border border-primary/30 py-3 text-sm font-semibold text-primary hover:bg-primary/5 transition-colors">
+                <a href={`tel:${hospital.phone}`} className="mt-6 block w-full text-center rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors">
                   {t("callNow")}
                 </a>
               )}
@@ -382,78 +388,11 @@ const HospitalDetail = () => {
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredDoctors.map((d, i) => (
-              <motion.article
-                key={d.name + i}
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.05, duration: 0.5 }}
-                className="group relative rounded-3xl bg-card border border-border/60 overflow-hidden hover:shadow-card hover:-translate-y-1.5 transition-all duration-500"
-              >
-                <div className="relative h-56 overflow-hidden bg-gradient-to-br from-accent/40 to-primary/10">
-                  {d.photo ? (
-                    <img
-                      src={d.photo}
-                      alt={d.name}
-                      loading="lazy"
-                      width={512}
-                      height={512}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    />
-                  ) : (
-                    // No photo: initials, lifted clear of the name along the bottom.
-                    <div className="grid h-full w-full place-items-center pb-12">
-                      <Avatar src={null} name={d.name} className="h-20 w-20 text-2xl" />
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-primary/10 to-transparent opacity-90" />
-                  <div className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-card/95 backdrop-blur px-2.5 py-1 text-[11px] font-semibold text-primary">
-                    <Star className="h-3 w-3 fill-accent text-accent" />{d.rating}
-                  </div>
-                  <div className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-primary-glow/90 backdrop-blur px-2.5 py-1 text-[11px] font-semibold text-primary-foreground">
-                    {d.specialty}
-                  </div>
-                  <div className="absolute bottom-3 left-4 right-4 text-primary-foreground">
-                    <h3 className="font-display text-xl leading-tight">{d.name}</h3>
-                    <p className="text-[11px] opacity-90 mt-0.5 inline-flex items-center gap-1"><GraduationCap className="h-3 w-3" />{d.education}</p>
-                  </div>
-                </div>
-                <div className="p-5">
-                  <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
-                    <div className="rounded-xl bg-accent/30 py-2.5">
-                      <p className="font-display text-base text-primary">{d.experience}+</p>
-                      <p className="text-muted-foreground">{t("years")}</p>
-                    </div>
-                    <div className="rounded-xl bg-accent/30 py-2.5">
-                      <p className="font-display text-base text-primary">{(d.patients / 1000).toFixed(1)}k</p>
-                      <p className="text-muted-foreground">{t("patients")}</p>
-                    </div>
-                    <div className="rounded-xl bg-accent/30 py-2.5">
-                      <p className="font-display text-base text-primary">${d.fee}</p>
-                      <p className="text-muted-foreground">{t("fee")}</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 space-y-2 text-xs text-foreground/70">
-                    <div className="flex items-center gap-2"><Languages className="h-3.5 w-3.5 text-primary-glow shrink-0" /><span>{d.languages.join(" • ")}</span></div>
-                    <div className="flex items-center gap-2"><Calendar className="h-3.5 w-3.5 text-primary-glow shrink-0" /><span>{t("available", { hours: d.available })}</span></div>
-                  </div>
-                  <div className="flex gap-2 mt-5">
-                    <Link href={`/doctors/${slugify(d.name)}`} className="flex-1 text-center rounded-full bg-primary py-2 text-xs font-semibold text-primary-foreground hover:bg-primary-glow transition-colors">
-                      {t("viewProfile")}
-                    </Link>
-                    <Link href="/patient/find-doctors" className="rounded-full border border-primary/30 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/5 transition-colors">
-                      {t("bookShort")}
-                    </Link>
-                    <button className="rounded-full border border-primary/30 p-2 text-primary hover:bg-primary/5 transition-colors" aria-label={t("save")}>
-                      <Heart className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </motion.article>
+              <DoctorCard key={d.id} d={d} i={i} />
             ))}
             {filteredDoctors.length === 0 && (
               <p className="text-sm text-muted-foreground col-span-full text-center py-10">
-                {hospital.doctors_list.length === 0 ? t("noDoctors") : t("noDoctorMatch")}
+                {hospitalDoctors.length === 0 ? t("noDoctors") : t("noDoctorMatch")}
               </p>
             )}
           </div>
@@ -493,7 +432,7 @@ const HospitalDetail = () => {
                     <TableCell className="font-medium text-primary">{test.name}</TableCell>
                     <TableCell className="text-muted-foreground">{test.category}</TableCell>
                     <TableCell className="text-muted-foreground inline-flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{test.turnaround}</TableCell>
-                    <TableCell className="text-right font-display text-primary">${test.price}</TableCell>
+                    <TableCell className="text-right font-display text-primary">{formatCurrency(test.price)}</TableCell>
                     <TableCell className="text-right">
                       <Link href={`/lab-tests?test=${encodeURIComponent(test.name)}`} className="text-xs font-semibold text-primary hover:underline">{t("lab.book")}</Link>
                     </TableCell>
@@ -515,7 +454,7 @@ const HospitalDetail = () => {
               <p className="text-sm text-muted-foreground mt-1">{t("rooms.sub")}</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              {(["All", "Ward", "Cabin", "ICU", "Bed"] as const).map((c) => (
+              {(["All", "Ward", "Cabin", "ICU"] as const).map((c) => (
                 <button
                   key={c}
                   onClick={() => setRoomCat(c)}
@@ -526,26 +465,28 @@ const HospitalDetail = () => {
           </div>
 
           {/* Summary stats strip */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-            {[
-              { label: t("rooms.total"), value: hospital.rooms.reduce((a, r) => a + r.total, 0), icon: BedDouble },
-              { label: t("rooms.availableNow"), value: hospital.rooms.reduce((a, r) => a + r.available, 0), icon: CheckCircle2 },
-              { label: t("rooms.tiers"), value: hospital.rooms.length, icon: Hotel },
-              { label: t("rooms.from"), value: `$${Math.min(...hospital.rooms.map((r) => r.price))}`, icon: Sparkles },
-            ].map((s) => (
-              <div key={s.label} className="rounded-2xl bg-card border border-border/60 p-4 flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary"><s.icon className="h-4 w-4" /></div>
-                <div>
-                  <p className="font-display text-lg text-primary leading-none">{s.value}</p>
-                  <p className="text-[11px] text-muted-foreground mt-1">{s.label}</p>
+          {hospital.rooms.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              {[
+                { label: t("rooms.total"), value: hospital.rooms.reduce((a, r) => a + r.total, 0), icon: BedDouble },
+                { label: t("rooms.availableNow"), value: hospital.rooms.reduce((a, r) => a + r.available, 0), icon: CheckCircle2 },
+                { label: t("rooms.tiers"), value: hospital.rooms.length, icon: Hotel },
+                { label: t("rooms.from"), value: formatCurrency(Math.min(...hospital.rooms.map((r) => r.price))), icon: Sparkles },
+              ].map((s) => (
+                <div key={s.label} className="rounded-2xl bg-card border border-border/60 p-4 flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary"><s.icon className="h-4 w-4" /></div>
+                  <div>
+                    <p className="font-display text-lg text-primary leading-none">{s.value}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1">{s.label}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredRooms.map((r, i) => {
-              const pct = Math.round((r.available / r.total) * 100);
+              const pct = r.total > 0 ? Math.round((r.available / r.total) * 100) : 0;
               const status = r.available === 0 ? t("rooms.full") : r.available <= 2 ? t("rooms.limited") : t("rooms.available");
               const statusColor = r.available === 0 ? "bg-destructive/15 text-destructive" : r.available <= 2 ? "bg-amber-500/15 text-amber-700" : "bg-primary-glow/15 text-primary";
               return (
@@ -563,26 +504,22 @@ const HospitalDetail = () => {
                     <div>
                       <span className="text-[10px] font-bold uppercase tracking-wider text-primary-glow">{r.category}</span>
                       <h4 className="font-display text-xl text-primary mt-1.5 leading-tight">{r.type}</h4>
-                      <p className="text-xs text-muted-foreground mt-0.5">{r.capacity}</p>
                     </div>
                     <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ${statusColor}`}>{status}</span>
                   </div>
 
-                  <div className="relative grid grid-cols-2 gap-2 mt-4 text-[11px]">
-                    <div className="flex items-center gap-1.5 text-foreground/70"><Maximize2 className="h-3 w-3 text-primary-glow" />{r.size}</div>
-                    <div className="flex items-center gap-1.5 text-foreground/70"><Eye className="h-3 w-3 text-primary-glow" />{r.view}</div>
-                  </div>
-
-                  <div className="relative mt-4">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">{t("rooms.included")}</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {r.included.map((it) => (
-                        <span key={it} className="inline-flex items-center gap-1 rounded-full bg-accent/50 text-primary px-2 py-0.5 text-[10px] font-medium">
-                          <CheckCircle2 className="h-2.5 w-2.5" />{it}
-                        </span>
-                      ))}
+                  {r.included.length > 0 && (
+                    <div className="relative mt-4">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">{t("rooms.included")}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {r.included.map((it) => (
+                          <span key={it} className="inline-flex items-center gap-1 rounded-full bg-accent/50 text-primary px-2 py-0.5 text-[10px] font-medium">
+                            <CheckCircle2 className="h-2.5 w-2.5" />{it}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="relative mt-4">
                     <div className="flex items-center justify-between text-[11px] text-muted-foreground">
@@ -602,7 +539,7 @@ const HospitalDetail = () => {
 
                   <div className="relative flex items-end justify-between mt-5 pt-5 border-t border-border/40">
                     <div>
-                      <span className="font-display text-3xl text-primary">${r.price}</span>
+                      <span className="font-display text-3xl text-primary">{formatCurrency(r.price)}</span>
                       <span className="text-[10px] uppercase text-muted-foreground ml-1">{t("rooms.perNight")}</span>
                     </div>
                     <Link href={r.available === 0 ? "#" : `/reserve-room?hospital=${hospital.slug}&room=${encodeURIComponent(r.type)}`}
@@ -615,13 +552,11 @@ const HospitalDetail = () => {
                 </motion.div>
               );
             })}
-          </div>
-
-          <div className="mt-6 rounded-2xl bg-accent/20 border border-border/60 p-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5"><Utensils className="h-3.5 w-3.5 text-primary-glow" />{t("rooms.meals")}</span>
-            <span className="inline-flex items-center gap-1.5"><Wifi className="h-3.5 w-3.5 text-primary-glow" />{t("rooms.wifi")}</span>
-            <span className="inline-flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5 text-primary-glow" />{t("rooms.housekeeping")}</span>
-            <span className="inline-flex items-center gap-1.5"><Phone className="h-3.5 w-3.5 text-primary-glow" />{t("rooms.nurseCall")}</span>
+            {filteredRooms.length === 0 && (
+              <p className="text-sm text-muted-foreground col-span-full text-center py-10">
+                {hospital.rooms.length === 0 ? t("rooms.noRooms") : t("rooms.noRoomMatch")}
+              </p>
+            )}
           </div>
         </section>
 
@@ -637,42 +572,35 @@ const HospitalDetail = () => {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {hospital.management.map((m, i) => (
               <motion.article
-                key={m.name}
+                key={m.name + i}
                 initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.06, duration: 0.5 }}
-                className="group relative rounded-3xl bg-card border border-border/60 overflow-hidden hover:shadow-card hover:-translate-y-1.5 transition-all duration-500"
+                className="rounded-3xl bg-card border border-border/60 p-6 hover:shadow-card hover:-translate-y-1 transition-all duration-500"
               >
-                <div className="relative h-48 overflow-hidden">
-                  <img
-                    src={m.photo}
-                    alt={m.name}
-                    loading="lazy"
-                    width={512}
-                    height={512}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-card via-card/30 to-transparent" />
-                </div>
-                <div className="px-5 pb-5 -mt-8 relative">
-                  <div className="inline-flex items-center gap-1.5 rounded-full bg-primary text-primary-foreground px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider shadow-soft">
-                    <Briefcase className="h-3 w-3" />{m.tenure}
-                  </div>
-                  <h3 className="font-display text-xl text-primary mt-3 leading-tight">{m.name}</h3>
-                  <p className="text-xs text-primary-glow font-semibold uppercase tracking-wider mt-1">{m.role}</p>
-                  <p className="text-sm text-muted-foreground mt-3 leading-relaxed line-clamp-3">{m.bio}</p>
+                <Avatar src={null} name={m.name} className="h-14 w-14 text-lg" />
+                <h3 className="font-display text-lg text-primary mt-4 leading-tight">{m.name}</h3>
+                {m.role && <p className="text-xs text-primary-glow font-semibold uppercase tracking-wider mt-1">{m.role}</p>}
+                {(m.email || m.phone) && (
                   <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border/40">
-                    <a href={`mailto:${m.email}`} className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-full bg-accent/40 text-primary py-2 text-[11px] font-semibold hover:bg-accent/60 transition-colors">
-                      <Mail className="h-3 w-3" />{t("management.email")}
-                    </a>
-                    <a href={`https://${m.linkedin}`} target="_blank" rel="noopener noreferrer" className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-full bg-primary text-primary-foreground py-2 text-[11px] font-semibold hover:bg-primary-glow transition-colors">
-                      <Linkedin className="h-3 w-3" />LinkedIn
-                    </a>
+                    {m.email && (
+                      <a href={`mailto:${m.email}`} className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-full bg-accent/40 text-primary py-2 text-[11px] font-semibold hover:bg-accent/60 transition-colors">
+                        <Mail className="h-3 w-3" />{t("management.email")}
+                      </a>
+                    )}
+                    {m.phone && (
+                      <a href={`tel:${m.phone}`} className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-full bg-primary text-primary-foreground py-2 text-[11px] font-semibold hover:bg-primary-glow transition-colors">
+                        <Phone className="h-3 w-3" />{t("management.phone")}
+                      </a>
+                    )}
                   </div>
-                </div>
+                )}
               </motion.article>
             ))}
+            {hospital.management.length === 0 && (
+              <p className="text-sm text-muted-foreground col-span-full text-center py-10">{t("management.noManagement")}</p>
+            )}
           </div>
         </section>
 
