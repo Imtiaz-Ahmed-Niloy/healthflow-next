@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MapPin, ArrowRight, Building2, Star, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, Building2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useHospitals } from "@/hooks/useHospitals";
-import TiltCard from "@/components/site/TiltCard";
+import { HospitalCard } from "@/components/site/HospitalCard";
 import { useTranslations } from "next-intl";
 import { gradient } from "@/components/site/GradientWords";
 import { motion } from "framer-motion";
@@ -76,38 +76,13 @@ const Hubs = () => {
                     back a little, so the eye is told where to look. Scaling
                     rather than resizing keeps the track arithmetic — and the
                     translate that drives it — exactly as it was. */}
-                <TiltCard
+                <HospitalCard
+                  h={h}
                   animateIn={false}
                   lift={0}
                   scale={focused === -1 || i === focused ? 1 : 0.88}
                   className={`transition-opacity duration-700 ease-out ${focused === -1 || i === focused ? "opacity-100" : "opacity-80"}`}
-                >
-                <Link href={`/hospitals/${h.slug}`}
-                  className="block relative overflow-hidden rounded-2xl shadow-card h-[420px] group/card"
-                >
-                  <img
-                    src={h.image}
-                    alt={h.name}
-                    loading="lazy"
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-110"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-primary/95 via-primary/40 to-transparent" />
-                  <div className="absolute inset-0 p-6 flex flex-col justify-end text-primary-foreground">
-                    {h.tag && (
-                      <span className="inline-flex w-fit items-center rounded-full bg-accent/90 text-primary px-2.5 py-1 text-[10px] font-semibold">
-                        {h.tag.toUpperCase()}
-                      </span>
-                    )}
-                    <h3 className="font-display text-2xl mt-3 line-clamp-2">{h.name}</h3>
-                    <p className="text-xs opacity-90 mt-1.5 line-clamp-2">{h.summary || h.about}</p>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 text-[11px]">
-                      {h.location && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{h.location}</span>}
-                      {h.rating ? <span className="inline-flex items-center gap-1"><Star className="h-3 w-3 fill-current" />{h.rating.toFixed(1)}</span> : null}
-                      {h.beds ? <span className="inline-flex items-center gap-1"><Building2 className="h-3 w-3" />{t("beds", { count: h.beds })}</span> : null}
-                    </div>
-                  </div>
-                </Link>
-                </TiltCard>
+                />
               </div>
             ))}
           </div>

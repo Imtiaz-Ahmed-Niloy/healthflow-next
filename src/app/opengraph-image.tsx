@@ -1,8 +1,6 @@
 import { ImageResponse } from "next/og";
 import { BRAND_INFO } from "@/constants/brand";
 
-export const runtime = "edge";
-
 export const alt = BRAND_INFO.name;
 export const size = {
   width: 1200,

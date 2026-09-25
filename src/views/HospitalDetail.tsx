@@ -19,6 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useHospital } from "@/hooks/useHospitals";
 import { useDoctors } from "@/hooks/useDoctors";
 import { DoctorCard } from "@/components/site/DoctorCard";
+import { HospitalCard } from "@/components/site/HospitalCard";
 import { useFormatters } from "@/lib/appSettings";
 
 const HospitalDetail = () => {
@@ -608,22 +609,7 @@ const HospitalDetail = () => {
         <section className="container mx-auto pb-20">
           <h3 className="font-display text-2xl text-primary mb-6">{t("related")}</h3>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {related.map((h) => (
-              <Link
-                key={h.slug}
-                href={`/hospitals/${h.slug}`}
-                className="group rounded-3xl overflow-hidden bg-card border border-border/60 shadow-soft hover:shadow-card hover:-translate-y-1 transition-all"
-              >
-                <div className="h-40 overflow-hidden">
-                  <img src={h.image} alt={h.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                </div>
-                <div className="p-5">
-                  <h4 className="font-display text-lg text-primary">{h.name}</h4>
-                  <p className="text-xs text-muted-foreground mt-1 inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{h.location}</p>
-                  <p className="text-sm text-foreground/70 mt-3 line-clamp-2">{h.summary}</p>
-                </div>
-              </Link>
-            ))}
+            {related.map((h, i) => <HospitalCard key={h.slug} h={h} i={i} />)}
           </div>
         </section>
       </main>
