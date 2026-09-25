@@ -12,6 +12,7 @@
 import type { Tables } from "@/lib/supabase/types";
 import { payslipWords } from "@/i18n/libText";
 import { clientLocale } from "@/i18n/config";
+import { formatCurrency, getAppSettings } from "@/lib/appSettings";
 
 /** The staff register row, exactly as the database returns it. */
 export type Employee = Tables<"employees">;
@@ -192,7 +193,12 @@ export const printPayslip = (
   // Printing happens outside React, so the language comes from the cookie.
   const locale = clientLocale();
   const words = payslipWords(locale);
-  const fmt = (n: number) => `৳${Number(n).toLocaleString()}`;
+  // Not a hardcoded ৳: the platform's own currency setting, same as every
+  // other amount in the app (src/lib/appSettings.ts) — and BDT renders as
+  // the code there rather than the glyph, which several fallback fonts don't
+  // have and would show as a box.
+  const settings = getAppSettings();
+  const fmt = (n: number) => formatCurrency(Number(n), settings);
   w.document.write(`<!doctype html><html lang="${locale}"><head><title>${words.tabTitle(slip.emp_id, slip.period)}</title>
 <style>
   *{box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto}

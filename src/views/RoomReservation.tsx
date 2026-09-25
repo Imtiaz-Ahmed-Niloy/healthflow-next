@@ -12,11 +12,13 @@ import Footer from "@/components/site/Footer";
 import { Input } from "@/components/ui/input";
 import { hospitals } from "@/data/hospitals";
 import { Label } from "@/components/ui/label";
+import { useFormatters } from "@/lib/appSettings";
 
 const allRooms = hospitals.flatMap((h) => h.rooms.map((r) => ({ ...r, hospital: h })));
 
 const RoomReservation = () => {
   const t = useTranslations("roomReservation");
+  const { formatCurrency } = useFormatters();
   const params = useSearchParams();
   const initial = params?.get("room");
   const initialHospital = params?.get("hospital");
@@ -58,7 +60,7 @@ const RoomReservation = () => {
                         <p className="text-xs text-muted-foreground">{r.hospital.name}</p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="font-display text-xl text-primary">${r.price}</p>
+                        <p className="font-display text-xl text-primary">{formatCurrency(r.price)}</p>
                         <p className="text-[10px] text-muted-foreground">{t("perNight")}</p>
                       </div>
                     </div>
@@ -81,7 +83,7 @@ const RoomReservation = () => {
               <p className="text-sm text-muted-foreground">{selected.hospital.name} · {selected.hospital.location}</p>
             </div>
 
-            <form onSubmit={(e) => { e.preventDefault(); if (selected.available === 0) return toast.error(t("full")); toast.success(t("confirmed"), { description: t("confirmedDetail", { room: selected.type, nights, total }) }); }}
+            <form onSubmit={(e) => { e.preventDefault(); if (selected.available === 0) return toast.error(t("full")); toast.success(t("confirmed"), { description: t("confirmedDetail", { room: selected.type, nights, total: formatCurrency(total) }) }); }}
               className="mt-5 space-y-4">
               <div>
                 <Label className="text-[11px] uppercase tracking-widest font-bold text-muted-foreground" required>{t("checkIn")}</Label>
@@ -93,9 +95,9 @@ const RoomReservation = () => {
               </div>
 
               <div className="rounded-2xl bg-accent/20 p-4 space-y-1.5 text-sm">
-                <div className="flex justify-between text-foreground/70"><span>{t("rate")}</span><span>${selected.price} × {nights}</span></div>
-                <div className="flex justify-between text-foreground/70"><span>{t("serviceFee")}</span><span>$0</span></div>
-                <div className="flex justify-between font-display text-primary text-lg pt-2 border-t border-border/40"><span>{t("total")}</span><span>${total}</span></div>
+                <div className="flex justify-between text-foreground/70"><span>{t("rate")}</span><span>{formatCurrency(selected.price)} × {nights}</span></div>
+                <div className="flex justify-between text-foreground/70"><span>{t("serviceFee")}</span><span>{formatCurrency(0)}</span></div>
+                <div className="flex justify-between font-display text-primary text-lg pt-2 border-t border-border/40"><span>{t("total")}</span><span>{formatCurrency(total)}</span></div>
               </div>
 
               <button className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-glow inline-flex items-center justify-center gap-2">

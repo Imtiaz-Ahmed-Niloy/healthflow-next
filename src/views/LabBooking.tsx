@@ -11,11 +11,13 @@ import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import { Input } from "@/components/ui/input";
 import { hospitals } from "@/data/hospitals";
+import { useFormatters } from "@/lib/appSettings";
 
 const allTests = hospitals[0].lab_tests;
 
 const LabBooking = () => {
   const t = useTranslations("labBooking");
+  const { formatCurrency } = useFormatters();
   const params = useSearchParams();
   const preselect = params?.get("test");
   const [query, setQuery] = useState("");
@@ -78,7 +80,7 @@ const LabBooking = () => {
                         <p className="font-semibold text-primary text-sm leading-tight">{test.name}</p>
                         <p className="text-[11px] text-muted-foreground mt-1">{test.category}</p>
                       </div>
-                      <span className="font-display text-lg text-primary shrink-0">${test.price}</span>
+                      <span className="font-display text-lg text-primary shrink-0">{formatCurrency(test.price)}</span>
                     </div>
                     <div className="text-[11px] text-muted-foreground mt-2 inline-flex items-center gap-1"><Clock className="h-3 w-3" />{test.turnaround}</div>
                     <div className="mt-3 flex items-center justify-between">
@@ -108,7 +110,7 @@ const LabBooking = () => {
                   <div key={x.name} className="flex items-start gap-2 text-sm">
                     <div className="flex-1">
                       <p className="font-medium text-primary leading-tight">{x.name}</p>
-                      <p className="text-[11px] text-muted-foreground">${x.price} × {x.qty}</p>
+                      <p className="text-[11px] text-muted-foreground">{formatCurrency(x.price)} × {x.qty}</p>
                     </div>
                     <button onClick={() => remove(x.name)} className="text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
                   </div>
@@ -117,9 +119,9 @@ const LabBooking = () => {
             )}
             <div className="mt-5 pt-5 border-t border-border/60 flex items-center justify-between">
               <span className="text-xs text-muted-foreground">{t("total")}</span>
-              <span className="font-display text-2xl text-primary">${total}</span>
+              <span className="font-display text-2xl text-primary">{formatCurrency(total)}</span>
             </div>
-            <button onClick={() => { if (!items.length) return toast.error(t("cartEmpty")); toast.success(t("booked"), { description: t("bookedDetail", { count: items.length, total }) }); setCart({}); }}
+            <button onClick={() => { if (!items.length) return toast.error(t("cartEmpty")); toast.success(t("booked"), { description: t("bookedDetail", { count: items.length, total: formatCurrency(total) }) }); setCart({}); }}
               className="mt-4 w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-glow inline-flex items-center justify-center gap-2">
               {t("book")} <ArrowRight className="h-4 w-4" />
             </button>

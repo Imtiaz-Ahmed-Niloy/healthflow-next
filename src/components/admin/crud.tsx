@@ -28,6 +28,10 @@ export function useCrud<T extends { id: string }>(key: string, seed: T[]) {
     remove: (id: string) => { setItems(p => p.filter(i => i.id !== id)); toast.success(words.deleted); },
     bulkRemove: (ids: string[]) => { setItems(p => p.filter(i => !ids.includes(i.id))); toast.success(words.removedCount(ids.length)); },
     reset: () => { setItems(seed); save(key, seed); toast.info(words.reset); },
+    // A localStorage write never comes back with a field-level reason —
+    // matches useResourceCrud's shape so callers don't need to branch.
+    fieldErrors: {} as Record<string, string>,
+    clearFieldErrors: () => {},
   };
 }
 
@@ -86,15 +90,26 @@ export const ConfirmDialog = ({ open, onClose, onConfirm, title, description }: 
 };
 
 // ============ FormField ============
-export const Field = ({ label, children, hint, required = false }: { label: string; children: ReactNode; hint?: string; required?: boolean }) => (
+/**
+ * `error`, when set, is what a rejected save looks like on this field: the
+ * label's underline goes red and the message prints in red underneath,
+ * replacing `hint` rather than stacking under it — a field never explains
+ * itself two different ways at once. Pair it with `aria-invalid` on the
+ * input itself (Input/Select/TextArea below turn that into a red border) so
+ * the two land together.
+ */
+export const Field = ({ label, children, hint, error, required = false }: { label: string; children: ReactNode; hint?: string; error?: string; required?: boolean }) => (
   <div className="mb-4">
-    <Label required={required} className="block text-[10px] tracking-widest font-bold text-muted-foreground mb-1.5">{label.toUpperCase()}</Label>
+    <Label required={required} className={`block text-[10px] tracking-widest font-bold mb-1.5 ${error ? "text-destructive" : "text-muted-foreground"}`}>{label.toUpperCase()}</Label>
     {children}
-    {hint && <p className="text-[11px] text-muted-foreground mt-1">{hint}</p>}
+    {error ? <p className="text-[11px] text-destructive mt-1">{error}</p> : hint && <p className="text-[11px] text-muted-foreground mt-1">{hint}</p>}
   </div>
 );
 
-const inputCls = "w-full bg-muted/40 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary text-sm";
+// aria-invalid, not a boolean prop: it's a real HTML attribute every native
+// input/select/textarea already accepts, so a caller sets it the same way it
+// sets `required` — no separate "error" prop to thread through every widget.
+const inputCls = "w-full bg-muted/40 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary text-sm aria-[invalid=true]:border aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-destructive/30";
 export const Input = (p: React.InputHTMLAttributes<HTMLInputElement>) => <input {...p} className={`${inputCls} ${p.className || ""}`} />;
 export const TextArea = (p: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => <textarea rows={3} {...p} className={`${inputCls} ${p.className || ""}`} />;
 export const Select = ({ children, ...p }: React.SelectHTMLAttributes<HTMLSelectElement>) => (

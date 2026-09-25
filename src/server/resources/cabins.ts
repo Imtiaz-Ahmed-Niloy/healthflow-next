@@ -14,6 +14,18 @@ const optionalText = z.string().trim().max(2000).optional().or(z.literal("")).tr
   (value) => (value === "" ? undefined : value),
 );
 
+/**
+ * "" means the field was cleared on purpose, so it maps to null. `undefined`
+ * would mean "leave this alone" — PATCH drops undefined keys, so without this
+ * a cabin's notes could never be cleared once set. Same fix, same reason, as
+ * wards.ts's nullableText — Wards.tsx's saveCabinMeta sends null explicitly
+ * for an emptied Notes field, and a plain `.optional()` string rejects null
+ * outright (Expected string, received null).
+ */
+const blankToNull = (value: unknown) => (value === "" ? null : value);
+const nullableText = (max: number) =>
+  z.preprocess(blankToNull, z.string().trim().max(max).nullable().optional());
+
 export const cabinCreateSchema = z.object({
   number: z.string().trim().min(1, "Cabin number is required").max(50),
   category: cabinCategory.optional(),
@@ -24,6 +36,7 @@ export const cabinCreateSchema = z.object({
   // not FormData, so this can be a real array validator.
   amenities: z.array(z.string().trim().min(1)).optional(),
   status: cabinStatus.optional(),
+  notes: nullableText(2000),
   // Transitional free-text fields — see the migration's comment on
   // cabins.patient/attendant/admitted_on. Replaced once admissions/bed_stays
   // lands.

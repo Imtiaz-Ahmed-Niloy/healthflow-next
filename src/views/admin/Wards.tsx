@@ -4,12 +4,13 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, Btn, Pill, SectionTitle } from "@/components/admin/ui";
-import { Modal, Field, Input, Select, Chips, ConfirmDialog } from "@/components/admin/crud";
+import { Modal, Field, Input, Select, Chips, ConfirmDialog, DataTable, type Column } from "@/components/admin/crud";
 import { useResourceCrud } from "@/components/admin/useResourceCrud";
 import { useAdmitPatient } from "@/components/admin/useAdmitPatient";
 import { useNotifications } from "@/components/admin/NotificationProvider";
 import { useFormatters } from "@/lib/appSettings";
 import { useTransferBedMutation } from "@/redux/api/bedTransfers";
+import { useCreateResourceMutation } from "@/redux/api/createResourceApi";
 import {
   admissionsApi, doctorsApi, patientsApi,
   type WardRow, type BedRow, type CabinRow, type AdmissionRow,
@@ -65,14 +66,6 @@ const cabinStatusBg: Record<string, string> = {
   cleaning: "bg-yellow-50 text-yellow-800",
   maintenance: "bg-orange-50 text-orange-700",
 };
-const cabinBorder: Record<string, string> = {
-  available: "border-l-primary-glow",
-  occupied: "border-l-destructive",
-  reserved: "border-l-blue-500",
-  cleaning: "border-l-yellow-400",
-  maintenance: "border-l-orange-500",
-};
-
 const AMENITY_LIST = ["WiFi", "TV", "AC", "Mini Fridge", "Attached Bath", "Sofa Bed"];
 const AMENITY_ICON: Record<string, typeof Wifi> = { WiFi: Wifi, TV: Tv, AC: Wind, "Mini Fridge": Coffee, "Attached Bath": Bath, "Sofa Bed": Users };
 const WARD_FACILITY_LIST = ["AC", "WiFi", "TV", "Attached Bath", "Shared Bath", "Oxygen Supply", "Ventilator", "Nurse Call", "Cardiac Monitor", "Visitor Chair", "Locker", "Meals Included"];
@@ -129,6 +122,12 @@ const Wards = () => {
   const wardsCrud = useResourceCrud<WardRow>("wards");
   const bedsCrud = useResourceCrud<BedRow>("beds");
   const cabinsCrud = useResourceCrud<CabinRow>("cabins");
+  // Raw triggers, not bedsCrud.create / cabinsCrud.create: creating several
+  // rows at once for a "Total Beds" / "Total Cabins" shortcut would otherwise
+  // toast "Created" once per row. These stay quiet per row and saveWard /
+  // saveCabinMeta raise a single summary toast instead.
+  const [createBed] = useCreateResourceMutation();
+  const [createCabin] = useCreateResourceMutation();
   const { push, notify } = useNotifications();
   const { admit } = useAdmitPatient();
   const [transferBed] = useTransferBedMutation();
@@ -181,9 +180,7 @@ const Wards = () => {
   const saveWard = async (fd: FormData) => {
     const data = {
       name: String(fd.get("name")),
-      category: fd.get("category") as WardRow["category"],
       daily_rate: Number(fd.get("daily_rate")) || 0,
-      nursing_charge: Number(fd.get("nursing_charge")) || 0,
       facilities: facDraft,
       notes: String(fd.get("notes") || "") || null,
     };
@@ -196,8 +193,28 @@ const Wards = () => {
       // embedded wards relation) — matching ResourcePage.tsx's own `as never`
       // at the same spot for the same reason.
       const created = await wardsCrud.create(data as never);
-      if (created) setAddWard(false);
+      if (created) {
+        setAddWard(false);
+        const totalBeds = Number(fd.get("total_beds")) || 0;
+        if (totalBeds > 0) await createBedsForWard(created.id, totalBeds);
+      }
     }
+  };
+
+  /** Bed 1, Bed 2… under a just-created ward — the "Total Beds" shortcut on the Add Ward form. */
+  const createBedsForWard = async (wardId: string, count: number) => {
+    let ok = 0;
+    for (let n = 1; n <= count; n++) {
+      try {
+        await createBed({ resource: "beds", body: { ward_id: wardId, number: String(n) } }).unwrap();
+        ok++;
+      } catch {
+        // One bed failing (a very unlikely duplicate number race) shouldn't
+        // stop the rest — the summary toast below reports the real count.
+      }
+    }
+    if (ok === 0) push({ title: t("bedsCreateFailed"), tone: "bad" });
+    else push({ title: t("bedsCreated", { count: ok }), tone: ok === count ? "ok" : "warn" });
   };
 
   // ---- beds: floor map + metadata ----
@@ -239,21 +256,49 @@ const Wards = () => {
   const toggleAmenity = (a: string) => setAmenityDraft(d => d.includes(a) ? d.filter(x => x !== a) : [...d, a]);
 
   const saveCabinMeta = async (fd: FormData) => {
-    const data = {
-      number: String(fd.get("number")),
-      category: fd.get("category") as CabinRow["category"],
-      floor: String(fd.get("floor")),
-      capacity: Number(fd.get("capacity")) || 1,
-      daily_rate: Number(fd.get("daily_rate")) || 0,
-      amenities: amenityDraft,
-    };
+    const name = String(fd.get("number"));
+    const daily_rate = Number(fd.get("daily_rate")) || 0;
+    // Same as saveWard's notes line: "" means cleared on purpose, so it goes
+    // through as null rather than undefined (which PATCH would just drop).
+    const notes = String(fd.get("notes") || "") || null;
+
     if (editCabinMeta) {
-      const ok = await cabinsCrud.update(editCabinMeta.id, data);
+      // floor/category/capacity are not on the form any more and are left
+      // out entirely here, so the existing cabin's values survive a save
+      // untouched — only the fields still on the form can change.
+      const ok = await cabinsCrud.update(editCabinMeta.id, { number: name, daily_rate, amenities: amenityDraft, notes });
       if (ok) setEditCabinMeta(null);
-    } else {
-      const created = await cabinsCrud.create(data as never);
-      if (created) setAddCabin(false);
+      return;
     }
+
+    const totalCabins = Number(fd.get("total_cabins")) || 0;
+    if (totalCabins > 1) {
+      setAddCabin(false);
+      await createCabinsBatch(name, totalCabins, daily_rate, notes);
+      return;
+    }
+
+    // Single cabin, the pre-"Total Cabins" behaviour. floor has no DB
+    // default and is required, so it needs a value from somewhere — category
+    // and capacity do have DB defaults ('standard' / 1) and are omitted.
+    const created = await cabinsCrud.create({ number: name, daily_rate, amenities: amenityDraft, notes, floor: "1st Floor" } as never);
+    if (created) setAddCabin(false);
+  };
+
+  /** "{name} 1", "{name} 2"… — the "Total Cabins" shortcut on the Add Cabin form, the cabin-side twin of createBedsForWard. */
+  const createCabinsBatch = async (name: string, count: number, daily_rate: number, notes: string | null) => {
+    let ok = 0;
+    for (let n = 1; n <= count; n++) {
+      try {
+        await createCabin({ resource: "cabins", body: { number: `${name} ${n}`, daily_rate, amenities: amenityDraft, notes, floor: "1st Floor" } }).unwrap();
+        ok++;
+      } catch {
+        // One cabin failing (a very unlikely duplicate-number race) shouldn't
+        // stop the rest — the summary toast below reports the real count.
+      }
+    }
+    if (ok === 0) push({ title: t("cabinsCreateFailed"), tone: "bad" });
+    else push({ title: t("cabinsCreated", { count: ok }), tone: ok === count ? "ok" : "warn" });
   };
 
   const setCabinManualStatus = async (cabin: CabinRow, status: string) => {
@@ -440,12 +485,12 @@ const Wards = () => {
                       const occ = occupantByBed.get(b.id);
                       return (
                         <button key={b.id} onClick={() => setBedDetail(b)} title={occ?.patients?.full_name || statusLabel(b.status)}
-                          className={`aspect-square rounded-xl border-2 grid place-items-center text-[10px] font-bold p-1 transition hover:shadow-md hover:-translate-y-0.5
+                          className={`aspect-square rounded-xl border-2 grid place-items-center font-bold p-1 transition hover:shadow-md hover:-translate-y-0.5
                             ${b.status === "occupied" ? "bg-destructive/10 border-destructive/40 text-destructive" :
                               b.status === "available" ? "bg-accent/30 border-accent text-accent-foreground" :
                               "bg-yellow-100 border-yellow-300 text-yellow-800"}`}>
                           <Bed className="h-4 w-4" />
-                          <span className="mt-0.5">{b.number}</span>
+                          <span className="mt-0.5 text-sm">{b.number}</span>
                         </button>
                       );
                     })}
@@ -535,73 +580,39 @@ const Wards = () => {
         ) : cabinsCrud.isLoading ? (
           <p className="text-sm text-muted-foreground py-6 text-center">{tc("loading")}</p>
         ) : (
-          <div className="space-y-8 mt-2">
-            {floors.map(f => {
-              const items = cabinList.filter(c => c.floor === f);
-              if (!items.length) return null;
-              return (
-                <div key={f}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="h-px w-8 bg-primary" />
-                    <span className="text-xs font-bold text-primary uppercase tracking-widest">{f}</span>
-                    <span className="text-[11px] text-muted-foreground">({items.length})</span>
-                    <div className="flex-1 h-px bg-border" />
-                  </div>
-                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {items.map(c => {
-                      const occ = occupantByCabin.get(c.id);
-                      return (
-                        <button key={c.id} onClick={() => setCabinDetail(c)}
-                          className={`text-left rounded-2xl bg-card border border-border border-l-[6px] ${cabinBorder[c.status] ?? "border-l-border"} p-5 hover:shadow-card hover:-translate-y-0.5 transition group`}>
-                          <div className="flex items-start justify-between mb-3">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <Home className="h-4 w-4 text-primary" />
-                                <h5 className="font-display text-lg text-primary">{c.number}</h5>
-                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted border border-border font-bold uppercase tracking-tight text-muted-foreground">{cabinCategoryLabel(c.category)}</span>
-                              </div>
-                              <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-1.5">
-                                <Users className="h-3 w-3" /> {t("capacityShort", { count: c.capacity })}
-                                <span>•</span>
-                                <span className="font-bold text-foreground">{formatCurrency(c.daily_rate)}{t("perDay")}</span>
-                              </div>
-                            </div>
-                            <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full ${cabinStatusBg[c.status] ?? ""}`}>{statusLabel(c.status)}</span>
-                          </div>
-                          {occ ? (
-                            <div className="mt-3 p-2.5 rounded-lg bg-muted/60">
-                              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{ta("columns.patient")}</p>
-                              <p className="text-sm font-bold text-foreground">{occ.patients?.full_name ?? t("unknown")}</p>
-                              {occ.doctors?.name && <p className="text-[11px] text-muted-foreground mt-0.5">{t("doctorLine", { name: occ.doctors.name })}</p>}
-                            </div>
-                          ) : (
-                            <div className="mt-3 p-2.5 rounded-lg bg-muted/40">
-                              <p className="text-[11px] text-muted-foreground italic">
-                                {c.status === "available" ? t("cabinNote.available")
-                                  : c.status === "reserved" ? (c.admitted_on ? t("cabinNote.reservedFor", { date: c.admitted_on }) : statusLabel("reserved"))
-                                  : c.status === "cleaning" ? t("cabinNote.cleaning") : t("cabinNote.outOfService")}
-                              </p>
-                            </div>
-                          )}
-                          <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-border">
-                            {c.amenities.map(a => {
-                              const Icon = AMENITY_ICON[a];
-                              return (
-                                <span key={a} className="text-[10px] flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted border border-border text-muted-foreground font-medium">
-                                  {Icon && <Icon className="h-2.5 w-2.5" />} {featureLabel(a)}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-            {!cabinList.length && <p className="text-sm text-muted-foreground text-center py-6">{t("noCabins")}</p>}
-          </div>
+          <DataTable<CabinRow>
+            rows={cabinList}
+            onRow={c => setCabinDetail(c)}
+            empty={t("noCabins")}
+            columns={[
+              {
+                key: "number", label: t("fields.cabinNumber"), sortable: true, accessor: c => c.number,
+                render: c => <span className="inline-flex items-center gap-1.5 font-semibold text-primary"><Home className="h-3.5 w-3.5" />{c.number}</span>,
+              },
+              {
+                key: "daily_rate", label: t("fields.dailyRate", { symbol: currencySymbol() }), sortable: true, accessor: c => c.daily_rate,
+                render: c => formatCurrency(c.daily_rate),
+              },
+              {
+                key: "status", label: ta("columns.status"),
+                render: c => <span className={`text-[10px] font-medium uppercase tracking-wider px-2.5 py-1 rounded-full ${cabinStatusBg[c.status] ?? ""}`}>{statusLabel(c.status)}</span>,
+              },
+              {
+                key: "occupant", label: ta("columns.patient"),
+                render: c => {
+                  const occ = occupantByCabin.get(c.id);
+                  if (occ) return <span className="text-foreground/85">{occ.patients?.full_name ?? t("unknown")}</span>;
+                  return (
+                    <span className="text-muted-foreground italic">
+                      {c.status === "available" ? t("cabinNote.available")
+                        : c.status === "reserved" ? (c.admitted_on ? t("cabinNote.reservedFor", { date: c.admitted_on }) : statusLabel("reserved"))
+                        : c.status === "cleaning" ? t("cabinNote.cleaning") : t("cabinNote.outOfService")}
+                    </span>
+                  );
+                },
+              },
+            ] satisfies Column<CabinRow>[]}
+          />
         )}
       </Card>
 
@@ -670,7 +681,7 @@ const Wards = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{cabinCategoryLabel(cabinDetail.category)} · {cabinDetail.floor} · {t("capacityShort", { count: cabinDetail.capacity })}</p>
+                <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("capacityShort", { count: cabinDetail.capacity })}</p>
                 <Pill tone={cabinDetail.status === "occupied" ? "bad" : cabinDetail.status === "available" ? "ok" : "warn"}>{statusLabel(cabinDetail.status)}</Pill>
               </div>
               <button onClick={() => { openEditCabinMeta(cabinDetail); setCabinDetail(null); }} className="text-xs font-semibold text-primary inline-flex items-center gap-1 hover:underline">
@@ -771,21 +782,23 @@ const Wards = () => {
         description={t("dischargeBody")} />
 
       {/* ===== Add/Edit bed metadata ===== */}
-      <Modal open={addBed || !!editBedMeta} onClose={() => { setAddBed(false); setEditBedMeta(null); }}
+      <Modal open={addBed || !!editBedMeta} onClose={() => { setAddBed(false); setEditBedMeta(null); bedsCrud.clearFieldErrors(); }}
         title={editBedMeta ? bedName(editBedMeta.number) : t("addBedTitle")}
         footer={<>
-          <Btn variant="outline" onClick={() => { setAddBed(false); setEditBedMeta(null); }}>{tc("cancel")}</Btn>
+          <Btn variant="outline" onClick={() => { setAddBed(false); setEditBedMeta(null); bedsCrud.clearFieldErrors(); }}>{tc("cancel")}</Btn>
           <button form="bed-form" type="submit" className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground">{tc("save")}</button>
         </>}>
         <form id="bed-form" onSubmit={e => { e.preventDefault(); saveBedMeta(new FormData(e.currentTarget)); }}>
-          <Field label={ta("ward")} required>
-            <Select name="ward_id" defaultValue={editBedMeta?.ward_id}>
+          <Field label={ta("ward")} required error={bedsCrud.fieldErrors.ward_id}>
+            <Select name="ward_id" defaultValue={editBedMeta?.ward_id} aria-invalid={!!bedsCrud.fieldErrors.ward_id}>
               {wardsCrud.items.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
             </Select>
           </Field>
-          <Field label={t("fields.bedNumber")} required><Input name="number" defaultValue={editBedMeta?.number} required /></Field>
-          <Field label={t("fields.type")}>
-            <Select name="type" defaultValue={editBedMeta?.type ?? "general"}>
+          <Field label={t("fields.bedNumber")} required error={bedsCrud.fieldErrors.number}>
+            <Input name="number" defaultValue={editBedMeta?.number} required aria-invalid={!!bedsCrud.fieldErrors.number} />
+          </Field>
+          <Field label={t("fields.type")} error={bedsCrud.fieldErrors.type}>
+            <Select name="type" defaultValue={editBedMeta?.type ?? "general"} aria-invalid={!!bedsCrud.fieldErrors.type}>
               {BED_TYPES.map(type => <option key={type} value={type}>{bedTypeLabel(type)}</option>)}
             </Select>
           </Field>
@@ -793,23 +806,27 @@ const Wards = () => {
       </Modal>
 
       {/* ===== Add/Edit cabin metadata ===== */}
-      <Modal open={addCabin || !!editCabinMeta} onClose={() => { setAddCabin(false); setEditCabinMeta(null); }}
+      <Modal open={addCabin || !!editCabinMeta} onClose={() => { setAddCabin(false); setEditCabinMeta(null); cabinsCrud.clearFieldErrors(); }}
         title={editCabinMeta ? cabinName(editCabinMeta.number) : t("addCabinTitle")}
         footer={<>
-          <Btn variant="outline" onClick={() => { setAddCabin(false); setEditCabinMeta(null); }}>{tc("cancel")}</Btn>
+          <Btn variant="outline" onClick={() => { setAddCabin(false); setEditCabinMeta(null); cabinsCrud.clearFieldErrors(); }}>{tc("cancel")}</Btn>
           <button form="cabin-form" type="submit" className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground">{tc("save")}</button>
         </>}>
         <form id="cabin-form" onSubmit={e => { e.preventDefault(); saveCabinMeta(new FormData(e.currentTarget)); }}>
           <div className="grid grid-cols-2 gap-3">
-            <Field label={t("fields.cabinNumber")} required><Input name="number" defaultValue={editCabinMeta?.number} required /></Field>
-            <Field label={t("fields.floor")} required><Input name="floor" defaultValue={editCabinMeta?.floor || "1st Floor"} required /></Field>
-            <Field label={t("fields.category")}>
-              <Select name="category" defaultValue={editCabinMeta?.category ?? "standard"}>
-                {CABIN_CATEGORIES.map(c => <option key={c} value={c}>{cabinCategoryLabel(c)}</option>)}
-              </Select>
+            <Field label={t("fields.cabinNumber")} required error={cabinsCrud.fieldErrors.number}>
+              <Input name="number" defaultValue={editCabinMeta?.number} required aria-invalid={!!cabinsCrud.fieldErrors.number} />
             </Field>
-            <Field label={t("fields.capacity")}><Input name="capacity" type="number" min="1" defaultValue={editCabinMeta?.capacity || 1} /></Field>
-            <Field label={t("fields.dailyRate", { symbol: currencySymbol() })}><Input name="daily_rate" type="number" min="0" defaultValue={editCabinMeta?.daily_rate || 0} /></Field>
+            <Field label={t("fields.dailyRate", { symbol: currencySymbol() })} error={cabinsCrud.fieldErrors.daily_rate}>
+              <Input name="daily_rate" type="number" min="0" defaultValue={editCabinMeta?.daily_rate || 0} aria-invalid={!!cabinsCrud.fieldErrors.daily_rate} />
+            </Field>
+            {/* Add only: editing a batch's cabin count happens cabin-by-cabin
+                below, not by re-running this shortcut. */}
+            {!editCabinMeta && (
+              <Field label={t("fields.totalCabins")} hint={t("fields.totalCabinsHint")}>
+                <Input name="total_cabins" type="number" min="0" placeholder="1" />
+              </Field>
+            )}
           </div>
           <Field label={t("fields.amenities")}>
             <div className="flex flex-wrap gap-2">
@@ -825,27 +842,35 @@ const Wards = () => {
               })}
             </div>
           </Field>
+          <Field label={t("fields.notes")} error={cabinsCrud.fieldErrors.notes}>
+            <Input name="notes" defaultValue={editCabinMeta?.notes ?? ""} placeholder={t("fields.notesPlaceholder")} aria-invalid={!!cabinsCrud.fieldErrors.notes} />
+          </Field>
         </form>
       </Modal>
 
       {/* ===== Add/Edit ward pricing ===== */}
-      <Modal open={addWard || !!editWard} onClose={() => { setAddWard(false); setEditWard(null); }}
+      <Modal open={addWard || !!editWard} onClose={() => { setAddWard(false); setEditWard(null); wardsCrud.clearFieldErrors(); }}
         title={editWard ? t("wardPricingTitle", { name: editWard.name }) : t("addWardTitle")}
         footer={<>
           {editWard && <button onClick={() => setDelWard(editWard.id)} className="mr-auto px-4 py-2 rounded-full text-sm font-semibold text-destructive">{tc("delete")}</button>}
-          <Btn variant="outline" onClick={() => { setAddWard(false); setEditWard(null); }}>{tc("cancel")}</Btn>
+          <Btn variant="outline" onClick={() => { setAddWard(false); setEditWard(null); wardsCrud.clearFieldErrors(); }}>{tc("cancel")}</Btn>
           <button form="ward-form" type="submit" className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground">{tc("save")}</button>
         </>}>
         <form id="ward-form" onSubmit={e => { e.preventDefault(); saveWard(new FormData(e.currentTarget)); }}>
           <div className="grid grid-cols-2 gap-3">
-            <Field label={t("fields.wardName")} required><Input name="name" defaultValue={editWard?.name} required placeholder={t("fields.wardNamePlaceholder")} /></Field>
-            <Field label={t("fields.category")}>
-              <Select name="category" defaultValue={editWard?.category ?? "general"}>
-                {WARD_CATEGORIES.map(c => <option key={c} value={c}>{wardCategoryLabel(c)}</option>)}
-              </Select>
+            <Field label={t("fields.wardName")} required error={wardsCrud.fieldErrors.name}>
+              <Input name="name" defaultValue={editWard?.name} required placeholder={t("fields.wardNamePlaceholder")} aria-invalid={!!wardsCrud.fieldErrors.name} />
             </Field>
-            <Field label={t("fields.dailyRate", { symbol: currencySymbol() })} required><Input name="daily_rate" type="number" min="0" defaultValue={editWard?.daily_rate || 0} required /></Field>
-            <Field label={t("fields.nursingCharge", { symbol: currencySymbol() })}><Input name="nursing_charge" type="number" min="0" defaultValue={editWard?.nursing_charge || 0} /></Field>
+            <Field label={t("fields.wardDailyRate", { symbol: currencySymbol() })} required error={wardsCrud.fieldErrors.daily_rate}>
+              <Input name="daily_rate" type="number" min="0" defaultValue={editWard?.daily_rate || 0} required aria-invalid={!!wardsCrud.fieldErrors.daily_rate} />
+            </Field>
+            {/* Add only: editing a ward's bed count happens bed-by-bed in the
+                floor map above, not by re-running this shortcut. */}
+            {!editWard && (
+              <Field label={t("fields.totalBeds")} hint={t("fields.totalBedsHint")}>
+                <Input name="total_beds" type="number" min="0" placeholder="0" />
+              </Field>
+            )}
           </div>
           <Field label={t("fields.facilities")}>
             <div className="flex flex-wrap gap-2">
@@ -860,7 +885,9 @@ const Wards = () => {
               })}
             </div>
           </Field>
-          <Field label={t("fields.notes")}><Input name="notes" defaultValue={editWard?.notes ?? ""} placeholder={t("fields.notesPlaceholder")} /></Field>
+          <Field label={t("fields.notes")} error={wardsCrud.fieldErrors.notes}>
+            <Input name="notes" defaultValue={editWard?.notes ?? ""} placeholder={t("fields.notesPlaceholder")} aria-invalid={!!wardsCrud.fieldErrors.notes} />
+          </Field>
         </form>
       </Modal>
       <ConfirmDialog open={!!delWard} onClose={() => setDelWard(null)} onConfirm={() => { if (delWard) wardsCrud.remove(delWard); setEditWard(null); }} title={t("removeWard")} description={t("removeWardBody")} />

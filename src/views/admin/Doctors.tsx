@@ -10,6 +10,7 @@ import { useConfirmAction } from "@/components/common/ConfirmProvider";
 import { statusTone, Modal, ConfirmDialog, Field, Input } from "@/components/admin/crud";
 import { Avatar } from "@/components/common/Avatar";
 import { useSession } from "@/lib/auth/useSession";
+import { useFormatters } from "@/lib/appSettings";
 import { defaultWeek, serialiseWeek, type WeekHours } from "@/lib/hours";
 import { invalidateResource } from "@/redux/api/createResourceApi";
 import { useAppDispatch } from "@/redux/hooks";
@@ -536,6 +537,7 @@ const PERF_FIELDS = ["patient_volume", "consultations", "revenue", "feedback"] a
 const PerformanceTab = () => {
   const t = useTranslations("admin.doctors.performance");
   const tc = useTranslations("common");
+  const { formatCurrency } = useFormatters();
   const { doctors, isLoading: docsLoading, error: docsError } = useDoctors();
   const perfQuery = doctorPerformanceApi.useList({ limit: 100 });
   const [createPerf] = doctorPerformanceApi.useCreate();
@@ -635,7 +637,7 @@ const PerformanceTab = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Kpi icon={Users} label={t("kpis.patients")} value={totals.patients.toLocaleString()} tone="primary" />
         <Kpi icon={Activity} label={t("kpis.consultations")} value={totals.consults.toLocaleString()} tone="accent" />
-        <Kpi icon={DollarSign} label={t("kpis.revenue")} value={`$${totals.revenue.toLocaleString()}`} tone="chip" />
+        <Kpi icon={DollarSign} label={t("kpis.revenue")} value={formatCurrency(totals.revenue)} tone="chip" />
         <Kpi icon={Star} label={t("kpis.feedback")} value={`${totals.avgFeedback} / 5`} tone="primary" />
       </div>
 

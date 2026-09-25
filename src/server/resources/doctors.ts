@@ -29,10 +29,19 @@ const availabilityText = optionalText.refine(
   "Availability isn't a valid week",
 );
 
-/** Number fields arrive from forms as strings. */
-const optionalNumber = z.coerce.number().optional().or(z.literal("")).transform(
-  (value) => (value === "" ? undefined : value),
-);
+/**
+ * Number fields arrive from forms as strings, and "" has to become undefined
+ * BEFORE coercion — not after. `z.coerce.number()` runs `Number(value)`, and
+ * `Number("") === 0`, so `z.coerce.number().optional().or(z.literal(""))`
+ * never reaches its own `""` fallback: the first branch already "succeeds"
+ * on "" by coercing it to 0. A duration left blank was silently saved as 0,
+ * which then failed the database's `consultation_duration_minutes > 0` check
+ * — a field that's optional everywhere in the code behaving as if it were
+ * required. Preprocessing strips "" (and null) to undefined first, so a
+ * blank field stays unset instead of becoming a number.
+ */
+const blankToUndefined = (value: unknown) => (value === "" || value === null ? undefined : value);
+const optionalNumber = z.preprocess(blankToUndefined, z.coerce.number().optional());
 
 export const doctorCreateSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),

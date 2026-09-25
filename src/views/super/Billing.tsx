@@ -14,6 +14,7 @@ import { useConfirmAction } from "@/components/common/ConfirmProvider";
 import { Modal, ConfirmDialog } from "@/components/admin/crud";
 import { useGetResourceQuery } from "@/redux/api/createResourceApi";
 import { platformInvoicesApi, type PlatformInvoiceRow } from "@/redux/api/resources";
+import { useFormatters } from "@/lib/appSettings";
 
 /**
  * What each hospital owes HealthFlow, per month.
@@ -57,10 +58,6 @@ type GenerateResult = {
   rows: GenerateRow[];
 };
 
-/** Platform billing is in dollars whatever the viewer's language. */
-const money = (value: number) =>
-  `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
 const intlOf = (locale: string) => (locale === "bn" ? "bn-BD-u-nu-latn" : "en-US");
 
 const monthLabelIn = (locale: string) => (isoDate: string) =>
@@ -96,6 +93,7 @@ const isOverdue = (invoice: PlatformInvoiceRow) =>
 const Billing = () => {
   const t = useTranslations("super.billing");
   const confirmAction = useConfirmAction();
+  const { formatCurrency } = useFormatters();
   const locale = useLocale();
   const monthLabel = monthLabelIn(locale);
   const dayLabel = dayLabelIn(locale);
@@ -257,7 +255,7 @@ const Billing = () => {
       const created = result.summary.created ?? 0;
       const skipped = result.rows.length - created;
       toast.success(
-        created === 0 ? t("nothingToInvoice") : t("raised", { count: created, amount: money(result.billed) }),
+        created === 0 ? t("nothingToInvoice") : t("raised", { count: created, amount: formatCurrency(result.billed) }),
         { description: skipped > 0 ? t("skipped", { count: skipped }) : undefined },
       );
     } catch {
@@ -297,10 +295,10 @@ const Billing = () => {
   return (
     <SuperLayout title={t("title")} subtitle={t("subtitle")}>
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Kpi icon={Receipt} label={t("kpis.billed")} value={money(kpis.billed)} />
-        <Kpi icon={Wallet} label={t("kpis.collected")} value={money(kpis.collected)} tone="accent" />
-        <Kpi icon={TrendingUp} label={t("kpis.outstanding")} value={money(kpis.outstanding)} tone="chip" />
-        <Kpi icon={AlertCircle} label={t("statuses.overdue")} value={money(kpis.overdue)} tone="destructive" />
+        <Kpi icon={Receipt} label={t("kpis.billed")} value={formatCurrency(kpis.billed)} />
+        <Kpi icon={Wallet} label={t("kpis.collected")} value={formatCurrency(kpis.collected)} tone="accent" />
+        <Kpi icon={TrendingUp} label={t("kpis.outstanding")} value={formatCurrency(kpis.outstanding)} tone="chip" />
+        <Kpi icon={AlertCircle} label={t("statuses.overdue")} value={formatCurrency(kpis.overdue)} tone="destructive" />
       </div>
 
       {/* ------------------------------------------------------ the run --- */}
@@ -334,7 +332,7 @@ const Billing = () => {
                 {t("run.summary", {
                   month: monthLabel(`${report.month}-01`),
                   count: report.summary.created ?? 0,
-                  amount: money(report.billed),
+                  amount: formatCurrency(report.billed),
                 })}
               </p>
               <button
@@ -354,7 +352,7 @@ const Billing = () => {
                       <span className="text-xs text-muted-foreground">{t("rx", { count: row.prescriptions })}</span>
                     )}
                     {row.total !== null && (
-                      <span className="text-sm font-semibold text-primary">{money(Number(row.total))}</span>
+                      <span className="text-sm font-semibold text-primary">{formatCurrency(Number(row.total))}</span>
                     )}
                     <Pill tone={OUTCOME_TONE[row.outcome]}>{t(`outcomes.${row.outcome}`)}</Pill>
                   </span>
@@ -496,9 +494,9 @@ const Billing = () => {
                     <td className="font-semibold">{invoice.tenants?.name ?? t("unknownHospital")}</td>
                     <td>{monthLabel(invoice.billing_month)}</td>
                     <td className="text-right tabular-nums">{invoice.prescriptions}</td>
-                    <td className="text-right tabular-nums">{money(Number(invoice.unit_price))}</td>
+                    <td className="text-right tabular-nums">{formatCurrency(Number(invoice.unit_price))}</td>
                     <td className="text-right tabular-nums font-semibold text-primary">
-                      {money(Number(invoice.total ?? 0))}
+                      {formatCurrency(Number(invoice.total ?? 0))}
                     </td>
                     <td className={isOverdue(invoice) ? "text-destructive font-semibold" : undefined}>
                       {dayLabel(invoice.due_date)}
@@ -605,6 +603,7 @@ const InvoiceDocument = ({
 }) => {
   const t = useTranslations("super.billing");
   const tc = useTranslations("common");
+  const { formatCurrency } = useFormatters();
   const locale = useLocale();
   if (!invoice) return null;
 
@@ -690,8 +689,8 @@ const InvoiceDocument = ({
                 </p>
               </td>
               <td className="py-3 text-right tabular-nums align-top">{invoice.prescriptions}</td>
-              <td className="py-3 text-right tabular-nums align-top">{money(Number(invoice.unit_price))}</td>
-              <td className="py-3 text-right tabular-nums align-top">{money(gross)}</td>
+              <td className="py-3 text-right tabular-nums align-top">{formatCurrency(Number(invoice.unit_price))}</td>
+              <td className="py-3 text-right tabular-nums align-top">{formatCurrency(gross)}</td>
             </tr>
           </tbody>
         </table>
@@ -699,12 +698,12 @@ const InvoiceDocument = ({
         {/* Totals */}
         <div className="flex justify-end pt-4">
           <div className="w-full sm:w-72">
-            <Row label={t("doc.subtotal")} value={money(gross)} />
+            <Row label={t("doc.subtotal")} value={formatCurrency(gross)} />
             {discountPct > 0 && (
-              <Row label={t("doc.discount", { pct: discountPct })} value={`−${money(discount)}`} />
+              <Row label={t("doc.discount", { pct: discountPct })} value={`−${formatCurrency(discount)}`} />
             )}
             <div className="border-t border-border/60 mt-1.5 pt-1.5">
-              <Row label={t("doc.totalDue")} value={money(Number(invoice.total ?? 0))} strong />
+              <Row label={t("doc.totalDue")} value={formatCurrency(Number(invoice.total ?? 0))} strong />
             </div>
           </div>
         </div>

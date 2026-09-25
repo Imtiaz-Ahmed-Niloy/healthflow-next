@@ -15,6 +15,7 @@ import {
 } from "@/redux/api/resources";
 import { useGetResourceQuery, useListResourceQuery } from "@/redux/api/createResourceApi";
 import { Label } from "@/components/ui/label";
+import { useFormatters } from "@/lib/appSettings";
 
 /**
  * Which plan each hospital is on, at what price, and the offers behind the
@@ -26,9 +27,10 @@ import { Label } from "@/components/ui/label";
  * `tenants.package_id` in step with the assignment, so the dashboard's plan
  * distribution stays correct without this screen touching it.
  *
- * Money is shown in USD because that is what the screen has always shown;
- * `packages` stores no currency, so nothing here can infer one. Plan names and
- * offer labels are stored values and show as typed.
+ * Money follows the platform's own currency setting (src/lib/appSettings.ts),
+ * same as everywhere else — it used to be hardcoded to USD regardless of
+ * that setting. Plan names and offer labels are stored values and show as
+ * typed.
  */
 
 type PackageStatus = "active" | "trial" | "suspended" | "expired";
@@ -48,9 +50,6 @@ const netPrice = (basePrice: number, discountPct: number) => basePrice * (1 - di
 /** Normalised to a month so yearly and monthly rows can be added together. */
 const monthlyValue = (row: Pick<HospitalPackageRow, "base_price" | "discount_pct" | "billing_cycle">) =>
   netPrice(Number(row.base_price), Number(row.discount_pct)) / (row.billing_cycle === "yearly" ? 12 : 1);
-
-const money = (value: number) =>
-  value.toLocaleString("en-US", { maximumFractionDigits: 0 });
 
 /** Package status and billing cycle labels, shared by the page and its editor. */
 const usePackageWords = () => {
@@ -130,6 +129,7 @@ const SHOW_OFFERS_SECTION = false;
 const PackageManagement = () => {
   const { t, statusLabel, cycleLabel } = usePackageWords();
   const tc = useTranslations("common");
+  const { formatCurrency } = useFormatters();
   const confirmAction = useConfirmAction();
   const router = useRouter();
   const pathname = usePathname();
@@ -318,7 +318,7 @@ const PackageManagement = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Stat label={t("stats.active")} value={String(activeCount)} />
         <Stat label={t("stats.trial")} value={String(trialCount)} tone="text-amber-600" />
-        <Stat label={t("stats.revenue")} value={`$${money(mrr)}`} tone="text-emerald-600" />
+        <Stat label={t("stats.revenue")} value={formatCurrency(mrr)} tone="text-emerald-600" />
         <Stat label={t("stats.offers")} value={String(activeOffers)} tone="text-primary-glow" />
       </div>
 
@@ -426,13 +426,13 @@ const PackageManagement = () => {
                       </td>
                       <td className="px-4 py-3">{row.packages?.name ?? "—"}</td>
                       <td className="px-4 py-3">{cycleLabel(row.billing_cycle)}</td>
-                      <td className="px-4 py-3 text-right">${money(base)}</td>
+                      <td className="px-4 py-3 text-right">{formatCurrency(base)}</td>
                       <td className="px-4 py-3 text-right">
                         {discount > 0
                           ? <span className="text-emerald-600 font-semibold">-{discount}%</span>
                           : <span className="text-muted-foreground">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-right font-bold">${money(net)}</td>
+                      <td className="px-4 py-3 text-right font-bold">{formatCurrency(net)}</td>
                       <td className="px-4 py-3 font-mono text-xs">
                         {row.offers?.code ?? <span className="text-muted-foreground font-sans">—</span>}
                       </td>
@@ -585,6 +585,7 @@ const AssignmentEditor = ({
 }) => {
   const { t, statusLabel } = usePackageWords();
   const tc = useTranslations("common");
+  const { formatCurrency } = useFormatters();
   const isNew = row.id === "";
   const [draft, setDraft] = useState(row);
   const [hospitalQuery, setHospitalQuery] = useState("");
@@ -741,7 +742,7 @@ const AssignmentEditor = ({
             className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm"
           >
             {plans.map((p) => (
-              <option key={p.id} value={p.id}>{p.name} (${Number(p.price_monthly)})</option>
+              <option key={p.id} value={p.id}>{p.name} ({formatCurrency(Number(p.price_monthly))})</option>
             ))}
           </select>
         </Field>
@@ -838,7 +839,7 @@ const AssignmentEditor = ({
         <p className="text-sm">
           <span className="text-muted-foreground">{t("editor.netPrice")}</span>{" "}
           <span className="font-bold text-primary">
-            ${netPrice(base, discount).toFixed(2)} / {draft.billing_cycle === "yearly" ? t("editor.perYear") : t("editor.perMonth")}
+            {formatCurrency(netPrice(base, discount))} / {draft.billing_cycle === "yearly" ? t("editor.perYear") : t("editor.perMonth")}
           </span>
         </p>
         <div className="flex gap-2">

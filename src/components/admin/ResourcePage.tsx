@@ -1077,11 +1077,11 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
       {extra}
 
       {/* Create / Edit */}
-      <Modal open={creating || !!editing} onClose={() => { setCreating(false); setEditing(null); }}
+      <Modal open={creating || !!editing} onClose={() => { setCreating(false); setEditing(null); crud.clearFieldErrors(); }}
         size="lg"
         title={editing ? t("editRecord") : t("createNew")}
         footer={<>
-          <button onClick={() => { setCreating(false); setEditing(null); }} className="px-4 py-2 rounded-full text-sm font-semibold border border-border">{tc("cancel")}</button>
+          <button onClick={() => { setCreating(false); setEditing(null); crud.clearFieldErrors(); }} className="px-4 py-2 rounded-full text-sm font-semibold border border-border">{tc("cancel")}</button>
           {steps && !isFirstStep && (
             <button type="button" onClick={() => goToStep(s => Math.max(0, s - 1))}
               className="px-4 py-2 rounded-full text-sm font-semibold border border-border inline-flex items-center gap-1.5">
@@ -1211,16 +1211,17 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
               const fieldStep = f.step ?? stepIds[0];
               const hidden = steps ? fieldStep !== activeStepId : false;
               const wide = f.fullWidth || f.type === "textarea" || f.type === "image" || f.type === "file" || f.type === "document" || f.type === "files" || f.type === "list" || f.type === "social" || f.type === "hours" || f.type === "availability" || f.type === "people";
+              const fieldError = crud.fieldErrors[f.name];
               return (
                 <div key={f.name} className={`${wide ? "col-span-2" : ""} ${hidden ? "hidden" : ""}`}>
-                  <Field label={f.label} required={f.required}>
+                  <Field label={f.label} required={f.required} error={fieldError}>
                     {f.type === "select" ? (
-                      <Select name={f.name} required={f.required} defaultValue={(editing as never)?.[f.name] ?? toOptions(f.options)[0]?.value ?? ""}>
+                      <Select name={f.name} required={f.required} aria-invalid={!!fieldError} defaultValue={(editing as never)?.[f.name] ?? toOptions(f.options)[0]?.value ?? ""}>
                         {toOptions(f.options).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </Select>
                     ) : f.type === "textarea" ? (
-                      <textarea name={f.name} required={f.required} defaultValue={(editing as never)?.[f.name] ?? ""} rows={3}
-                        className="w-full bg-muted/40 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary text-sm" />
+                      <textarea name={f.name} required={f.required} aria-invalid={!!fieldError} defaultValue={(editing as never)?.[f.name] ?? ""} rows={3}
+                        className={`w-full bg-muted/40 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary text-sm ${fieldError ? "border border-destructive ring-1 ring-destructive/30" : ""}`} />
                     ) : f.type === "image" ? (
                       <ImageUploadField name={f.name} required={f.required} folder={f.folder} defaultValue={(editing as never)?.[f.name] ?? ""} />
                     ) : f.type === "file" ? (
@@ -1244,7 +1245,7 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
                     ) : f.type === "people" ? (
                       <PeopleField name={f.name} defaultValue={(editing as never)?.[f.name]} roleOptions={f.roleOptions} addLabel={f.addLabel} />
                     ) : (
-                      <Input name={f.name} type={f.type} required={f.required}
+                      <Input name={f.name} type={f.type} required={f.required} aria-invalid={!!fieldError}
                         min={minFor(f, editing as Record<string, unknown> | null)} max={f.max} step={f.numberStep}
                         defaultValue={(editing as never)?.[f.name] ?? ""} />
                     )}

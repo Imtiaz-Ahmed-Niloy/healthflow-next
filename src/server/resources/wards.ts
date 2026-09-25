@@ -8,10 +8,17 @@ import type { ResourceDefinition } from "./types";
 
 const wardCategory = z.enum(["general", "semi_private", "icu", "maternity", "pediatric"]);
 
-/** Treats "" from a form/JSON body the same as omitted. */
-const optionalText = z.string().trim().max(2000).optional().or(z.literal("")).transform(
-  (value) => (value === "" ? undefined : value),
-);
+/**
+ * "" means the field was cleared on purpose, so it maps to null. `undefined`
+ * would mean "leave this alone" — PATCH drops undefined keys, so without this
+ * a ward's notes could never be cleared once set. Wards.tsx's saveWard sends
+ * null explicitly for exactly this reason, so the schema has to accept it —
+ * a plain `.optional()` string rejects null outright (Expected string,
+ * received null), which is the 422 "notes" was raising.
+ */
+const blankToNull = (value: unknown) => (value === "" ? null : value);
+const nullableText = (max: number) =>
+  z.preprocess(blankToNull, z.string().trim().max(max).nullable().optional());
 
 export const wardCreateSchema = z.object({
   name: z.string().trim().min(1, "Ward name is required").max(200),
@@ -22,7 +29,7 @@ export const wardCreateSchema = z.object({
   // FormData, so this can be a real array validator — no string-coercion
   // workaround needed here, unlike doctors.ts's comma-separated text fields.
   facilities: z.array(z.string().trim().min(1)).optional(),
-  notes: optionalText,
+  notes: nullableText(2000),
   // tenant_id is deliberately absent: the route stamps it from the JWT.
 });
 

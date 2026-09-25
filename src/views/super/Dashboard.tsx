@@ -7,11 +7,13 @@ import { statusTone } from "@/components/admin/crud";
 import { Building2, Users2, Receipt, AlertCircle } from "lucide-react";
 import { ResponsiveContainer, Tooltip, XAxis, YAxis, BarChart, Bar, CartesianGrid } from "recharts";
 import { useGetSuperDashboardQuery } from "@/redux/api/superApi";
+import { useFormatters } from "@/lib/appSettings";
 
 const STATUSES = ["pending", "approved", "suspended"] as const;
 
 const Dashboard = () => {
   const t = useTranslations("super.dashboard");
+  const { formatCurrency } = useFormatters();
   const statusLabel = (value: string) =>
     (STATUSES as readonly string[]).includes(value) ? t(`statuses.${value as (typeof STATUSES)[number]}`) : value;
   const { data, isLoading, error, refetch } = useGetSuperDashboardQuery();
@@ -50,7 +52,7 @@ const Dashboard = () => {
         <Kpi
           icon={Receipt}
           label={t("kpis.mrr")}
-          value={isLoading ? "—" : `$${(stats?.mrr ?? 0).toLocaleString()}`}
+          value={isLoading ? "—" : formatCurrency(stats?.mrr ?? 0)}
           tone="chip"
         />
       </div>

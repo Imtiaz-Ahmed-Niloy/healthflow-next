@@ -128,7 +128,7 @@
     "lab": {
       "test": "টেস্ট",
       "category": "ধরন",
-      "turnaround": "রিপোর্টের সময়",
+      "turnaround": "রিপোর্ট ডেলিভারির সময়",
       "price": "মূল্য",
       "action": "কাজ",
       "book": "বুক করুন →"
@@ -414,7 +414,7 @@
       "summary": "আপনার পোর্টালে ভিজিটের সারাংশ",
       "followUp": "ফলো-আপ বার্তা (৪৮ ঘণ্টা)"
     },
-    "price": "$49 / ভিজিট",
+    "priceLine": "{price} / ভিজিট",
     "insurance": "বেশিরভাগ বিমা গ্রহণযোগ্য। নগদে নির্ধারিত মূল্য।",
     "days": "সপ্তাহে ৭ দিন",
     "hours": "সকাল ৭টা – রাত ১১টা"
@@ -431,7 +431,7 @@
     "total": "মোট",
     "cartEmpty": "কার্ট খালি",
     "booked": "টেস্ট বুক হয়েছে",
-    "bookedDetail": "{count} টি টেস্ট · ${total}",
+    "bookedDetail": "{count} টি টেস্ট · {total}",
     "book": "টেস্ট বুক করুন",
     "secure": "ফলাফল নিরাপদে আপনার পোর্টালে পৌঁছে যাবে",
     "browse": "হাসপাতাল দেখুন →"
@@ -448,7 +448,7 @@
     "summary": "বুকিংয়ের সারাংশ",
     "full": "কক্ষটি পূর্ণ",
     "confirmed": "রিজার্ভেশন নিশ্চিত হয়েছে",
-    "confirmedDetail": "{room} · {nights} রাত · ${total}",
+    "confirmedDetail": "{room} · {nights} রাত · {total}",
     "checkIn": "চেক-ইনের তারিখ",
     "nights": "রাত",
     "rate": "ভাড়া",

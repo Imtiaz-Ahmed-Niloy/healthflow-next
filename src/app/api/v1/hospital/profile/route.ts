@@ -70,6 +70,13 @@ export const PATCH = async (request: Request) => {
     if (value !== undefined) (updates as Record<string, unknown>)[key] = value;
   }
 
+  // approved/pending/suspended is a super admin decision — not just left off
+  // the profile form (src/views/admin/HospitalProfile.tsx), but refused here
+  // too, so a hospital admin can't set it by calling this endpoint directly.
+  // RLS says which row they may touch, not which columns on it; this is that
+  // check.
+  delete updates.status;
+
   const supabase = await createServerSupabase();
   const { data, error } = await supabase
     .from("tenants")

@@ -128,7 +128,7 @@
     "lab": {
       "test": "Test",
       "category": "Category",
-      "turnaround": "Turnaround",
+      "turnaround": "Report delivery time",
       "price": "Price",
       "action": "Action",
       "book": "Book →"
@@ -414,7 +414,7 @@
       "summary": "Visit summary in your portal",
       "followUp": "Follow-up message (48h)"
     },
-    "price": "$49 / visit",
+    "priceLine": "{price} / visit",
     "insurance": "Most insurance accepted. Cash-pay flat rate.",
     "days": "7 days a week",
     "hours": "7am – 11pm"
@@ -431,7 +431,7 @@
     "total": "Total",
     "cartEmpty": "Cart is empty",
     "booked": "Tests booked",
-    "bookedDetail": "{count, plural, one {# test} other {# tests}} · ${total}",
+    "bookedDetail": "{count, plural, one {# test} other {# tests}} · {total}",
     "book": "Book Tests",
     "secure": "Results securely delivered to your portal",
     "browse": "Browse hospitals →"
@@ -448,7 +448,7 @@
     "summary": "Booking Summary",
     "full": "Room is full",
     "confirmed": "Reservation confirmed",
-    "confirmedDetail": "{room} · {nights, plural, one {# night} other {# nights}} · ${total}",
+    "confirmedDetail": "{room} · {nights, plural, one {# night} other {# nights}} · {total}",
     "checkIn": "Check-in date",
     "nights": "Nights",
     "rate": "Rate",

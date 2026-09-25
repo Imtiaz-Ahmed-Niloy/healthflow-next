@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import {
@@ -32,27 +33,31 @@ type ApiError = {
   };
 };
 
+export type FieldErrors = Record<string, string>;
+
 /**
  * Turns an API error into a headline plus the reason.
  *
  * The 422 body carries `details` from Zod's flatten(), and dropping it left the
  * user with a bare "Validation failed" and no way to know which of forty fields
- * the server objected to.
+ * the server objected to. `fields` is the same information keyed by field
+ * name — one message each — so a form can put the reason under the actual
+ * input instead of making the user match it up from a toast.
  */
 const describeError = (error: unknown, fallback: string) => {
   const apiError = (error as ApiError | undefined)?.data?.error;
   const { fieldErrors = {}, formErrors = [] } = apiError?.details ?? {};
+  const fieldEntries = Object.entries(fieldErrors).filter(([, messages]) => messages?.length);
 
   const reasons = [
-    ...Object.entries(fieldErrors)
-      .filter(([, messages]) => messages?.length)
-      .map(([field, messages]) => `${field}: ${messages[0]}`),
+    ...fieldEntries.map(([field, messages]) => `${field}: ${messages[0]}`),
     ...formErrors,
   ];
 
   return {
     message: apiError?.message ?? fallback,
     description: reasons.length ? reasons.join(" · ") : undefined,
+    fields: Object.fromEntries(fieldEntries.map(([field, messages]) => [field, messages[0]])) as FieldErrors,
   };
 };
 
@@ -75,6 +80,12 @@ export const useResourceCrud = <T extends { id: string }>(resource?: string) => 
   const [updateTrigger] = useUpdateResourceMutation();
   const [removeTrigger] = useRemoveResourceMutation();
 
+  // Which field(s) the last create/update was rejected for, keyed by field
+  // name — so a form can show a red border and message under the right input
+  // instead of (or alongside) the toast. Cleared on every attempt and on a
+  // success, so a stale error never outlives the value that caused it.
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+
   const items = (data?.data ?? []) as T[];
 
   const create = async (values: Omit<T, "id">) => {
@@ -82,9 +93,12 @@ export const useResourceCrud = <T extends { id: string }>(resource?: string) => 
     try {
       const result = await createTrigger({ resource, body: values }).unwrap();
       toast.success(t("created"));
+      setFieldErrors({});
       return result.data as T;
     } catch (cause) {
-      showError(cause, t("createFailed"));
+      const { message, description, fields } = describeError(cause, t("createFailed"));
+      toast.error(message, { description });
+      setFieldErrors(fields);
       return undefined;
     }
   };
@@ -99,9 +113,12 @@ export const useResourceCrud = <T extends { id: string }>(resource?: string) => 
     try {
       await updateTrigger({ resource, id, body: patch }).unwrap();
       toast.success(t("updated"));
+      setFieldErrors({});
       return true;
     } catch (cause) {
-      showError(cause, t("updateFailed"));
+      const { message, description, fields } = describeError(cause, t("updateFailed"));
+      toast.error(message, { description });
+      setFieldErrors(fields);
       return false;
     }
   };
@@ -139,5 +156,8 @@ export const useResourceCrud = <T extends { id: string }>(resource?: string) => 
     update,
     remove,
     bulkRemove,
+    fieldErrors,
+    /** Call when opening a form fresh, so an old rejection doesn't flash on the next one. */
+    clearFieldErrors: () => setFieldErrors({}),
   };
 };

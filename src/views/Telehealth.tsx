@@ -9,14 +9,21 @@ import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useFormatters } from "@/lib/appSettings";
 
 // Keys into telehealthPage.slots, .reasons and .included.
 const slots = ["today230", "today400", "tomorrow900", "tomorrow1130", "fri1000", "fri330"] as const;
 const reasons = ["general", "followUp", "refill", "mentalHealth", "pediatric", "dermatology"] as const;
 const included = ["video", "physician", "prescription", "summary", "followUp"] as const;
 
+// Illustrative — this page describes a telehealth product that isn't built
+// yet (no ticket; see docs/module-status.md). Once it is, this becomes a
+// real visit fee from the doctor/hospital record, same as everywhere else.
+const ILLUSTRATIVE_VISIT_FEE = 49;
+
 const Telehealth = () => {
   const t = useTranslations("telehealthPage");
+  const { formatCurrency } = useFormatters();
   const [slot, setSlot] = useState<(typeof slots)[number]>(slots[0]);
   const [reason, setReason] = useState<(typeof reasons)[number]>(reasons[0]);
 
@@ -92,7 +99,7 @@ const Telehealth = () => {
             </div>
             <div className="rounded-3xl bg-gradient-dark text-surface-dark-foreground p-6">
               <Stethoscope className="h-6 w-6 text-accent" />
-              <p className="font-display text-2xl mt-3">{t("price")}</p>
+              <p className="font-display text-2xl mt-3">{t("priceLine", { price: formatCurrency(ILLUSTRATIVE_VISIT_FEE) })}</p>
               <p className="text-xs opacity-70 mt-1">{t("insurance")}</p>
               <div className="mt-4 flex items-center gap-3 text-xs opacity-90">
                 <Calendar className="h-4 w-4" /> {t("days")}

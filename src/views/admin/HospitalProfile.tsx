@@ -26,7 +26,11 @@ type Hospital = Tables<"tenants">;
 const HospitalProfile = () => {
   const t = useTranslations("admin.hospitalProfile");
   const tc = useTranslations("common");
-  const HOSPITAL_FIELDS = useHospitalFields();
+  // Status (pending/approved/suspended) is a super admin decision — a
+  // hospital admin editing their own profile doesn't get to change it.
+  // useHospitalFields() is shared with /super/hospitals, which still shows
+  // it; filtered here rather than in the hook so that page is unaffected.
+  const HOSPITAL_FIELDS = useHospitalFields().filter(f => f.name !== "status");
   const HOSPITAL_STEPS = useHospitalSteps();
   const [hospital, setHospital] = useState<Hospital | null>(null);
   const [loading, setLoading] = useState(true);

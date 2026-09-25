@@ -12,16 +12,6 @@ import { ResourcePage } from "@/components/admin/ResourcePage";
 import type { LabTestRow } from "@/redux/api/resources";
 import type { Tables } from "@/lib/supabase/types";
 
-/**
- * Catalogue categories offered by the form. Free text in the database (see
- * 0032_lab_tests.sql) — a lab that names a section differently can still store
- * it; this list is only the common set, so nobody types "Hematology" twice.
- */
-const LAB_CATEGORIES = [
-  "Hematology", "Biochemistry", "Endocrinology", "Imaging",
-  "Microbiology", "Pathology", "Cardiology", "Nutrition", "Immunology", "Other",
-];
-
 /** Stored lowercase to match doctors, nurses and support staff. */
 const CATALOG_STATUSES = ["active", "inactive"] as const;
 
@@ -284,11 +274,9 @@ const Lab = () => {
           ],
           fields: [
             { name: "name", label: t("fields.testName"), type: "text", required: true },
-            { name: "category", label: t("fields.category"), type: "select", options: LAB_CATEGORIES },
             { name: "price", label: t("fields.price"), type: "number", required: true, min: 0, numberStep: 0.01 },
             { name: "turnaround", label: t("fields.turnaround"), type: "text" },
             { name: "sample", label: t("fields.sample"), type: "text" },
-            { name: "prep", label: t("fields.prep"), type: "text" },
             { name: "status", label: t("fields.status"), type: "select", options: catalogStatuses },
             { name: "description", label: t("fields.description"), type: "textarea" },
           ],

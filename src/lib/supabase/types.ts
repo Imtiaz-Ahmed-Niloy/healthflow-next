@@ -801,6 +801,7 @@ export type Database = {
           daily_rate: number
           floor: string
           id: string
+          notes: string | null
           number: string
           patient: string | null
           status: Database["public"]["Enums"]["cabin_status"]
@@ -817,6 +818,7 @@ export type Database = {
           daily_rate?: number
           floor: string
           id?: string
+          notes?: string | null
           number: string
           patient?: string | null
           status?: Database["public"]["Enums"]["cabin_status"]
@@ -833,6 +835,7 @@ export type Database = {
           daily_rate?: number
           floor?: string
           id?: string
+          notes?: string | null
           number?: string
           patient?: string | null
           status?: Database["public"]["Enums"]["cabin_status"]
