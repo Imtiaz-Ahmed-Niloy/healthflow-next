@@ -83,11 +83,12 @@ export const POST = async (request: Request) => {
     p_entry_no: entry_no,
     p_entry_date: entry_date,
     p_type: type,
-    p_party: party || null,
-    p_narration: narration || null,
+    // No default in SQL, so null goes through; the generated type forgets the column is nullable.
+    p_party: (party || null) as string,
+    p_narration: (narration || null) as string,
     p_lines: lines,
     p_post: post,
-    p_cost_center_id: cost_center_id || null,
+    p_cost_center_id: cost_center_id || undefined,
   });
 
   if (error) {

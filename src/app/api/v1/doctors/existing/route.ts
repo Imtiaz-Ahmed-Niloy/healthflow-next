@@ -62,10 +62,10 @@ export const POST = async (request: Request) => {
 
   const supabase = await createServerSupabase();
   const { data, error } = await supabase.rpc("add_doctor_to_hospital", {
-    p_profile_id: parsed.data.profile_id ?? null,
-    p_doctor_id: parsed.data.doctor_id ?? null,
-    p_consultation_fee: parsed.data.consultation_fee,
-    p_availability: parsed.data.availability || null,
+    p_profile_id: parsed.data.profile_id,
+    p_doctor_id: parsed.data.doctor_id,
+    p_consultation_fee: parsed.data.consultation_fee ?? undefined,
+    p_availability: parsed.data.availability || undefined,
   });
   if (error) return fail(error.message, statusOf(error.code));
 

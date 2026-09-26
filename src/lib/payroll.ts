@@ -12,7 +12,7 @@
 import type { Tables } from "@/lib/supabase/types";
 import { payslipWords } from "@/i18n/libText";
 import { clientLocale } from "@/i18n/config";
-import { formatCurrency, getAppSettings } from "@/lib/appSettings";
+import { formatCurrency, getAppSettings } from "@/lib/appSettingsCore";
 
 /** The staff register row, exactly as the database returns it. */
 export type Employee = Tables<"employees">;

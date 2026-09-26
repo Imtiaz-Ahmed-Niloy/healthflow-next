@@ -76,15 +76,15 @@ const detailsSchema = z.object({
 
 const args = (d: z.infer<typeof detailsSchema>) => ({
   p_name: d.name,
-  p_address: d.address,
-  p_location: d.location,
-  p_division: d.division,
-  p_district: d.district,
-  p_subdistrict: d.subdistrict,
-  p_phone: d.phone,
-  p_consultation_fee: d.consultation_fee,
-  p_availability: d.availability || null,
-  p_has_name: d.has_name ?? null,
+  p_address: d.address ?? undefined,
+  p_location: d.location ?? undefined,
+  p_division: d.division ?? undefined,
+  p_district: d.district ?? undefined,
+  p_subdistrict: d.subdistrict ?? undefined,
+  p_phone: d.phone ?? undefined,
+  p_consultation_fee: d.consultation_fee ?? undefined,
+  p_availability: d.availability || undefined,
+  p_has_name: d.has_name,
 });
 
 export const POST = async (request: Request) => {
@@ -100,7 +100,7 @@ export const POST = async (request: Request) => {
     ...args(parsed.data),
     // Whose chamber — the super admin's to say. The function refuses a doctor
     // naming anyone but themselves, so this is a convenience, not the check.
-    p_profile_id: isSuperAdmin(auth) ? parsed.data.profile_id ?? null : null,
+    p_profile_id: isSuperAdmin(auth) ? parsed.data.profile_id : undefined,
   });
   if (error) return fail(error.message, statusOf(error.code));
 
