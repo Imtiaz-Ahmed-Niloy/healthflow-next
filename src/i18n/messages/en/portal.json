@@ -248,8 +248,10 @@
         "diagnosis": "Add Diagnosis"
       },
       "placeholders": {
-        "complaints": "e.g. Headache",
-        "examination": "e.g. BP 120/80",
+        "complaints": "Search complaints, e.g. Fever, Headache",
+        "complaintDetail": "Duration or detail, e.g. 7 days",
+        "examination": "Search examinations, e.g. Temperature, BP",
+        "examinationDetail": "Finding or value, e.g. 102°F",
         "investigation": "Search tests, e.g. CBC, Lipid Profile",
         "diagnosis": "Describe diagnosis…"
       },
@@ -279,7 +281,8 @@
       "noMedicines": "No medicines yet.",
       "generalAdvice": "General Advice",
       "addAdvice": "Add Advice",
-      "advicePlaceholder": "Search advice, e.g. rest, water, follow-up",
+      "changePicked": "Change",
+      "advicePlaceholder":"Search advice, e.g. rest, water, follow-up",
       "noAdvice": "No advice yet.",
       "signedBy": "Signed By",
       "patientHistory": "Patient History",

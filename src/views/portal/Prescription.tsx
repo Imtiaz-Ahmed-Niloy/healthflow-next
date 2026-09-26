@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Plus, ClipboardList, ClipboardCheck, FlaskConical, Stethoscope, Lightbulb, History, AlertTriangle, Users, Printer, X, Search, Check, Store, Building2 } from "lucide-react";
@@ -21,6 +21,8 @@ import { rememberedPlace, rememberPlace } from "@/lib/rxPlace";
 import { SuggestInput, type Suggestion } from "@/components/portal/SuggestInput";
 import { useInvestigations } from "@/hooks/useInvestigations";
 import { useAdvice } from "@/hooks/useAdvice";
+import { COMPLAINT_DURATIONS, useComplaints } from "@/hooks/useComplaints";
+import { useExaminations } from "@/hooks/useExaminations";
 
 /**
  * /portal/prescription (HF-57). Used to render one hardcoded patient no
@@ -136,9 +138,19 @@ type EditableSectionProps = {
   multiline?: boolean;
   /** Offered as the doctor types; free text still goes in (Investigation, 0094). */
   suggestions?: Suggestion[];
+  /**
+   * Asks for a detail after a suggestion is picked ("Fever" then "7 days"),
+   * offering these for it; the entry is saved as "Fever: 7 days" (Chief
+   * Complaints, 0101).
+   */
+  detailsFor?: (name: string) => string[];
+  detailPlaceholder?: string;
 };
 
-const EditableSection = ({ icon: Icon, title, action, items, onAdd, onUpdate, onRemove, placeholder, multiline, suggestions }: EditableSectionProps) => {
+/** Between a complaint and its detail in a saved entry. Names on the 0101 list have no colon. */
+const DETAIL_SEP = ": ";
+
+const EditableSection = ({ icon: Icon, title, action, items, onAdd, onUpdate, onRemove, placeholder, multiline, suggestions, detailsFor, detailPlaceholder }: EditableSectionProps) => {
   const t = useTranslations("portal.prescription");
   const tc = useTranslations("common");
   const [open, setOpen] = useState(false);
@@ -147,6 +159,24 @@ const EditableSection = ({ icon: Icon, title, action, items, onAdd, onUpdate, on
   // entry in `items` in place (clicking an existing line, same pattern as
   // the Rx list's click-to-edit).
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  // With detailsFor: the picked name, while its detail is being typed.
+  const [picked, setPicked] = useState<string | null>(null);
+  const [detail, setDetail] = useState("");
+
+  // Chips for the part of the detail being typed (after the last comma),
+  // leaving out the ones already in it. Some options have a comma of their
+  // own ("Soft, non-tender"), so a detail ending in one is a finished part.
+  const allOptions = picked !== null && detailsFor ? detailsFor(picked) : [];
+  const detailLower = detail.trim().toLowerCase();
+  const finished = !detailLower || allOptions.some(o => detailLower.endsWith(o.toLowerCase()));
+  const typing = finished ? "" : detail.slice(detail.lastIndexOf(",") + 1).trim();
+  const kept = finished ? detail.trim() : detail.slice(0, Math.max(detail.lastIndexOf(","), 0)).trim();
+  const detailOptions = allOptions.filter(o =>
+    !detailLower.includes(o.toLowerCase()) && o.toLowerCase().includes(typing.toLowerCase()),
+  );
+
+  const pickDetail = (option: string) =>
+    setDetail(kept ? `${kept.replace(/,$/, "")}, ${option}` : option);
 
   const toggleAdd = () => {
     if (open && editingIndex === null) {
@@ -155,17 +185,44 @@ const EditableSection = ({ icon: Icon, title, action, items, onAdd, onUpdate, on
     }
     setEditingIndex(null);
     setValue("");
+    setPicked(null);
+    setDetail("");
     setOpen(true);
   };
 
   const startEdit = (i: number) => {
     setEditingIndex(i);
-    setValue(items[i]);
+    // A name on the list is the whole entry even if it has a colon of its own.
+    const known = suggestions?.some(s => s.name.toLowerCase() === items[i].toLowerCase());
+    if (detailsFor) {
+      const at = known ? -1 : items[i].indexOf(DETAIL_SEP);
+      setPicked(at > 0 ? items[i].slice(0, at) : items[i]);
+      setDetail(at > 0 ? items[i].slice(at + DETAIL_SEP.length) : "");
+      setValue("");
+    } else {
+      setValue(items[i]);
+    }
     setOpen(true);
   };
 
-  const submit = (picked?: string) => {
-    const v = (picked ?? value).trim();
+  /** With detailsFor, picking a name moves on to its detail instead of saving. */
+  const pickName = (name?: string) => {
+    const v = (name ?? value).trim();
+    if (!v) return;
+    setPicked(v);
+    setDetail("");
+    setValue("");
+  };
+
+  const unpick = () => {
+    setValue(picked ?? "");
+    setPicked(null);
+    setDetail("");
+  };
+
+  const submit = (pickedValue?: string) => {
+    const d = detail.trim().replace(/,$/, "").trim();
+    const v = picked !== null ? (d ? `${picked}${DETAIL_SEP}${d}` : picked) : (pickedValue ?? value).trim();
     if (!v) return;
     if (editingIndex !== null) {
       onUpdate(editingIndex, v);
@@ -175,6 +232,8 @@ const EditableSection = ({ icon: Icon, title, action, items, onAdd, onUpdate, on
       toast.success(t("sectionAdded", { section: title }));
     }
     setValue("");
+    setPicked(null);
+    setDetail("");
     setEditingIndex(null);
     setOpen(false);
   };
@@ -192,31 +251,70 @@ const EditableSection = ({ icon: Icon, title, action, items, onAdd, onUpdate, on
       </div>
 
       {open && (
-        <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2">
-          {multiline ? (
-            <textarea
-              autoFocus
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder={placeholder}
-              rows={3}
-              className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
-          ) : suggestions ? (
-            <SuggestInput value={value} onChange={setValue} onPick={submit} suggestions={suggestions} placeholder={placeholder} />
-          ) : (
-            <input
-              autoFocus
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && submit()}
-              placeholder={placeholder}
-              className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
+        <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
+          <div className="flex gap-2">
+            {picked !== null ? (
+              <div className="flex flex-1 min-w-0 items-center rounded-lg border border-border bg-background focus-within:ring-2 focus-within:ring-primary/30">
+                <span className="ml-1.5 flex max-w-[50%] shrink-0 items-center gap-1 rounded-md bg-chip px-2 py-1 text-xs font-semibold text-primary">
+                  <span className="truncate">{picked}</span>
+                  <button type="button" onClick={unpick} aria-label={t("changePicked")} className="hover:text-destructive">
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+                <input
+                  autoFocus
+                  value={detail}
+                  onChange={(e) => setDetail(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") submit();
+                    if (e.key === "Backspace" && !detail) unpick();
+                  }}
+                  placeholder={detailPlaceholder}
+                  className="min-w-0 flex-1 bg-transparent px-2 py-2 text-sm focus:outline-none"
+                />
+              </div>
+            ) : multiline ? (
+              <textarea
+                autoFocus
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                placeholder={placeholder}
+                rows={3}
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            ) : suggestions ? (
+              <SuggestInput value={value} onChange={setValue} onPick={detailsFor ? pickName : submit} suggestions={suggestions} placeholder={placeholder} />
+            ) : (
+              <input
+                autoFocus
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && submit()}
+                placeholder={placeholder}
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            )}
+            <button
+              onClick={() => (detailsFor && picked === null ? pickName() : submit())}
+              className="rounded-lg bg-primary text-primary-foreground px-3 text-xs font-semibold hover:opacity-90"
+            >
+              {editingIndex !== null ? t("update") : tc("save")}
+            </button>
+          </div>
+          {detailOptions.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {detailOptions.map(o => (
+                <button
+                  key={o}
+                  type="button"
+                  onClick={() => pickDetail(o)}
+                  className="rounded-full border border-border bg-chip px-2.5 py-0.5 text-xs text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
+                >
+                  {o}
+                </button>
+              ))}
+            </div>
           )}
-          <button onClick={() => submit()} className="rounded-lg bg-primary text-primary-foreground px-3 text-xs font-semibold hover:opacity-90">
-            {editingIndex !== null ? t("update") : tc("save")}
-          </button>
         </motion.div>
       )}
 
@@ -273,6 +371,16 @@ const Prescription = () => {
   const appointmentId = searchParams?.get("appointment") ?? null;
   const { investigations: investigationList } = useInvestigations();
   const { advice: adviceList } = useAdvice();
+  const { complaints: complaintList } = useComplaints();
+  const complaintSuggestions = useMemo(() => complaintList.map(c => ({ name: c.name })), [complaintList]);
+  const complaintDetails = (name: string) => {
+    const own = complaintList.find(c => c.name.toLowerCase() === name.toLowerCase())?.details ?? [];
+    return [...own, ...COMPLAINT_DURATIONS];
+  };
+  const { examinations: examinationList } = useExaminations();
+  const examinationSuggestions = useMemo(() => examinationList.map(e => ({ name: e.name })), [examinationList]);
+  const examinationDetails = (name: string) =>
+    examinationList.find(e => e.name.toLowerCase() === name.toLowerCase())?.details ?? [];
 
   const [ctx, setCtx] = useState<ConsultationCtx | null>(null);
   const [loadingCtx, setLoadingCtx] = useState(!!appointmentId);
@@ -1201,6 +1309,9 @@ type SidebarQueueEntry = {
             title={t("sections.complaints")}
             action={t("actions.complaints")}
             placeholder={t("placeholders.complaints")}
+            suggestions={complaintSuggestions}
+            detailsFor={complaintDetails}
+            detailPlaceholder={t("placeholders.complaintDetail")}
             items={complaints}
             onAdd={addTo(setComplaints)}
             onUpdate={updateIn(setComplaints)}
@@ -1211,6 +1322,9 @@ type SidebarQueueEntry = {
             title={t("sections.examination")}
             action={t("actions.examination")}
             placeholder={t("placeholders.examination")}
+            suggestions={examinationSuggestions}
+            detailsFor={examinationDetails}
+            detailPlaceholder={t("placeholders.examinationDetail")}
             items={examination}
             onAdd={addTo(setExamination)}
             onUpdate={updateIn(setExamination)}

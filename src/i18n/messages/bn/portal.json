@@ -248,8 +248,10 @@
         "diagnosis": "রোগনির্ণয় যোগ করুন"
       },
       "placeholders": {
-        "complaints": "যেমন: মাথাব্যথা",
-        "examination": "যেমন: রক্তচাপ 120/80",
+        "complaints": "সমস্যা খুঁজুন, যেমন Fever, Headache",
+        "complaintDetail": "কতদিন বা বিস্তারিত, যেমন 7 days",
+        "examination": "পরীক্ষা খুঁজুন, যেমন Temperature, BP",
+        "examinationDetail": "ফলাফল বা মান, যেমন 102°F",
         "investigation": "টেস্ট খুঁজুন, যেমন CBC, Lipid Profile",
         "diagnosis": "রোগনির্ণয় লিখুন…"
       },
@@ -279,7 +281,8 @@
       "noMedicines": "এখনো কোনো ওষুধ নেই।",
       "generalAdvice": "সাধারণ পরামর্শ",
       "addAdvice": "পরামর্শ যোগ করুন",
-      "advicePlaceholder": "পরামর্শ খুঁজুন, যেমন বিশ্রাম, পানি, ফলো-আপ",
+      "changePicked": "বদলান",
+      "advicePlaceholder":"পরামর্শ খুঁজুন, যেমন বিশ্রাম, পানি, ফলো-আপ",
       "noAdvice": "এখনো কোনো পরামর্শ নেই।",
       "signedBy": "স্বাক্ষর করেছেন",
       "patientHistory": "রোগীর ইতিহাস",
