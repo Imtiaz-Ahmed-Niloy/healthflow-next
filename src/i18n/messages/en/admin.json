@@ -663,6 +663,15 @@
     "finance": {
       "title": "Finance",
       "subtitle": "Invoices, payments and approvals",
+      "print": {
+        "button": "Print",
+        "title": "Invoice",
+        "issued": "Issued",
+        "item": "Item",
+        "qty": "Qty",
+        "rate": "Rate",
+        "total": "Total"
+      },
       "kpi": {
         "receivables": "Receivables",
         "payables": "Payables",

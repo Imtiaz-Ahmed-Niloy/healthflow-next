@@ -663,6 +663,15 @@
     "finance": {
       "title": "অর্থ",
       "subtitle": "ইনভয়েস, পেমেন্ট ও অনুমোদন",
+      "print": {
+        "button": "প্রিন্ট",
+        "title": "ইনভয়েস",
+        "issued": "ইস্যুর তারিখ",
+        "item": "আইটেম",
+        "qty": "পরিমাণ",
+        "rate": "রেট",
+        "total": "মোট"
+      },
       "kpi": {
         "receivables": "পাওনা",
         "payables": "দেনা",
