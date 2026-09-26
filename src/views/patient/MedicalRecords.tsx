@@ -169,7 +169,7 @@ const MedicalRecords = () => {
 
   return (
     <PatientPortalLayout>
-      <div className="grid lg:grid-cols-[1fr_300px] gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
         <div>
           <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("kicker")}</p>
           <h1 className="font-display text-5xl text-primary mt-2">{t("title")}</h1>
@@ -199,7 +199,7 @@ const MedicalRecords = () => {
         </div>
       ) : (
         <>
-          <div className="grid lg:grid-cols-[1fr_320px] gap-6 mt-8">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 mt-8">
             {/* Most recent visit */}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
               className="rounded-3xl bg-card border border-border/60 p-7 shadow-soft">

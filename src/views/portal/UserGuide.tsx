@@ -185,7 +185,7 @@ const UserGuide = () => {
           </ul>
         </section>
 
-        <section className="grid md:grid-cols-[1fr_2fr] gap-8 pb-6">
+        <section className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-8 pb-6">
           <div>
             <span className="inline-flex rounded-full bg-chip text-chip-foreground px-3 py-1 text-[10px] font-bold tracking-wider">
               {guide.faqKicker}

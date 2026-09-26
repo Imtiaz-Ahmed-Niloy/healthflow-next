@@ -98,8 +98,12 @@ const DoctorDetail = () => {
         </Link>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
-          className="grid lg:grid-cols-[360px_1fr] gap-8">
-          <div className="rounded-3xl bg-card border border-border/60 overflow-hidden shadow-card sticky top-24 self-start">
+          // grid-cols-1 is minmax(0, 1fr): without it the phone's single
+          // implicit column grew to its widest content and the page scrolled sideways.
+          className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-8">
+          {/* Sticky only beside the details (lg). Stacked on a phone it stayed
+              pinned over them and the whole profile scrolled out of sight underneath. */}
+          <div className="rounded-3xl bg-card border border-border/60 overflow-hidden shadow-card lg:sticky lg:top-24 self-start">
             <div className="relative aspect-[4/5] bg-gradient-to-br from-accent/40 to-primary/10">
               {d.photo ? (
                 <img src={d.photo} alt={d.name} className="absolute inset-0 w-full h-full object-cover" />

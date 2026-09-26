@@ -76,7 +76,24 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
             <motion.h2 {...titleReveal} className="font-display text-3xl md:text-4xl text-primary">{t.rich("compareTitle", gradient)}</motion.h2>
             <p className="text-muted-foreground mt-2 text-sm">{t("compareSub")}</p>
           </div>
-          <div className="overflow-x-auto">
+          {/* A phone gets one card per plan: the 700px table showed only a
+              sliver of the first plan's column beside the row names. */}
+          <div className="md:hidden space-y-5">
+            {plans.map((p, i) => (
+              <div key={i} className="rounded-3xl bg-card border border-border/60 shadow-soft p-5">
+                <h3 className="font-display text-xl text-primary">{p.name}</h3>
+                <dl className="mt-3 divide-y divide-border/60 text-sm">
+                  {compareRows.map((row, r) => (
+                    <div key={r} className="flex items-start justify-between gap-4 py-2.5">
+                      <dt className="font-semibold text-primary">{row.label}</dt>
+                      <dd className={`text-right text-foreground/80 ${(row.bold || []).includes(i + 1) ? "font-bold text-primary" : ""}`}>{row.values[i]}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            ))}
+          </div>
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-sm border-collapse min-w-[700px]">
               <thead>
                 <tr className="border-b border-border">

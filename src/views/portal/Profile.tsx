@@ -132,7 +132,7 @@ const Profile = () => {
           {t("noProfile")}
         </div>
       ) : (
-        <div className="grid lg:grid-cols-[1fr_340px] gap-6 mt-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 mt-8 items-start">
           <motion.form key={JSON.stringify(profile)} onSubmit={save} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
             className="rounded-3xl bg-card border border-border/60 p-6 shadow-soft space-y-5">
             <div className="space-y-1.5">

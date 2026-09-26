@@ -255,7 +255,7 @@ export const GET = async () => {
 
   const { data, error } = await admin
     .from("appointments")
-    .select("id, scheduled_date, scheduled_time, status, department, notes, doctors(name, specialty, availability), tenants(name)")
+    .select("id, scheduled_date, scheduled_time, status, department, notes, doctors(name, specialty, availability, consultation_duration_minutes), tenants(name)")
     .in("patient_id", patientIds)
     .order("scheduled_date", { ascending: false })
     .order("scheduled_time", { ascending: false });
@@ -270,10 +270,15 @@ export const GET = async () => {
       status: row.status,
       department: row.department,
       notes: row.notes,
-      // availability rides along so the reschedule form can hold the new
-      // slot to the doctor's days and hours, as booking does.
+      // availability and visit length ride along so the reschedule form
+      // offers the same slots booking did, within the doctor's days and hours.
       doctor: row.doctors
-        ? { name: row.doctors.name, specialty: row.doctors.specialty, availability: row.doctors.availability }
+        ? {
+            name: row.doctors.name,
+            specialty: row.doctors.specialty,
+            availability: row.doctors.availability,
+            duration: row.doctors.consultation_duration_minutes,
+          }
         : null,
       hospital: row.tenants ? { name: row.tenants.name } : null,
     })),

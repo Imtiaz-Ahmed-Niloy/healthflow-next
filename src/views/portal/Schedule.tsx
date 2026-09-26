@@ -156,7 +156,7 @@ const Schedule = () => {
           <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         </div>
       ) : view === "split" ? (
-        <div className="grid lg:grid-cols-[400px_1fr] gap-6 mt-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6 mt-8">
           {/* Agenda */}
           <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="rounded-3xl bg-card border border-border/60 p-6 shadow-soft">
             <div className="flex items-center justify-between">

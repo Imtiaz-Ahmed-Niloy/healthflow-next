@@ -51,7 +51,7 @@ const Career = () => {
         </section>
 
         <section className="container mx-auto py-10">
-          <div className="grid md:grid-cols-[1fr_auto] gap-6 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6 items-end">
             <div>
               <h2 className="font-display text-3xl text-primary">{t("insightsTitle")}</h2>
               <p className="text-sm text-muted-foreground mt-1">{t("insightsSub")}</p>
@@ -69,7 +69,7 @@ const Career = () => {
         </section>
 
         <section id="openings" className="container mx-auto pb-12">
-          <div className="grid md:grid-cols-[1fr_auto] gap-4 items-center mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center mb-8">
             <div>
               <h2 className="font-display text-3xl text-primary">{t("openingsTitle")}</h2>
               <p className="text-sm text-muted-foreground mt-1">{t("openingsSub")}</p>

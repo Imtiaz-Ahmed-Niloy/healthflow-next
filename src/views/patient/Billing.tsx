@@ -87,7 +87,7 @@ const Billing = () => {
       <h1 className="font-display text-5xl text-primary">{t("title")}</h1>
       <p className="text-sm text-muted-foreground mt-1">{t("subtitle")}</p>
 
-      <div className="grid lg:grid-cols-[1fr_360px] gap-6 mt-8">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 mt-8">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
           className="rounded-3xl bg-gradient-dark text-surface-dark-foreground p-8 shadow-glow relative overflow-hidden">
           <div className="absolute -right-24 -bottom-24 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />

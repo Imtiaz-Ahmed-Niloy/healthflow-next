@@ -68,7 +68,7 @@ const DataUse = () => {
       {/* Flow */}
       <section className="mt-20">
         <h2 className="text-center font-display text-3xl md:text-4xl text-primary">{t("flowTitle")}</h2>
-        <div className="grid md:grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-4 mt-10">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-4 mt-10">
           {([
             { icon: LogIn, key: "collection" },
             { icon: MessageSquareQuote, key: "utilization" },

@@ -101,7 +101,9 @@ const Hero = ({ content }: { content: HomeCopy }) => {
             {plain}
             {highlight && <span className="lp-gradient-text">{highlight}</span>}
           </h1>
-          <p className="mt-6 text-base text-muted-foreground max-w-xl leading-relaxed md:text-base text-justify whitespace-pre-line">
+          {/* Justified and with the editor's line breaks only from md: a phone's
+              short lines left rivers between words and a dangling half-line. */}
+          <p className="mt-6 text-base text-muted-foreground max-w-xl leading-relaxed md:text-justify md:whitespace-pre-line">
             {content.heroDesc}
           </p>
           <div className="mt-8 flex flex-wrap gap-3">

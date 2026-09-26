@@ -78,6 +78,11 @@
   :lang(bn) :is(h1, h2, h3, h4),
   :lang(bn) .font-display { line-height: 1.4; letter-spacing: 0; }
   .text-balance { text-wrap: balance; }
+
+  /* A row that scrolls sideways (chips, tabs) without a desktop scrollbar
+     drawn under it — on a phone that bar read as a broken layout. */
+  .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
   .bg-gradient-hero { background: var(--gradient-hero); }
   .bg-gradient-dark { background: var(--gradient-dark); }
   .shadow-soft { box-shadow: var(--shadow-soft); }

@@ -34,7 +34,8 @@ const RoomReservation = () => {
     <div className="min-h-screen bg-gradient-hero">
       <Navbar />
       <main className="container mx-auto py-12">
-        <Link href="/hospitals" className="inline-flex items-center gap-1.5 text-sm text-primary mb-6">
+        {/* flex, not inline-flex: inline, the tag below ran onto this line. */}
+        <Link href="/hospitals" className="flex w-fit items-center gap-1.5 text-sm text-primary mb-6">
           <ArrowLeft className="h-4 w-4" /> {t("back")}
         </Link>
 
@@ -44,7 +45,7 @@ const RoomReservation = () => {
         <h1 className="font-display text-5xl text-primary mt-3">{t("title")}</h1>
         <p className="text-muted-foreground mt-2 max-w-2xl">{t("intro")}</p>
 
-        <div className="grid lg:grid-cols-[1fr_380px] gap-8 mt-10">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 mt-10">
           <div>
             <h2 className="font-display text-2xl text-primary mb-4">{t("available")}</h2>
             <div className="grid sm:grid-cols-2 gap-4">
@@ -76,7 +77,7 @@ const RoomReservation = () => {
             </div>
           </div>
 
-          <aside className="rounded-3xl bg-card border border-border/60 shadow-card p-6 sticky top-24 self-start">
+          <aside className="rounded-3xl bg-card border border-border/60 shadow-card p-6 lg:sticky lg:top-24 self-start">
             <h2 className="font-display text-xl text-primary">{t("summary")}</h2>
             <div className="mt-4 space-y-1">
               <p className="font-display text-2xl text-primary">{selected.type}</p>

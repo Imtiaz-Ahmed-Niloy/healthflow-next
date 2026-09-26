@@ -104,7 +104,7 @@ const Directory = () => {
 
   return (
     <PortalLayout>
-      <div className="grid lg:grid-cols-[400px_1fr] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6">
         {/* Left list */}
         <div>
           <div className="flex items-center justify-between">
@@ -213,7 +213,7 @@ const Directory = () => {
               </div>
             </div>
 
-            <div className="grid md:grid-cols-[2fr_1fr] gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-5">
               <div className="rounded-2xl bg-card p-6 shadow-soft">
                 <h3 className="flex items-center gap-2 font-semibold text-primary"><Activity className="h-4 w-4" /> {t("recentVitals")}</h3>
                 {!selected.latest_bp && selected.weight_kg == null && selected.height_feet == null ? (

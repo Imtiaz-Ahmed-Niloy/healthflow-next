@@ -60,9 +60,11 @@ const Features = ({ hero, content }: { hero: CmsHeroFields; content: FeaturesCon
             <motion.h2 {...titleReveal} className="font-display text-3xl md:text-4xl text-primary"><GradientText text={architecture.title} /></motion.h2>
             <p className="text-muted-foreground mt-3 whitespace-pre-line">{architecture.subtitle}</p>
           </div>
+          {/* The pill centres itself (mx-auto) instead of justify-center, which
+              on a phone pushed the first tab's start off the scrollable edge. */}
           {architecture.tabs.length > 0 && (
-            <div className="flex justify-center mt-8 overflow-x-auto">
-              <div className="inline-flex rounded-full bg-muted p-1.5 gap-1">
+            <div className="flex mt-8 overflow-x-auto no-scrollbar">
+              <div className="inline-flex shrink-0 mx-auto rounded-full bg-muted p-1.5 gap-1">
                 {architecture.tabs.map(tab => (
                   <button key={tab} onClick={() => setActive(tab)} className={`px-4 py-2 rounded-full text-xs md:text-sm font-medium whitespace-nowrap transition-all ${active === tab ? "bg-primary text-primary-foreground" : "text-foreground/70 hover:text-primary"}`}>
                     {tab}

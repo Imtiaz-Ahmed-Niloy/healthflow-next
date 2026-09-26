@@ -1193,7 +1193,7 @@ type SidebarQueueEntry = {
         </button>
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_2fr_1fr] gap-8 mt-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr_1fr] gap-8 mt-6">
         {/* Left clinical inputs */}
         <div className="space-y-6">
           <EditableSection

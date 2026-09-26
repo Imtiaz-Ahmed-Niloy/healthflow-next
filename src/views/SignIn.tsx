@@ -199,7 +199,7 @@ const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
 
   return (
     <AuthLayout>
-      <div className="grid lg:grid-cols-[1fr_minmax(380px,520px)_1fr] gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(380px,520px)_1fr] gap-6 items-start">
         <div className="hidden lg:flex flex-col gap-6">{left.map(a => <AdCard key={a.id} ad={a} />)}</div>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}

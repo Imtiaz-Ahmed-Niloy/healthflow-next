@@ -138,7 +138,7 @@ const Testimonials = () => {
                     }`}
                   >
                     <Quote className="h-6 w-6 text-accent" strokeWidth={2.5} />
-                    <p className="mt-3 text-foreground/80 leading-relaxed italic text-xs text-justify">
+                    <p className="mt-3 text-foreground/80 leading-relaxed italic text-sm md:text-xs md:text-justify">
                       &quot;{r.text}&quot;
                     </p>
                     <div className="mt-5 border-t border-border/50 pt-4">
@@ -153,17 +153,19 @@ const Testimonials = () => {
 
           {total > perView && (
             <>
+              {/* Arrows only where there is a mouse to hover with: on a phone a
+                  tap left them stuck on screen over the cards. Touch swipes. */}
               <button
                 aria-label={tr("common.previous")}
                 onClick={() => go(index - 1)}
-                className="absolute -left-2 md:-left-5 top-1/2 -translate-y-1/2 h-11 w-11 grid place-items-center rounded-full bg-card text-primary shadow-card hover:bg-primary hover:text-primary-foreground transition opacity-0 group-hover:opacity-100"
+                className="absolute -left-2 md:-left-5 top-1/2 -translate-y-1/2 h-11 w-11 hidden [@media(hover:hover)]:grid place-items-center rounded-full bg-card text-primary shadow-card hover:bg-primary hover:text-primary-foreground transition opacity-0 group-hover:opacity-100"
               >
                 <ChevronLeft className="h-5 w-5" />
               </button>
               <button
                 aria-label={tr("common.next")}
                 onClick={() => go(index + 1)}
-                className="absolute -right-2 md:-right-5 top-1/2 -translate-y-1/2 h-11 w-11 grid place-items-center rounded-full bg-card text-primary shadow-card hover:bg-primary hover:text-primary-foreground transition opacity-0 group-hover:opacity-100"
+                className="absolute -right-2 md:-right-5 top-1/2 -translate-y-1/2 h-11 w-11 hidden [@media(hover:hover)]:grid place-items-center rounded-full bg-card text-primary shadow-card hover:bg-primary hover:text-primary-foreground transition opacity-0 group-hover:opacity-100"
               >
                 <ChevronRight className="h-5 w-5" />
               </button>

@@ -39,7 +39,7 @@ const Telehealth = () => {
           <p className="text-muted-foreground mt-3 text-lg">{t("intro")}</p>
         </motion.div>
 
-        <div className="grid lg:grid-cols-[1fr_360px] gap-8 mt-12">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 mt-12">
           <form onSubmit={(e) => { e.preventDefault(); toast.success(t("requested"), { description: `${t(`reasons.${reason}`)} · ${t(`slots.${slot}`)}` }); }} className="rounded-3xl bg-card border border-border/60 p-8 shadow-soft space-y-6">
             <h2 className="font-display text-2xl text-primary">{t("formTitle")}</h2>
 

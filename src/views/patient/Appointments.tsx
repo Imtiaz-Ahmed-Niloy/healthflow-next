@@ -213,7 +213,7 @@ const Appointments = () => {
 
   return (
     <PatientPortalLayout>
-      <div className="grid lg:grid-cols-[1fr_360px] gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8">
         <div>
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div className="max-w-xl">

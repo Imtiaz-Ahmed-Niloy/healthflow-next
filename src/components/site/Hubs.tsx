@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Building2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useHospitals } from "@/hooks/useHospitals";
@@ -41,8 +41,31 @@ const Hubs = () => {
 
   useEffect(() => { if (index > maxIndex) setIndex(0); }, [index, maxIndex]);
 
+  // Swipe on touch screens, where the arrows are hidden. As in Testimonials:
+  // a mostly sideways drag of 40px or more moves one card, anything more
+  // vertical is left to scroll the page, and autoplay holds while a finger is down.
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+
   if (!total) return null;
   const go = (n: number) => setIndex(Math.max(0, Math.min(maxIndex, n)));
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    const p = e.touches[0];
+    touchStart.current = { x: p.clientX, y: p.clientY };
+    setPaused(true);
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const start = touchStart.current;
+    touchStart.current = null;
+    setPaused(false);
+    if (!start) return;
+    const p = e.changedTouches[0];
+    const dx = p.clientX - start.x;
+    const dy = p.clientY - start.y;
+    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
+    go(dx < 0 ? index + 1 : index - 1);
+  };
 
   // The card in the middle of the three on screen. Only meaningful three-up:
   // with one or two showing there is no middle to single out, and shrinking
@@ -60,6 +83,9 @@ const Hubs = () => {
         className="relative group"
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={() => { touchStart.current = null; setPaused(false); }}
       >
         <div className="overflow-hidden rounded-3xl">
           <div
@@ -90,17 +116,19 @@ const Hubs = () => {
 
         {total > perView && (
           <>
+            {/* Arrows only where there is a mouse to hover with: on a phone a
+                tap left them stuck on screen over the cards. Touch swipes. */}
             <button
               aria-label={tc("previous")}
               onClick={() => go(index - 1)}
-              className="absolute -left-2 md:-left-5 top-1/2 -translate-y-1/2 h-11 w-11 grid place-items-center rounded-full bg-card text-primary shadow-card hover:bg-primary hover:text-primary-foreground transition opacity-0 group-hover:opacity-100"
+              className="absolute -left-2 md:-left-5 top-1/2 -translate-y-1/2 h-11 w-11 hidden [@media(hover:hover)]:grid place-items-center rounded-full bg-card text-primary shadow-card hover:bg-primary hover:text-primary-foreground transition opacity-0 group-hover:opacity-100"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
             <button
               aria-label={tc("next")}
               onClick={() => go(index + 1)}
-              className="absolute -right-2 md:-right-5 top-1/2 -translate-y-1/2 h-11 w-11 grid place-items-center rounded-full bg-card text-primary shadow-card hover:bg-primary hover:text-primary-foreground transition opacity-0 group-hover:opacity-100"
+              className="absolute -right-2 md:-right-5 top-1/2 -translate-y-1/2 h-11 w-11 hidden [@media(hover:hover)]:grid place-items-center rounded-full bg-card text-primary shadow-card hover:bg-primary hover:text-primary-foreground transition opacity-0 group-hover:opacity-100"
             >
               <ChevronRight className="h-5 w-5" />
             </button>

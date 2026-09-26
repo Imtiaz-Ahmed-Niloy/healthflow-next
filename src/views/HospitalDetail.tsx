@@ -112,7 +112,9 @@ const HospitalDetail = () => {
             className="absolute inset-0 w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-primary/95 via-primary/60 to-primary/30" />
-          <div className="container mx-auto relative h-full flex flex-col justify-end pb-12 text-primary-foreground">
+          {/* pb-16 on phones: the stats card below rises 3rem into the cover
+              (-mt-12), so pb-12 left a two-line name sitting right on its edge. */}
+          <div className="container mx-auto relative h-full flex flex-col justify-end pb-16 md:pb-12 text-primary-foreground">
             <Link href="/hospitals" className="inline-flex items-center gap-1.5 text-sm opacity-90 hover:opacity-100 mb-6 w-fit">
               <ArrowLeft className="h-4 w-4" /> {t("allHospitals")}
             </Link>
@@ -254,7 +256,7 @@ const HospitalDetail = () => {
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className="rounded-3xl bg-card border border-border/60 shadow-card p-6 sticky top-24"
+              className="rounded-3xl bg-card border border-border/60 shadow-card p-6 lg:sticky lg:top-24"
             >
               <h3 className="font-display text-xl text-primary">{t("contact")}</h3>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3 text-xs text-muted-foreground">
@@ -416,7 +418,27 @@ const HospitalDetail = () => {
               ))}
             </div>
           </div>
-          <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="rounded-3xl bg-card border border-border/60 overflow-hidden shadow-soft">
+          {/* A phone gets one card per test: five columns in 340px scrolled
+              sideways and hid the price, the one thing people came for. */}
+          <div className="md:hidden rounded-3xl bg-card border border-border/60 shadow-soft divide-y divide-border/60">
+            {filteredLabs.map((test) => (
+              <div key={test.name} className="flex items-center justify-between gap-3 p-4">
+                <div className="min-w-0">
+                  <p className="font-medium text-primary">{test.name}</p>
+                  <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span>{test.category}</span>
+                    <span aria-hidden>·</span>
+                    <Clock className="h-3 w-3 shrink-0" />{test.turnaround}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="font-display text-primary">{formatCurrency(test.price)}</p>
+                  <Link href={`/lab-tests?test=${encodeURIComponent(test.name)}`} className="text-xs font-semibold text-primary hover:underline">{t("lab.book")}</Link>
+                </div>
+              </div>
+            ))}
+          </div>
+          <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="hidden md:block rounded-3xl bg-card border border-border/60 overflow-hidden shadow-soft">
             <Table>
               <TableHeader>
                 <TableRow className="bg-accent/20">
@@ -474,10 +496,10 @@ const HospitalDetail = () => {
                 { label: t("rooms.tiers"), value: hospital.rooms.length, icon: Hotel },
                 { label: t("rooms.from"), value: formatCurrency(Math.min(...hospital.rooms.map((r) => r.price))), icon: Sparkles },
               ].map((s) => (
-                <div key={s.label} className="rounded-2xl bg-card border border-border/60 p-4 flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary"><s.icon className="h-4 w-4" /></div>
-                  <div>
-                    <p className="font-display text-lg text-primary leading-none">{s.value}</p>
+                <div key={s.label} className="rounded-2xl bg-card border border-border/60 p-3 sm:p-4 flex items-center gap-2.5 sm:gap-3">
+                  <div className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-xl bg-primary/10 flex items-center justify-center text-primary"><s.icon className="h-4 w-4" /></div>
+                  <div className="min-w-0">
+                    <p className="font-display text-base sm:text-lg text-primary leading-none whitespace-nowrap">{s.value}</p>
                     <p className="text-[11px] text-muted-foreground mt-1">{s.label}</p>
                   </div>
                 </div>
@@ -538,14 +560,16 @@ const HospitalDetail = () => {
                     </div>
                   </div>
 
-                  <div className="relative flex items-end justify-between mt-5 pt-5 border-t border-border/40">
-                    <div>
-                      <span className="font-display text-3xl text-primary">{formatCurrency(r.price)}</span>
+                  {/* Wraps rather than overflowing: "BDT 1,125.00 /NIGHT" and the
+                      button didn't fit one phone-width row and ran off the card. */}
+                  <div className="relative flex flex-wrap items-end justify-between gap-3 mt-5 pt-5 border-t border-border/40">
+                    <div className="min-w-0">
+                      <span className="font-display text-2xl sm:text-3xl text-primary whitespace-nowrap">{formatCurrency(r.price)}</span>
                       <span className="text-[10px] uppercase text-muted-foreground ml-1">{t("rooms.perNight")}</span>
                     </div>
                     <Link href={r.available === 0 ? "#" : `/reserve-room?hospital=${hospital.slug}&room=${encodeURIComponent(r.type)}`}
                       onClick={(e) => { if (r.available === 0) e.preventDefault(); }}
-                      className={`rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary-glow transition-colors ${r.available === 0 ? "opacity-40 cursor-not-allowed pointer-events-none" : ""}`}
+                      className={`shrink-0 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary-glow transition-colors ${r.available === 0 ? "opacity-40 cursor-not-allowed pointer-events-none" : ""}`}
                     >
                       {t("rooms.reserve")}
                     </Link>

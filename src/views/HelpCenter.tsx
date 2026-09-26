@@ -38,10 +38,12 @@ const HelpCenter = () => {
           {p.description && <p className="mt-4 text-sm text-muted-foreground max-w-xl mx-auto">{p.description}</p>}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }}
             className="mt-8 max-w-2xl mx-auto">
-            <div className="flex items-center bg-card rounded-full shadow-soft border border-border/60 px-5 py-2">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <input className="flex-1 bg-transparent px-3 py-2 text-sm outline-none" placeholder={p.meta || t("searchPlaceholder")} />
-              <button className="rounded-full bg-primary text-primary-foreground px-6 py-2.5 text-xs font-semibold tracking-wider hover:bg-primary-glow transition-colors">{t("search")}</button>
+            {/* min-w-0 on the input: its default width pushed the button out
+                past the pill on a phone. */}
+            <div className="flex items-center bg-card rounded-full shadow-soft border border-border/60 pl-4 pr-1.5 sm:px-5 py-1.5 sm:py-2">
+              <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <input className="flex-1 min-w-0 bg-transparent px-3 py-2 text-sm outline-none" placeholder={p.meta || t("searchPlaceholder")} />
+              <button className="shrink-0 rounded-full bg-primary text-primary-foreground px-4 sm:px-6 py-2.5 text-xs font-semibold tracking-wider hover:bg-primary-glow transition-colors">{t("search")}</button>
             </div>
             <p className="text-xs text-muted-foreground mt-4">{t("popular")} <a href="#" className="underline">{t("popularBooking")}</a>, <a href="#" className="underline">{t("popularTelehealth")}</a>, <a href="#" className="underline">{t("popularInsurance")}</a></p>
           </motion.div>

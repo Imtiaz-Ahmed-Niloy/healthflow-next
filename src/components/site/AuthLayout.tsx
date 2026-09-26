@@ -43,8 +43,8 @@ export const AuthHeader = () => {
     <header className={`sticky top-0 z-50 border-b transition-colors duration-300 ${atTop ? "border-transparent bg-transparent" : "backdrop-blur-md bg-card/80 md:bg-background/80 border-border/50"}`}>
       {/* Sized down on a phone like the main navbar's: at full size the
           logo, the name, the language switch and the button overran the row. */}
-      <nav className="container mx-auto flex items-center justify-between gap-3 py-4">
-        <Link href="/" className="flex shrink-0 items-center gap-1.5 md:gap-2 font-display text-xl md:text-2xl font-semibold text-primary">
+      <nav className="container mx-auto flex items-center justify-between gap-2 md:gap-3 py-4">
+        <Link href="/" className="flex shrink-0 items-center gap-1.5 md:gap-2 font-display text-lg sm:text-xl md:text-2xl font-semibold text-primary">
           <img src={BRAND_INFO.logoMark} alt={`${BRAND_INFO.name} logo`} className="h-7 md:h-9 w-auto" />
           {BRAND_INFO.name}
         </Link>
@@ -57,11 +57,11 @@ export const AuthHeader = () => {
             </li>
           ))}
         </ul>
-        <div className="flex items-center gap-2 md:gap-3">
+        <div className="flex min-w-0 items-center gap-1.5 md:gap-3">
           <LanguageSwitcher compact />
           {/* On the sign-up page the way out is signing in, not the page
               you are already on. */}
-          <Link href={onSignUp ? "/signin" : "/signup"} className="whitespace-nowrap rounded-full bg-gradient-dark text-surface-dark-foreground px-4 md:px-6 py-2 md:py-2.5 text-[10px] md:text-xs font-bold tracking-wider hover:opacity-90 transition-opacity">{(onSignUp ? t("nav.signIn") : t("nav.getStarted")).toUpperCase()}</Link>
+          <Link href={onSignUp ? "/signin" : "/signup"} className="whitespace-nowrap rounded-full bg-gradient-dark text-surface-dark-foreground px-3 sm:px-4 md:px-6 py-2 md:py-2.5 text-[10px] md:text-xs font-bold tracking-wider hover:opacity-90 transition-opacity">{(onSignUp ? t("nav.signIn") : t("nav.getStarted")).toUpperCase()}</Link>
         </div>
       </nav>
     </header>

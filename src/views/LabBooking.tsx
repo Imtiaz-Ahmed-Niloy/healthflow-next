@@ -54,7 +54,7 @@ const LabBooking = () => {
         <h1 className="font-display text-5xl text-primary mt-3">{t("title")}</h1>
         <p className="text-muted-foreground mt-2 max-w-2xl">{t("intro")}</p>
 
-        <div className="grid lg:grid-cols-[1fr_360px] gap-8 mt-10">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 mt-10">
           <div>
             <div className="flex flex-wrap gap-3 mb-5">
               <div className="relative flex-1 min-w-[220px]">
@@ -100,7 +100,7 @@ const LabBooking = () => {
             </div>
           </div>
 
-          <aside className="rounded-3xl bg-card border border-border/60 shadow-card p-6 sticky top-24 self-start">
+          <aside className="rounded-3xl bg-card border border-border/60 shadow-card p-6 lg:sticky lg:top-24 self-start">
             <h2 className="font-display text-xl text-primary">{t("cart")}</h2>
             {items.length === 0 ? (
               <p className="text-sm text-muted-foreground mt-4">{t("empty")}</p>

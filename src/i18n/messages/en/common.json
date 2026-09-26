@@ -32,6 +32,7 @@
     "signedOut": "Signed out",
     "notifications": "Notifications",
     "settings": "Settings",
+    "menu": "Menu",
     "profile": "Profile",
     "networkError": "Couldn't reach the server.",
     "somethingWrong": "Something went wrong.",
