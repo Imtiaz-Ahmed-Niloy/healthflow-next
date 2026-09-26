@@ -595,7 +595,8 @@ type SidebarQueueEntry = {
   // by hand every time -- but courses vary (a 3-week taper, a 45-day
   // supply), so the field stays free text; these are quick-fills, not the
   // only allowed values.
-  const DAY_PRESETS = ["3 Days", "7 Days", "15 Days", "1 Month", "3 Months"];
+  // "Continue" = no end date; the patient keeps taking it until told otherwise.
+  const DAY_PRESETS = ["3 Days", "7 Days", "15 Days", "1 Month", "3 Months", "Continue"];
 
   // Medicine search combobox -- a doctor picks from real matches instead of
   // typing a free-text name (HF-58). Proxies MedEx's live search, no local
