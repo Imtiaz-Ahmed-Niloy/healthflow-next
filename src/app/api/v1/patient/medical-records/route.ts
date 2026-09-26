@@ -65,7 +65,7 @@ export const GET = async () => {
     .from("appointments")
     // One string literal, not a concatenation: supabase-js infers the row type
     // from the select text, and a concatenated one collapses to an error type.
-    .select("id, scheduled_date, scheduled_time, department, notes, bp_systolic, bp_diastolic, complaints, examination, investigation, diagnosis, medicines, advice, doctors ( name, specialty, education, bmdc_number ), tenants ( name, address, contact_phone, has_name ), patients ( full_name, gender, date_of_birth, mrn, weight_kg, height_feet, height_inches )")
+    .select("id, scheduled_date, scheduled_time, department, notes, bp_systolic, bp_diastolic, complaints, examination, investigation, diagnosis, medicines, advice, follow_up_date, doctors ( name, specialty, education, bmdc_number ), tenants ( name, address, contact_phone, has_name ), patients ( full_name, gender, date_of_birth, mrn, weight_kg, height_feet, height_inches )")
     .in("patient_id", patientIds)
     .eq("status", "completed")
     .order("scheduled_date", { ascending: false });
@@ -97,6 +97,7 @@ export const GET = async () => {
       investigation: strings(row.investigation),
       diagnosis: strings(row.diagnosis),
       advice: strings(row.advice),
+      follow_up_date: row.follow_up_date,
       medicines: medicines(row.medicines),
       /**
        * What the printed prescription's letterhead and patient bar need —

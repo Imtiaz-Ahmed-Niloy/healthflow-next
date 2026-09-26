@@ -39,11 +39,13 @@ export type PrescriptionSheetData = {
   diagnosis: string[];
   medicines: SheetMedicine[];
   advice: string[];
+  /** The follow-up date, already formatted for display; null when none was set. */
+  followUp?: string | null;
 };
 
 export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionSheetData; onClose: () => void }) => {
   const t = useTranslations("rxSheet");
-  const { hospital, doctor, patientBar, complaints, examination, investigation, diagnosis, medicines, advice } = sheet;
+  const { hospital, doctor, patientBar, complaints, examination, investigation, diagnosis, medicines, advice, followUp } = sheet;
 
   return (
     <div
@@ -190,6 +192,11 @@ export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionShe
                       <li key={i} className="flex gap-2"><span className="text-emerald-700">•</span><span>{a}</span></li>
                     ))}
                   </ul>
+                )}
+                {followUp && (
+                  <p className="mt-3 text-[12.5px] text-slate-800">
+                    <span className="font-semibold">{t("followUp")}:</span> {t("followUpOn", { date: followUp })}
+                  </p>
                 )}
               </div>
             </div>

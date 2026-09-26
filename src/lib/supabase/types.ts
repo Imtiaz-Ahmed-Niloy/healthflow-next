@@ -230,6 +230,7 @@ export type Database = {
           diagnosis: Json
           doctor_id: string | null
           examination: Json
+          follow_up_date: string | null
           id: string
           investigation: Json
           medicines: Json
@@ -254,6 +255,7 @@ export type Database = {
           diagnosis?: Json
           doctor_id?: string | null
           examination?: Json
+          follow_up_date?: string | null
           id?: string
           investigation?: Json
           medicines?: Json
@@ -278,6 +280,7 @@ export type Database = {
           diagnosis?: Json
           doctor_id?: string | null
           examination?: Json
+          follow_up_date?: string | null
           id?: string
           investigation?: Json
           medicines?: Json

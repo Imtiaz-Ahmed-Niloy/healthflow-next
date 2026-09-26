@@ -110,6 +110,8 @@
     "noAddress": "Address not on file",
     "bmdc": "BMDC Reg. No. {number}",
     "complaints": "Chief Complaints",
+    "followUp": "Follow-up",
+    "followUpOn": "come back on {date}",
     "examination": "On Examination",
     "investigation": "Investigation",
     "diagnosis": "Diagnosis",

@@ -28,6 +28,8 @@ type Visit = {
   investigation: string[];
   diagnosis: string[];
   advice: string[];
+  /** YYYY-MM-DD the doctor asked them back on (0103), or null. */
+  follow_up_date: string | null;
   medicines: Medicine[];
   /** The printed prescription's letterhead and patient details. */
   sheet: {
@@ -112,6 +114,7 @@ const MedicalRecords = () => {
       diagnosis: v.diagnosis,
       medicines: v.medicines,
       advice: v.advice,
+      followUp: v.follow_up_date ? formatDate(v.follow_up_date) : null,
     };
   };
 

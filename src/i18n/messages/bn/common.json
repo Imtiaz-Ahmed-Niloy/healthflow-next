@@ -110,6 +110,8 @@
     "noAddress": "ঠিকানা দেওয়া নেই",
     "bmdc": "বিএমডিসি রেজি. নং {number}",
     "complaints": "প্রধান সমস্যা",
+    "followUp": "ফলো-আপ",
+    "followUpOn": "{date} তারিখে আবার আসবেন",
     "examination": "পরীক্ষায় পাওয়া",
     "investigation": "পরীক্ষা-নিরীক্ষা",
     "diagnosis": "রোগনির্ণয়",

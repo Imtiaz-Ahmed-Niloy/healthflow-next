@@ -134,7 +134,7 @@ export const GET = async (_request: Request, context: RouteContext) => {
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
     .select(
-      "id, patient_id, scheduled_date, department, notes, status, tenant_id, walk_in, bp_systolic, bp_diastolic, complaints, examination, investigation, diagnosis, medicines, advice"
+      "id, patient_id, scheduled_date, department, notes, status, tenant_id, walk_in, bp_systolic, bp_diastolic, complaints, examination, investigation, diagnosis, medicines, advice, follow_up_date"
     )
     .eq("id", id)
     .in("doctor_id", doctor.ids) // never lets a doctor open another doctor's patient
@@ -197,6 +197,7 @@ export const GET = async (_request: Request, context: RouteContext) => {
         diagnosis: appointment.diagnosis as string[],
         medicines: (appointment.medicines as Partial<PrescribedMedicine>[]).map(normalizeMedicine),
         advice: appointment.advice as string[],
+        follow_up_date: appointment.follow_up_date,
       },
       history: (historyRows ?? []).map((h) => ({
         id: h.id,
@@ -221,6 +222,8 @@ const patchSchema = z.discriminatedUnion("action", [
     diagnosis: z.array(z.string()).optional(),
     medicines: z.array(medicineSchema).optional(),
     advice: z.array(z.string()).optional(),
+    // YYYY-MM-DD, or null for no follow-up (0103).
+    follow_up_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a valid follow-up date").nullable().optional(),
   }),
   z.object({
     action: z.literal("update_vitals"),
@@ -307,6 +310,7 @@ export const PATCH = async (request: Request, context: RouteContext) => {
         ...(parsed.data.diagnosis !== undefined ? { diagnosis: parsed.data.diagnosis } : {}),
         ...(parsed.data.medicines !== undefined ? { medicines: parsed.data.medicines } : {}),
         ...(parsed.data.advice !== undefined ? { advice: parsed.data.advice } : {}),
+        ...(parsed.data.follow_up_date !== undefined ? { follow_up_date: parsed.data.follow_up_date } : {}),
       })
       .eq("id", id)
       .eq("status", "scheduled")

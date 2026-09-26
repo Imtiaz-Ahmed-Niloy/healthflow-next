@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Plus, ClipboardList, ClipboardCheck, FlaskConical, Stethoscope, Lightbulb, History, AlertTriangle, Users, Printer, X, Search, Check, Store, Building2 } from "lucide-react";
+import { Plus, ClipboardList, ClipboardCheck, FlaskConical, Stethoscope, Lightbulb, History, AlertTriangle, Users, Printer, X, Search, Check, Store, Building2, CalendarClock } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
 import { PrescriptionPreview } from "@/components/common/PrescriptionPreview";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
@@ -104,8 +105,10 @@ type ConsultationCtx = {
     diagnosis: string[];
     medicines: Medicine[];
     advice: string[];
+    /** YYYY-MM-DD, when the doctor wants them back (0103). */
+    follow_up_date: string | null;
   };
-  history: { id: string; scheduled_date: string; department: string | null; notes: string | null }[];
+  history:{ id: string; scheduled_date: string; department: string | null; notes: string | null }[];
 };
 
 /** One of the doctor's hospitals or chambers, as /api/v1/portal/me lists it. */
@@ -122,6 +125,30 @@ type Me = { name: string; specialty: string | null; education: string | null; bm
 
 const initials = (name: string) =>
   name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
+
+/** The follow-up choices under General Advice, counted from the day of the visit. */
+const FOLLOW_UPS = [
+  { key: "d7", days: 7 },
+  { key: "d15", days: 15 },
+  { key: "m1", months: 1 },
+  { key: "m2", months: 2 },
+  { key: "m3", months: 3 },
+  { key: "m6", months: 6 },
+] as const;
+
+/** A YYYY-MM-DD date moved on by days or months, as a YYYY-MM-DD date. */
+const addToDate = (iso: string, by: { days?: number; months?: number }) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1 + (by.months ?? 0), d + (by.days ?? 0))).toISOString().slice(0, 10);
+};
+
+/** YYYY-MM-DD <-> a local Date, for the calendar, without a timezone shift. */
+const isoToLocal = (iso: string) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+};
+const localToIso = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 const bpLabel = (systolic: number | null, diastolic: number | null) =>
   systolic != null && diastolic != null ? `${systolic}/${diastolic} mmHg` : "—";
@@ -476,6 +503,7 @@ type DraftShape = {
   diagnosis: string[];
   medicines: Medicine[];
   advice: string[];
+  followUp?: string | null;
 };
 
 type SidebarQueueEntry = {
@@ -689,6 +717,9 @@ type SidebarQueueEntry = {
   // null = adding a new advice line; an index = editing that entry in place --
   // same click-to-edit pattern as the Rx list and the four EditableSections.
   const [editingAdviceIndex, setEditingAdviceIndex] = useState<number | null>(null);
+  // YYYY-MM-DD the patient should come back on; null = none set (0103).
+  const [followUp, setFollowUp] = useState<string | null>(null);
+  const [followUpCalendarOpen, setFollowUpCalendarOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -738,6 +769,7 @@ type SidebarQueueEntry = {
       setDiagnosis(loose?.diagnosis ?? []);
       setMedicines((loose?.medicines ?? []).map((m) => ({ ...m, dosage_form: m.dosage_form ?? "" })));
       setAdvice(loose?.advice ?? []);
+      setFollowUp(loose?.followUp ?? null);
       setDraftReady(true);
       return;
     }
@@ -751,7 +783,8 @@ type SidebarQueueEntry = {
         saved.investigation.length > 0 ||
         saved.diagnosis.length > 0 ||
         saved.medicines.length > 0 ||
-        saved.advice.length > 0);
+        saved.advice.length > 0 ||
+        !!saved.follow_up_date);
 
     if (hasServerContent && saved) {
       setComplaints(saved.complaints);
@@ -760,6 +793,7 @@ type SidebarQueueEntry = {
       setDiagnosis(saved.diagnosis);
       setMedicines(saved.medicines);
       setAdvice(saved.advice);
+      setFollowUp(saved.follow_up_date ?? null);
       // The server is the source of truth now -- a leftover local draft
       // (e.g. from before this visit was submitted) would just be stale.
       try {
@@ -798,6 +832,7 @@ type SidebarQueueEntry = {
     // the dialog's controlled Input never sees undefined.
     setMedicines((draft?.medicines ?? []).map((m) => ({ ...m, dosage_form: m.dosage_form ?? "" })));
     setAdvice(draft?.advice ?? []);
+    setFollowUp(draft?.followUp ?? null);
     setDraftReady(true);
   }, [appointmentId, ctx, loadingCtx]);
 
@@ -810,12 +845,12 @@ type SidebarQueueEntry = {
     try {
       localStorage.setItem(
         draftKey(appointmentId ?? UNASSIGNED_DRAFT),
-        JSON.stringify({ complaints, examination, investigation, diagnosis, medicines, advice })
+        JSON.stringify({ complaints, examination, investigation, diagnosis, medicines, advice, followUp })
       );
     } catch {
       // storage full/unavailable -- best-effort safety net, not the primary save
     }
-  }, [appointmentId, draftReady, complaints, examination, investigation, diagnosis, medicines, advice]);
+  }, [appointmentId, draftReady, complaints, examination, investigation, diagnosis, medicines, advice, followUp]);
 
   // Printing lives in PrescriptionPreview now, the sheet shared with the
   // patient's medical records — see that component for why it prints the
@@ -924,7 +959,7 @@ type SidebarQueueEntry = {
       const res = await fetch(`/api/v1/portal/consultation/${appointmentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "complete", complaints, examination, investigation, diagnosis, medicines, advice }),
+        body: JSON.stringify({ action: "complete", complaints, examination, investigation, diagnosis, medicines, advice, follow_up_date: followUp }),
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
@@ -932,7 +967,7 @@ type SidebarQueueEntry = {
       } else {
         toast.success(t("completed"));
         setCtx((c) =>
-          c ? { ...c, appointment: { ...c.appointment, status: "completed", complaints, examination, investigation, diagnosis, medicines, advice } } : c
+          c ? { ...c, appointment: { ...c.appointment, status: "completed", complaints, examination, investigation, diagnosis, medicines, advice, follow_up_date: followUp } } : c
         );
         // The visit is actually saved now -- the crash-recovery draft would
         // just be stale leftovers if a doctor reopened this appointment later.
@@ -1184,7 +1219,7 @@ type SidebarQueueEntry = {
       department: null, notes: null, status: "draft",
       bp_systolic: null, bp_diastolic: null,
       complaints: [], examination: [], investigation: [], diagnosis: [],
-      medicines: [], advice: [],
+      medicines: [], advice: [], follow_up_date: null,
     },
     history: [],
   };
@@ -1545,6 +1580,62 @@ type SidebarQueueEntry = {
                 </div>
               ))}
             </div>
+
+            {/* Follow-up: a preset from the day of the visit, or a date of their own. */}
+            <div className="mt-6">
+              <div className="flex items-center justify-between">
+                <p className="flex items-center gap-2 text-sm font-semibold text-primary"><CalendarClock className="h-4 w-4" /> {t("followUp")}</p>
+                {followUp && (
+                  <button onClick={() => setFollowUp(null)} className="text-muted-foreground hover:text-destructive" aria-label={t("followUpClear")}>
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                {FOLLOW_UPS.map((f) => {
+                  const date = addToDate(appointment.scheduled_date, f);
+                  const on = followUp === date;
+                  return (
+                    <button
+                      key={f.key}
+                      type="button"
+                      onClick={() => setFollowUp(on ? null : date)}
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-chip text-primary hover:border-primary/40"}`}
+                    >
+                      {t(`followUpAfter.${f.key}`)}
+                    </button>
+                  );
+                })}
+                <Popover open={followUpCalendarOpen} onOpenChange={setFollowUpCalendarOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${followUp && !FOLLOW_UPS.some((f) => addToDate(appointment.scheduled_date, f) === followUp) ? "border-primary bg-primary text-primary-foreground" : "border-border text-primary hover:bg-chip"}`}
+                    >
+                      <CalendarClock className="h-3 w-3" /> {t("followUpDate")}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={followUp ? isoToLocal(followUp) : undefined}
+                      defaultMonth={followUp ? isoToLocal(followUp) : isoToLocal(appointment.scheduled_date)}
+                      disabled={{ before: isoToLocal(addToDate(appointment.scheduled_date, { days: 1 })) }}
+                      onSelect={(d) => {
+                        setFollowUp(d ? localToIso(d) : null);
+                        setFollowUpCalendarOpen(false);
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <p className="mt-2 text-sm text-foreground/80">
+                {followUp
+                  ? t("followUpOn", { date: formatDate(followUp) })
+                  : <span className="text-xs italic text-muted-foreground">{t("followUpNone")}</span>}
+              </p>
+            </div>
           </div>
 
           <div className="mt-16 flex flex-col items-end">
@@ -1685,6 +1776,7 @@ type SidebarQueueEntry = {
               [tr("bar.bp"), bpLabel(appointment.bp_systolic, appointment.bp_diastolic)],
             ],
             complaints, examination, investigation, diagnosis, medicines, advice,
+            followUp: followUp ? formatDate(followUp) : null,
           }}
         />
       )}
