@@ -573,6 +573,11 @@ type SidebarQueueEntry = {
   const emptyMed: Medicine = { name: "", dosage_form: "", dose: "", frequency: "0+0+0", days: "", meal: "After Meal" };
   const FORM_PRESETS = ["Tablet", "Capsule", "Syrup", "Drops", "Injection", "Cream", "Inhaler"];
   const [newMed, setNewMed] = useState<Medicine>(emptyMed);
+  // Set on a Save that failed validation, so only then do empty required
+  // fields turn red -- not the moment the dialog opens.
+  const [medTried, setMedTried] = useState(false);
+  const INVALID = "border-destructive focus-visible:ring-destructive";
+  const medInvalid = (v: string) => medTried && !v.trim();
 
   // Frequency (M+A+N): one dose count per time of day, not a handful of
   // preset whole-number combos. Real prescriptions routinely need a half or
@@ -863,6 +868,7 @@ type SidebarQueueEntry = {
     setMedQuery("");
     setMedPickerOpen(false);
     setEditingIndex(null);
+    setMedTried(false);
     setFreqM("0");
     setFreqA("0");
     setFreqN("0");
@@ -882,6 +888,7 @@ type SidebarQueueEntry = {
 
   const saveMedicine = () => {
     if (!newMed.name.trim() || !newMed.dose.trim() || !newMed.days.trim()) {
+      setMedTried(true);
       toast.error(t("fillMedicine"));
       return;
     }
@@ -1413,7 +1420,7 @@ type SidebarQueueEntry = {
                   <Label>{t("medicine")}</Label>
                   <Popover open={medPickerOpen} onOpenChange={setMedPickerOpen}>
                     <PopoverTrigger asChild>
-                      <button type="button" className="flex w-full items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm text-left hover:bg-chip transition-colors">
+                      <button type="button" className={`flex w-full items-center gap-2 rounded-lg border ${medInvalid(newMed.name) ? "border-destructive" : "border-border"} bg-background px-3 py-2 text-sm text-left hover:bg-chip transition-colors`}>
                         <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                         <span className={newMed.name ? "text-foreground" : "text-muted-foreground"}>
                           {newMed.name || t("searchBrand")}
@@ -1482,7 +1489,7 @@ type SidebarQueueEntry = {
                 </div>
                 <div className="space-y-1.5">
                   <Label>{t("dose")}</Label>
-                  <Input value={newMed.dose} onChange={(e) => setNewMed({ ...newMed, dose: e.target.value })} placeholder={t("dosePlaceholder")} />
+                  <Input value={newMed.dose} onChange={(e) => setNewMed({ ...newMed, dose: e.target.value })} placeholder={t("dosePlaceholder")} aria-invalid={medInvalid(newMed.dose)} className={medInvalid(newMed.dose) ? INVALID : undefined} />
                 </div>
                 <div>
                   <Label>{t("days")}</Label>
@@ -1491,7 +1498,7 @@ type SidebarQueueEntry = {
                       <button key={d} type="button" onClick={() => setNewMed({ ...newMed, days: d })} className={`rounded-full px-3 py-1 text-xs font-semibold border transition-colors ${newMed.days === d ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-chip"}`}>{d}</button>
                     ))}
                   </div>
-                  <Input value={newMed.days} onChange={(e) => setNewMed({ ...newMed, days: e.target.value })} placeholder={t("orTypeDuration")} />
+                  <Input value={newMed.days} onChange={(e) => setNewMed({ ...newMed, days: e.target.value })} placeholder={t("orTypeDuration")} aria-invalid={medInvalid(newMed.days)} className={medInvalid(newMed.days) ? INVALID : undefined} />
                 </div>
                 <div>
                   <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1.5">{t("frequency")}</p>
