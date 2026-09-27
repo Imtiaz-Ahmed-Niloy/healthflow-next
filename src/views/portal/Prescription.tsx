@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { rememberedPlace, rememberPlace } from "@/lib/rxPlace";
 import { SuggestInput, type Suggestion } from "@/components/portal/SuggestInput";
+import { MedicineSig, formKind, isSigFilled, needsMeal } from "@/components/portal/MedicineSig";
 import { useInvestigations } from "@/hooks/useInvestigations";
 import { useAdvice } from "@/hooks/useAdvice";
 import { COMPLAINT_DURATIONS, useComplaints } from "@/hooks/useComplaints";
@@ -72,7 +73,8 @@ type Age = { value: number; unit: "years" | "months" | "days" };
 // *which* medicine was actually prescribed, not just how it's printed.
 // "" means not set (a doctor typed a name MedEx had no match for, so there
 // was nothing to carry the form over from).
-type Medicine = { name: string; dosage_form: string; dose: string; frequency: string; days: string; meal: "Before Meal" | "After Meal" };
+// meal is "" for forms where it doesn't apply (eye drops, creams, injections, inhalers).
+type Medicine = { name: string; dosage_form: string; dose: string; frequency: string; days: string; meal: string };
 
 type ConsultationCtx = {
   /** `name` is null for a chamber with no name of its own (0091). */
@@ -570,8 +572,12 @@ type SidebarQueueEntry = {
   const [medOpen, setMedOpen] = useState(false);
   // null = adding a new medicine; an index = editing that entry in `medicines` in place.
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const emptyMed: Medicine = { name: "", dosage_form: "", dose: "", frequency: "0+0+0", days: "", meal: "After Meal" };
-  const FORM_PRESETS = ["Tablet", "Capsule", "Syrup", "Drops", "Injection", "Cream", "Inhaler"];
+  const emptyMed: Medicine = { name: "", dosage_form: "", dose: "", frequency: "", days: "", meal: "" };
+  // A syrup's "2 tsp · 3 times daily" means nothing on a tablet, so switching
+  // to a different kind of form clears the frequency built for the old one.
+  const withForm = (f: Medicine, dosage_form: string): Medicine =>
+    formKind(dosage_form) === formKind(f.dosage_form) ? { ...f, dosage_form } : { ...f, dosage_form, frequency: "" };
+  const FORM_PRESETS = ["Tablet", "Capsule", "Syrup", "Oral Solution", "Drops", "Injection", "Cream", "Inhaler"];
   const [newMed, setNewMed] = useState<Medicine>(emptyMed);
   // Set on a Save that failed validation, so only then do empty required
   // fields turn red -- not the moment the dialog opens.
@@ -579,29 +585,12 @@ type SidebarQueueEntry = {
   const INVALID = "border-destructive focus-visible:ring-destructive";
   const medInvalid = (v: string) => medTried && !v.trim();
 
-  // Frequency (M+A+N): one dose count per time of day, not a handful of
-  // preset whole-number combos. Real prescriptions routinely need a half or
-  // quarter tablet at one time and a different whole number at another --
-  // "1+0+½" or "2+0+2" -- which a fixed list of combos like the old
-  // "1+1+0" / "0+1+1" buttons can't express. Three independent selects can.
-  const DOSE_OPTIONS = ["0", "¼", "½", "¾", "1", "1½", "2", "3"];
-  const [freqM, setFreqM] = useState("0");
-  const [freqA, setFreqA] = useState("0");
-  const [freqN, setFreqN] = useState("0");
-  const setFreq = (slot: "M" | "A" | "N", value: string) => {
-    const m = slot === "M" ? value : freqM;
-    const a = slot === "A" ? value : freqA;
-    const n = slot === "N" ? value : freqN;
-    if (slot === "M") setFreqM(value); else if (slot === "A") setFreqA(value); else setFreqN(value);
-    setNewMed((f) => ({ ...f, frequency: `${m}+${a}+${n}` }));
-  };
-
   // Days: a doctor picks a common course length instead of typing "7 Days"
   // by hand every time -- but courses vary (a 3-week taper, a 45-day
   // supply), so the field stays free text; these are quick-fills, not the
   // only allowed values.
   // "Continue" = no end date; the patient keeps taking it until told otherwise.
-  const DAY_PRESETS = ["3 Days", "7 Days", "15 Days", "1 Month", "3 Months", "Continue"];
+  const DAY_PRESETS = ["3 Days", "5 Days", "7 Days", "15 Days", "1 Month", "2 Months", "3 Months", "Continue"];
 
   // Medicine search combobox -- a doctor picks from real matches instead of
   // typing a free-text name (HF-58). Proxies MedEx's live search, no local
@@ -680,7 +669,7 @@ type SidebarQueueEntry = {
     // whatever was there before -- Napa the tablet and Napa the syrup are
     // different listings with their own dosage_form, so picking one should
     // always overwrite, not just fill a blank.
-    setNewMed((f) => ({ ...f, name: m.brand_name, dosage_form: m.dosage_form || "", dose: f.dose || m.strength || "" }));
+    setNewMed((f) => ({ ...withForm(f, m.dosage_form || ""), name: m.brand_name, dose: f.dose || m.strength || "" }));
     setMedPickerOpen(false);
     setMedQuery("");
   };
@@ -711,9 +700,6 @@ type SidebarQueueEntry = {
     // pickMedicine reads for a live search result, so it prefills Dose the
     // same way, just still fully editable.
     setNewMed({ ...emptyMed, name: m.brand_name, dosage_form: m.dosage_form ?? "", dose: m.strength ?? "" });
-    setFreqM("0");
-    setFreqA("0");
-    setFreqN("0");
     setMedOpen(true);
   };
 
@@ -727,6 +713,10 @@ type SidebarQueueEntry = {
   const [followUp, setFollowUp] = useState<string | null>(null);
   const [followUpCalendarOpen, setFollowUpCalendarOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  // "saved" previews what was actually submitted (ctx.appointment, as loaded)
+  // instead of the form -- for printing a visit that's already closed, where
+  // the form may hold edits that were never saved.
+  const [previewSaved, setPreviewSaved] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Draft autosave -- a doctor's whole visit-in-progress (complaints,
@@ -869,9 +859,6 @@ type SidebarQueueEntry = {
     setMedPickerOpen(false);
     setEditingIndex(null);
     setMedTried(false);
-    setFreqM("0");
-    setFreqA("0");
-    setFreqN("0");
   };
 
   /** Reopens an already-added Rx line for editing, in place. */
@@ -879,23 +866,22 @@ type SidebarQueueEntry = {
     const m = medicines[i];
     setEditingIndex(i);
     setNewMed(m);
-    const [fm, fa, fn] = m.frequency.split("+");
-    setFreqM(fm ?? "0");
-    setFreqA(fa ?? "0");
-    setFreqN(fn ?? "0");
     setMedOpen(true);
   };
 
   const saveMedicine = () => {
-    if (!newMed.name.trim() || !newMed.dose.trim() || !newMed.days.trim()) {
+    if (!newMed.name.trim() || !isSigFilled(newMed.frequency) || !newMed.days.trim()) {
       setMedTried(true);
       toast.error(t("fillMedicine"));
       return;
     }
+    // The meal buttons are hidden for eye drops, creams and the like, so a
+    // meal left over from before the form changed must not print.
+    const line: Medicine = { ...newMed, frequency: newMed.frequency.trim(), meal: needsMeal(newMed.dosage_form, newMed.frequency) ? newMed.meal : "" };
     if (editingIndex !== null) {
-      setMedicines((arr) => arr.map((m, idx) => (idx === editingIndex ? newMed : m)));
+      setMedicines((arr) => arr.map((m, idx) => (idx === editingIndex ? line : m)));
     } else {
-      setMedicines((m) => [...m, newMed]);
+      setMedicines((m) => [...m, line]);
       // Counts the moment it's added, not on final submit -- a doctor
       // shouldn't have to finish and print the whole visit before "used it"
       // registers. Only a fresh add counts; re-saving edits to an
@@ -953,6 +939,7 @@ type SidebarQueueEntry = {
   const removeFrom = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (i: number) =>
     setter((arr) => arr.filter((_, idx) => idx !== i));
 
+  const [alreadyClosedOpen, setAlreadyClosedOpen] = useState(false);
   const handleSubmit = async () => {
     if (!appointmentId) {
       // Still show the preview — seeing the finished sheet is useful even
@@ -963,6 +950,7 @@ type SidebarQueueEntry = {
       return;
     }
     setSubmitting(true);
+    let showPreview = true;
     try {
       const res = await fetch(`/api/v1/portal/consultation/${appointmentId}`, {
         method: "PATCH",
@@ -970,12 +958,26 @@ type SidebarQueueEntry = {
         body: JSON.stringify({ action: "complete", complaints, examination, investigation, diagnosis, medicines, advice, follow_up_date: followUp }),
       });
       const body = await res.json().catch(() => null);
-      if (!res.ok) {
+      if (res.status === 409) {
+        // Already submitted earlier -- a toast can't explain why nothing
+        // saved, so this gets a dialog of its own.
+        showPreview = false;
+        setAlreadyClosedOpen(true);
+      } else if (!res.ok) {
         toast.error(body?.error?.message || t("completeFailed"));
       } else {
         toast.success(t("completed"));
         setCtx((c) =>
-          c ? { ...c, appointment: { ...c.appointment, status: "completed", complaints, examination, investigation, diagnosis, medicines, advice, follow_up_date: followUp } } : c
+          c
+            ? {
+                ...c,
+                appointment: { ...c.appointment, status: "completed", complaints, examination, investigation, diagnosis, medicines, advice, follow_up_date: followUp },
+                // Now a finished visit, so it joins Patient History straight away.
+                history: c.history.some((h) => h.id === c.appointment.id)
+                  ? c.history
+                  : [{ id: c.appointment.id, scheduled_date: c.appointment.scheduled_date, department: c.appointment.department, notes: c.appointment.notes }, ...c.history],
+              }
+            : c
         );
         // The visit is actually saved now -- the crash-recovery draft would
         // just be stale leftovers if a doctor reopened this appointment later.
@@ -989,7 +991,7 @@ type SidebarQueueEntry = {
       toast.error(t("networkButPreview"));
     } finally {
       setSubmitting(false);
-      setPreviewOpen(true);
+      if (showPreview) setPreviewOpen(true);
     }
   };
 
@@ -1249,10 +1251,13 @@ type SidebarQueueEntry = {
       {hospital.name && (
         <div className="text-left">
           <h1 className="font-display text-2xl text-primary">{hospital.name}</h1>
-          <p className="text-xs text-muted-foreground">
-            {hospital.address || tr("noAddress")}
-            {hospital.contact_phone ? <><br />{hospital.contact_phone}</> : null}
-          </p>
+          {(hospital.address || hospital.contact_phone) && (
+            <p className="text-xs text-muted-foreground">
+              {hospital.address}
+              {hospital.address && hospital.contact_phone ? <br /> : null}
+              {hospital.contact_phone}
+            </p>
+          )}
         </div>
       )}
     </>
@@ -1270,7 +1275,7 @@ type SidebarQueueEntry = {
           <Popover open={placeOpen} onOpenChange={setPlaceOpen}>
             <PopoverTrigger asChild>
               <button type="button" disabled={moving} title={t("changePlace")}
-                className="group flex items-start gap-4 rounded-2xl -m-2 p-2 hover:bg-muted/50 transition-colors disabled:opacity-60">
+                className="group flex items-center gap-4 rounded-2xl -m-2 p-2 hover:bg-muted/50 transition-colors disabled:opacity-60">
                 {headerBlock}
               </button>
             </PopoverTrigger>
@@ -1294,7 +1299,7 @@ type SidebarQueueEntry = {
             </PopoverContent>
           </Popover>
         ) : (
-          <div className="flex gap-4">{headerBlock}</div>
+          <div className="flex items-center gap-4">{headerBlock}</div>
         )}
         {/* Name, then degrees, specialty and BMDC number — a line each. */}
         <div className="text-right">
@@ -1476,7 +1481,7 @@ type SidebarQueueEntry = {
                   <Label>{t("form")}</Label>
                   <div className="flex flex-wrap gap-1.5 mt-1.5 mb-2">
                     {FORM_PRESETS.map((f) => (
-                      <button key={f} type="button" onClick={() => setNewMed({ ...newMed, dosage_form: f })} className={`rounded-full px-3 py-1 text-xs font-semibold border transition-colors ${newMed.dosage_form === f ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-chip"}`}>{f}</button>
+                      <button key={f} type="button" onClick={() => setNewMed(withForm(newMed, f))} className={`rounded-full px-3 py-1 text-xs font-semibold border transition-colors ${newMed.dosage_form === f ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-chip"}`}>{f}</button>
                     ))}
                   </div>
                   {/* ?? "" guards a medicine that reached this state from
@@ -1485,12 +1490,21 @@ type SidebarQueueEntry = {
                       (Fast Refresh keeps component state across the edit
                       that added it) or a pre-existing localStorage draft --
                       so this Input is never uncontrolled-then-controlled. */}
-                  <Input value={newMed.dosage_form ?? ""} onChange={(e) => setNewMed({ ...newMed, dosage_form: e.target.value })} placeholder={t("orTypeForm")} />
+                  <Input value={newMed.dosage_form ?? ""} onChange={(e) => setNewMed(withForm(newMed, e.target.value))} placeholder={t("orTypeForm")} />
                 </div>
                 <div className="space-y-1.5">
                   <Label>{t("dose")}</Label>
-                  <Input value={newMed.dose} onChange={(e) => setNewMed({ ...newMed, dose: e.target.value })} placeholder={t("dosePlaceholder")} aria-invalid={medInvalid(newMed.dose)} className={medInvalid(newMed.dose) ? INVALID : undefined} />
+                  <Input value={newMed.dose} onChange={(e) => setNewMed({ ...newMed, dose: e.target.value })} placeholder={t("dosePlaceholder")} />
                 </div>
+                <MedicineSig
+                  key={formKind(newMed.dosage_form)}
+                  form={newMed.dosage_form}
+                  value={newMed.frequency}
+                  onChange={(frequency) => setNewMed((f) => ({ ...f, frequency }))}
+                  meal={newMed.meal}
+                  onMealChange={(meal) => setNewMed((f) => ({ ...f, meal }))}
+                  invalid={medTried && !isSigFilled(newMed.frequency)}
+                />
                 <div>
                   <Label>{t("days")}</Label>
                   <div className="flex flex-wrap gap-1.5 mt-1.5 mb-2">
@@ -1499,28 +1513,6 @@ type SidebarQueueEntry = {
                     ))}
                   </div>
                   <Input value={newMed.days} onChange={(e) => setNewMed({ ...newMed, days: e.target.value })} placeholder={t("orTypeDuration")} aria-invalid={medInvalid(newMed.days)} className={medInvalid(newMed.days) ? INVALID : undefined} />
-                </div>
-                <div>
-                  <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1.5">{t("frequency")}</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {([["M", t("morning"), freqM], ["A", t("afternoon"), freqA], ["N", t("night"), freqN]] as const).map(([slot, label, value]) => (
-                      <div key={slot} className="space-y-1">
-                        <p className="text-[10px] text-muted-foreground text-center">{label}</p>
-                        <Select value={value} onValueChange={(v) => setFreq(slot, v)}>
-                          <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {DOSE_OPTIONS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-1.5">{tr("sig")} {newMed.frequency.replace(/\+/g, " + ")}</p>
-                </div>
-                <div className="flex gap-1.5">
-                  {(["Before Meal", "After Meal"] as const).map((m) => (
-                    <button key={m} type="button" onClick={() => setNewMed({ ...newMed, meal: m })} className={`flex-1 rounded-lg px-2 py-2 text-xs font-semibold border transition-colors ${newMed.meal === m ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-chip"}`}>{m}</button>
-                  ))}
                 </div>
               </div>
               <DialogFooter>
@@ -1544,7 +1536,7 @@ type SidebarQueueEntry = {
                       {m.dosage_form && <span className="font-normal text-muted-foreground">{m.dosage_form} </span>}
                       {m.name}
                     </p>
-                    <span className="rounded-md bg-muted/60 px-2 py-0.5 text-xs font-semibold text-foreground/70">{m.dose}</span>
+                    {m.dose && <span className="rounded-md bg-muted/60 px-2 py-0.5 text-xs font-semibold text-foreground/70">{m.dose}</span>}
                   </div>
                   <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                     <span>{m.frequency}</span><span>•</span>
@@ -1676,11 +1668,6 @@ type SidebarQueueEntry = {
             </div>
           </div>
 
-          <div className="rounded-2xl bg-muted/40 border border-border/40 p-4">
-            <p className="flex items-center gap-2 text-xs font-bold text-muted-foreground"><AlertTriangle className="h-3.5 w-3.5" /> {t("allergies")}</p>
-            <p className="text-sm text-muted-foreground mt-2 italic">{t("notRecorded")}</p>
-          </div>
-
           <div className="rounded-2xl bg-gradient-dark text-surface-dark-foreground p-5">
             <div className="flex items-center justify-between">
               <p className="flex items-center gap-2 text-sm font-semibold"><FlaskConical className="h-4 w-4 text-accent" /> {t("quickAdd")}</p>
@@ -1768,9 +1755,27 @@ type SidebarQueueEntry = {
         </button>
       </div>
 
+      <Dialog open={alreadyClosedOpen} onOpenChange={setAlreadyClosedOpen}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>{t("alreadyClosedTitle")}</DialogTitle>
+            <DialogDescription className="space-y-2 pt-1">
+              <span className="block">{t("alreadyClosedBody")}</span>
+              <span className="block">{t("alreadyClosedNotSaved")}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => { setAlreadyClosedOpen(false); setPreviewSaved(true); setPreviewOpen(true); }}>
+              <Printer className="h-4 w-4" /> {t("printSubmitted")}
+            </Button>
+            <Button type="button" onClick={() => setAlreadyClosedOpen(false)}>{t("ok")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {previewOpen && (
         <PrescriptionPreview
-          onClose={() => setPreviewOpen(false)}
+          onClose={() => { setPreviewOpen(false); setPreviewSaved(false); }}
           sheet={{
             hospital,
             doctor,
@@ -1783,8 +1788,20 @@ type SidebarQueueEntry = {
               [tr("bar.height"), heightLabel(patient.height_feet, patient.height_inches)],
               [tr("bar.bp"), bpLabel(appointment.bp_systolic, appointment.bp_diastolic)],
             ],
-            complaints, examination, investigation, diagnosis, medicines, advice,
-            followUp: followUp ? formatDate(followUp) : null,
+            ...(previewSaved
+              ? {
+                  complaints: appointment.complaints,
+                  examination: appointment.examination,
+                  investigation: appointment.investigation,
+                  diagnosis: appointment.diagnosis,
+                  medicines: appointment.medicines,
+                  advice: appointment.advice,
+                  followUp: appointment.follow_up_date ? formatDate(appointment.follow_up_date) : null,
+                }
+              : {
+                  complaints, examination, investigation, diagnosis, medicines, advice,
+                  followUp: followUp ? formatDate(followUp) : null,
+                }),
           }}
         />
       )}

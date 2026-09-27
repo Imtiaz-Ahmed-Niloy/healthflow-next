@@ -60,7 +60,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 type Age = { value: number; unit: "years" | "months" | "days" };
 
 /** Mirrors the `Medicine` shape the Rx builder in Prescription.tsx uses client-side. */
-type PrescribedMedicine = { name: string; dosage_form: string; dose: string; frequency: string; days: string; meal: "Before Meal" | "After Meal" };
+type PrescribedMedicine = { name: string; dosage_form: string; dose: string; frequency: string; days: string; meal: string };
 const medicineSchema = z.object({
   name: z.string(),
   // "Tablet"/"Capsule"/"Syrup"/etc -- which form of the brand was actually
@@ -70,7 +70,9 @@ const medicineSchema = z.object({
   dose: z.string(),
   frequency: z.string(),
   days: z.string(),
-  meal: z.enum(["Before Meal", "After Meal"]),
+  // "Before Meal", "After Meal", "With Meal", "Empty Stomach", or "" where it
+  // doesn't apply (eye drops, creams, injections, inhalers).
+  meal: z.string().max(40),
 });
 
 /** Display form. Days under 2 months, months under 2 years, years after that. */
@@ -146,12 +148,13 @@ export const GET = async (_request: Request, context: RouteContext) => {
     await Promise.all([
       supabase.from("patients").select("id, full_name, gender, date_of_birth, mrn, weight_kg, height_feet, height_inches").eq("id", appointment.patient_id).maybeSingle(),
       supabase.from("tenants").select("name, address, contact_phone, has_name").eq("id", appointment.tenant_id).maybeSingle(),
+      // Only completed visits count as history, which already leaves out this
+      // one while it's still open. Once it's submitted it belongs there too.
       supabase
         .from("appointments")
         .select("id, scheduled_date, department, notes")
         .eq("patient_id", appointment.patient_id)
         .eq("status", "completed")
-        .neq("id", appointment.id)
         .order("scheduled_date", { ascending: false })
         .limit(5),
     ]);
@@ -318,7 +321,10 @@ export const PATCH = async (request: Request, context: RouteContext) => {
       .maybeSingle();
 
     if (error) return fail(error.message, 500);
-    if (!data) return fail("Consultation not found, or it's already finished.", 404);
+    // The appointment was loaded above, so no row here means it exists but
+    // is no longer scheduled. 409 lets the page explain that properly
+    // instead of reading like a missing record.
+    if (!data) return fail("This visit was already submitted.", 409);
 
     // Usage counts (0029_doctor_medicine_usage.sql, for the picker's "most
     // used" list) are NOT recorded here -- that happens the moment a

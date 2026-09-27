@@ -197,7 +197,20 @@
     max-width: none;
     background: #fff !important;
   }
+  /* The prescription preview is portaled into <body> (.rx-print-root).
+     visibility:hidden alone keeps the rest of the app's height, which Chrome
+     printed as blank pages after the sheet, so drop it from layout entirely. */
+  body:has(> .rx-print-root) > *:not(.rx-print-root) {
+    display: none !important;
+  }
+  /* Margin 0 leaves Chrome no room for its own header and footer (date, page
+     title, URL), the same as picking "Margins: None" in the dialog. The white
+     border comes from each print area's own padding instead. */
+  #invoice-print-area {
+    padding: 14mm;
+  }
   @page {
-    margin: 14mm;
+    size: A4;
+    margin: 0;
   }
 }

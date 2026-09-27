@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { Printer, Stethoscope, X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -47,21 +48,28 @@ export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionShe
   const t = useTranslations("rxSheet");
   const { hospital, doctor, patientBar, complaints, examination, investigation, diagnosis, medicines, advice, followUp } = sheet;
 
-  return (
+  // Portaled straight into <body> so print can drop the rest of the app with
+  // display:none (globals.css). Merely hiding it left its full height in
+  // place, which printed as blank pages after the sheet.
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <div
-      className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto p-4 md:p-8 print:static print:block print:overflow-visible print:bg-transparent print:backdrop-blur-none print:p-0"
+      className="rx-print-root fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto px-4 pb-4 md:px-8 md:pb-8 print:static print:block print:overflow-visible print:bg-transparent print:backdrop-blur-none print:p-0"
       onClick={onClose}
     >
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-4xl bg-white text-slate-900 rounded-2xl shadow-2xl my-4 print:static print:w-full print:max-w-none print:my-0 print:shadow-none print:rounded-none"
+        className="relative w-full max-w-[210mm] bg-white text-slate-900 rounded-2xl shadow-2xl mt-8 mb-4 md:mt-12 print:static print:w-full print:max-w-none print:my-0 print:shadow-none print:rounded-none"
       >
+        {/* The space above the sheet is its own margin, not the overlay's
+            top padding: a sticky header stops at the padding edge, which left
+            a strip above it where the sheet showed through while scrolling. */}
         {/* Not part of the printed page -- hidden outright (not just via
             the global print visibility rule) so it doesn't leave a blank
             gap at the top of the PDF where it used to sit. */}
-        <div className="sticky top-0 z-10 flex items-center justify-between bg-white/95 backdrop-blur border-b border-slate-200 px-6 py-3 rounded-t-2xl print:hidden">
+        <div className="sticky top-0 z-10 flex items-center justify-between bg-white border-b border-slate-200 px-6 py-3 rounded-t-2xl print:hidden">
           <p className="text-sm font-semibold text-slate-700">{t("preview")}</p>
           <div className="flex items-center gap-2">
             <button onClick={() => window.print()} className="flex items-center gap-2 rounded-full bg-slate-900 text-white px-4 py-2 text-xs font-semibold hover:opacity-90">
@@ -73,7 +81,12 @@ export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionShe
           </div>
         </div>
 
-        <div id="rx-print-area" className="px-10 py-8 font-serif text-slate-900 bg-[linear-gradient(to_bottom,#ffffff,#fbfbf6)]">
+        {/* An A4 sheet: 210 × 297 mm on screen, with the signature pinned to
+            the bottom however short the Rx is. In print the page margin is 0
+            (that's what drops Chrome's date/title/URL header and footer), so
+            the 14 mm of white space is padding here instead, and the height
+            a hair under 297 mm so it never spills onto a blank 2nd page. */}
+        <div id="rx-print-area" className="min-h-[297mm] print:min-h-[296mm] flex flex-col px-10 py-8 print:p-[14mm] font-sans text-slate-900 bg-[linear-gradient(to_bottom,#ffffff,#fbfbf6)]">
           {/* Letterhead */}
           <div className="flex items-start justify-between pb-4 border-b-2 border-slate-800">
             {/* A chamber with no name (0091) is the mark alone — no name,
@@ -83,9 +96,11 @@ export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionShe
                 <div className="h-12 w-12 rounded-full border-2 border-emerald-700 text-emerald-700 flex items-center justify-center font-bold text-xl">{hospital.name[0] ?? "H"}</div>
                 <div>
                   <h1 className="text-2xl font-bold tracking-tight text-emerald-800">{hospital.name}</h1>
-                  <p className="text-[11px] text-slate-500 italic">
-                    {[hospital.address, hospital.contact_phone].filter(Boolean).join(" • ") || t("noAddress")}
-                  </p>
+                  {(hospital.address || hospital.contact_phone) && (
+                    <p className="text-[11px] text-slate-500 italic">
+                      {[hospital.address, hospital.contact_phone].filter(Boolean).join(" • ")}
+                    </p>
+                  )}
                 </div>
               </div>
             ) : (
@@ -119,20 +134,17 @@ export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionShe
               that, so md: never matched and this silently collapsed to
               one column in the PDF. print: isn't a width query, so it
               forces two columns for print regardless of paper size. */}
-          <div className="grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] print:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-0 min-h-[460px]">
+          <div className="grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] print:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-0 min-h-[460px] flex-1">
             {/* LEFT */}
             <div className="md:pr-6 md:border-r print:pr-6 print:border-r border-slate-300 py-5 space-y-5">
               {([
-                ["C/O", t("complaints"), complaints],
-                ["O/E", t("examination"), examination],
-                ["Inv", t("investigation"), investigation],
-                ["Dx", t("diagnosis"), diagnosis],
-              ] as const).map(([abbr, title, items]) => (
+                [t("complaints"), complaints],
+                [t("examination"), examination],
+                [t("investigation"), investigation],
+                [t("diagnosis"), diagnosis],
+              ] as const).map(([title, items]) => (
                 <div key={title}>
-                  <div className="flex items-baseline gap-2 mb-1.5">
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">{abbr}</span>
-                    <p className="text-[11px] tracking-widest font-semibold text-slate-500 uppercase">{title}</p>
-                  </div>
+                  <p className="mb-1.5 text-[11px] tracking-widest font-semibold text-slate-500 uppercase">{title}</p>
                   {items.length === 0 ? (
                     <p className="text-xs italic text-slate-400 pl-1">—</p>
                   ) : (
@@ -148,10 +160,8 @@ export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionShe
 
             {/* RIGHT */}
             <div className="md:pl-6 print:pl-6 py-5 flex flex-col">
-              <div className="flex items-end gap-2 -mb-1">
-                <span className="text-6xl italic font-bold text-emerald-800 leading-none">℞</span>
-                <span className="text-[10px] tracking-widest font-semibold text-slate-500 uppercase pb-2">{t("prescription")}</span>
-              </div>
+              {/* Plain "Rx", not the ℞ glyph: Inter has no ℞, so it fell back to a serif font. */}
+              <span className="text-2xl font-semibold text-emerald-800 leading-none">Rx</span>
 
               <div className="mt-4 flex-1">
                 {medicines.length === 0 ? (
@@ -160,20 +170,21 @@ export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionShe
                   <ol className="space-y-3">
                     {medicines.map((m, i) => (
                       <li key={i} className="grid grid-cols-[auto_1fr] gap-3">
-                        <span className="font-bold text-slate-900 text-sm pt-0.5">{i + 1}.</span>
+                        <span className="font-normal text-slate-900 text-sm pt-0.5">{i + 1}.</span>
                         <div>
                           <div className="flex items-baseline gap-2 flex-wrap">
                             <span className="font-bold text-slate-900 text-[15px]">
                               {m.dosage_form && <span className="font-semibold text-slate-600">{m.dosage_form} </span>}
                               {m.name}
                             </span>
-                            {m.dose && <span className="text-[11px] text-slate-600 italic">({m.dose})</span>}
+                            {m.dose && <span className="text-[11px] text-slate-600 italic"><span className="mr-1.5 not-italic">·</span>{m.dose}</span>}
                           </div>
-                          <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-[12px] text-slate-700 pl-1">
-                            {m.frequency && <span><span className="text-slate-400">{t("sig")}</span> <span className="font-semibold tracking-wider">{m.frequency}</span></span>}
-                            {m.days && <span><span className="text-slate-400">{t("duration")}</span> <span className="font-semibold">{m.days}</span></span>}
-                            {m.meal && <span className="italic text-slate-600">— {m.meal}</span>}
-                          </div>
+                          <p className="mt-1 text-[12px] font-semibold text-slate-700 pl-1">
+                            {/* frequency is itself "2 ml · 3 times daily", so split it to space its dot the same way. */}
+                            {[...(m.frequency ?? "").split(" · "), m.days, m.meal].filter(Boolean).map((part, j) => (
+                              <span key={j}>{j > 0 && <span className="mx-1.5">·</span>}{part}</span>
+                            ))}
+                          </p>
                         </div>
                       </li>
                     ))}
@@ -218,6 +229,7 @@ export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionShe
           </div>
         </div>
       </motion.div>
-    </div>
+    </div>,
+    document.body,
   );
 };
