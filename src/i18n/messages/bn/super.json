@@ -947,7 +947,7 @@
         "noHospitals": "কোনো হাসপাতাল পাওয়া যায়নি।",
         "onAPlan": "প্ল্যানে আছে",
         "change": "বদলান",
-        "basePrice": "মূল দাম (USD)",
+        "basePrice": "মূল দাম ({currency})",
         "discount": "ছাড় (%)",
         "cycle": "বিলিং চক্র",
         "startDate": "শুরুর তারিখ",

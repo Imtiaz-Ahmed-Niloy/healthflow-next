@@ -276,6 +276,8 @@ const Doctors = () => {
 const DirectoryTab = () => {
   const t = useTranslations("admin.doctors");
   const locale = useLocale() as Locale;
+  // The fee is entered in the platform's currency (/super/global-settings).
+  const { settings } = useFormatters();
   const genderLabel = (value: string) =>
     (GENDERS as readonly string[]).includes(value) ? t(`genders.${value as (typeof GENDERS)[number]}`) : value;
   const statusLabel = (value: string) =>
@@ -425,7 +427,7 @@ const DirectoryTab = () => {
       // numeric(2,1) column silently blocked the whole form from submitting.
       { name: "experience_years", label: t("fields.experience"), type: "number", required: true, min: 0 },
       { name: "rating", label: t("fields.rating"), type: "number", min: 0, max: 5, numberStep: 0.1 },
-      { name: "consultation_fee", label: t("fields.fee"), type: "number", required: true, min: 0, numberStep: 0.01 },
+      { name: "consultation_fee", label: t("fields.fee", { currency: settings.currency }), type: "number", required: true, min: 0, numberStep: 0.01 },
       { name: "patients_treated", label: t("fields.patientsTreated"), type: "number", min: 0 },
       { name: "consultation_duration_minutes", label: t("fields.duration"), type: "number", min: 1 },
       { name: "languages", label: t("fields.languages"), type: "text" },

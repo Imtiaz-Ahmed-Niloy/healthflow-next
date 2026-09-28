@@ -947,7 +947,7 @@
         "noHospitals": "No hospitals found.",
         "onAPlan": "on a plan",
         "change": "Change",
-        "basePrice": "Base Price (USD)",
+        "basePrice": "Base Price ({currency})",
         "discount": "Discount (%)",
         "cycle": "Billing Cycle",
         "startDate": "Start Date",

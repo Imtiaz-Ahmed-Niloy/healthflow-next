@@ -1614,7 +1614,7 @@
         "education": "Education / Qualifications",
         "experience": "Experience (years)",
         "rating": "Rating (0–5)",
-        "fee": "Consultation Fee (USD)",
+        "fee": "Consultation Fee ({currency})",
         "patientsTreated": "Patients treated",
         "duration": "Consultation duration (minutes)",
         "languages": "Languages (comma separated)",

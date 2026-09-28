@@ -585,7 +585,7 @@ const AssignmentEditor = ({
 }) => {
   const { t, statusLabel } = usePackageWords();
   const tc = useTranslations("common");
-  const { formatCurrency } = useFormatters();
+  const { formatCurrency, settings } = useFormatters();
   const isNew = row.id === "";
   const [draft, setDraft] = useState(row);
   const [hospitalQuery, setHospitalQuery] = useState("");
@@ -747,7 +747,7 @@ const AssignmentEditor = ({
           </select>
         </Field>
 
-        <Field label={t("editor.basePrice")}>
+        <Field label={t("editor.basePrice", { currency: settings.currency })}>
           <input
             type="number" min={0} step="0.01" value={draft.base_price}
             onChange={(e) => setDraft({ ...draft, base_price: Number(e.target.value) })}
