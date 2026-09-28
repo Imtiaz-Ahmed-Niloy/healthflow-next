@@ -14,6 +14,7 @@ import { useConfirmAction } from "@/components/common/ConfirmProvider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Avatar } from "@/components/common/Avatar";
 
 type Bucket = "upcoming" | "past" | "cancelled";
 
@@ -24,7 +25,7 @@ type ApiAppointment = {
   status: "scheduled" | "completed" | "cancelled";
   department: string | null;
   notes: string | null;
-  doctor: { name: string; specialty: string | null; availability: string | null } | null;
+  doctor: { name: string; specialty: string | null; photo: string | null; availability: string | null } | null;
   hospital: { name: string | null } | null;
 };
 
@@ -254,9 +255,14 @@ const Appointments = () => {
                 return (
                   <motion.div key={a.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
                     whileHover={{ y: -2 }} className="rounded-2xl bg-card border border-border/60 p-5 flex items-center gap-5 shadow-soft">
-                    <div className="h-14 w-14 rounded-2xl bg-chip flex items-center justify-center shrink-0">
-                      <Stethoscope className="h-6 w-6 text-primary" />
-                    </div>
+                    {/* The doctor's photo, or their initials when there is none. */}
+                    {a.doctor ? (
+                      <Avatar src={a.doctor.photo} name={a.doctor.name} className="h-14 w-14 rounded-2xl text-base shrink-0" />
+                    ) : (
+                      <div className="h-14 w-14 rounded-2xl bg-chip flex items-center justify-center shrink-0">
+                        <Stethoscope className="h-6 w-6 text-primary" />
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 flex-wrap">
                         <p className="font-semibold text-primary text-lg">{a.doctor?.name ?? t("doctor")}</p>

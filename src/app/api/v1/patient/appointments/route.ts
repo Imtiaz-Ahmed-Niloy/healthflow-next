@@ -255,7 +255,7 @@ export const GET = async () => {
 
   const { data, error } = await admin
     .from("appointments")
-    .select("id, scheduled_date, scheduled_time, status, department, notes, doctors(name, specialty, availability, consultation_duration_minutes), tenants(name)")
+    .select("id, scheduled_date, scheduled_time, status, department, notes, doctors(name, specialty, photo_url, availability, consultation_duration_minutes), tenants(name)")
     .in("patient_id", patientIds)
     .order("scheduled_date", { ascending: false })
     .order("scheduled_time", { ascending: false });
@@ -276,6 +276,8 @@ export const GET = async () => {
         ? {
             name: row.doctors.name,
             specialty: row.doctors.specialty,
+            // The R2 key or URL as stored; the page resolves it (Avatar).
+            photo: row.doctors.photo_url,
             availability: row.doctors.availability,
             duration: row.doctors.consultation_duration_minutes,
           }
