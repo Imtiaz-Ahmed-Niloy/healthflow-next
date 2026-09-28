@@ -1,7 +1,9 @@
 /* First in the file: CSS requires @import before every other rule, and the
    @tailwind lines below expand into thousands of them. Webpack let an import
    below them through; Turbopack (Next 16's default) refuses to build. */
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,500;1,600&display=swap');
+/* Fonts: Inter, with Hind Siliguri for Bangla, loaded by next/font in the root
+   layout as --font-inter and --font-bangla. A Google Fonts @import used to sit
+   here; the build dropped it and nothing loaded. */
 
 @tailwind base;
 @tailwind components;
@@ -63,20 +65,24 @@
   }
   /* Headings are Inter like the body, as on prescriply.bd — the serif
      (Fraunces) they used to be set in is gone site-wide. */
-  h1, h2, h3, h4 { font-family: 'Inter', system-ui, sans-serif; font-weight: 600; letter-spacing: -0.02em; }
+  h1, h2, h3, h4 { font-family: var(--font-inter), var(--font-bangla), system-ui, sans-serif; font-weight: 600; letter-spacing: -0.02em; }
 }
 
 @layer utilities {
-  .font-display { font-family: 'Inter', system-ui, sans-serif; }
+  .font-display { font-family: var(--font-inter), var(--font-bangla), system-ui, sans-serif; }
 
-  /* Bangla headings. Inter has no Bengali letters, so these fall back to the
-     system's Bengali font, whose vowel signs reach well above and below the
+  /* Bangla headings. Inter has no Bengali letters, so these are drawn in
+     Hind Siliguri, whose vowel signs reach well above and below the
      line: at the Latin-tuned 1.1–1.25 two wrapped lines collide. The negative
      tracking also squeezes conjuncts together. Both are reset for Bangla only;
      `:lang(bn)` follows <html lang>, which the root layout sets from the
-     language cookie. */
+     language cookie. The second pair matches an element marked lang="bn"
+     itself — a Bangla doctor's name on the English site — which the first
+     pair misses, since it looks for a Bangla ancestor. */
   :lang(bn) :is(h1, h2, h3, h4),
-  :lang(bn) .font-display { line-height: 1.4; letter-spacing: 0; }
+  :lang(bn) .font-display,
+  :is(h1, h2, h3, h4):lang(bn),
+  .font-display:lang(bn) { line-height: 1.4; letter-spacing: 0; }
   .text-balance { text-wrap: balance; }
 
   /* A row that scrolls sideways (chips, tabs) without a desktop scrollbar

@@ -23,8 +23,10 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
-        display: ["Inter", "system-ui", "sans-serif"],
+        // Loaded by next/font in the root layout; Hind Siliguri draws only the
+        // Bangla letters, which Inter has none of.
+        sans: ["var(--font-inter)", "var(--font-bangla)", "system-ui", "sans-serif"],
+        display: ["var(--font-inter)", "var(--font-bangla)", "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
