@@ -1908,7 +1908,7 @@
         "outflow": "Outflow"
       },
       "vouchers": {
-        "searchPlaceholder": "Search voucher no, party, narration…",
+        "searchPlaceholder": "Search by no, date, party, ledger, amount…",
         "allTypes": "All Types",
         "deleteBody": "A draft has not touched the books, so nothing else changes.",
         "post": "Post",

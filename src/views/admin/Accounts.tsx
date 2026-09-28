@@ -316,12 +316,24 @@ const Accounts = () => {
     return `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
   }, [summary]);
 
-  const filteredVouchers = vouchers.filter(v =>
-    (vType === "all" || v.type === vType) &&
-    (!q || `${v.entry_no} ${v.party ?? ""} ${v.narration ?? ""}`.toLowerCase().includes(q.toLowerCase())),
-  );
-
   const statusWord = (status: Voucher["status"]) => (status === "posted" ? t("posted") : t("draft"));
+
+  // Everything a voucher shows, so any of it finds the voucher. Every word
+  // typed must appear somewhere, in any order.
+  const voucherText = (v: Voucher) => [
+    v.entry_no, v.entry_date, formatDate(v.entry_date), typeLabel(v.type), v.type,
+    v.party, v.narration, v.cost_centers?.name, statusWord(v.status), v.status,
+    voucherAmount(v), fmt(voucherAmount(v)),
+    ...v.journal_lines.flatMap(l => [l.ledger_accounts?.code, l.ledger_accounts?.name]),
+  ].filter(Boolean).join(" ").toLowerCase();
+
+  const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const filteredVouchers = vouchers.filter(v => {
+    if (vType !== "all" && v.type !== vType) return false;
+    if (!terms.length) return true;
+    const text = voucherText(v);
+    return terms.every(term => text.includes(term));
+  });
 
   /* ---- actions ---- */
   const setupChart = async () => {
@@ -519,15 +531,13 @@ const Accounts = () => {
             })), "vouchers.csv")}><Download className="h-4 w-4" /> {t("export")}</Btn>
             <Btn onClick={() => setVOpen(true)}><Plus className="h-4 w-4" /> {t("form.newVoucher")}</Btn>
           </div>
-          <TableShell head={["no", "date", "type", "party", "drAc", "crAc", "amount", "status"]} actions>
+          <TableShell head={["no", "date", "type", "party", "amount", "status"]} actions>
             {filteredVouchers.map(v => (
               <tr key={v.id} className="border-t border-border/40 hover:bg-muted/30 cursor-pointer" onClick={() => setViewing(v)}>
                 <td className="px-3 py-2.5 font-mono text-xs">{v.entry_no}</td>
                 <td className="px-3 py-2.5 text-xs whitespace-nowrap">{formatDate(v.entry_date)}</td>
                 <td className="px-3 py-2.5"><Pill tone={voucherTone(v.type)}>{typeLabel(v.type)}</Pill></td>
                 <td className="px-3 py-2.5 font-semibold text-primary">{v.party || "—"}</td>
-                <td className="px-3 py-2.5 text-xs">{drAccounts(v)}</td>
-                <td className="px-3 py-2.5 text-xs">{crAccounts(v)}</td>
                 <td className="px-3 py-2.5 text-right font-semibold">{fmt(voucherAmount(v))}</td>
                 <td className="px-3 py-2.5"><Pill tone={v.status === "posted" ? "ok" : "warn"}>{statusWord(v.status)}</Pill></td>
                 <td className="px-3 py-2.5 text-right" onClick={e => e.stopPropagation()}>
@@ -548,7 +558,7 @@ const Accounts = () => {
                 </td>
               </tr>
             ))}
-            {!filteredVouchers.length && <EmptyRow cols={9}>{vouchers.length ? t("vouchers.noMatch") : t("vouchers.none")}</EmptyRow>}
+            {!filteredVouchers.length && <EmptyRow cols={7}>{vouchers.length ? t("vouchers.noMatch") : t("vouchers.none")}</EmptyRow>}
           </TableShell>
         </Card>
       )}
@@ -1296,7 +1306,7 @@ const VoucherModal = ({ open, onClose, ledgers, centers, vouchers, onSaved }: {
             </div>
           </div>
         ))}
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 pb-2">
           <Btn variant="outline" onClick={addEntry}><Plus className="h-4 w-4" /> {t("form.addEntry")}</Btn>
           <p className="text-sm">
             <span className="text-muted-foreground">{t("form.total")}: </span>
