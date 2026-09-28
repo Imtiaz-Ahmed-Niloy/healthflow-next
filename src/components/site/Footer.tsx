@@ -27,10 +27,11 @@ const Footer = () => {
   const t = useTranslations("footer");
   const { content } = useFooterContent();
   const isVisible = useIsPageVisible();
-  // The phone number is set in /super/global-settings (0104). Nothing is shown
-  // until the row has loaded — rather than the old number flashing first — and
-  // a cleared field hides the chip.
+  // The email and phone are set in /super/global-settings (0057, 0104).
+  // Nothing is shown until the row has loaded — rather than the old values
+  // flashing first — and a cleared field hides its chip.
   const { data: globalSettings } = useGetGlobalSettingsQuery();
+  const email = globalSettings?.data.support_email?.trim() || null;
   const phone = globalSettings?.data.support_phone?.trim() || null;
 
   /**
@@ -106,7 +107,7 @@ const Footer = () => {
                 rather than two loose lines of text. */}
             <div className="mt-6 flex flex-wrap gap-3">
               {[
-                { href: `mailto:${BRAND_INFO.email}`, label: t("email"), value: BRAND_INFO.email, Icon: Mail },
+                ...(email ? [{ href: `mailto:${email}`, label: t("email"), value: email, Icon: Mail }] : []),
                 // tel: wants only the digits and the leading +.
                 ...(phone ? [{ href: `tel:${phone.replace(/[^\d+]/g, "")}`, label: t("phone"), value: phone, Icon: Phone }] : []),
               ].map(({ href, label, value, Icon }) => (
@@ -170,8 +171,19 @@ const Footer = () => {
       </div>
 
       <div className="relative border-t border-surface-dark-foreground/10">
-        <div className="container mx-auto py-5 text-xs opacity-60">
-          <span>{text(content.rights, defaultFooterContent.rights, t("rights"))}</span>
+        <div className="container mx-auto flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-5 text-xs">
+          <span className="opacity-60">{text(content.rights, defaultFooterContent.rights, t("rights"))}</span>
+          <span className="opacity-60">
+            {t("developedBy")}{" "}
+            <a
+              href="https://sourceexpert.net/"
+              target="_blank"
+              rel="noopener"
+              className="font-semibold underline-offset-4 hover:underline hover:text-accent"
+            >
+              SourceExpert
+            </a>
+          </span>
         </div>
       </div>
     </footer>
