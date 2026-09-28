@@ -23,6 +23,7 @@ import { formatDistanceToNow } from "date-fns";
 import LanguageSwitcher from "@/components/site/LanguageSwitcher";
 import { HeaderClock } from "@/components/common/HeaderClock";
 import { BRAND_INFO } from "@/constants/brand";
+import { useSidebarScroll } from "@/hooks/useSidebarScroll";
 
 /**
  * The admin menu. `key` names the label in the "adminNav" messages and
@@ -66,6 +67,7 @@ const groupedNav = adminNav.reduce<Record<string, (typeof adminNav)[number][]>>(
 
 export const AdminSidebar = ({ onNavigate, hospital }: { onNavigate?: () => void; hospital?: string }) => {
   const t = useTranslations("adminNav");
+  const navRef = useSidebarScroll<HTMLElement>("admin");
   return (
     <aside className="w-64 bg-chip/40 border-r border-border/50 flex flex-col py-6 sticky top-0 h-screen shrink-0 overflow-hidden">
       <Link href="/" className="px-6 flex items-center gap-2">
@@ -78,7 +80,7 @@ export const AdminSidebar = ({ onNavigate, hospital }: { onNavigate?: () => void
         )}
         </div>
       </Link>
-      <nav className="mt-8 px-3 flex-1 flex flex-col gap-4 overflow-y-auto">
+      <nav ref={navRef} className="mt-8 px-3 flex-1 flex flex-col gap-4 overflow-y-auto">
         {Object.entries(groupedNav).map(([group, items]) => (
           <div key={group}>
             <p className="px-3 mb-1.5 text-[10px] tracking-widest font-bold text-muted-foreground/70">

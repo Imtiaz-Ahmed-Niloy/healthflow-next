@@ -23,6 +23,7 @@ import { useSession, displayName } from "@/lib/auth/useSession";
 import { Avatar } from "@/components/common/Avatar";
 import { useRoleLabel } from "@/i18n/useRoleLabel";
 import { BRAND_INFO } from "@/constants/brand";
+import { useSidebarScroll } from "@/hooks/useSidebarScroll";
 
 /**
  * The super admin menu. `key` names the label in the "superNav" messages and
@@ -73,6 +74,7 @@ export const SuperSidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
   const cmsActive = Boolean(pathname?.startsWith("/super/cms"));
   const [cmsOpen, setCmsOpen] = useState(cmsActive);
   useEffect(() => { if (cmsActive) setCmsOpen(true); }, [cmsActive]);
+  const navRef = useSidebarScroll<HTMLElement>("super");
 
   return (
   <aside className="w-64 bg-chip/40 border-r border-border/50 flex flex-col py-6 sticky top-0 h-screen shrink-0 overflow-hidden">
@@ -83,7 +85,7 @@ export const SuperSidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
         <p className="text-[10px] tracking-widest font-semibold text-primary-glow mt-0.5">{t("panel")}</p>
       </div>
     </Link>
-    <nav className="mt-8 px-3 flex-1 flex flex-col gap-4 overflow-y-auto">
+    <nav ref={navRef} className="mt-8 px-3 flex-1 flex flex-col gap-4 overflow-y-auto">
       {Object.entries(grouped).map(([g, items]) => (
         <div key={g}>
           <p className="px-3 mb-1.5 text-[10px] tracking-widest font-bold text-muted-foreground/70">

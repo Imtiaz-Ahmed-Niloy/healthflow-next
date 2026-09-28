@@ -13,6 +13,7 @@ import { useSession, displayName } from "@/lib/auth/useSession";
 import { useRoleLabel } from "@/i18n/useRoleLabel";
 import { BRAND_INFO } from "@/constants/brand";
 import { Avatar } from "@/components/common/Avatar";
+import { useSidebarScroll } from "@/hooks/useSidebarScroll";
 
 /**
  * Medical Dictionary is deliberately absent.
@@ -36,8 +37,9 @@ const links = [
 
 export const PortalSidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
   const t = useTranslations("sidebar");
+  const asideRef = useSidebarScroll<HTMLElement>("portal");
   return (
-    <aside className="w-64 bg-chip/40 border-r border-border/50 flex flex-col py-6 sticky top-0 h-screen shrink-0 overflow-y-auto">
+    <aside ref={asideRef} className="w-64 bg-chip/40 border-r border-border/50 flex flex-col py-6 sticky top-0 h-screen shrink-0 overflow-y-auto">
       <Link href="/" className="px-6 flex items-center gap-2">
         <img src={BRAND_INFO.logoMark} alt={`${BRAND_INFO.name} logo`} className="h-8 w-auto shrink-0" />
         <div>
