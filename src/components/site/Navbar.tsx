@@ -43,7 +43,6 @@ const Navbar = ({ transparentAtTop = false }: { transparentAtTop?: boolean }) =>
   // A page unpublished in the CMS drops out of the nav rather than sitting
   // there as a link to a 404.
   const links = [
-    { label: t("nav.features"), to: "/features" },
     { label: t("nav.pricing"), to: "/pricing" },
     { label: t("nav.about"), to: "/about" },
     { label: t("nav.contact"), to: "/contact" },
@@ -60,8 +59,10 @@ const Navbar = ({ transparentAtTop = false }: { transparentAtTop?: boolean }) =>
             <li key={l.to}>
               <NavLink
                 to={l.to}
+                // The current page carries a bar under its label: the colour
+                // alone is too close to the other links' to read as selected.
                 className={({ isActive }) =>
-                  `tracking-wider transition-colors ${isActive ? "text-primary-glow" : "hover:text-primary"}`
+                  `relative tracking-wider transition-colors after:absolute after:inset-x-0 after:-bottom-1.5 after:h-0.5 after:rounded-full after:bg-primary after:transition-transform after:duration-300 ${isActive ? "text-primary font-semibold after:scale-x-100" : "hover:text-primary after:scale-x-0"}`
                 }
               >
                 {l.label.toUpperCase()}
@@ -96,15 +97,13 @@ const Navbar = ({ transparentAtTop = false }: { transparentAtTop?: boolean }) =>
         // account buttons, then the language, centred, at the foot.
         <div className="md:hidden border-t border-border/50 bg-card rounded-b-3xl shadow-card animate-fade-up">
           <ul className="container mx-auto pt-2 pb-6 flex flex-col text-sm font-medium">
-            {/* Features is desktop-only: the phone menu keeps to pricing,
-                about and contact. */}
-            {links.filter(l => l.to !== "/features").map((l) => (
+            {links.map((l) => (
               <li key={l.to} className="border-b border-border/50">
                 <NavLink
                   to={l.to}
                   onClick={() => setOpen(false)}
                   className={({ isActive }) =>
-                    `block py-3.5 text-base transition-colors ${isActive ? "text-primary-glow font-semibold" : "text-foreground/80 hover:text-primary"}`
+                    `block py-3.5 text-base transition-colors ${isActive ? "-ml-3 border-l-2 border-primary pl-2.5 text-primary font-semibold" : "text-foreground/80 hover:text-primary"}`
                   }
                 >
                   {l.label}

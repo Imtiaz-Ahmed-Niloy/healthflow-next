@@ -31,7 +31,7 @@ const NavLink = forwardRef<HTMLAnchorElement, NavLinkCompatProps>(
         ? className({ isActive, isPending: false })
         : cn(className, isActive && activeClassName, pendingClassName);
 
-    return <Link ref={ref} href={to} className={resolvedClassName} {...props} />;
+    return <Link ref={ref} href={to} className={resolvedClassName} aria-current={isActive ? "page" : undefined} {...props} />;
   },
 );
 
