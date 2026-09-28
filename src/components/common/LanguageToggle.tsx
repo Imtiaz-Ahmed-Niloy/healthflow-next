@@ -24,8 +24,11 @@ export const LanguageToggle = ({
   onChange: (locale: Locale) => void;
   /** What the control chooses, for screen readers — "Change language". */
   label: string;
-  /** "EN / বাং" rather than "English / বাংলা", for a top bar. */
-  short?: boolean;
+  /**
+   * "EN / বাং" rather than "English / বাংলা", for a top bar. "mobile" is
+   * short on phones only and spells the names out from md up.
+   */
+  short?: boolean | "mobile";
   /** A switch in flight: dimmed, and announced as busy. */
   busy?: boolean;
   className?: string;
@@ -63,11 +66,18 @@ export const LanguageToggle = ({
             onClick={() => onChange(l)}
             className={cn(
               "relative z-10 rounded-full font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-              short ? "px-2.5 py-1 text-[11px]" : "px-3.5 py-1 text-xs",
+              short === "mobile"
+                ? "px-2.5 py-1 text-[11px] md:px-3.5 md:text-xs"
+                : short ? "px-2.5 py-1 text-[11px]" : "px-3.5 py-1 text-xs",
               active ? "text-primary" : "text-muted-foreground hover:text-primary",
             )}
           >
-            {short ? LOCALE_SHORT_LABELS[l] : LOCALE_LABELS[l]}
+            {short === "mobile" ? (
+              <>
+                <span className="md:hidden">{LOCALE_SHORT_LABELS[l]}</span>
+                <span className="hidden md:inline">{LOCALE_LABELS[l]}</span>
+              </>
+            ) : short ? LOCALE_SHORT_LABELS[l] : LOCALE_LABELS[l]}
           </button>
         );
       })}
