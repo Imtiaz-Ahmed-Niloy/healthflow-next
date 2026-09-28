@@ -6,11 +6,18 @@ import { ArrowRight, GraduationCap, MapPin, Star } from "lucide-react";
 import { useTranslations } from "next-intl";
 import TiltCard from "@/components/site/TiltCard";
 import { Avatar } from "@/components/common/Avatar";
+import { FitText, pxRange } from "@/components/common/FitText";
 import type { UIDoctor } from "@/hooks/useDoctors";
 
 /** The card's button, for an `action` that should look like the default one. */
 export const DOCTOR_CARD_BUTTON =
   "mt-5 flex w-full items-center justify-center gap-1.5 rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-glow group-hover:bg-primary-glow";
+
+/**
+ * The name's sizes: the card's 18px (text-lg), then a pixel at a time down to
+ * 13px. Below that a name stops reading as a heading. See FitText.
+ */
+const NAME_SIZES = pxRange(18, 13);
 
 /**
  * One doctor, the same card everywhere a doctor is listed: the home page's
@@ -41,8 +48,10 @@ export const DoctorCard = ({ d, i = 0, action }: { d: UIDoctor; i?: number; acti
         <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full ring-2 ring-transparent transition-all duration-300 group-hover:ring-accent">
           <Avatar src={d.img} name={d.name} className="h-full w-full text-lg transition-transform duration-500 group-hover:scale-110 motion-reduce:group-hover:scale-100" />
         </div>
-        <div className="min-w-0">
-          <h3 className="font-display text-lg leading-tight text-primary group-hover:text-primary-glow transition-colors">{d.name}</h3>
+        <div className="min-w-0 flex-1">
+          {/* One line: 18px, a pixel smaller at a time for a longer name. */}
+          <FitText text={d.name} sizes={NAME_SIZES}
+            className="font-display leading-tight text-primary group-hover:text-primary-glow transition-colors" />
           <p className="text-xs font-semibold text-primary-glow mt-0.5">{d.specialty}</p>
           <div className="flex items-center gap-1 mt-1.5 text-xs text-foreground/70">
             <Star className="h-3 w-3 fill-primary-glow text-primary-glow" />

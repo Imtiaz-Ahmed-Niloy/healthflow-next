@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { Printer, Stethoscope, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { FitText, pxRange } from "@/components/common/FitText";
 
 /**
  * The printed prescription — one sheet, two readers.
@@ -86,16 +87,22 @@ export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionShe
             (that's what drops Chrome's date/title/URL header and footer), so
             the 14 mm of white space is padding here instead, and the height
             a hair under 297 mm so it never spills onto a blank 2nd page. */}
-        <div id="rx-print-area" className="min-h-[297mm] print:min-h-[296mm] flex flex-col px-10 py-8 print:p-[14mm] font-sans text-slate-900 bg-[linear-gradient(to_bottom,#ffffff,#fbfbf6)]">
+        {/* 14mm at the sides on screen as in print, so the sheet is the same
+            width both ways: the hospital name is sized to fit on screen, and
+            must still fit on the page. */}
+        <div id="rx-print-area" className="min-h-[297mm] print:min-h-[296mm] flex flex-col px-[14mm] py-8 print:p-[14mm] font-sans text-slate-900 bg-[linear-gradient(to_bottom,#ffffff,#fbfbf6)]">
           {/* Letterhead */}
-          <div className="flex items-start justify-between pb-4 border-b-2 border-slate-800">
+          <div className="flex items-start justify-between gap-6 pb-4 border-b-2 border-slate-800">
             {/* A chamber with no name (0091) is the mark alone — no name,
                 address or phone; the doctor's own name heads the sheet. */}
             {hospital.name ? (
-              <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-full border-2 border-emerald-700 text-emerald-700 flex items-center justify-center font-bold text-xl">{hospital.name[0] ?? "H"}</div>
-                <div>
-                  <h1 className="text-2xl font-bold tracking-tight text-emerald-800">{hospital.name}</h1>
+              // The width the doctor's block leaves; the name fits itself to it.
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <div className="h-12 w-12 shrink-0 rounded-full border-2 border-emerald-700 text-emerald-700 flex items-center justify-center font-bold text-xl">{hospital.name[0] ?? "H"}</div>
+                <div className="min-w-0 flex-1">
+                  {/* One line: 24px (text-2xl), a pixel smaller at a time for a
+                      longer name, down to 16px. */}
+                  <FitText as="h1" text={hospital.name} sizes={pxRange(24, 16)} className="font-bold tracking-tight text-emerald-800" />
                   {(hospital.address || hospital.contact_phone) && (
                     <p className="text-[11px] text-slate-500 italic">
                       {[hospital.address, hospital.contact_phone].filter(Boolean).join(" • ")}
@@ -109,7 +116,9 @@ export const PrescriptionPreview = ({ sheet, onClose }: { sheet: PrescriptionShe
               </div>
             )}
             {/* Name, then degrees, specialty and BMDC number — a line each. */}
-            <div className="text-right">
+            {/* At most 45%, so a long list of degrees cannot squeeze the
+                hospital's name off the line. */}
+            <div className="max-w-[45%] shrink-0 text-right">
               <h2 className="text-lg font-bold text-slate-900">{doctor.name}</h2>
               {doctor.education && <p className="text-[11px] text-slate-600 italic">{doctor.education}</p>}
               {doctor.specialty && <p className="text-[11px] text-slate-600">{doctor.specialty}</p>}

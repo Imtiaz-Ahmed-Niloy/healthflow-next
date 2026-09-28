@@ -11,6 +11,7 @@ import { useTranslations } from "next-intl";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import { Avatar } from "@/components/common/Avatar";
+import { FitText, pxRange } from "@/components/common/FitText";
 import { useDoctors, type DoctorPlace } from "@/hooks/useDoctors";
 import { useHospitals } from "@/hooks/useHospitals";
 import { useEffect, useMemo, useState } from "react";
@@ -118,7 +119,9 @@ const DoctorDetail = () => {
             </div>
             <div className="p-6">
               <span className="text-[10px] uppercase tracking-widest font-bold text-primary-glow">{d.specialty}</span>
-              <h1 className="font-display text-3xl text-primary mt-2">{d.name}</h1>
+              {/* One line: 30px (text-3xl), a pixel smaller at a time for a
+                  longer name, down to 20px. */}
+              <FitText as="h1" text={d.name} sizes={pxRange(30, 20)} className="font-display text-primary mt-2" />
               {d.education && (
                 <p className="text-sm text-foreground/75 flex items-start gap-1.5 mt-2">
                   <GraduationCap className="h-4 w-4 mt-0.5 shrink-0 text-primary-glow" />{d.education}
