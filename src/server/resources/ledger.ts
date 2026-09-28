@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { ResourceDefinition } from "./types";
+import { LEDGER_SUBGROUPS } from "@/constants/ledgerGroups";
 
 /**
  * The books — /api/v1/ledger-accounts and /api/v1/journal-entries, over
@@ -10,19 +11,6 @@ import type { ResourceDefinition } from "./types";
  * /api/v1/accounts/vouchers, because a voucher is an entry plus its lines and
  * the two have to arrive together or not at all. See that route.
  */
-
-/**
- * The Tally groups an account can sit under (0074). The class — asset,
- * liability and so on — is derived from this by a trigger, so the form sends
- * one field and the two cannot disagree.
- */
-export const LEDGER_SUBGROUPS = [
-  "cash_in_hand", "bank_accounts", "current_assets", "sundry_debtors", "fixed_assets",
-  "sundry_creditors", "duties_taxes", "current_liabilities", "loans",
-  "capital",
-  "direct_income", "indirect_income",
-  "direct_expenses", "indirect_expenses",
-] as const;
 
 const blankToUndefined = (value: unknown) =>
   value === "" || value === null ? undefined : value;

@@ -7,6 +7,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, Btn, Pill, Kpi, SectionTitle } from "@/components/admin/ui";
 import { Modal, Field, Input, Select, ConfirmDialog, RowActions, exportCSV } from "@/components/admin/crud";
 import { useFormatters } from "@/lib/appSettings";
+import { LEDGER_SUBGROUPS, DIRECT_INCOME_SUBGROUPS, DIRECT_EXPENSE_SUBGROUPS } from "@/constants/ledgerGroups";
 import { useAppDispatch } from "@/redux/hooks";
 import {
   invalidateResource,
@@ -131,12 +132,8 @@ const VOUCHER_TYPES: { value: VoucherType; prefix: string }[] = [
   { value: "debit_note", prefix: "DRN" },
 ];
 
-/** Tally's groups, in the order its "Group" picker lists them. Keys are 0074's. */
-const SUBGROUPS = [
-  "cash_in_hand", "bank_accounts", "current_assets", "sundry_debtors", "fixed_assets",
-  "sundry_creditors", "duties_taxes", "current_liabilities", "loans", "capital",
-  "direct_income", "indirect_income", "direct_expenses", "indirect_expenses",
-] as const;
+/** Tally's groups (0074, 0105). The form lists them A to Z, as Tally's picker does. */
+const SUBGROUPS = LEDGER_SUBGROUPS;
 
 const UNITS = ["pcs", "box", "strip", "vial", "pack", "kg", "ltr"] as const;
 
@@ -274,10 +271,12 @@ const Accounts = () => {
   const totals = useMemo(() => {
     const sumOf = (pred: (b: Balance) => boolean) => balances.filter(pred).reduce((s, b) => s + b.balance, 0);
     const income = sumOf(b => b.group === "income");
-    const directIncome = sumOf(b => b.subgroup === "direct_income");
-    const directExp = sumOf(b => b.subgroup === "direct_expenses");
-    const indirectExp = sumOf(b => b.subgroup === "indirect_expenses");
-    const expense = directExp + indirectExp;
+    // Direct groups make gross profit; every other expense group — the vehicle
+    // and telephone heads, administrative, financial and so on — is indirect.
+    const directIncome = sumOf(b => DIRECT_INCOME_SUBGROUPS.includes(b.subgroup));
+    const expense = sumOf(b => b.group === "expense");
+    const directExp = sumOf(b => DIRECT_EXPENSE_SUBGROUPS.includes(b.subgroup));
+    const indirectExp = expense - directExp;
     return {
       income, expense, directExp, indirectExp,
       grossProfit: directIncome - directExp,
@@ -1295,6 +1294,7 @@ const LedgerModal = ({ value, onClose, onSave }: {
 }) => {
   const { t, subgroupLabel } = useAccountWords();
   const tc = useTranslations("common");
+  const locale = useLocale();
   const [f, setF] = useState<LedgerBody>({ code: "", name: "", subgroup: "current_assets", opening_balance: "0", active: true });
   const [saving, setSaving] = useState(false);
 
@@ -1319,7 +1319,10 @@ const LedgerModal = ({ value, onClose, onSave }: {
         <Field label={t("form.code")} required><Input value={f.code} onChange={e => setF({ ...f, code: e.target.value })} placeholder="1030" /></Field>
         <Field label={t("cols.group")}>
           <Select value={f.subgroup} onChange={e => setF({ ...f, subgroup: e.target.value })}>
-            {SUBGROUPS.map(g => <option key={g} value={g}>{subgroupLabel(g)}</option>)}
+            {SUBGROUPS
+              .map(g => ({ g, label: subgroupLabel(g) }))
+              .sort((a, b) => a.label.localeCompare(b.label, locale))
+              .map(({ g, label }) => <option key={g} value={g}>{label}</option>)}
           </Select>
         </Field>
         <Field label={t("form.openingBalance")} hint={t("form.openingHint")}>
