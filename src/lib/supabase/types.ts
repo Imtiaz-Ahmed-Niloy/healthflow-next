@@ -4967,6 +4967,22 @@ export type Database = {
       is_my_patient_record: { Args: { p_patient_id: string }; Returns: boolean }
       is_operating_hours: { Args: { p_value: Json }; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
+      ledger_balances_between: {
+        Args: { p_from?: string | null; p_to?: string | null }
+        Returns: {
+          account_id: string
+          active: boolean
+          code: string
+          credit_total: number
+          debit_total: number
+          group: string
+          name: string
+          opening_balance: number
+          balance: number
+          subgroup: string
+          tenant_id: string
+        }[]
+      }
       move_walk_in: {
         Args: { p_appointment_id: string; p_tenant_id: string }
         Returns: string

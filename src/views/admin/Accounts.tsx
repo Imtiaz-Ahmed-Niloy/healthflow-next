@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, Btn, Pill, Kpi, SectionTitle } from "@/components/admin/ui";
@@ -158,6 +159,9 @@ const debitNature = (g: Group) => g === "asset" || g === "expense";
 const sideOf = (b: { group: Group; balance: number }) =>
   (debitNature(b.group) ? b.balance >= 0 : b.balance < 0) ? "Dr" as const : "Cr" as const;
 
+/** The order a trial balance lists its heads in: capital and liabilities, then assets, income, expenses. */
+const TRIAL_CLASS_ORDER: Group[] = ["capital", "liability", "asset", "income", "expense"];
+
 const today = () => new Date().toISOString().slice(0, 10);
 const thisMonth = () => new Date().toISOString().slice(0, 7);
 
@@ -194,6 +198,37 @@ const useAccountWords = () => {
   };
 };
 
+/**
+ * Ledger balances over a date range, from /api/v1/accounts/trial. With no
+ * dates it fetches nothing and returns null — the caller uses the summary's
+ * all-time balances instead.
+ */
+const useLedgerBalances = (from: string, to: string) => {
+  const t = useTranslations("admin.accounts");
+  const [rows, setRows] = useState<Balance[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    if (!from && !to) { setRows(null); return; }
+    if (from && to && from > to) return;
+    let cancelled = false;
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    fetch(`/api/v1/accounts/trial?${params}`)
+      .then(res => res.json().then(body => ({ ok: res.ok, body })))
+      .then(({ ok, body }) => {
+        if (cancelled) return;
+        if (!ok) { toast.error(body?.error?.message ?? t("trial.loadFailed")); return; }
+        setRows(body.data.balances as Balance[]);
+      })
+      .catch(() => { if (!cancelled) toast.error(t("trial.loadFailed")); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [from, to, t]);
+  return { rows, loading };
+};
+
 /* ================================ COMPONENT ================================ */
 
 const Accounts = () => {
@@ -203,7 +238,21 @@ const Accounts = () => {
   const compact = compactIn(locale);
   const { formatCurrency: fmt, formatDate } = useFormatters();
   const dispatch = useAppDispatch();
-  const [tab, setTab] = useState<TabId>("dashboard");
+
+  // The open tab lives in the URL (?tab=vouchers), so a reload or a shared
+  // link lands on the same tab. Unknown values fall back to the dashboard.
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const tab: TabId = TABS.some(x => x.id === tabParam) ? tabParam as TabId : "dashboard";
+  const setTab = (next: TabId) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "dashboard") params.delete("tab");
+    else params.set("tab", next);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  };
 
   /* ---- the numbers ---- */
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -265,6 +314,60 @@ const Accounts = () => {
 
   const [q, setQ] = useState("");
   const [vType, setVType] = useState<string>("all");
+  const [dq, setDq] = useState("");
+  const [lq, setLq] = useState("");
+
+  // The statements' period, shared by Trial Balance, Profit & Loss and Balance
+  // Sheet. With neither date they use the summary's all-time balances. The
+  // balance sheet is always as at a date, so with a From date it reads its
+  // own cumulative balances up to To.
+  const [trialFrom, setTrialFrom] = useState("");
+  const [trialTo, setTrialTo] = useState("");
+  const period = useLedgerBalances(trialFrom, trialTo);
+  const asAt = useLedgerBalances("", trialFrom ? trialTo || today() : "");
+  const trialRows = period.rows;
+  const trialLoading = period.loading || asAt.loading;
+  const badRange = !!trialFrom && !!trialTo && trialFrom > trialTo;
+
+  const periodFilter = (extra?: React.ReactNode, note?: string) => (
+    <>
+      <div className="flex flex-wrap items-end gap-3 mb-4">
+        <Field label={t("trial.from")}>
+          <Input type="date" value={trialFrom} max={trialTo || undefined} onChange={e => setTrialFrom(e.target.value)} />
+        </Field>
+        <Field label={t("trial.to")}>
+          <Input type="date" value={trialTo} min={trialFrom || undefined} onChange={e => setTrialTo(e.target.value)} />
+        </Field>
+        {(trialFrom || trialTo) && (
+          <Btn variant="outline" onClick={() => { setTrialFrom(""); setTrialTo(""); }}>{t("trial.clear")}</Btn>
+        )}
+        {trialLoading && <span className="text-xs text-muted-foreground pb-2">{tc("loading")}</span>}
+        {extra}
+      </div>
+      {badRange && <p className="mb-3 text-xs text-destructive">{t("trial.badRange")}</p>}
+      {note && !badRange && <p className="mb-3 text-xs text-muted-foreground">{note}</p>}
+    </>
+  );
+
+  /** An amount as statements print it: a negative in brackets. */
+  const acc = (n: number) => (Math.abs(n) < 0.005 ? "—" : n < 0 ? `(${fmt(-n)})` : fmt(n));
+
+  /**
+   * A section's ledgers in the inner column, in chart order. When the section
+   * spans more than one head, each head's name sits above its ledgers.
+   */
+  const statementLines = (list: Balance[], base: 1 | 2 = 1) => {
+    const heads = [...new Set([...LEDGER_SUBGROUPS.filter(s => list.some(b => b.subgroup === s)), ...list.map(b => b.subgroup)])];
+    if (!list.length) return <StatementRow indent={base} label={<span className="text-muted-foreground">—</span>} />;
+    return heads.map(head => (
+      <Fragment key={head}>
+        {heads.length > 1 && <StatementRow kind="head" indent={base} label={subgroupLabel(head)} />}
+        {list.filter(b => b.subgroup === head).map(b => (
+          <StatementRow key={b.account_id} indent={heads.length > 1 ? (base + 1) as 2 | 3 : base} label={b.name} inner={acc(b.balance)} />
+        ))}
+      </Fragment>
+    ));
+  };
 
   /* ---- derived totals ---- */
   const balances = useMemo(() => summary?.balances ?? [], [summary]);
@@ -278,7 +381,7 @@ const Accounts = () => {
     const directExp = sumOf(b => DIRECT_EXPENSE_SUBGROUPS.includes(b.subgroup));
     const indirectExp = expense - directExp;
     return {
-      income, expense, directExp, indirectExp,
+      income, expense, directIncome, directExp, indirectExp,
       grossProfit: directIncome - directExp,
       netProfit: income - expense,
       cashBal: sumOf(b => b.subgroup === "cash_in_hand"),
@@ -320,20 +423,26 @@ const Accounts = () => {
 
   // Everything a voucher shows, so any of it finds the voucher. Every word
   // typed must appear somewhere, in any order.
-  const voucherText = (v: Voucher) => [
+  const voucherValues = (v: Voucher) => [
     v.entry_no, v.entry_date, formatDate(v.entry_date), typeLabel(v.type), v.type,
     v.party, v.narration, v.cost_centers?.name, statusWord(v.status), v.status,
     voucherAmount(v), fmt(voucherAmount(v)),
     ...v.journal_lines.flatMap(l => [l.ledger_accounts?.code, l.ledger_accounts?.name]),
-  ].filter(Boolean).join(" ").toLowerCase();
+  ];
 
-  const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
-  const filteredVouchers = vouchers.filter(v => {
-    if (vType !== "all" && v.type !== vType) return false;
-    if (!terms.length) return true;
-    const text = voucherText(v);
-    return terms.every(term => text.includes(term));
-  });
+  const filteredVouchers = vouchers.filter(v =>
+    (vType === "all" || v.type === vType) && matchesQuery(q, voucherValues(v)),
+  );
+
+  const dayBook = [...vouchers]
+    .sort((a, b) => b.entry_date.localeCompare(a.entry_date))
+    .filter(v => matchesQuery(dq, voucherValues(v)));
+
+  const filteredBalances = balances.filter(b => matchesQuery(lq, [
+    b.code, b.name, b.group, b.subgroup, subgroupLabel(b.subgroup), !b.active && t("inactive"),
+    b.opening_balance, fmt(b.opening_balance), b.debit_total, fmt(b.debit_total),
+    b.credit_total, fmt(b.credit_total), Math.abs(b.balance), fmt(Math.abs(b.balance)), sideOf(b),
+  ]));
 
   /* ---- actions ---- */
   const setupChart = async () => {
@@ -514,11 +623,7 @@ const Accounts = () => {
       {tab === "vouchers" && (
         <Card className="p-5">
           <div className="flex flex-wrap items-center gap-3 mb-4">
-            <div className="flex-1 min-w-[200px] relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input value={q} onChange={e => setQ(e.target.value)} placeholder={t("vouchers.searchPlaceholder")}
-                className="w-full pl-10 pr-4 py-2 rounded-full bg-muted/40 text-sm outline-none" />
-            </div>
+            <SearchBox value={q} onChange={setQ} placeholder={t("vouchers.searchPlaceholder")} />
             <select value={vType} onChange={e => setVType(e.target.value)} className="bg-muted/40 rounded-full px-4 py-2 text-sm outline-none">
               <option value="all">{t("vouchers.allTypes")}</option>
               {VOUCHER_TYPES.map(v => <option key={v.value} value={v.value}>{typeLabel(v.value)}</option>)}
@@ -566,14 +671,17 @@ const Accounts = () => {
       {/* ====================== DAY BOOK ====================== */}
       {tab === "daybook" && (
         <Card className="p-5">
-          <SectionTitle title={t("daybook.title")}
-            action={<Btn variant="outline" onClick={() => exportCSV(vouchers.flatMap(v => v.journal_lines.map(l => ({
+          <SectionTitle title={t("daybook.title")} />
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <SearchBox value={dq} onChange={setDq} placeholder={t("daybook.searchPlaceholder")} />
+            <Btn variant="outline" onClick={() => exportCSV(dayBook.flatMap(v => v.journal_lines.map(l => ({
               [t("cols.date")]: v.entry_date, [t("cols.voucher")]: v.entry_no, [t("cols.type")]: typeLabel(v.type),
               [t("cols.party")]: v.party ?? "", [t("cols.ledger")]: l.ledger_accounts?.name ?? "",
               [t("cols.debit")]: Number(l.debit) || "", [t("cols.credit")]: Number(l.credit) || "",
-            }))), "daybook.csv")}><Download className="h-4 w-4" /> {t("export")}</Btn>} />
+            }))), "daybook.csv")}><Download className="h-4 w-4" /> {t("export")}</Btn>
+          </div>
           <TableShell head={["date", "voucher", "type", "particulars", "debit", "credit"]}>
-            {[...vouchers].sort((a, b) => b.entry_date.localeCompare(a.entry_date)).map(v => (
+            {dayBook.map(v => (
               <tr key={v.id} className="border-t border-border/40 hover:bg-muted/30">
                 <td className="px-3 py-2.5 text-xs whitespace-nowrap">{formatDate(v.entry_date)}</td>
                 <td className="px-3 py-2.5 font-mono text-xs">{v.entry_no}</td>
@@ -589,7 +697,7 @@ const Accounts = () => {
                 <td className="px-3 py-2.5 text-right font-semibold text-primary">{fmt(voucherAmount(v, "credit"))}</td>
               </tr>
             ))}
-            {!vouchers.length && <EmptyRow cols={6}>{t("daybook.nothing")}</EmptyRow>}
+            {!dayBook.length && <EmptyRow cols={6}>{vouchers.length ? t("vouchers.noMatch") : t("daybook.nothing")}</EmptyRow>}
           </TableShell>
         </Card>
       )}
@@ -597,19 +705,18 @@ const Accounts = () => {
       {/* ====================== LEDGERS ====================== */}
       {tab === "ledgers" && (
         <Card className="p-5">
-          <div className="flex items-center justify-between gap-3 mb-4">
-            <h2 className="font-display text-xl text-primary">{t("ledgers.title")}</h2>
-            <div className="flex gap-2">
-              <Btn variant="outline" onClick={() => exportCSV(balances.map(b => ({
-                [t("form.code")]: b.code, [t("cols.ledger")]: b.name, [t("cols.group")]: subgroupLabel(b.subgroup),
-                [t("cols.opening")]: b.opening_balance, [t("cols.debit")]: b.debit_total, [t("cols.credit")]: b.credit_total,
-                [t("cols.closing")]: Math.abs(b.balance), [t("ledgers.side")]: sideOf(b),
-              })), "ledgers.csv")}><Download className="h-4 w-4" /> {t("export")}</Btn>
-              <Btn onClick={() => setLEdit("new")}><Plus className="h-4 w-4" /> {t("form.newLedger")}</Btn>
-            </div>
+          <h2 className="font-display text-xl text-primary mb-4">{t("ledgers.title")}</h2>
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <SearchBox value={lq} onChange={setLq} placeholder={t("ledgers.searchPlaceholder")} />
+            <Btn variant="outline" onClick={() => exportCSV(filteredBalances.map(b => ({
+              [t("form.code")]: b.code, [t("cols.ledger")]: b.name, [t("cols.group")]: subgroupLabel(b.subgroup),
+              [t("cols.opening")]: b.opening_balance, [t("cols.debit")]: b.debit_total, [t("cols.credit")]: b.credit_total,
+              [t("cols.closing")]: Math.abs(b.balance), [t("ledgers.side")]: sideOf(b),
+            })), "ledgers.csv")}><Download className="h-4 w-4" /> {t("export")}</Btn>
+            <Btn onClick={() => setLEdit("new")}><Plus className="h-4 w-4" /> {t("form.newLedger")}</Btn>
           </div>
           <TableShell head={["ledger", "group", "opening", "debit", "credit", "closing"]} actions>
-            {balances.map(b => {
+            {filteredBalances.map(b => {
               const side = sideOf(b);
               const row = ledgers.find(l => l.id === b.account_id);
               return (
@@ -638,104 +745,222 @@ const Accounts = () => {
                 </tr>
               );
             })}
+            {!!balances.length && !filteredBalances.length && <EmptyRow cols={7}>{t("ledgers.noMatch")}</EmptyRow>}
           </TableShell>
         </Card>
       )}
 
       {/* ====================== TRIAL BALANCE ====================== */}
       {tab === "trial" && (() => {
-        // Every ledger, as the design lists them — a zero shows as a dash on
-        // both sides rather than the row disappearing.
-        const totalDr = balances.filter(b => sideOf(b) === "Dr").reduce((s, b) => s + Math.abs(b.balance), 0);
-        const totalCr = balances.filter(b => sideOf(b) === "Cr").reduce((s, b) => s + Math.abs(b.balance), 0);
+        // The accounting layout (ICAI / Tally): ledgers grouped under their
+        // heads, capital and liabilities first, then assets, income and
+        // expenses. Each head carries its net balance; its ledgers sit indented
+        // beneath. Nil balances are left out, and if the two sides disagree
+        // the gap shows as a difference in opening balances, as Tally does.
+        const rows = (trialRows ?? balances).filter(b => Math.abs(b.balance) >= 0.005);
+        const heads = TRIAL_CLASS_ORDER.flatMap(cls => {
+          const inClass = rows.filter(b => b.group === cls);
+          const order = [...new Set([...LEDGER_SUBGROUPS.filter(s => inClass.some(b => b.subgroup === s)), ...inClass.map(b => b.subgroup)])];
+          return order.map(subgroup => {
+            const ledgersIn = inClass.filter(b => b.subgroup === subgroup);
+            // Net in debit terms: positive is a debit balance.
+            const net = ledgersIn.reduce((s, b) => s + (sideOf(b) === "Dr" ? Math.abs(b.balance) : -Math.abs(b.balance)), 0);
+            return { subgroup, ledgers: ledgersIn, net };
+          });
+        });
+        const totalDr = heads.reduce((s, h) => s + (h.net > 0 ? h.net : 0), 0);
+        const totalCr = heads.reduce((s, h) => s + (h.net < 0 ? -h.net : 0), 0);
+        const diff = Math.round((totalDr - totalCr) * 100) / 100;
+        const grand = Math.max(totalDr, totalCr);
+        const subtitle = trialFrom
+          ? t("trial.forPeriod", { from: formatDate(trialFrom), to: formatDate(trialTo || today()) })
+          : t("trial.asAt", { date: formatDate(trialTo || today()) });
+        const amount = (n: number) => (n ? fmt(n) : "");
         return (
           <Card className="p-5">
-            <SectionTitle title={t("trial.title")} />
-            <TableShell head={["ledger", "group", "debit", "credit"]}>
-              {balances.map(b => (
-                <tr key={b.account_id} className="border-t border-border/40">
-                  <td className="px-3 py-2.5 font-semibold text-primary">{b.name}</td>
-                  <td className="px-3 py-2.5 text-xs text-muted-foreground">{subgroupLabel(b.subgroup)}</td>
-                  <td className="px-3 py-2.5 text-right font-mono text-xs">{b.balance && sideOf(b) === "Dr" ? fmt(Math.abs(b.balance)) : "—"}</td>
-                  <td className="px-3 py-2.5 text-right font-mono text-xs">{b.balance && sideOf(b) === "Cr" ? fmt(Math.abs(b.balance)) : "—"}</td>
-                </tr>
-              ))}
-              <tr className="border-t-2 border-primary/30 bg-primary/5 font-bold">
-                <td className="px-3 py-3 uppercase" colSpan={2}>{t("trial.total")}</td>
-                <td className="px-3 py-3 text-right text-primary">{fmt(totalDr)}</td>
-                <td className="px-3 py-3 text-right text-primary">{fmt(totalCr)}</td>
-              </tr>
-            </TableShell>
+            {periodFilter(
+              <Btn variant="outline" className="ml-auto" onClick={() => exportCSV(heads.flatMap(h => [
+                { [t("cols.particulars")]: subgroupLabel(h.subgroup), [t("cols.debit")]: h.net > 0 ? h.net : "", [t("cols.credit")]: h.net < 0 ? -h.net : "" },
+                ...h.ledgers.map(b => ({
+                  [t("cols.particulars")]: `   ${b.name}`,
+                  [t("cols.debit")]: sideOf(b) === "Dr" ? Math.abs(b.balance) : "",
+                  [t("cols.credit")]: sideOf(b) === "Cr" ? Math.abs(b.balance) : "",
+                })),
+              ]).concat(
+                diff ? [{ [t("cols.particulars")]: t("trial.difference"), [t("cols.debit")]: diff < 0 ? -diff : "", [t("cols.credit")]: diff > 0 ? diff : "" }] : [],
+                [{ [t("cols.particulars")]: t("trial.total"), [t("cols.debit")]: grand, [t("cols.credit")]: grand }],
+              ), "trial-balance.csv")}><Download className="h-4 w-4" /> {t("export")}</Btn>,
+              trialFrom ? t("trial.fromNote") : undefined,
+            )}
+
+            <div className="text-center mb-5">
+              <h2 className="font-display text-2xl text-primary">{t("trial.heading")}</h2>
+              <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
+            </div>
+
+            <div className="overflow-x-auto -mx-2">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-y-2 border-primary/30 text-xs font-bold text-primary">
+                    <th className="px-3 py-2.5 text-left">{t("cols.particulars")}</th>
+                    <th className="px-3 py-2.5 text-right w-40">{t("trial.debitCol")}</th>
+                    <th className="px-3 py-2.5 text-right w-40">{t("trial.creditCol")}</th>
+                  </tr>
+                </thead>
+                <tbody className="tabular-nums">
+                  {heads.map(h => (
+                    <Fragment key={h.subgroup}>
+                      <tr className="border-t border-border/50">
+                        <td className="px-3 pt-3 pb-1 font-semibold text-primary">{subgroupLabel(h.subgroup)}</td>
+                        <td className="px-3 pt-3 pb-1 text-right font-semibold">{amount(h.net > 0 ? h.net : 0)}</td>
+                        <td className="px-3 pt-3 pb-1 text-right font-semibold">{amount(h.net < 0 ? -h.net : 0)}</td>
+                      </tr>
+                      {h.ledgers.map(b => (
+                        <tr key={b.account_id}>
+                          <td className="pl-8 pr-3 py-1 text-xs text-muted-foreground">
+                            {b.name}<span className="ml-2 font-mono text-[10px] opacity-70">{b.code}</span>
+                          </td>
+                          <td className="px-3 py-1 text-right text-xs text-muted-foreground italic">{sideOf(b) === "Dr" ? amount(Math.abs(b.balance)) : ""}</td>
+                          <td className="px-3 py-1 text-right text-xs text-muted-foreground italic">{sideOf(b) === "Cr" ? amount(Math.abs(b.balance)) : ""}</td>
+                        </tr>
+                      ))}
+                    </Fragment>
+                  ))}
+                  {!heads.length && (
+                    <tr><td colSpan={3} className="px-3 py-12 text-center text-sm text-muted-foreground">{t("trial.nothing")}</td></tr>
+                  )}
+                  {diff !== 0 && (
+                    <tr className="border-t border-border/50 text-destructive">
+                      <td className="px-3 py-3 font-semibold">{t("trial.difference")}</td>
+                      <td className="px-3 py-3 text-right font-semibold">{diff < 0 ? fmt(-diff) : ""}</td>
+                      <td className="px-3 py-3 text-right font-semibold">{diff > 0 ? fmt(diff) : ""}</td>
+                    </tr>
+                  )}
+                </tbody>
+                <tfoot>
+                  <tr className="font-bold text-primary">
+                    <td className="px-3 py-3">{t("trial.total")}</td>
+                    <td className="px-3 py-3 text-right border-t-2 border-b-4 border-double border-primary/50">{fmt(grand)}</td>
+                    <td className="px-3 py-3 text-right border-t-2 border-b-4 border-double border-primary/50">{fmt(grand)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <p className="mt-3 text-[11px] text-muted-foreground">{t("trial.nilNote")}</p>
           </Card>
         );
       })()}
 
       {/* ====================== P&L ====================== */}
-      {tab === "pl" && (
-        <div className="grid lg:grid-cols-2 gap-5">
+      {tab === "pl" && (() => {
+        // Statement of profit or loss, vertical form: revenue less direct
+        // expenses is gross profit; add other income, less indirect expenses
+        // by head, is net profit.
+        const rows = (trialRows ?? balances).filter(b => Math.abs(b.balance) >= 0.005);
+        const revenue = rows.filter(b => b.group === "income" && DIRECT_INCOME_SUBGROUPS.includes(b.subgroup));
+        const direct = rows.filter(b => b.group === "expense" && DIRECT_EXPENSE_SUBGROUPS.includes(b.subgroup));
+        const other = rows.filter(b => b.group === "income" && !DIRECT_INCOME_SUBGROUPS.includes(b.subgroup));
+        const indirect = rows.filter(b => b.group === "expense" && !DIRECT_EXPENSE_SUBGROUPS.includes(b.subgroup));
+        const sum = (list: Balance[]) => list.reduce((s, b) => s + b.balance, 0);
+        const gross = sum(revenue) - sum(direct);
+        const net = gross + sum(other) - sum(indirect);
+        const subtitle = trialFrom
+          ? t("trial.forPeriod", { from: formatDate(trialFrom), to: formatDate(trialTo || today()) })
+          : t("pl.upTo", { date: formatDate(trialTo || today()) });
+        return (
           <Card className="p-5">
-            <SectionTitle title={t("pl.income")} />
-            <ul className="space-y-2 text-sm">
-              {balances.filter(b => b.group === "income").map(b => (
-                <Stat key={b.account_id} label={b.name} value={fmt(b.balance)} tone="ok" />
-              ))}
-              <li className="border-t border-border/60 pt-3 mt-3 flex justify-between font-bold text-primary">
-                <span>{t("pl.totalIncome")}</span><span>{fmt(totals.income)}</span>
-              </li>
-            </ul>
+            {periodFilter()}
+            <StatementHeading title={t("pl.heading")} subtitle={subtitle} />
+            <Statement particulars={t("cols.particulars")} amount={t("pl.amount")}>
+              <StatementRow kind="heading" label={t("pl.revenue")} />
+              {statementLines(revenue)}
+              <StatementRow kind="total" indent={1} label={t("pl.totalRevenue")} outer={acc(sum(revenue))} />
+
+              <StatementRow kind="heading" label={t("pl.lessDirect")} />
+              {statementLines(direct)}
+              <StatementRow kind="total" indent={1} label={t("pl.totalDirect")} outer={acc(-sum(direct))} />
+
+              <StatementRow kind="result" label={gross >= 0 ? t("pl.grossProfit") : t("pl.grossLoss")} outer={acc(gross)} />
+
+              {!!other.length && <>
+                <StatementRow kind="heading" label={t("pl.addOther")} />
+                {statementLines(other)}
+                <StatementRow kind="total" indent={1} label={t("pl.totalOther")} outer={acc(sum(other))} />
+              </>}
+
+              <StatementRow kind="heading" label={t("pl.lessIndirect")} />
+              {statementLines(indirect)}
+              <StatementRow kind="total" indent={1} label={t("pl.totalIndirect")} outer={acc(-sum(indirect))} />
+
+              <StatementRow kind="result" label={net >= 0 ? t("pl.netProfit") : t("pl.netLoss")} outer={acc(net)} />
+            </Statement>
+            <p className="mt-3 text-[11px] text-muted-foreground">
+              {t("pl.margins", {
+                gross: sum(revenue) ? ((gross / sum(revenue)) * 100).toFixed(1) : "0.0",
+                net: sum(revenue) + sum(other) ? ((net / (sum(revenue) + sum(other))) * 100).toFixed(1) : "0.0",
+              })}
+            </p>
           </Card>
-          <Card className="p-5">
-            <SectionTitle title={t("pl.expenses")} />
-            <ul className="space-y-2 text-sm">
-              {balances.filter(b => b.group === "expense").map(b => (
-                <Stat key={b.account_id} label={b.name} value={fmt(b.balance)} tone="bad" />
-              ))}
-              <li className="border-t border-border/60 pt-3 mt-3 flex justify-between font-bold text-primary">
-                <span>{t("pl.totalExpenses")}</span><span>{fmt(totals.expense)}</span>
-              </li>
-            </ul>
-          </Card>
-          <Card className="p-6 lg:col-span-2 bg-gradient-to-r from-primary/10 to-accent/30">
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <p className="text-[11px] tracking-widest font-bold text-muted-foreground uppercase">{totals.netProfit >= 0 ? t("pl.netProfit") : t("pl.netLoss")}</p>
-                <p className={`font-display text-4xl mt-1 ${totals.netProfit >= 0 ? "text-primary" : "text-destructive"}`}>{fmt(Math.abs(totals.netProfit))}</p>
-                <p className="text-xs text-muted-foreground mt-1">{t("pl.formula", { income: fmt(totals.income), expense: fmt(totals.expense) })}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[11px] tracking-widest font-bold text-muted-foreground uppercase">{t("dashboard.grossProfit")}</p>
-                <p className="font-display text-3xl text-primary mt-1">{fmt(totals.grossProfit)}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("pl.margin", { pct: totals.income ? ((totals.netProfit / totals.income) * 100).toFixed(1) : "0.0" })}
-                </p>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ====================== BALANCE SHEET ====================== */}
-      {tab === "balance" && (
-        <div className="grid lg:grid-cols-2 gap-5">
+      {tab === "balance" && (() => {
+        // Statement of financial position, vertical form, as at a date. Always
+        // cumulative: with a From date it reads its own balances up to To. The
+        // profit not yet closed to capital is income less expense to date.
+        const all = (trialFrom ? asAt.rows : trialRows) ?? balances;
+        const rows = all.filter(b => Math.abs(b.balance) >= 0.005);
+        const sum = (list: Balance[]) => list.reduce((s, b) => s + b.balance, 0);
+        const profit = sum(rows.filter(b => b.group === "income")) - sum(rows.filter(b => b.group === "expense"));
+        const assets = rows.filter(b => b.group === "asset");
+        const nonCurrentA = assets.filter(b => NON_CURRENT_ASSETS.includes(b.subgroup));
+        const currentA = assets.filter(b => !NON_CURRENT_ASSETS.includes(b.subgroup));
+        const equity = rows.filter(b => b.group === "capital");
+        const liabilities = rows.filter(b => b.group === "liability");
+        const nonCurrentL = liabilities.filter(b => NON_CURRENT_LIABILITIES.includes(b.subgroup));
+        const currentL = liabilities.filter(b => !NON_CURRENT_LIABILITIES.includes(b.subgroup));
+        const totalAssets = sum(assets);
+        const totalEquity = sum(equity) + profit;
+        const totalEL = totalEquity + sum(liabilities);
+        const gap = Math.round((totalAssets - totalEL) * 100) / 100;
+        return (
           <Card className="p-5">
-            <SectionTitle title={t("balance.assets")} />
-            <ul className="space-y-2 text-sm">
-              {balances.filter(b => b.group === "asset").map(b => (
-                <Stat key={b.account_id} label={b.name} value={fmt(b.balance)} />
-              ))}
-            </ul>
+            {periodFilter(undefined, trialFrom ? t("balance.fromNote") : undefined)}
+            <StatementHeading title={t("balance.heading")} subtitle={t("trial.asAt", { date: formatDate(trialTo || today()) })} />
+            <Statement particulars={t("cols.particulars")} amount={t("pl.amount")}>
+              <StatementRow kind="heading" label={t("balance.assets")} />
+              {!!nonCurrentA.length && <>
+                <StatementRow kind="head" indent={1} label={t("balance.nonCurrentAssets")} />
+                {nonCurrentA.map(b => <StatementRow key={b.account_id} indent={2} label={b.name} inner={acc(b.balance)} />)}
+                <StatementRow kind="total" indent={1} label={t("balance.totalNonCurrentAssets")} outer={acc(sum(nonCurrentA))} />
+              </>}
+              <StatementRow kind="head" indent={1} label={t("balance.currentAssets")} />
+              {statementLines(currentA, 2)}
+              <StatementRow kind="total" indent={1} label={t("balance.totalCurrentAssets")} outer={acc(sum(currentA))} />
+              <StatementRow kind="result" label={t("balance.totalAssets")} outer={acc(totalAssets)} />
+
+              <StatementRow kind="heading" label={t("balance.equityLiabilities")} />
+              <StatementRow kind="head" indent={1} label={t("balance.equity")} />
+              {equity.map(b => <StatementRow key={b.account_id} indent={2} label={b.name} inner={acc(b.balance)} />)}
+              <StatementRow indent={2} label={t("balance.profitLoss")} inner={acc(profit)} />
+              <StatementRow kind="total" indent={1} label={t("balance.totalEquity")} outer={acc(totalEquity)} />
+              {!!nonCurrentL.length && <>
+                <StatementRow kind="head" indent={1} label={t("balance.nonCurrentLiabilities")} />
+                {nonCurrentL.map(b => <StatementRow key={b.account_id} indent={2} label={b.name} inner={acc(b.balance)} />)}
+                <StatementRow kind="total" indent={1} label={t("balance.totalNonCurrentLiabilities")} outer={acc(sum(nonCurrentL))} />
+              </>}
+              <StatementRow kind="head" indent={1} label={t("balance.currentLiabilities")} />
+              {statementLines(currentL, 2)}
+              <StatementRow kind="total" indent={1} label={t("balance.totalCurrentLiabilities")} outer={acc(sum(currentL))} />
+              <StatementRow kind="result" label={t("balance.totalEquityLiabilities")} outer={acc(totalEL)} />
+            </Statement>
+            {gap !== 0 && (
+              <p className="mt-3 text-xs text-destructive">{t("balance.gap", { amount: fmt(Math.abs(gap)) })}</p>
+            )}
           </Card>
-          <Card className="p-5">
-            <SectionTitle title={t("balance.liabilitiesCapital")} />
-            <ul className="space-y-2 text-sm">
-              {balances.filter(b => b.group === "liability" || b.group === "capital").map(b => (
-                <Stat key={b.account_id} label={b.name} value={fmt(b.balance)} />
-              ))}
-              <Stat label={t("balance.retained")} value={fmt(totals.netProfit)} tone={totals.netProfit >= 0 ? "ok" : "bad"} />
-            </ul>
-          </Card>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ====================== CASH & BANK ====================== */}
       {tab === "cashflow" && (
@@ -1189,6 +1414,11 @@ const VoucherModal = ({ open, onClose, ledgers, centers, vouchers, onSaved }: {
 
   const total = f.entries.reduce((sum, e) => sum + (Number(e.amount) > 0 ? Number(e.amount) : 0), 0);
 
+  const isCashOrBank = (id: string) => {
+    const subgroup = ledgers.find(l => l.id === id)?.subgroup;
+    return subgroup === "cash_in_hand" || subgroup === "bank_accounts";
+  };
+
   const submit = async () => {
     if (!f.no.trim() || !f.date) {
       toast.error(t("form.missing"), { description: t("form.voucherNoMissing") });
@@ -1201,6 +1431,16 @@ const VoucherModal = ({ open, onClose, ledgers, centers, vouchers, onSaved }: {
       }
       if (e.ledgerDr === e.ledgerCr) {
         toast.error(t("form.sameLedger"), { description: t("form.sameLedgerEntry", { n: i + 1 }) });
+        return;
+      }
+      // Money leaves cash or bank on a payment and arrives there on a receipt.
+      // The other way round books the expense as a credit and inflates profit.
+      if (f.type === "payment" && !isCashOrBank(e.ledgerCr)) {
+        toast.error(t("form.wrongSide"), { description: t("form.paymentCredit", { n: i + 1 }) });
+        return;
+      }
+      if (f.type === "receipt" && !isCashOrBank(e.ledgerDr)) {
+        toast.error(t("form.wrongSide"), { description: t("form.receiptDebit", { n: i + 1 }) });
         return;
       }
     }
@@ -1598,6 +1838,81 @@ const TableShell = ({ head, children, actions = false }: { head: ColKey[]; child
     </div>
   );
 };
+
+/* ---- financial statements, in the vertical accounting layout ---- */
+
+/** Heads that sit under non-current on a balance sheet; every other asset head is current. */
+const NON_CURRENT_ASSETS = ["fixed_assets", "fixed_assets_at_cost", "accumulated_depreciation", "investments"];
+const NON_CURRENT_LIABILITIES = ["loans", "secured_loans", "unsecured_loans"];
+
+/** A statement's title block: the statement's name and its date or period. */
+const StatementHeading = ({ title, subtitle }: { title: string; subtitle: string }) => (
+  <div className="text-center mb-5">
+    <h2 className="font-display text-2xl text-primary">{title}</h2>
+    <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
+  </div>
+);
+
+/**
+ * Particulars and two amount columns: the inner one for the lines of a
+ * section, the outer one for its total. The usual layout of a profit and
+ * loss account or balance sheet in vertical form.
+ */
+const Statement = ({ particulars, amount, children }: { particulars: string; amount: string; children: React.ReactNode }) => (
+  <div className="overflow-x-auto -mx-2">
+    <table className="w-full text-sm tabular-nums">
+      <thead>
+        <tr className="border-y-2 border-primary/30 text-xs font-bold text-primary">
+          <th className="px-3 py-2.5 text-left">{particulars}</th>
+          <th className="px-3 py-2.5 text-right" colSpan={2}>{amount}</th>
+        </tr>
+      </thead>
+      <tbody>{children}</tbody>
+    </table>
+  </div>
+);
+
+const INDENT = ["pl-3", "pl-7", "pl-11", "pl-16"];
+
+const StatementRow = ({ label, inner, outer, indent = 0, kind = "line" }: {
+  label: React.ReactNode; inner?: string; outer?: string; indent?: 0 | 1 | 2 | 3;
+  /** heading: a section's name. line: an item. head: a group label within a section. total: a section's total. result: gross or net profit, a balance sheet total. */
+  kind?: "heading" | "line" | "head" | "total" | "result";
+}) => {
+  const labelClass = {
+    heading: "pt-4 font-semibold text-primary",
+    line: "text-foreground/80",
+    head: "pt-2 italic text-muted-foreground",
+    total: "font-semibold",
+    result: "pt-3 font-bold text-primary",
+  }[kind];
+  return (
+    <tr>
+      <td className={`${INDENT[indent]} pr-3 py-1.5 ${labelClass}`}>{label}</td>
+      <td className={`px-3 py-1.5 text-right w-36 ${kind === "total" ? "border-t border-foreground/30" : ""}`}>{inner}</td>
+      <td className={`px-3 py-1.5 text-right w-36 ${
+        kind === "result" ? "pt-3 font-bold text-primary border-t border-foreground/40 border-b-4 border-double border-b-primary/60"
+          : kind === "total" ? "font-semibold" : ""
+      }`}>{outer}</td>
+    </tr>
+  );
+};
+
+/** True when every word of the query appears somewhere in the given values. */
+const matchesQuery = (query: string, values: unknown[]) => {
+  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!terms.length) return true;
+  const text = values.filter(v => v !== null && v !== undefined && v !== "").join(" ").toLowerCase();
+  return terms.every(term => text.includes(term));
+};
+
+const SearchBox = ({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) => (
+  <div className="flex-1 min-w-[200px] relative">
+    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+    <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} aria-label={placeholder}
+      className="w-full pl-10 pr-4 py-2 rounded-full bg-muted/40 text-sm outline-none" />
+  </div>
+);
 
 const EmptyRow = ({ cols, children }: { cols: number; children: React.ReactNode }) => (
   <tr><td colSpan={cols} className="px-3 py-12 text-center text-sm text-muted-foreground">{children}</td></tr>
