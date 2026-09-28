@@ -37,7 +37,12 @@ const Navbar = ({ transparentAtTop = false }: { transparentAtTop?: boolean }) =>
   const clear = transparentAtTop && atTop && !open;
   const t = useTranslations();
   const isVisible = useIsPageVisible();
-  const { user, isLoading: sessionLoading } = useSession();
+  const session = useSession();
+  // While this page's own read runs, draw the session the last page saw, so
+  // the account buttons do not blink out and shift the links on every page
+  // change. Unknown only on the very first load.
+  const sessionLoading = session.isLoading && session.lastSeen === undefined;
+  const user = session.isLoading ? session.lastSeen?.user ?? null : session.user;
   // Their own panel: a patient's dashboard, a doctor's portal, and so on.
   const home = homePathForRole(user?.role);
   // A page unpublished in the CMS drops out of the nav rather than sitting
@@ -61,8 +66,10 @@ const Navbar = ({ transparentAtTop = false }: { transparentAtTop?: boolean }) =>
                 to={l.to}
                 // The current page carries a bar under its label: the colour
                 // alone is too close to the other links' to read as selected.
+                // No bold: the wider label would shove its neighbours sideways
+                // on every page change.
                 className={({ isActive }) =>
-                  `relative tracking-wider transition-colors after:absolute after:inset-x-0 after:-bottom-1.5 after:h-0.5 after:rounded-full after:bg-primary after:transition-transform after:duration-300 ${isActive ? "text-primary font-semibold after:scale-x-100" : "hover:text-primary after:scale-x-0"}`
+                  `relative tracking-wider transition-colors after:absolute after:inset-x-0 after:-bottom-1.5 after:h-0.5 after:rounded-full after:bg-primary after:transition-transform after:duration-300 ${isActive ? "text-primary after:scale-x-100" : "hover:text-primary after:scale-x-0"}`
                 }
               >
                 {l.label.toUpperCase()}

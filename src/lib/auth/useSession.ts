@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { supabase } from "@/lib/supabase/client";
 import type { AppRole } from "./permissions";
 
@@ -15,6 +15,33 @@ export type SessionUser = {
 };
 
 /**
+ * The last session any useSession read, kept across mounts. Every public page
+ * renders its own Navbar, so without this each page change started over as
+ * "loading": the header's account buttons vanished for a beat and the nav
+ * links slid across to fill the gap.
+ *
+ * Only for drawing a header while the fresh read runs — `isLoading` and `user`
+ * still wait for this mount's own read, so nothing redirects on a stale value.
+ * `undefined` until the first read; written straight from read() rather than
+ * through React state, so a read that finishes after its component unmounted
+ * still lands here.
+ */
+let lastKnown: { user: SessionUser | null } | undefined;
+const listeners = new Set<() => void>();
+
+const remember = (user: SessionUser | null) => {
+  lastKnown = { user };
+  listeners.forEach(listener => listener());
+};
+
+const subscribeLastKnown = (listener: () => void) => {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+};
+
+/**
  * The signed-in user, for rendering. Replaces the localStorage role fake.
  *
  * Reads verified JWT claims rather than the raw session, and re-reads on
@@ -26,12 +53,16 @@ export type SessionUser = {
 export const useSession = () => {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // The server snapshot is "unknown", so hydration matches the server render
+  // and the remembered value only applies to mounts after it.
+  const lastSeen = useSyncExternalStore(subscribeLastKnown, () => lastKnown, () => undefined);
 
   const read = useCallback(async () => {
     const { data, error } = await supabase.auth.getClaims();
     const claims = data?.claims;
 
     if (error || !claims?.sub) {
+      remember(null);
       setUser(null);
       setIsLoading(false);
       return;
@@ -39,7 +70,7 @@ export const useSession = () => {
 
     const metadata = (claims.user_metadata ?? {}) as { full_name?: string; avatar_url?: string };
 
-    setUser({
+    const fromToken: SessionUser = {
       id: claims.sub,
       email: typeof claims.email === "string" ? claims.email : null,
       fullName: metadata.full_name ?? null,
@@ -48,7 +79,9 @@ export const useSession = () => {
       avatarUrl: metadata.avatar_url ?? null,
       role: typeof claims.user_role === "string" ? (claims.user_role as AppRole) : null,
       tenantId: typeof claims.tenant_id === "string" ? claims.tenant_id : null,
-    });
+    };
+    remember(fromToken);
+    setUser(fromToken);
     setIsLoading(false);
 
     /**
@@ -66,11 +99,15 @@ export const useSession = () => {
       .maybeSingle();
 
     if (profile) {
-      setUser(current => (current ? {
+      const withProfile = (current: SessionUser): SessionUser => ({
         ...current,
         fullName: profile.full_name ?? current.fullName,
         avatarUrl: profile.avatar_url ?? current.avatarUrl,
-      } : current));
+      });
+      // Only onto the same person: a sign-in as someone else may have landed
+      // while this query was in flight.
+      if (lastKnown?.user?.id === claims.sub) remember(withProfile(lastKnown.user));
+      setUser(current => (current ? withProfile(current) : current));
     }
   }, []);
 
@@ -86,10 +123,11 @@ export const useSession = () => {
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
+    remember(null);
     setUser(null);
   }, []);
 
-  return { user, isLoading, signOut, refresh: read };
+  return { user, isLoading, lastSeen, signOut, refresh: read };
 };
 
 /** Display name with sensible fallbacks — never renders as blank. */
