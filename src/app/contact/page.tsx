@@ -14,15 +14,21 @@ export const revalidate = 60;
 export default async function ContactPage() {
   const supabase = createPublicSupabase();
 
-  const { data, error } = await supabase
-    .from("cms_pages")
-    .select("blocks")
-    .eq("slug", "contact")
-    .eq("published", true)
-    .maybeSingle();
+  const [{ data, error }, settingsResult] = await Promise.all([
+    supabase
+      .from("cms_pages")
+      .select("blocks")
+      .eq("slug", "contact")
+      .eq("published", true)
+      .maybeSingle(),
+    supabase.from("global_settings").select("support_email").maybeSingle(),
+  ]);
 
   if (error) {
     console.error("Failed to load contact page CMS content:", error);
+  }
+  if (settingsResult.error) {
+    console.error("Failed to load the support email for the contact page:", settingsResult.error);
   }
 
   // Unpublished in the CMS: RLS returns no row to an anonymous reader, so an
@@ -33,6 +39,17 @@ export default async function ContactPage() {
   const locale = (await getLocale()) as Locale;
   const hero = blocksToHero(data?.blocks, "contact", locale);
   const content = blocksToContactContent(data?.blocks, locale);
+
+  // The first email card shows the support address from /super/global-settings,
+  // the same one the footer shows, so it is changed in one place. Its title and
+  // note stay the CMS's; with no address set there, the CMS's own stands.
+  const supportEmail = settingsResult.data?.support_email?.trim();
+  const firstEmail = content.support.channels.findIndex((c) => c.href.startsWith("mailto:") || c.icon === "Mail");
+  if (supportEmail && firstEmail !== -1) {
+    content.support.channels = content.support.channels.map((c, i) =>
+      i === firstEmail ? { ...c, value: supportEmail, href: `mailto:${supportEmail}` } : c,
+    );
+  }
 
   return <Contact hero={hero} content={content} />;
 }
