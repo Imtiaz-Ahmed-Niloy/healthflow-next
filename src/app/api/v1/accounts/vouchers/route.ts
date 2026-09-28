@@ -28,6 +28,11 @@ const lineSchema = z
     account_id: z.string().uuid("Pick an account"),
     debit: money.optional().default(0),
     credit: money.optional().default(0),
+    // Each entry's own details (0106). The form sends an entry as a debit
+    // line and a credit line, both carrying the same three.
+    party: z.string().trim().max(200).optional().or(z.literal("")),
+    narration: z.string().trim().max(2000).optional().or(z.literal("")),
+    cost_center_id: z.string().uuid("Pick a cost center").optional().or(z.literal("")),
   })
   .refine(l => (l.debit > 0) !== (l.credit > 0), {
     message: "Each line is either a debit or a credit, not both and not neither",
@@ -76,7 +81,24 @@ export const POST = async (request: Request) => {
     );
   }
 
-  const { entry_no, entry_date, type, party, narration, lines, post, cost_center_id } = parsed.data;
+  const { entry_no, entry_date, type, lines, post } = parsed.data;
+
+  /**
+   * The voucher's own party, narration and cost center, which the voucher
+   * list, its search and its export read. When the request leaves them out,
+   * they come from the lines: every distinct party and narration in order, and
+   * the cost center only if every line carries the same one. Not merely the
+   * lines that name one: ledger_movements falls back to the voucher's center
+   * for an untagged line, so a partial match would book untagged lines to it.
+   */
+  const distinct = (values: (string | undefined)[]) =>
+    [...new Set(values.map(v => v?.trim()).filter((v): v is string => Boolean(v)))];
+  const party = parsed.data.party || distinct(lines.map(l => l.party)).join(", ").slice(0, 200);
+  const narration = parsed.data.narration || distinct(lines.map(l => l.narration)).join("; ").slice(0, 2000);
+  const sharedCenter = lines.every(l => l.cost_center_id && l.cost_center_id === lines[0].cost_center_id)
+    ? lines[0].cost_center_id
+    : "";
+  const cost_center_id = parsed.data.cost_center_id || sharedCenter;
 
   const supabase = await createServerSupabase();
   const { data, error } = await supabase.rpc("record_voucher", {

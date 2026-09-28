@@ -1149,9 +1149,18 @@ const VoucherModal = ({ open, onClose, ledgers, centers, vouchers, onSaved }: {
 }) => {
   const { t, typeLabel } = useAccountWords();
   const tc = useTranslations("common");
+  const { formatCurrency } = useFormatters();
+  /**
+   * One voucher, many entries (0106). The number, date, type and status are the
+   * voucher's; each entry is a debit ledger, a credit ledger and an amount with
+   * its own party, cost center and narration, and is sent as a debit line and a
+   * credit line carrying those three.
+   */
+  const blankEntry = () => ({ party: "", ledgerDr: "", ledgerCr: "", amount: "", cost_center_id: "", narration: "" });
+  type Entry = ReturnType<typeof blankEntry>;
   const blank = () => ({
-    no: "", date: today(), type: "payment" as VoucherType, party: "", ledgerDr: "", ledgerCr: "",
-    amount: "", narration: "", status: "posted" as "posted" | "draft", cost_center_id: "",
+    no: "", date: today(), type: "payment" as VoucherType, status: "posted" as "posted" | "draft",
+    entries: [blankEntry()],
   });
   const [f, setF] = useState(blank);
   const [saving, setSaving] = useState(false);
@@ -1162,15 +1171,28 @@ const VoucherModal = ({ open, onClose, ledgers, centers, vouchers, onSaved }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  const setEntry = (index: number, patch: Partial<Entry>) =>
+    setF(prev => ({ ...prev, entries: prev.entries.map((e, i) => (i === index ? { ...e, ...patch } : e)) }));
+  const addEntry = () => setF(prev => ({ ...prev, entries: [...prev.entries, blankEntry()] }));
+  const removeEntry = (index: number) =>
+    setF(prev => ({ ...prev, entries: prev.entries.filter((_, i) => i !== index) }));
+
+  const total = f.entries.reduce((sum, e) => sum + (Number(e.amount) > 0 ? Number(e.amount) : 0), 0);
+
   const submit = async () => {
-    const amount = Number(f.amount);
-    if (!f.no.trim() || !f.ledgerDr || !f.ledgerCr || !(amount > 0)) {
-      toast.error(t("form.missing"), { description: t("form.voucherMissing") });
+    if (!f.no.trim() || !f.date) {
+      toast.error(t("form.missing"), { description: t("form.voucherNoMissing") });
       return;
     }
-    if (f.ledgerDr === f.ledgerCr) {
-      toast.error(t("form.sameLedger"), { description: t("form.sameLedgerBody") });
-      return;
+    for (const [i, e] of f.entries.entries()) {
+      if (!e.ledgerDr || !e.ledgerCr || !(Number(e.amount) > 0)) {
+        toast.error(t("form.missing"), { description: t("form.entryMissing", { n: i + 1 }) });
+        return;
+      }
+      if (e.ledgerDr === e.ledgerCr) {
+        toast.error(t("form.sameLedger"), { description: t("form.sameLedgerEntry", { n: i + 1 }) });
+        return;
+      }
     }
     setSaving(true);
     try {
@@ -1181,14 +1203,17 @@ const VoucherModal = ({ open, onClose, ledgers, centers, vouchers, onSaved }: {
           entry_no: f.no.trim(),
           entry_date: f.date,
           type: f.type,
-          party: f.party.trim(),
-          narration: f.narration.trim(),
-          cost_center_id: f.cost_center_id,
           post: f.status === "posted",
-          lines: [
-            { account_id: f.ledgerDr, debit: amount, credit: 0 },
-            { account_id: f.ledgerCr, debit: 0, credit: amount },
-          ],
+          // The voucher's own party, narration and cost center are filled from
+          // these by the API.
+          lines: f.entries.flatMap(e => {
+            const amount = Number(e.amount);
+            const details = { party: e.party.trim(), narration: e.narration.trim(), cost_center_id: e.cost_center_id };
+            return [
+              { account_id: e.ledgerDr, debit: amount, credit: 0, ...details },
+              { account_id: e.ledgerCr, debit: 0, credit: amount, ...details },
+            ];
+          }),
         }),
       });
       const body = await res.json().catch(() => null);
@@ -1205,10 +1230,11 @@ const VoucherModal = ({ open, onClose, ledgers, centers, vouchers, onSaved }: {
   };
 
   return (
-    <Modal open={open} onClose={() => !saving && onClose()} title={t("form.newVoucher")}
+    <Modal open={open} onClose={() => !saving && onClose()} title={t("form.newVoucher")} size="xl"
       footer={<><Btn variant="ghost" onClick={onClose} disabled={saving}>{tc("cancel")}</Btn>
         <Btn onClick={submit} disabled={saving}>{saving ? tc("saving") : f.status === "posted" ? t("form.postVoucher") : t("form.saveDraft")}</Btn></>}>
-      <div className="grid sm:grid-cols-2 gap-3">
+      {/* The voucher: its number, date, type and whether it posts now. */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Field label={t("form.voucherNo")} required><Input value={f.no} onChange={e => setF({ ...f, no: e.target.value })} placeholder="PMT-0190" /></Field>
         <Field label={t("cols.date")} required><Input type="date" value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></Field>
         <Field label={t("cols.type")}>
@@ -1221,32 +1247,62 @@ const VoucherModal = ({ open, onClose, ledgers, centers, vouchers, onSaved }: {
             {VOUCHER_TYPES.map(v => <option key={v.value} value={v.value}>{typeLabel(v.value)}</option>)}
           </Select>
         </Field>
-        <Field label={t("form.party")}><Input value={f.party} onChange={e => setF({ ...f, party: e.target.value })} /></Field>
-        <Field label={t("form.debitLedger")} required>
-          <Select value={f.ledgerDr} onChange={e => setF({ ...f, ledgerDr: e.target.value })}>
-            <option value="">{t("form.select")}</option>
-            {ledgers.map(l => <option key={l.id} value={l.id}>{l.code} · {l.name}</option>)}
-          </Select>
-        </Field>
-        <Field label={t("form.creditLedger")} required>
-          <Select value={f.ledgerCr} onChange={e => setF({ ...f, ledgerCr: e.target.value })}>
-            <option value="">{t("form.select")}</option>
-            {ledgers.map(l => <option key={l.id} value={l.id}>{l.code} · {l.name}</option>)}
-          </Select>
-        </Field>
-        <Field label={t("cols.amount")} required><Input type="number" min={0} step="0.01" value={f.amount} onChange={e => setF({ ...f, amount: e.target.value })} /></Field>
         <Field label={t("cols.status")}>
           <Select value={f.status} onChange={e => setF({ ...f, status: e.target.value as "posted" | "draft" })}>
             <option value="posted">{t("posted")}</option><option value="draft">{t("draft")}</option>
           </Select>
         </Field>
-        <Field label={t("form.costCenter")}>
-          <Select value={f.cost_center_id} onChange={e => setF({ ...f, cost_center_id: e.target.value })}>
-            <option value="">{t("form.none")}</option>
-            {centers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </Select>
-        </Field>
-        <div className="sm:col-span-2"><Field label={t("form.narration")}><Input value={f.narration} onChange={e => setF({ ...f, narration: e.target.value })} /></Field></div>
+      </div>
+
+      {/* Its entries: each a debit, a credit and an amount, with its own
+          party, cost center and narration. */}
+      <div className="space-y-3">
+        <p className="text-xs font-bold tracking-wider text-muted-foreground">{t("form.entries").toUpperCase()}</p>
+        {f.entries.map((e, i) => (
+          <div key={i} className="rounded-xl border border-border/60 bg-muted/20 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-semibold text-primary">{t("form.entry", { n: i + 1 })}</span>
+              {f.entries.length > 1 && (
+                <button type="button" onClick={() => removeEntry(i)} aria-label={t("form.removeEntry", { n: i + 1 })}
+                  className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <Field label={t("form.party")}><Input value={e.party} onChange={ev => setEntry(i, { party: ev.target.value })} /></Field>
+              <Field label={t("form.debitLedger")} required>
+                <Select value={e.ledgerDr} onChange={ev => setEntry(i, { ledgerDr: ev.target.value })}>
+                  <option value="">{t("form.select")}</option>
+                  {ledgers.map(l => <option key={l.id} value={l.id}>{l.code} · {l.name}</option>)}
+                </Select>
+              </Field>
+              <Field label={t("form.creditLedger")} required>
+                <Select value={e.ledgerCr} onChange={ev => setEntry(i, { ledgerCr: ev.target.value })}>
+                  <option value="">{t("form.select")}</option>
+                  {ledgers.map(l => <option key={l.id} value={l.id}>{l.code} · {l.name}</option>)}
+                </Select>
+              </Field>
+              <Field label={t("cols.amount")} required>
+                <Input type="number" min={0} step="0.01" value={e.amount} onChange={ev => setEntry(i, { amount: ev.target.value })} />
+              </Field>
+              <Field label={t("form.costCenter")}>
+                <Select value={e.cost_center_id} onChange={ev => setEntry(i, { cost_center_id: ev.target.value })}>
+                  <option value="">{t("form.none")}</option>
+                  {centers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </Select>
+              </Field>
+              <Field label={t("form.narration")}><Input value={e.narration} onChange={ev => setEntry(i, { narration: ev.target.value })} /></Field>
+            </div>
+          </div>
+        ))}
+        <div className="flex items-center justify-between gap-3">
+          <Btn variant="outline" onClick={addEntry}><Plus className="h-4 w-4" /> {t("form.addEntry")}</Btn>
+          <p className="text-sm">
+            <span className="text-muted-foreground">{t("form.total")}: </span>
+            <span className="font-semibold text-primary tabular-nums">{formatCurrency(total)}</span>
+          </p>
+        </div>
       </div>
       {f.status === "posted" && (
         <p className="text-[11px] text-muted-foreground -mt-1">{t("form.postedNote")}</p>

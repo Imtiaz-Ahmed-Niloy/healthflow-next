@@ -224,6 +224,7 @@ export type Database = {
           bp_diastolic: number | null
           bp_systolic: number | null
           complaints: Json
+          completed_at: string | null
           consultation_started_at: string | null
           created_at: string
           department: string | null
@@ -249,6 +250,7 @@ export type Database = {
           bp_diastolic?: number | null
           bp_systolic?: number | null
           complaints?: Json
+          completed_at?: string | null
           consultation_started_at?: string | null
           created_at?: string
           department?: string | null
@@ -274,6 +276,7 @@ export type Database = {
           bp_diastolic?: number | null
           bp_systolic?: number | null
           complaints?: Json
+          completed_at?: string | null
           consultation_started_at?: string | null
           created_at?: string
           department?: string | null
@@ -2362,29 +2365,38 @@ export type Database = {
       journal_lines: {
         Row: {
           account_id: string
+          cost_center_id: string | null
           created_at: string
           credit: number
           debit: number
           entry_id: string
           id: string
+          narration: string | null
+          party: string | null
           tenant_id: string
         }
         Insert: {
           account_id: string
+          cost_center_id?: string | null
           created_at?: string
           credit?: number
           debit?: number
           entry_id: string
           id?: string
+          narration?: string | null
+          party?: string | null
           tenant_id: string
         }
         Update: {
           account_id?: string
+          cost_center_id?: string | null
           created_at?: string
           credit?: number
           debit?: number
           entry_id?: string
           id?: string
+          narration?: string | null
+          party?: string | null
           tenant_id?: string
         }
         Relationships: [
