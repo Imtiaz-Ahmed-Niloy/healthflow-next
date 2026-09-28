@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { BRAND_INFO } from "@/constants/brand";
 import { defaultFooterContent, useFooterContent } from "@/data/footerContent";
+import { useGetGlobalSettingsQuery } from "@/redux/api/superApi";
 import { useIsPageVisible } from "./PublishedPages";
 
 /**
@@ -26,6 +27,11 @@ const Footer = () => {
   const t = useTranslations("footer");
   const { content } = useFooterContent();
   const isVisible = useIsPageVisible();
+  // The phone number is set in /super/global-settings (0104). Nothing is shown
+  // until the row has loaded — rather than the old number flashing first — and
+  // a cleared field hides the chip.
+  const { data: globalSettings } = useGetGlobalSettingsQuery();
+  const phone = globalSettings?.data.support_phone?.trim() || null;
 
   /**
    * Text still at its shipped default is translated; text someone changed is
@@ -101,8 +107,8 @@ const Footer = () => {
             <div className="mt-6 flex flex-wrap gap-3">
               {[
                 { href: `mailto:${BRAND_INFO.email}`, label: t("email"), value: BRAND_INFO.email, Icon: Mail },
-                // tel: wants the number without the spaces it is printed with.
-                { href: `tel:${BRAND_INFO.phone.replace(/\s+/g, "")}`, label: t("phone"), value: BRAND_INFO.phone, Icon: Phone },
+                // tel: wants only the digits and the leading +.
+                ...(phone ? [{ href: `tel:${phone.replace(/[^\d+]/g, "")}`, label: t("phone"), value: phone, Icon: Phone }] : []),
               ].map(({ href, label, value, Icon }) => (
                 <a
                   key={label}

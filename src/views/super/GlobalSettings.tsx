@@ -37,6 +37,7 @@ type Draft = Required<Pick<
   "timezone" | "language" | "currency" | "date_format" | "time_format" | "maintenance_mode"
 >> & {
   support_email: string;
+  support_phone: string;
   maintenance_message: string;
 };
 
@@ -47,6 +48,7 @@ const toDraft = (row: GlobalSettingsRow): Draft => ({
   date_format: row.date_format,
   time_format: row.time_format,
   support_email: row.support_email ?? "",
+  support_phone: row.support_phone ?? "",
   maintenance_mode: row.maintenance_mode,
   maintenance_message: row.maintenance_message ?? "",
 });
@@ -130,6 +132,7 @@ const GlobalSettings = () => {
       time_format: draft.time_format,
       // "" is a cleared field, and the column takes null for that.
       support_email: draft.support_email.trim() || null,
+      support_phone: draft.support_phone.trim() || null,
       maintenance_mode: draft.maintenance_mode,
       maintenance_message: draft.maintenance_message.trim() || null,
     };
@@ -229,6 +232,19 @@ const GlobalSettings = () => {
                     className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">{t("fields.supportHint")}</p>
+                </div>
+
+                <div>
+                  <Label htmlFor="gs-phone">{t("fields.supportPhone")}</Label>
+                  <input
+                    id="gs-phone"
+                    type="tel"
+                    value={draft.support_phone}
+                    onChange={(e) => setDraft({ ...draft, support_phone: e.target.value })}
+                    placeholder="+880 1700 000000"
+                    className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">{t("fields.supportPhoneHint")}</p>
                 </div>
               </div>
 

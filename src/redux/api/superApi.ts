@@ -16,7 +16,7 @@ export type GlobalSettingsPatch = Partial<
   Pick<
     GlobalSettingsRow,
     | "timezone" | "language" | "currency" | "date_format" | "time_format"
-    | "support_email" | "maintenance_mode" | "maintenance_message"
+    | "support_email" | "support_phone" | "maintenance_mode" | "maintenance_message"
   >
 >;
 

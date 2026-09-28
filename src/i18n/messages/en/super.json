@@ -355,7 +355,9 @@
         "language": "Language",
         "languageHint": "Applies to the panels; hospital content is written in whatever language its author used.",
         "supportEmail": "Support email",
-        "supportHint": "Shown on the maintenance notice. Leave it empty rather than wrong."
+        "supportHint": "Shown on the maintenance notice. Leave it empty rather than wrong.",
+        "supportPhone": "Support phone",
+        "supportPhoneHint": "Shown in the website footer. Leave it empty to hide it."
       },
       "currencies": {
         "BDT": "Bangladeshi taka (BDT)",

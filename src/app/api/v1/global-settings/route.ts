@@ -43,6 +43,13 @@ const patchSchema = z.object({
     blankToNull,
     z.string().trim().email("That is not an email address").nullable().optional(),
   ),
+  // Same shape as global_settings_support_phone_check (0104).
+  support_phone: z.preprocess(
+    blankToNull,
+    z.string().trim()
+      .regex(/^\+?[0-9 ()-]{6,24}$/, "Use digits, spaces, dashes or brackets, with an optional leading +")
+      .nullable().optional(),
+  ),
   maintenance_mode: z.boolean().optional(),
   maintenance_message: z.preprocess(
     blankToNull,
