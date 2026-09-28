@@ -50,10 +50,27 @@ import { myDoctorRows } from "@/server/portal/myDoctors";
  * (e.g. Queue's "Seen Today" list) shows the real chart instead of a blank
  * one. Before submission, the client's own localStorage draft is the only
  * copy (crash recovery) — this route only ever sees it at submit time.
+ *
+ * A submitted visit can be submitted again for 24 hours, to correct it
+ * (0107): "complete" then saves the chart and leaves the status alone. After
+ * that it answers 409, and the database refuses the write regardless.
  */
 
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status });
 const fail = (message: string, status: number) => json({ error: { message } }, status);
+
+/**
+ * How long a submitted prescription stays editable (0107). The database holds
+ * the same 24 hours and refuses a late change whatever this route decides;
+ * this copy is for telling the doctor in advance.
+ */
+const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/** When a visit submitted at `completedAt` stops being editable. */
+const editableUntil = (completedAt: string | null) =>
+  completedAt ? new Date(new Date(completedAt).getTime() + EDIT_WINDOW_MS).toISOString() : null;
+
+const LOCKED_MESSAGE = "This prescription was submitted more than 24 hours ago and can no longer be changed.";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -136,7 +153,7 @@ export const GET = async (_request: Request, context: RouteContext) => {
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
     .select(
-      "id, patient_id, scheduled_date, department, notes, status, tenant_id, walk_in, bp_systolic, bp_diastolic, complaints, examination, investigation, diagnosis, medicines, advice, follow_up_date"
+      "id, patient_id, scheduled_date, department, notes, status, completed_at, tenant_id, walk_in, bp_systolic, bp_diastolic, complaints, examination, investigation, diagnosis, medicines, advice, follow_up_date"
     )
     .eq("id", id)
     .in("doctor_id", doctor.ids) // never lets a doctor open another doctor's patient
@@ -189,6 +206,9 @@ export const GET = async (_request: Request, context: RouteContext) => {
         department: appointment.department,
         notes: appointment.notes,
         status: appointment.status,
+        // A submitted prescription may be corrected until this moment (0107);
+        // null while the visit is still open.
+        editable_until: appointment.status === "completed" ? editableUntil(appointment.completed_at) : null,
         // Where it is, and whether it may move there from here (0091).
         tenant_id: appointment.tenant_id,
         walk_in: appointment.walk_in,
@@ -288,7 +308,7 @@ export const PATCH = async (request: Request, context: RouteContext) => {
   // load it once up front.
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
-    .select("id, patient_id")
+    .select("id, patient_id, status, completed_at")
     .eq("id", id)
     .in("doctor_id", doctor.ids)
     .maybeSingle();
@@ -303,28 +323,40 @@ export const PATCH = async (request: Request, context: RouteContext) => {
   }
 
   if (parsed.data.action === "complete") {
+    const content = {
+      ...(parsed.data.complaints !== undefined ? { complaints: parsed.data.complaints } : {}),
+      ...(parsed.data.examination !== undefined ? { examination: parsed.data.examination } : {}),
+      ...(parsed.data.investigation !== undefined ? { investigation: parsed.data.investigation } : {}),
+      ...(parsed.data.diagnosis !== undefined ? { diagnosis: parsed.data.diagnosis } : {}),
+      ...(parsed.data.medicines !== undefined ? { medicines: parsed.data.medicines } : {}),
+      ...(parsed.data.advice !== undefined ? { advice: parsed.data.advice } : {}),
+      ...(parsed.data.follow_up_date !== undefined ? { follow_up_date: parsed.data.follow_up_date } : {}),
+    };
+
+    // Already submitted: within 24 hours this is a correction, saved over the
+    // chart without touching the status (0107). After that it is refused —
+    // here, and by the database if anything slips past.
+    const resubmit = appointment.status === "completed";
+    if (resubmit) {
+      const until = editableUntil(appointment.completed_at);
+      if (!until || Date.now() >= new Date(until).getTime()) return fail(LOCKED_MESSAGE, 409);
+    }
+
     const { data, error } = await supabase
       .from("appointments")
-      .update({
-        status: "completed",
-        ...(parsed.data.complaints !== undefined ? { complaints: parsed.data.complaints } : {}),
-        ...(parsed.data.examination !== undefined ? { examination: parsed.data.examination } : {}),
-        ...(parsed.data.investigation !== undefined ? { investigation: parsed.data.investigation } : {}),
-        ...(parsed.data.diagnosis !== undefined ? { diagnosis: parsed.data.diagnosis } : {}),
-        ...(parsed.data.medicines !== undefined ? { medicines: parsed.data.medicines } : {}),
-        ...(parsed.data.advice !== undefined ? { advice: parsed.data.advice } : {}),
-        ...(parsed.data.follow_up_date !== undefined ? { follow_up_date: parsed.data.follow_up_date } : {}),
-      })
+      .update(resubmit ? content : { status: "completed", ...content })
       .eq("id", id)
-      .eq("status", "scheduled")
-      .select("id, status")
+      .eq("status", resubmit ? "completed" : "scheduled")
+      .select("id, status, completed_at")
       .maybeSingle();
 
+    // The window closed between the check above and the write.
+    if (error?.hint === "prescription_locked") return fail(LOCKED_MESSAGE, 409);
     if (error) return fail(error.message, 500);
-    // The appointment was loaded above, so no row here means it exists but
-    // is no longer scheduled. 409 lets the page explain that properly
-    // instead of reading like a missing record.
-    if (!data) return fail("This visit was already submitted.", 409);
+    // The appointment was loaded above, so no row here means its status
+    // changed underneath us — cancelled, most likely. 409 lets the page
+    // explain that properly instead of reading like a missing record.
+    if (!data) return fail("This visit can no longer be submitted.", 409);
 
     // Usage counts (0029_doctor_medicine_usage.sql, for the picker's "most
     // used" list) are NOT recorded here -- that happens the moment a
@@ -332,7 +364,9 @@ export const PATCH = async (request: Request, context: RouteContext) => {
     // from saveMedicine), not on final submit. Doing it again here would
     // double-count every medicine already on this chart.
 
-    return json({ data });
+    return json({
+      data: { id: data.id, status: data.status, corrected: resubmit, editable_until: editableUntil(data.completed_at) },
+    });
   }
 
   if (parsed.data.action === "update_vitals") {

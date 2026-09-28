@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { rememberedPlace, rememberPlace } from "@/lib/rxPlace";
+import { useFormatters } from "@/lib/appSettings";
 import { SuggestInput, type Suggestion } from "@/components/portal/SuggestInput";
 import { MedicineSig, formKind, isSigFilled, needsMeal } from "@/components/portal/MedicineSig";
 import { useInvestigations } from "@/hooks/useInvestigations";
@@ -96,6 +97,8 @@ type ConsultationCtx = {
     department: string | null;
     notes: string | null;
     status: string;
+    /** A submitted prescription may be corrected until this ISO time (0107); null while open. */
+    editable_until?: string | null;
     /** Where the visit is (a hospital or chamber), and whether it may be moved (0091). */
     tenant_id?: string;
     walk_in?: boolean;
@@ -380,6 +383,7 @@ const Prescription = () => {
   const tc = useTranslations("common");
   const tr = useTranslations("rxSheet");
   const locale = useLocale();
+  const { formatDateTime } = useFormatters();
 
   const formatDate = (iso: string) =>
     new Date(`${iso}T00:00:00`).toLocaleDateString(locale === "bn" ? "bn-BD-u-nu-latn" : "en-US", { month: "short", day: "2-digit", year: "numeric" });
@@ -940,6 +944,18 @@ type SidebarQueueEntry = {
     setter((arr) => arr.filter((_, idx) => idx !== i));
 
   const [alreadyClosedOpen, setAlreadyClosedOpen] = useState(false);
+
+  // The 24-hour correction window (0107). `now` ticks each minute, so a pad
+  // left open past the deadline locks itself without a reload.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+  const submittedVisit = ctx?.appointment.status === "completed";
+  const editableUntil = ctx?.appointment.editable_until ?? null;
+  const stillEditable = submittedVisit && !!editableUntil && now < new Date(editableUntil).getTime();
+
   const handleSubmit = async () => {
     if (!appointmentId) {
       // Still show the preview — seeing the finished sheet is useful even
@@ -966,12 +982,16 @@ type SidebarQueueEntry = {
       } else if (!res.ok) {
         toast.error(body?.error?.message || t("completeFailed"));
       } else {
-        toast.success(t("completed"));
+        // A resubmission inside the 24 hours corrects the chart (0107).
+        toast.success(body?.data?.corrected ? t("prescriptionUpdated") : t("completed"));
         setCtx((c) =>
           c
             ? {
                 ...c,
-                appointment: { ...c.appointment, status: "completed", complaints, examination, investigation, diagnosis, medicines, advice, follow_up_date: followUp },
+                appointment: {
+                  ...c.appointment, status: "completed", complaints, examination, investigation, diagnosis, medicines, advice, follow_up_date: followUp,
+                  editable_until: body?.data?.editable_until ?? c.appointment.editable_until ?? null,
+                },
                 // Now a finished visit, so it joins Patient History straight away.
                 history: c.history.some((h) => h.id === c.appointment.id)
                   ? c.history
@@ -1748,11 +1768,25 @@ type SidebarQueueEntry = {
       </div>
 
       {/* Actions */}
-      <div className="mt-10 flex items-center justify-between border-t border-border/60 pt-6">
+      {/* A submitted prescription can be corrected for 24 hours (0107): say
+          until when, or that it is final, above the buttons. */}
+      {submittedVisit && (
+        <p className={`mt-10 rounded-xl px-4 py-3 text-sm ${stillEditable ? "bg-chip text-primary" : "bg-muted text-muted-foreground"}`}>
+          {stillEditable && editableUntil ? t("editableUntil", { time: formatDateTime(editableUntil) }) : t("lockedNote")}
+        </p>
+      )}
+      <div className={`${submittedVisit ? "mt-4" : "mt-10"} flex items-center justify-between border-t border-border/60 pt-6`}>
         <button onClick={() => toast.success(t("savedDraft"))} className="rounded-full border border-border px-6 py-3 text-sm font-semibold text-primary hover:bg-chip transition-colors">{t("saveDraft")}</button>
-        <button onClick={handleSubmit} disabled={submitting} className="flex items-center gap-2 rounded-full bg-gradient-dark text-surface-dark-foreground px-7 py-3 text-sm font-semibold hover:opacity-90 shadow-glow disabled:opacity-60">
-          <Printer className="h-4 w-4" /> {submitting ? t("submitting") : t("printSubmit")}
-        </button>
+        {submittedVisit && !stillEditable ? (
+          // Final: the only thing left to do is print what was submitted.
+          <button onClick={() => { setPreviewSaved(true); setPreviewOpen(true); }} className="flex items-center gap-2 rounded-full bg-gradient-dark text-surface-dark-foreground px-7 py-3 text-sm font-semibold hover:opacity-90 shadow-glow">
+            <Printer className="h-4 w-4" /> {t("printSubmitted")}
+          </button>
+        ) : (
+          <button onClick={handleSubmit} disabled={submitting} className="flex items-center gap-2 rounded-full bg-gradient-dark text-surface-dark-foreground px-7 py-3 text-sm font-semibold hover:opacity-90 shadow-glow disabled:opacity-60">
+            <Printer className="h-4 w-4" /> {submitting ? t("submitting") : submittedVisit ? t("saveChanges") : t("printSubmit")}
+          </button>
+        )}
       </div>
 
       <Dialog open={alreadyClosedOpen} onOpenChange={setAlreadyClosedOpen}>
