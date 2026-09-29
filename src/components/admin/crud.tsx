@@ -221,7 +221,7 @@ export const RowActions = ({ onView, onEdit, onDelete, extra, before }: {
   const t = useTranslations("crud");
   const tc = useTranslations("common");
   return (
-    <div className="inline-flex items-center gap-1">
+    <div data-row-actions className="inline-flex items-center gap-1 print:hidden">
       {before}
       {onView && <button onClick={onView} className="p-1.5 rounded-lg hover:bg-muted text-foreground/70" title={t("view")} aria-label={t("view")}><Eye className="h-4 w-4" /></button>}
       {onEdit && <button onClick={onEdit} className="p-1.5 rounded-lg hover:bg-muted text-foreground/70" title={tc("edit")} aria-label={tc("edit")}><Pencil className="h-4 w-4" /></button>}

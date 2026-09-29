@@ -219,4 +219,27 @@
     size: A4;
     margin: 0;
   }
+
+  /* Reports printed as the page itself (the /admin/accounts tabs), not a
+     print area: a named page gives them a real margin on every sheet, where
+     the margin-0 page above suits only the one-sheet prescription and
+     invoice. The table cell that held a row's edit/delete buttons goes too. */
+  .print-report {
+    page: report;
+  }
+  /* The `body * { visibility: hidden }` above is for the print areas; a
+     report is the page, so it shows. What it should not print — layout,
+     buttons, filters — is display:none through print: classes instead. */
+  .print-report,
+  .print-report * {
+    visibility: visible;
+  }
+  td:has(> [data-row-actions]) {
+    display: none;
+  }
+}
+
+@page report {
+  size: A4;
+  margin: 12mm;
 }

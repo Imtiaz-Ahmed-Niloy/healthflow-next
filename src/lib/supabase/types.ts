@@ -1724,6 +1724,9 @@ export type Database = {
           status: Database["public"]["Enums"]["doctor_status"]
           tenant_id: string | null
           updated_at: string
+          person_key: string | null
+          source_ref: string | null
+          designation: string | null
         }
         Insert: {
           availability?: string | null
@@ -2306,6 +2309,7 @@ export type Database = {
           party: string | null
           reconciled_on: string | null
           status: Database["public"]["Enums"]["journal_status"]
+          status_note: string | null
           tenant_id: string
           type: Database["public"]["Enums"]["voucher_type"]
           updated_at: string
@@ -2320,6 +2324,7 @@ export type Database = {
           party?: string | null
           reconciled_on?: string | null
           status?: Database["public"]["Enums"]["journal_status"]
+          status_note?: string | null
           tenant_id: string
           type?: Database["public"]["Enums"]["voucher_type"]
           updated_at?: string
@@ -2334,6 +2339,7 @@ export type Database = {
           party?: string | null
           reconciled_on?: string | null
           status?: Database["public"]["Enums"]["journal_status"]
+          status_note?: string | null
           tenant_id?: string
           type?: Database["public"]["Enums"]["voucher_type"]
           updated_at?: string
@@ -4057,9 +4063,14 @@ export type Database = {
       }
       stock_items: {
         Row: {
+          company_name: string | null
           created_at: string
+          distributor_name: string | null
           id: string
+          invoice_no: string | null
           name: string
+          purchase_date: string | null
+          purchase_details: string | null
           qty: number
           rate: number
           reorder: number
@@ -4069,9 +4080,14 @@ export type Database = {
           value: number | null
         }
         Insert: {
+          company_name?: string | null
           created_at?: string
+          distributor_name?: string | null
           id?: string
+          invoice_no?: string | null
           name: string
+          purchase_date?: string | null
+          purchase_details?: string | null
           qty?: number
           rate?: number
           reorder?: number
@@ -4081,9 +4097,14 @@ export type Database = {
           value?: number | null
         }
         Update: {
+          company_name?: string | null
           created_at?: string
+          distributor_name?: string | null
           id?: string
+          invoice_no?: string | null
           name?: string
+          purchase_date?: string | null
+          purchase_details?: string | null
           qty?: number
           rate?: number
           reorder?: number
@@ -4243,6 +4264,8 @@ export type Database = {
           has_name: boolean
           id: string
           kind: Database["public"]["Enums"]["tenant_kind"]
+          listing_only: boolean
+          source_ref: string | null
           location: string | null
           logo_url: string | null
           management_body: Json
@@ -4304,6 +4327,8 @@ export type Database = {
           has_name?: boolean
           id?: string
           kind?: Database["public"]["Enums"]["tenant_kind"]
+          listing_only?: boolean
+          source_ref?: string | null
           location?: string | null
           logo_url?: string | null
           management_body?: Json
@@ -4365,6 +4390,8 @@ export type Database = {
           has_name?: boolean
           id?: string
           kind?: Database["public"]["Enums"]["tenant_kind"]
+          listing_only?: boolean
+          source_ref?: string | null
           location?: string | null
           logo_url?: string | null
           management_body?: Json
@@ -4666,6 +4693,9 @@ export type Database = {
           status: Database["public"]["Enums"]["doctor_status"] | null
           subdistrict: string | null
           tenant_id: string | null
+          bookable: boolean | null
+          serial_phone: string | null
+          designation: string | null
         }
         Relationships: [
           {
@@ -4715,6 +4745,9 @@ export type Database = {
           founded_year: number | null
           id: string | null
           is_partner: boolean | null
+          listing_only: boolean | null
+          doctors_listed: number | null
+          doctor_specialties: string[] | null
           location: string | null
           logo_url: string | null
           management_body: Json | null
@@ -4967,6 +5000,55 @@ export type Database = {
       is_my_patient_record: { Args: { p_patient_id: string }; Returns: boolean }
       is_operating_hours: { Args: { p_value: Json }; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
+      cash_flow_between: {
+        Args: { p_from?: string | null; p_to?: string | null }
+        Returns: {
+          account_id: string
+          amount: number
+          code: string
+          group: string
+          name: string
+          subgroup: string
+        }[]
+      }
+      delete_voucher: { Args: { p_entry_id: string }; Returns: undefined }
+      search_doctors_public: {
+        Args: {
+          p_district?: string | null
+          p_division?: string | null
+          p_gender?: string | null
+          p_limit?: number
+          p_offset?: number
+          p_q?: string | null
+          p_sort?: string
+          p_specialty?: string | null
+          p_upazila?: string | null
+        }
+        Returns: Json
+      }
+      password_confirmed_recently: { Args: never; Returns: boolean }
+      set_voucher_status: {
+        Args: {
+          p_entry_id: string
+          p_note?: string | null
+          p_status: Database["public"]["Enums"]["journal_status"]
+        }
+        Returns: Database["public"]["Tables"]["journal_entries"]["Row"]
+      }
+      update_voucher: {
+        Args: {
+          p_cost_center_id?: string | null
+          p_entry_date: string
+          p_entry_id: string
+          p_entry_no: string
+          p_lines: Json
+          p_narration: string | null
+          p_party: string | null
+          p_post?: boolean
+          p_type: Database["public"]["Enums"]["voucher_type"]
+        }
+        Returns: Database["public"]["Tables"]["journal_entries"]["Row"]
+      }
       ledger_balances_between: {
         Args: { p_from?: string | null; p_to?: string | null }
         Returns: {
@@ -5200,7 +5282,7 @@ export type Database = {
       id_document_holder: "self" | "emergency_contact"
       id_document_kind: "birth_certificate" | "nid" | "passport"
       id_verification_status: "pending" | "verified" | "rejected"
-      journal_status: "draft" | "posted"
+      journal_status: "draft" | "posted" | "pending" | "approved" | "rejected" | "cancelled"
       lab_order_status:
         | "pending"
         | "sample_collected"
@@ -5242,6 +5324,8 @@ export type Database = {
         | "purchase"
         | "credit_note"
         | "debit_note"
+        | "petty_cash"
+        | "stock_journal"
       ward_category:
         | "general"
         | "semi_private"
@@ -5439,7 +5523,7 @@ export const Constants = {
       id_document_holder: ["self", "emergency_contact"],
       id_document_kind: ["birth_certificate", "nid", "passport"],
       id_verification_status: ["pending", "verified", "rejected"],
-      journal_status: ["draft", "posted"],
+      journal_status: ["draft", "posted", "pending", "approved", "rejected", "cancelled"],
       lab_order_status: [
         "pending",
         "sample_collected",
@@ -5484,6 +5568,8 @@ export const Constants = {
         "purchase",
         "credit_note",
         "debit_note",
+        "petty_cash",
+        "stock_journal",
       ],
       ward_category: [
         "general",

@@ -25,6 +25,8 @@ export type AuthContext = {
    * it falls back to the one hospital.
    */
   tenantIds: string[];
+  /** The login's email, from the token. Null for a login without one. */
+  email: string | null;
 };
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -135,7 +137,7 @@ export const getAuthContext = async (): Promise<AuthContext | null> => {
 
   if (error || !data?.claims?.sub) return null;
 
-  const { sub, user_role: userRole, tenant_id: tenantId, tenant_ids: tenantIdsClaim } = data.claims;
+  const { sub, email, user_role: userRole, tenant_id: tenantId, tenant_ids: tenantIdsClaim } = data.claims;
   const main = typeof tenantId === "string" ? tenantId : null;
   const listed = Array.isArray(tenantIdsClaim)
     ? tenantIdsClaim.filter((t): t is string => typeof t === "string")
@@ -146,6 +148,7 @@ export const getAuthContext = async (): Promise<AuthContext | null> => {
     role: typeof userRole === "string" ? (userRole as AppRole) : null,
     tenantId: main,
     tenantIds: listed.length ? listed : main ? [main] : [],
+    email: typeof email === "string" && email ? email : null,
   };
 };
 

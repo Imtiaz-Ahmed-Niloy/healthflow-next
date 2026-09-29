@@ -105,7 +105,7 @@ export const journalEntriesResource: ResourceDefinition<
   updateSchema: journalEntryUpdateSchema,
 
   select:
-    "*, cost_centers ( id, name ), journal_lines ( id, debit, credit, account_id, "
+    "*, cost_centers ( id, name ), journal_lines ( id, debit, credit, account_id, party, narration, cost_center_id, "
     + "ledger_accounts ( id, code, name, group, subgroup ) )",
 
   searchFields: ["entry_no", "party", "narration"],
@@ -114,19 +114,8 @@ export const journalEntriesResource: ResourceDefinition<
 
   roles: { read: [...BOOKS_ROLES], write: [...BOOKS_ROLES] },
 
-  // The trigger in 0063 refuses to delete a posted voucher's lines, and the
-  // cascade would surface that as a Postgres error. A draft can go; a posted
-  // voucher is reversed with another one.
-  beforeDelete: async ({ id }) => {
-    const supabase = await createServerSupabase();
-    const { data } = await supabase
-      .from("journal_entries")
-      .select("status")
-      .eq("id", id)
-      .maybeSingle();
-
-    if (data?.status === "posted") {
-      return "A posted voucher cannot be deleted — record a reversing voucher instead";
-    }
-  },
+  // Deleting a voucher needs the password typed again, which the database
+  // enforces (0109). It goes through DELETE /api/v1/accounts/vouchers/:id,
+  // never this factory.
+  beforeDelete: async () => "Delete a voucher from the Accounts page — it asks for your password",
 };

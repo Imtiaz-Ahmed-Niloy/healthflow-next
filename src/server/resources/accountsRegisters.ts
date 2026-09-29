@@ -93,12 +93,30 @@ export const budgetsResource: ResourceDefinition<
 
 export const STOCK_UNITS = ["pcs", "box", "strip", "vial", "pack", "kg", "ltr"] as const;
 
+/**
+ * Optional text or date from a form. "" is a field cleared on purpose, so it
+ * saves as null — undefined would leave the old value in place on an edit.
+ */
+const clearable = (max: number) => z.preprocess(
+  value => (typeof value === "string" && value.trim() === "" ? null : value),
+  z.string().trim().max(max).nullable().optional(),
+);
+
 export const stockItemCreateSchema = z.object({
   name: z.string().trim().min(1, "An item needs a name").max(200),
   unit: z.enum(STOCK_UNITS).optional(),
   qty: count,
   rate: amount,
   reorder: count,
+  // Where it comes from (0110): the maker, the distributor, and the purchase.
+  company_name: clearable(200),
+  distributor_name: clearable(200),
+  purchase_date: z.preprocess(
+    value => (value === "" ? null : value),
+    z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a real date").nullable().optional(),
+  ),
+  invoice_no: clearable(100),
+  purchase_details: clearable(2000),
   // `value` is generated in the database (qty × rate) and deliberately
   // absent: a valuation typed in by hand is one that can be wrong.
 });
@@ -112,7 +130,7 @@ export const stockItemsResource: ResourceDefinition<
   tenantScoped: true,
   createSchema: stockItemCreateSchema,
   updateSchema: stockItemCreateSchema.partial(),
-  searchFields: ["name"],
+  searchFields: ["name", "company_name", "distributor_name", "invoice_no"],
   filterFields: ["unit"],
   defaultSort: { column: "created_at", ascending: false },
   roles: { read: [...BOOKS_ROLES], write: [...BOOKS_ROLES] },

@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { LucideIcon } from "lucide-react";
 
 export const Card = ({ children, className = "" }: { children: ReactNode; className?: string }) => (
-  <div className={`rounded-2xl bg-card border border-border/60 shadow-soft ${className}`}>{children}</div>
+  <div className={`rounded-2xl bg-card border border-border/60 shadow-soft print:shadow-none print:border-0 ${className}`}>{children}</div>
 );
 
 export const SectionTitle = ({ title, action }: { title: string; action?: ReactNode }) => (
@@ -61,7 +61,7 @@ export const Btn = ({ children, onClick, variant = "primary", className = "", ty
   };
   return (
     <button type={type} onClick={onClick} disabled={disabled} title={title}
-      className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all disabled:opacity-50 disabled:pointer-events-none ${v[variant]} ${className}`}>
+      className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all disabled:opacity-50 disabled:pointer-events-none print:hidden ${v[variant]} ${className}`}>
       {children}
     </button>
   );

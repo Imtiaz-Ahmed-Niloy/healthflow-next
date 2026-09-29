@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { createServerSupabase, getAuthContext } from "@/lib/supabase/server";
 import type { AppRole } from "@/lib/supabase/server";
+import { voucherHeader, voucherSchema } from "@/server/vouchers";
 
 /**
  * POST /api/v1/accounts/vouchers — records one voucher and its lines.
@@ -13,57 +13,13 @@ import type { AppRole } from "@/lib/supabase/server";
  *
  * The database is the authority on the accounting rules. Everything below is
  * about giving a person a sentence they can act on instead of a Postgres
- * error code.
+ * error code. The schema is shared with editing, in src/server/vouchers.ts.
  */
 
 const BOOKS_ROLES: AppRole[] = ["hospital_admin", "finance_admin"];
 
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status });
 const fail = (message: string, status: number) => json({ error: { message } }, status);
-
-const money = z.coerce.number().min(0).max(9_999_999_999);
-
-const lineSchema = z
-  .object({
-    account_id: z.string().uuid("Pick an account"),
-    debit: money.optional().default(0),
-    credit: money.optional().default(0),
-    // Each entry's own details (0106). The form sends an entry as a debit
-    // line and a credit line, both carrying the same three.
-    party: z.string().trim().max(200).optional().or(z.literal("")),
-    narration: z.string().trim().max(2000).optional().or(z.literal("")),
-    cost_center_id: z.string().uuid("Pick a cost center").optional().or(z.literal("")),
-  })
-  .refine(l => (l.debit > 0) !== (l.credit > 0), {
-    message: "Each line is either a debit or a credit, not both and not neither",
-  });
-
-const voucherSchema = z
-  .object({
-    entry_no: z.string().trim().min(1, "The voucher needs a number").max(40),
-    entry_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD"),
-    type: z.enum([
-      "payment", "receipt", "contra", "journal",
-      "sales", "purchase", "credit_note", "debit_note",
-    ]),
-    party: z.string().trim().max(200).optional().or(z.literal("")),
-    narration: z.string().trim().max(2000).optional().or(z.literal("")),
-    lines: z.array(lineSchema).min(2, "A voucher needs at least one debit and one credit"),
-    /** The department it is booked to (0074). Optional — most vouchers have none. */
-    cost_center_id: z.string().uuid("Pick a cost center").optional().or(z.literal("")),
-    /** A draft can be finished later; the balance check waits until posting. */
-    post: z.boolean().optional().default(true),
-  })
-  .refine(
-    v => {
-      const debit = v.lines.reduce((s, l) => s + l.debit, 0);
-      const credit = v.lines.reduce((s, l) => s + l.credit, 0);
-      // Compared in paisa, because 0.1 + 0.2 is not 0.3 in binary floating
-      // point and a voucher must not be refused over the last paisa.
-      return !v.post || Math.round(debit * 100) === Math.round(credit * 100);
-    },
-    { message: "This voucher does not balance — debits and credits must be equal", path: ["lines"] },
-  );
 
 export const POST = async (request: Request) => {
   const auth = await getAuthContext();
@@ -82,23 +38,7 @@ export const POST = async (request: Request) => {
   }
 
   const { entry_no, entry_date, type, lines, post } = parsed.data;
-
-  /**
-   * The voucher's own party, narration and cost center, which the voucher
-   * list, its search and its export read. When the request leaves them out,
-   * they come from the lines: every distinct party and narration in order, and
-   * the cost center only if every line carries the same one. Not merely the
-   * lines that name one: ledger_movements falls back to the voucher's center
-   * for an untagged line, so a partial match would book untagged lines to it.
-   */
-  const distinct = (values: (string | undefined)[]) =>
-    [...new Set(values.map(v => v?.trim()).filter((v): v is string => Boolean(v)))];
-  const party = parsed.data.party || distinct(lines.map(l => l.party)).join(", ").slice(0, 200);
-  const narration = parsed.data.narration || distinct(lines.map(l => l.narration)).join("; ").slice(0, 2000);
-  const sharedCenter = lines.every(l => l.cost_center_id && l.cost_center_id === lines[0].cost_center_id)
-    ? lines[0].cost_center_id
-    : "";
-  const cost_center_id = parsed.data.cost_center_id || sharedCenter;
+  const { party, narration, cost_center_id } = voucherHeader(parsed.data);
 
   const supabase = await createServerSupabase();
   const { data, error } = await supabase.rpc("record_voucher", {
@@ -106,8 +46,8 @@ export const POST = async (request: Request) => {
     p_entry_date: entry_date,
     p_type: type,
     // No default in SQL, so null goes through; the generated type forgets the column is nullable.
-    p_party: (party || null) as string,
-    p_narration: (narration || null) as string,
+    p_party: party as string,
+    p_narration: narration as string,
     p_lines: lines,
     p_post: post,
     p_cost_center_id: cost_center_id || undefined,
@@ -117,6 +57,14 @@ export const POST = async (request: Request) => {
     // 23505 = the unique index on (tenant, entry_no).
     if (error.code === "23505") return fail(`Voucher ${entry_no} already exists`, 409);
     return fail(error.message, 400);
+  }
+
+  // Sent for approval: saved as a draft above, then marked pending. Should
+  // this second step fail, the voucher is left as a draft to submit again.
+  if (parsed.data.submit && !post) {
+    const submitted = await supabase.rpc("set_voucher_status", { p_entry_id: data.id, p_status: "pending" });
+    if (submitted.error) return fail(`Saved as a draft, but not sent for approval: ${submitted.error.message}`, 400);
+    return json({ data: submitted.data }, 201);
   }
 
   return json({ data }, 201);
