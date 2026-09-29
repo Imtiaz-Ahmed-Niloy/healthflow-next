@@ -20,6 +20,7 @@ import { defaultWeek, serialiseWeek, type WeekHours } from "@/lib/hours";
 import { availabilityLabel, weekFromAvailability } from "@/lib/availability";
 import { chamberPlace, type Chamber } from "@/lib/chambers";
 import { useFormatters } from "@/lib/appSettings";
+import { useShowMore } from "@/hooks/useShowMore";
 import type { Locale } from "@/i18n/config";
 import { Stethoscope, KeyRound, Building2, UserX, UserCheck, Loader2, Copy, Plus, Trash2, Store } from "lucide-react";
 
@@ -388,6 +389,10 @@ const Doctors = () => {
         .some(v => v?.toLowerCase().includes(q));
     });
   }, [people, filter, query]);
+
+  // 7,000 people with the DrListify directory (0116): drawn fifty at a time.
+  // Search, filters and export still cover all of them.
+  const page = useShowMore(rows, [filter, query], 50);
 
   const feeText = (fee: number | null) => (fee == null ? "" : String(fee));
 
@@ -780,7 +785,7 @@ const Doctors = () => {
           </div>
         ) : (
           <DataTable<Person>
-            rows={rows}
+            rows={page.shown}
             columns={columns}
             onRow={p => setViewKey(p.key)}
             empty={t("noMatch")}
@@ -806,6 +811,11 @@ const Doctors = () => {
               />
             )}
           />
+        )}
+        {!loading && !failed && page.hasMore && (
+          <div className="mt-5 flex justify-center">
+            <Btn variant="outline" onClick={page.more}>{tc("showMore", { shown: page.shown.length, total: rows.length })}</Btn>
+          </div>
         )}
       </Card>
 

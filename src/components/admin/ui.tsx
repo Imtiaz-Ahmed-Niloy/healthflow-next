@@ -47,7 +47,8 @@ export const Pill = ({ children, tone = "default" }: { children: ReactNode; tone
     bad: "bg-destructive/15 text-destructive",
     info: "bg-chip text-chip-foreground",
   };
-  return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${tones[tone]}`}>{children}</span>;
+  // whitespace-nowrap: in a narrow table column a two-word badge broke onto a second line.
+  return <span className={`inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${tones[tone]}`}>{children}</span>;
 };
 
 export const Btn = ({ children, onClick, variant = "primary", className = "", type = "button", disabled = false, title }: {

@@ -29,6 +29,8 @@ type Row = {
   id: string;
   tenant_id: string | null;
   profile_id: string | null;
+  /** One imported person across their rows (0116). */
+  person_key: string | null;
   name: string;
   specialty: string | null;
   education: string | null;
@@ -68,17 +70,28 @@ export const GET = async () => {
   if (!isSuperAdmin(auth)) return fail("Not allowed", 403);
 
   const supabase = await createServerSupabase();
+
+  // Every doctor, the DrListify directory's too (0116) — 15,000 rows, so a
+  // thousand at a time: PostgREST returns no more than that per request.
+  const loadDoctors = async () => {
+    const all: Row[] = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase
+        .from("doctors")
+        .select(
+          "id, tenant_id, profile_id, person_key, name, specialty, education, bio, languages, expertise, experience_years, email, phone, photo_url, gender, bmdc_number, status, consultation_fee, availability, created_at, tenants ( name, kind, status, address, location, division, district, subdistrict, contact_phone, has_name ), profiles!doctors_profile_id_fkey ( is_active, email )",
+        )
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, from + 999);
+      if (error) return { data: all, error };
+      all.push(...(data as unknown as Row[]));
+      if (data.length < 1000) return { data: all, error: null };
+    }
+  };
+
   const [{ data, error }, tenants] = await Promise.all([
-    supabase
-      .from("doctors")
-      .select(
-        "id, tenant_id, profile_id, name, specialty, education, bio, languages, expertise, experience_years, email, phone, photo_url, gender, bmdc_number, status, consultation_fee, availability, created_at, tenants ( name, kind, status, address, location, division, district, subdistrict, contact_phone, has_name ), profiles!doctors_profile_id_fkey ( is_active, email )",
-      )
-      // HealthFlow's doctors only: the directory's 15,000 rows (0116, the ones
-      // with a person_key) are listings, managed by the import.
-      .is("person_key", null)
-      .order("created_at", { ascending: true })
-      .limit(5000),
+    loadDoctors(),
     // The Create form's hospital picker — hospitals, not doctors' chambers.
     // Hospitals on HealthFlow, not the directory's listings (0116) — a doctor
     // is added to a hospital that runs here.
@@ -88,9 +101,10 @@ export const GET = async () => {
   if (error) return fail(error.message, 500);
   if (tenants.error) return fail(tenants.error.message, 500);
 
+  // One person per login, or per imported doctor (person_key, 0116).
   const people = new Map<string, { head: Row; rows: Row[] }>();
-  for (const row of (data ?? []) as unknown as Row[]) {
-    const key = row.profile_id ?? `row:${row.id}`;
+  for (const row of data) {
+    const key = row.profile_id ?? row.person_key ?? `row:${row.id}`;
     const person = people.get(key);
     if (person) person.rows.push(row);
     else people.set(key, { head: row, rows: [row] });
