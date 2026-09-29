@@ -203,6 +203,9 @@
     "bmdc": "বিএমডিসি রেজি. নং",
     "experience": "<b>{count}</b> বছরের অভিজ্ঞতা",
     "notBookable": "এখনো HealthFlow-এ বুকিং নিচ্ছেন না",
+    "callSerial": "সিরিয়ালের জন্য কল · {phone}",
+    "serialAt": "সিরিয়াল: {phone}",
+    "listedNote": "HealthFlow-এ তালিকাভুক্ত — ফোনে সিরিয়াল, এখানে বুকিং হয় না",
     "book": "অ্যাপয়েন্টমেন্ট নিন",
     "saveForPatients": "ডাক্তার সংরক্ষণ শুধু রোগী অ্যাকাউন্টের জন্য।",
     "save": "সংরক্ষণ করুন",
@@ -233,7 +236,9 @@
     "hoursNotSet": "সময় দেওয়া নেই",
     "viewProfile": "প্রোফাইল দেখুন",
     "bookAppointment": "অ্যাপয়েন্টমেন্ট নিন",
-    "notBookable": "এখনো HealthFlow-এ বুকিং নিচ্ছেন না"
+    "notBookable": "এখনো HealthFlow-এ বুকিং নিচ্ছেন না",
+    "callSerial": "সিরিয়ালের জন্য কল করুন",
+    "serialNote": "ফোনে সিরিয়াল — HealthFlow-এ বুকিং হয় না"
   },
   "hospitalCard": {
     "beds": "{count} টি বেড",

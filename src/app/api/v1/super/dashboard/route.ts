@@ -42,9 +42,11 @@ export const GET = async () => {
 
   // head: true asks Postgres for the count and no rows at all, so a tile costs
   // a count and nothing else. Hospitals only: a doctor's chamber is a tenant
-  // too (0088), and not a customer of ours in the same sense.
+  // too (0088), and not a customer of ours in the same sense — nor is a
+  // hospital only listed in the directory (0116).
   const countHospitals = (status?: TenantStatus) => {
-    const query = supabase.from("tenants").select("id", { count: "exact", head: true }).eq("kind", "hospital");
+    const query = supabase.from("tenants").select("id", { count: "exact", head: true })
+      .eq("kind", "hospital").eq("listing_only", false);
     return status ? query.eq("status", status) : query;
   };
 
@@ -54,12 +56,14 @@ export const GET = async () => {
     countHospitals("pending"),
     countHospitals("suspended"),
     supabase.from("profiles").select("id", { count: "exact", head: true }),
-    supabase.from("doctors").select("id", { count: "exact", head: true }),
+    // HealthFlow's own doctors: not the directory's (0116), which have a person_key.
+    supabase.from("doctors").select("id", { count: "exact", head: true }).is("person_key", null),
     supabase.from("packages").select("id, name, price_monthly").order("price_monthly"),
     supabase
       .from("tenants")
       .select("id, name, slug, status, created_at, packages ( name )")
       .eq("kind", "hospital")
+      .eq("listing_only", false)
       .order("created_at", { ascending: false })
       // Same tiebreaker, same direction, as the hospitals list endpoint. Most
       // tenants share a created_at from the seed, so without this the two
@@ -99,6 +103,7 @@ export const GET = async () => {
       .select("id", { count: "exact", head: true })
       .eq("kind", "hospital")
       .eq("status", "approved")
+      .eq("listing_only", false)
       .is("package_id", null),
     // One query for the staff of the five listed hospitals, tallied below.
     // Five separate counts would be five round trips for the same rows.

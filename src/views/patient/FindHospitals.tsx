@@ -11,6 +11,7 @@ import { FilterChip, FILTER_CONTROL, FILTER_ICON } from "@/components/common/Fil
 import { LocationPickers, placeMatches, useLocationFilter } from "@/components/common/LocationPickers";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useHospitalList } from "@/hooks/useHospitals";
+import { useShowMore } from "@/hooks/useShowMore";
 import type { Hospital } from "@/data/hospitals";
 
 /**
@@ -27,7 +28,8 @@ const lower = (s: string) => s.trim().toLowerCase();
 /** A specialty the hospital lists itself, or one of its doctors practises. */
 const offers = (h: Hospital, specialty: string) => {
   const want = lower(specialty);
-  return h.specialties.some(s => lower(s) === want) || h.doctors_list.some(d => lower(d.specialty) === want);
+  return h.specialties.some(s => lower(s) === want)
+    || (h.doctorSpecialties ?? h.doctors_list.map(d => d.specialty)).some(s => lower(s) === want);
 };
 
 const matchesQuery = (h: Hospital, q: string) => {
@@ -38,7 +40,7 @@ const matchesQuery = (h: Hospital, q: string) => {
 
 const sortHospitals = (list: Hospital[], sort: Sort) => {
   if (sort === "rating") return [...list].sort((a, b) => b.rating - a.rating);
-  if (sort === "doctors") return [...list].sort((a, b) => b.doctors_list.length - a.doctors_list.length);
+  if (sort === "doctors") return [...list].sort((a, b) => (b.doctorCount ?? 0) - (a.doctorCount ?? 0));
   if (sort === "name") return [...list].sort((a, b) => a.name.localeCompare(b.name));
   return list;
 };
@@ -68,6 +70,8 @@ const FindHospitals = () => {
     );
     return sortHospitals(matched, sort);
   }, [hospitals, specialty, query, sort, wantDivision, wantDistrict, wantUpazila]);
+
+  const page = useShowMore(visible, [query, specialty, sort, wantDivision, wantDistrict, wantUpazila]);
 
   const filtered = !!query.trim() || !!specialty || place.active;
   const clearAll = () => {
@@ -163,9 +167,19 @@ const FindHospitals = () => {
             )}
           </div>
         ) : (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {visible.map((h, i) => <HospitalCard key={h.slug} h={h} i={i} />)}
-          </div>
+          <>
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {page.shown.map((h, i) => <HospitalCard key={h.slug} h={h} i={i % 24} />)}
+            </div>
+            {page.hasMore && (
+              <div className="mt-8 flex justify-center">
+                <button type="button" onClick={page.more}
+                  className="rounded-full border border-border bg-card px-6 py-2.5 text-sm font-semibold text-foreground hover:bg-chip">
+                  {tc("showMore", { shown: page.shown.length, total: visible.length })}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </PatientPortalLayout>

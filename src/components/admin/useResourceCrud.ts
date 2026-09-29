@@ -66,13 +66,15 @@ const showError = (error: unknown, fallback: string) => {
   toast.error(message, { description });
 };
 
-export const useResourceCrud = <T extends { id: string }>(resource?: string) => {
+export const useResourceCrud = <T extends { id: string }>(resource?: string, filters?: Record<string, string>) => {
   const t = useTranslations("crud");
   // Filtering and paging still happen client-side, exactly as they did with
   // localStorage. Server-side paging is a later change and needs the toolbar
-  // to drive it; this keeps the migration to real data a pure swap.
+  // to drive it; this keeps the migration to real data a pure swap. `filters`
+  // are the exception: exact matches the server applies first (ResourcePage's
+  // serverFilters).
   const { data, isLoading, isFetching, error, refetch } = useListResourceQuery(
-    { resource: resource ?? "", limit: 100 },
+    { resource: resource ?? "", limit: 100, filters },
     { skip: !resource },
   );
 

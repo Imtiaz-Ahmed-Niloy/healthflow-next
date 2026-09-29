@@ -46,5 +46,14 @@ RLS is the boundary. Everything else is defence in depth.
   (`src/lib/appSettings.ts`): platform settings underneath each person's own.
 - A denied single-record read returns 404, not 403 — deliberately.
 - Most files are CRLF. An edit that assumes LF matches nothing.
+- ~2,000 of the tenants and ~15,000 doctors rows are the DrListify directory
+  (`scripts/drlistify`, 0116): `tenants.listing_only`, `doctors.person_key`.
+  Shown publicly, never booked; not customers. Anything counting or listing
+  hospitals "on HealthFlow" filters `listing_only = false`, and a public list
+  can't fetch every row — PostgREST stops at 1,000 (use
+  `search_doctors_public`, or page with `.range()`).
+- A trigger guard that reads a `set_config` flag must `coalesce(..., false)`:
+  in a session that never set it `current_setting` is null, and `not null`
+  lets everything through (0114).
 
 `docs/module-guide.md` · `docs/module-status.md` · `docs/image-uploads-r2.md`

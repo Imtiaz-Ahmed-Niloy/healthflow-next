@@ -925,6 +925,12 @@ export type ResourceConfig<T extends { id: string; status?: string }> = {
   extraFilters?: ReactNode;
   filterFn?: (row: T) => boolean;
   /**
+   * Exact-match filters applied by the server, before the first 100 rows are
+   * taken — for a split that matters at scale, such as the super admin's
+   * hospitals without the directory's 2,000 listings (0116).
+   */
+  serverFilters?: Record<string, string>;
+  /**
    * Extra buttons per row, rendered before View / Edit / Delete. Use for module
    * actions that are not CRUD — approving a hospital, say.
    */
@@ -950,7 +956,7 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
   // useResourceCrud skips its request when config.resource is undefined, and
   // useCrud is cheap, so the unused one costs nothing.
   const local = useCrud<T>(config.storeKey, config.seed ?? []);
-  const remote = useResourceCrud<T>(config.resource);
+  const remote = useResourceCrud<T>(config.resource, config.serverFilters);
   const crud = config.resource ? remote : local;
   const isLoading = config.resource ? remote.isLoading : false;
   const loadError = config.resource ? remote.error : undefined;

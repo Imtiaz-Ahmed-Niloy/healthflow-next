@@ -39,7 +39,8 @@ export const HospitalCard = ({
   const t = useTranslations("hospitalCard");
   const href = `/hospitals/${h.slug}`;
   const blurb = h.summary || h.about;
-  const doctorCount = h.doctors_list.length;
+  // Counted by the view (0117); the list no longer loads each hospital's doctors.
+  const doctorCount = h.doctorCount ?? h.doctors_list.length;
 
   return (
     <TiltCard

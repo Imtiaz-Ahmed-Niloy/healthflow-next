@@ -5,9 +5,9 @@ import Link from "next/link";
 import { ArrowRight, Heart } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
-import { DoctorCard, DoctorCardNotBookable } from "@/components/site/DoctorCard";
+import { DoctorCard, DoctorCardNotBookable, DoctorCardSerial } from "@/components/site/DoctorCard";
 import { BookAppointmentDialog } from "@/components/booking/BookAppointmentDialog";
-import { useDoctors, type UIDoctor } from "@/hooks/useDoctors";
+import { useDoctorsByIds, type UIDoctor } from "@/hooks/useDoctors";
 import { useSavedDoctors } from "@/hooks/useSavedDoctors";
 
 /**
@@ -17,8 +17,9 @@ import { useSavedDoctors } from "@/hooks/useSavedDoctors";
  */
 const SavedDoctors = () => {
   const t = useTranslations("patient.savedDoctors");
-  const { doctors, loading: loadingDoctors } = useDoctors();
   const { saved, loading: loadingSaved, busy, toggle } = useSavedDoctors();
+  // Just the saved ones, with all their places.
+  const { doctors, loading: loadingDoctors } = useDoctorsByIds(saved.map(s => s.doctor_id));
   const [booking, setBooking] = useState<UIDoctor | null>(null);
 
   // In the order they were saved. A saved row can belong to any of a
@@ -66,6 +67,8 @@ const SavedDoctors = () => {
                   <div className="mt-5 flex items-center gap-2">
                     {d.independent ? (
                       <div className="flex-1"><DoctorCardNotBookable /></div>
+                    ) : !d.bookable ? (
+                      <div className="flex-1 [&>*]:mt-0"><DoctorCardSerial phone={d.serialPhone} /></div>
                     ) : (
                       <button type="button" onClick={() => setBooking(d)}
                         className="flex-1 flex items-center justify-center gap-1.5 rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-glow">

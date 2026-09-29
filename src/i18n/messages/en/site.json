@@ -203,6 +203,9 @@
     "bmdc": "BMDC Reg. No.",
     "experience": "<b>{count}</b> {count, plural, one {year} other {years}} of experience",
     "notBookable": "Not taking bookings on HealthFlow yet",
+    "callSerial": "Call for serial · {phone}",
+    "serialAt": "Serial: {phone}",
+    "listedNote": "Listed on HealthFlow — serials by phone, not booked here",
     "book": "Book Appointment",
     "saveForPatients": "Saving doctors is for patient accounts.",
     "save": "Save",
@@ -233,7 +236,9 @@
     "hoursNotSet": "Hours not set",
     "viewProfile": "View Profile",
     "bookAppointment": "Book Appointment",
-    "notBookable": "Not taking bookings on HealthFlow yet"
+    "notBookable": "Not taking bookings on HealthFlow yet",
+    "callSerial": "Call for serial",
+    "serialNote": "Serials by phone — not booked on HealthFlow"
   },
   "hospitalCard": {
     "beds": "{count, plural, one {# bed} other {# beds}}",

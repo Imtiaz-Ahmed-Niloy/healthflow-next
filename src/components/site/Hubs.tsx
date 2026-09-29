@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Building2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useHospitals } from "@/hooks/useHospitals";
@@ -13,7 +13,13 @@ import { titleReveal } from "@/components/site/titleReveal";
 const Hubs = () => {
   const t = useTranslations("hubs");
   const tc = useTranslations("common");
-  const hospitals = useHospitals();
+  // A carousel, so a handful: partners, which the list puts first. The
+  // directory's listed hospitals (0116) are for /hospitals, not the homepage.
+  const all = useHospitals();
+  const hospitals = useMemo(() => {
+    const partners = all.filter((h) => !h.listingOnly);
+    return (partners.length ? partners : all).slice(0, 12);
+  }, [all]);
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const [perView, setPerView] = useState(3);

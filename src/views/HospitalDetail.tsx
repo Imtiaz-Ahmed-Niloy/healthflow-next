@@ -17,7 +17,7 @@ import { Avatar } from "@/components/common/Avatar";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useHospital } from "@/hooks/useHospitals";
-import { useDoctors } from "@/hooks/useDoctors";
+import { useHospitalDoctors } from "@/hooks/useDoctors";
 import { DoctorCard } from "@/components/site/DoctorCard";
 import { HospitalCard } from "@/components/site/HospitalCard";
 import { useFormatters } from "@/lib/appSettings";
@@ -27,19 +27,15 @@ const HospitalDetail = () => {
   const { formatCurrency } = useFormatters();
   const slug = useParams<{ slug: string }>()?.slug;
   const { hospital, hospitals, loading } = useHospital(slug ?? "");
-  const { doctors: allDoctors } = useDoctors();
+  // Whoever practises here (doctors_public by hospital_slug) — the same
+  // doctor cards as the home page and /doctors.
+  const { doctors: hospitalDoctors } = useHospitalDoctors(slug);
 
   const [docQuery, setDocQuery] = useState("");
   const [docSpec, setDocSpec] = useState("All");
   const [labCat, setLabCat] = useState("All");
   const [roomCat, setRoomCat] = useState<"All" | "Ward" | "Cabin" | "ICU">("All");
 
-  // The same doctor cards as the home page and /doctors: real rows from
-  // doctors_public (via useDoctors), filtered to whoever practises here.
-  const hospitalDoctors = useMemo(
-    () => (hospital ? allDoctors.filter((d) => d.places.some((p) => p.hospitalSlug === hospital.slug)) : []),
-    [allDoctors, hospital],
-  );
   const specialties = useMemo(
     () => ["All", ...Array.from(new Set(hospitalDoctors.map((d) => d.specialty)))],
     [hospitalDoctors],

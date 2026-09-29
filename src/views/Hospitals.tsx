@@ -8,6 +8,7 @@ import { MapPin, ArrowLeft, Search, SlidersHorizontal, X } from "lucide-react";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import { useHospitals } from "@/hooks/useHospitals";
+import { useShowMore } from "@/hooks/useShowMore";
 import { HospitalCard } from "@/components/site/HospitalCard";
 import { BD_DIVISIONS, BD_LOCATIONS } from "@/data/bdLocations";
 import { BD_UPAZILAS } from "@/data/bdUpazilas";
@@ -92,6 +93,8 @@ const Hospitals = () => {
       return matchQ && matchDiv && matchZil && matchUpa;
     });
   }, [hospitals, query, division, zilla, upazila]);
+
+  const page = useShowMore(filtered, [query, division, zilla, upazila]);
 
   const clearFilters = () => {
     setDivision("");
@@ -192,8 +195,16 @@ const Hospitals = () => {
         </motion.div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.map((h, i) => <HospitalCard key={h.slug} h={h} i={i} />)}
+          {page.shown.map((h, i) => <HospitalCard key={h.slug} h={h} i={i % 24} />)}
         </div>
+        {page.hasMore && (
+          <div className="mt-8 flex justify-center">
+            <button type="button" onClick={page.more}
+              className="rounded-full border border-border bg-card px-6 py-2.5 text-sm font-semibold text-foreground hover:bg-chip">
+              {tc("showMore", { shown: page.shown.length, total: filtered.length })}
+            </button>
+          </div>
+        )}
 
         {filtered.length === 0 && (
           <p className="text-center text-muted-foreground py-16">{t("hospitalsNone")}</p>

@@ -90,6 +90,11 @@ export type Hospital = {
   lab_tests: { name: string; category: string; price: number; turnaround: string }[];
   rooms: Room[];
   management: ManagementMember[];
+  /** Listed on HealthFlow, not run on it (0116): its doctors are called for a serial. */
+  listingOnly?: boolean;
+  /** Its doctors, counted by the view (0117) — `doctors_list` is only loaded on its own page. */
+  doctorCount?: number;
+  doctorSpecialties?: string[];
 };
 
 const docPhotos = [doc1, doc2, doc3, doc4, doc5, doc6];

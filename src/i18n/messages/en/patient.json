@@ -356,6 +356,7 @@
       },
       "loading": "Loading doctors…",
       "found": "<b>{count}</b> {count, plural, one {doctor} other {doctors}} found",
+      "loadMore": "Show more doctors ({shown} of {total})",
       "sortLabel": "Sort doctors",
       "sorts": {
         "recommended": "Recommended",

@@ -41,6 +41,12 @@ export type DBDoctor = {
   practice_phone: string | null;
   /** The same on every row of one doctor (0090): what the site groups them by. */
   person_slug: string | null;
+  /** False at a listing-only hospital (0116): shown, but not booked here. */
+  bookable: boolean | null;
+  /** At a listing-only hospital, the number to call for a serial. */
+  serial_phone: string | null;
+  /** Their post at this place: "Associate Professor (Neurology)" (0116). */
+  designation: string | null;
 };
 
 /**
@@ -71,6 +77,13 @@ export type DoctorPlace = {
   availability: string | null;
   /** The same, described: "Sun–Thu 9:00 AM–5:00 PM". Empty when not set. */
   available: string;
+  /** False at a listing-only hospital (0116): call `serialPhone` instead of booking. */
+  bookable: boolean;
+  serialPhone: string | null;
+  /** Their post here, e.g. "Associate Professor (Neurology)". */
+  designation: string | null;
+  /** The fee as stored; null when the place never said. `fee` above falls back. */
+  feeKnown: number | null;
 };
 
 export type UIDoctor = {
@@ -120,6 +133,15 @@ export type UIDoctor = {
    * one page per doctor however many there are (0090). Empty when independent.
    */
   places: DoctorPlace[];
+  /**
+   * Bookable online at one of their places, at least. A doctor only at
+   * listing-only hospitals (0116) is called for a serial instead.
+   */
+  bookable: boolean;
+  /** The first number to call for a serial, when some place is listing-only. */
+  serialPhone: string | null;
+  /** Their post at their first place that names one. */
+  designation: string | null;
   /** Their first place, or "Independent practice". */
   hospital: {
     name: string;
@@ -187,6 +209,10 @@ const toPlace = (d: DBDoctor, w: Words, locale: Locale): DoctorPlace => ({
   fee: Number(d.consultation_fee) || 500,
   availability: d.availability,
   available: availabilityLabel(d.availability, locale) || "",
+  bookable: d.bookable !== false,
+  serialPhone: d.serial_phone,
+  designation: d.designation,
+  feeKnown: Number(d.consultation_fee) || null,
 });
 
 /**
@@ -247,6 +273,9 @@ const toDoctor = (rows: DBDoctor[], w: Words, locale: Locale): UIDoctor => {
     patients: d.patients_treated || 100,
     independent: places.length === 0,
     places: places.map(p => p.place),
+    bookable: places.some(p => p.place.bookable),
+    serialPhone: places.find(p => !p.place.bookable && p.place.serialPhone)?.place.serialPhone ?? null,
+    designation: places.find(p => p.place.designation)?.place.designation ?? null,
     hospital: {
       name: first?.name ?? w.independent,
       slug: first?.hospitalSlug ?? "",
@@ -267,11 +296,14 @@ const doctorsFromRows = (rows: DBDoctor[], w: Words, locale: Locale): UIDoctor[]
   return [...people.values()].map(group => toDoctor(group, w, locale));
 };
 
-export const useDoctors = () => {
-  // The rows as fetched; the doctors are built from them for the page's
-  // language, so a switch relabels them without a refetch.
+/**
+ * Rows fetched by `load` and grouped into doctors for the page's language —
+ * a language switch relabels them without a refetch. `key` refetches: pass
+ * whatever `load` depends on. A null key loads nothing.
+ */
+const useDoctorRows = (key: string | null, load: () => Promise<DBDoctor[]>) => {
   const [rows, setRows] = useState<DBDoctor[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(key !== null);
   const locale = useLocale();
   const w = useWords();
   // `w` is rebuilt each render; the words only change with the language.
@@ -279,32 +311,125 @@ export const useDoctors = () => {
   const doctors = useMemo(() => doctorsFromRows(rows, w, locale), [rows, locale]);
 
   useEffect(() => {
+    if (key === null) { setRows([]); setLoading(false); return; }
     let active = true;
-    const fetchDoctors = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("doctors_public")
-          .select("*")
-          .order("created_at", { ascending: false });
-
-        if (error) {
-          console.error("Error fetching doctors:", error);
-          return;
-        }
-
-        if (active && data) {
-          setRows(data as DBDoctor[]);
-        }
-      } catch (err) {
-        console.error("Failed to load doctors:", err);
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-
-    void fetchDoctors();
+    setLoading(true);
+    load()
+      .then(data => { if (active) setRows(data); })
+      .catch(err => console.error("Failed to load doctors:", err))
+      .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
 
   return { doctors, loading };
+};
+
+const selectRows = async (query: PromiseLike<{ data: unknown; error: { message: string } | null }>) => {
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as DBDoctor[];
+};
+
+/** Every row of one doctor, found by their page's slug or any listing's slug (0090). */
+export const useDoctor = (slug: string | undefined) => {
+  const { doctors, loading } = useDoctorRows(slug ?? null, async () => {
+    const first = await selectRows(
+      supabase.from("doctors_public").select("*").or(`slug.eq.${slug},person_slug.eq.${slug}`),
+    );
+    const person = first[0]?.person_slug || first[0]?.slug;
+    if (!person || person === slug) return first;
+    return selectRows(supabase.from("doctors_public").select("*").or(`slug.eq.${person},person_slug.eq.${person}`));
+  });
+  return { doctor: doctors[0] ?? null, loading };
+};
+
+/** The doctors at one hospital, by its slug. */
+export const useHospitalDoctors = (hospitalSlug: string | undefined) =>
+  useDoctorRows(hospitalSlug ?? null, () =>
+    selectRows(supabase.from("doctors_public").select("*").eq("hospital_slug", hospitalSlug!).limit(1000)));
+
+/** The doctors behind these doctors rows (a patient's saved list). */
+export const useDoctorsByIds = (ids: string[]) => {
+  const key = ids.length ? [...ids].sort().join(",") : null;
+  return useDoctorRows(key, async () => {
+    const rows = await selectRows(supabase.from("doctors_public").select("*").in("id", ids));
+    const people = [...new Set(rows.map(r => r.person_slug).filter((s): s is string => !!s))];
+    if (!people.length) return rows;
+    return selectRows(supabase.from("doctors_public").select("*").in("person_slug", people));
+  });
+};
+
+export type DoctorSearch = {
+  query?: string;
+  specialty?: string;
+  gender?: string;
+  division?: string;
+  district?: string;
+  upazila?: string;
+  sort?: string;
+};
+
+/**
+ * One page at a time of the public directory, searched in the database
+ * (search_doctors_public, 0116) — it is far too big to fetch whole. Partners
+ * come first. `loadMore` appends the next page.
+ */
+export const useDoctorSearch = (search: DoctorSearch, pageSize = 24) => {
+  const [rows, setRows] = useState<DBDoctor[]>([]);
+  const [order, setOrder] = useState<string[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const locale = useLocale();
+  const w = useWords();
+  const key = JSON.stringify(search);
+
+  // A new search starts again from the first page.
+  useEffect(() => { setPage(0); }, [key]);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    const s = search;
+    Promise.resolve(supabase.rpc("search_doctors_public", {
+      p_q: s.query?.trim() || null,
+      p_specialty: s.specialty || null,
+      p_gender: s.gender || null,
+      p_division: s.division || null,
+      p_district: s.district || null,
+      p_upazila: s.upazila || null,
+      p_sort: s.sort || "recommended",
+      p_limit: pageSize,
+      p_offset: page * pageSize,
+    }))
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) { console.error("Doctor search failed:", error); return; }
+        const result = (data ?? {}) as { total?: number; order?: string[]; rows?: DBDoctor[] };
+        setTotal(result.total ?? 0);
+        setRows(prev => (page === 0 ? result.rows ?? [] : [...prev, ...(result.rows ?? [])]));
+        setOrder(prev => (page === 0 ? result.order ?? [] : [...prev, ...(result.order ?? [])]));
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, page, pageSize]);
+
+  // Grouped, then put back in the order the database ranked them. `w` is
+  // rebuilt each render; the words only change with the language.
+  const doctors = useMemo(() => {
+    const grouped = doctorsFromRows(rows, w, locale);
+    const rank = new Map(order.map((slug, i) => [slug, i]));
+    return grouped.sort((a, b) => (rank.get(a.slug) ?? 1e9) - (rank.get(b.slug) ?? 1e9));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, order, locale]);
+
+  return {
+    doctors,
+    total,
+    loading,
+    hasMore: doctors.length < total,
+    loadMore: () => setPage(p => p + 1),
+  };
 };

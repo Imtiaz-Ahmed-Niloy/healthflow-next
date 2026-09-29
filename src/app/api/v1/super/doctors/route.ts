@@ -74,10 +74,16 @@ export const GET = async () => {
       .select(
         "id, tenant_id, profile_id, name, specialty, education, bio, languages, expertise, experience_years, email, phone, photo_url, gender, bmdc_number, status, consultation_fee, availability, created_at, tenants ( name, kind, status, address, location, division, district, subdistrict, contact_phone, has_name ), profiles!doctors_profile_id_fkey ( is_active, email )",
       )
+      // HealthFlow's doctors only: the directory's 15,000 rows (0116, the ones
+      // with a person_key) are listings, managed by the import.
+      .is("person_key", null)
       .order("created_at", { ascending: true })
       .limit(5000),
     // The Create form's hospital picker — hospitals, not doctors' chambers.
-    supabase.from("tenants").select("id, name").eq("status", "approved").eq("kind", "hospital").order("name"),
+    // Hospitals on HealthFlow, not the directory's listings (0116) — a doctor
+    // is added to a hospital that runs here.
+    supabase.from("tenants").select("id, name").eq("status", "approved").eq("kind", "hospital")
+      .eq("listing_only", false).order("name"),
   ]);
   if (error) return fail(error.message, 500);
   if (tenants.error) return fail(tenants.error.message, 500);

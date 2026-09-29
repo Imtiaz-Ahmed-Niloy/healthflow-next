@@ -50,13 +50,16 @@ export const BookAppointmentDialog = ({ doctor, onClose }: {
   const [submitting, setSubmitting] = useState(false);
   // The doctor the form was last filled for — a new one starts clean.
   const [openedFor, setOpenedFor] = useState<string | null>(null);
+  // Only places that book here: a listing-only hospital (0116) takes serials
+  // by phone, and the database refuses an appointment there.
+  const places = doctor?.places.filter(p => p.bookable) ?? [];
   if (doctor && doctor.id !== openedFor) {
     setOpenedFor(doctor.id);
-    setPlaceId(doctor.places[0]?.id ?? "");
+    setPlaceId(places[0]?.id ?? "");
     setForm({ date: "", time: "", reason: "" });
   }
 
-  const place = doctor?.places.find(p => p.id === placeId) ?? doctor?.places[0] ?? null;
+  const place = places.find(p => p.id === placeId) ?? places[0] ?? null;
 
   // Their days and hours at that place (null when they can't be read, in
   // which case nothing is refused on their account).
@@ -184,11 +187,11 @@ export const BookAppointmentDialog = ({ doctor, onClose }: {
                 )}
               </div>
             </div>
-            {doctor.places.length > 1 && (
+            {places.length > 1 && (
               <div className="space-y-1.5">
                 <Label required>{t("where")}</Label>
                 <div className="grid gap-2">
-                  {doctor.places.map(p => (
+                  {places.map(p => (
                     <label key={p.id}
                       className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm transition-colors ${p.id === place?.id ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40"}`}>
                       <input type="radio" name="place" className="mt-1" checked={p.id === place?.id}

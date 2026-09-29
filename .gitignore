@@ -49,3 +49,6 @@ supabase/.temp/
 *.tsbuildinfo
 next-env.d.ts
 .next-verify/
+
+# DrListify import: downloaded data (large, regenerable with scripts/drlistify/fetch.mjs)
+scripts/drlistify/data/

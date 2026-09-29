@@ -25,6 +25,7 @@
     "other": "Other",
     "clearAll": "Clear all",
     "clearFilters": "Clear filters",
+    "showMore": "Show more ({shown} of {total})",
     "clearSearch": "Clear search",
     "viewAll": "View all",
     "sortBy": "Sort:",

@@ -4,11 +4,11 @@ import { ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { DoctorCardNotBookable, DOCTOR_CARD_BUTTON } from "@/components/site/DoctorCard";
+import { DoctorCardNotBookable, DoctorCardSerial, DOCTOR_CARD_BUTTON } from "@/components/site/DoctorCard";
 import { DoctorFinder } from "@/components/site/DoctorFinder";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
 import { BookAppointmentDialog } from "@/components/booking/BookAppointmentDialog";
-import { useDoctors, type UIDoctor } from "@/hooks/useDoctors";
+import type { UIDoctor } from "@/hooks/useDoctors";
 
 /**
  * The patient's doctor search: the shared DoctorFinder (the same one as the
@@ -17,7 +17,6 @@ import { useDoctors, type UIDoctor } from "@/hooks/useDoctors";
 const FindDoctors = () => {
   const t = useTranslations("patient.findDoctors");
   const tb = useTranslations("doctorCard");
-  const { doctors, loading } = useDoctors();
   const searchParams = useSearchParams();
   // The doctor whose booking form is open — the shared one (BookAppointmentDialog).
   const [booking, setBooking] = useState<UIDoctor | null>(null);
@@ -31,8 +30,6 @@ const FindDoctors = () => {
 
       <div className="mt-7">
         <DoctorFinder
-          doctors={doctors}
-          loading={loading}
           // The home page's search bar sends its query, specialty and place along.
           initial={{
             query: searchParams?.get("q"),
@@ -44,6 +41,9 @@ const FindDoctors = () => {
           action={d => d.independent ? (
             // An appointment belongs to a hospital; this doctor has none yet.
             <DoctorCardNotBookable />
+          ) : !d.bookable ? (
+            // Only at listing-only hospitals (0116): a serial by phone.
+            <DoctorCardSerial phone={d.serialPhone} />
           ) : (
             <button type="button" onClick={() => setBooking(d)} className={DOCTOR_CARD_BUTTON}>
               {tb("bookAppointment")}

@@ -257,7 +257,7 @@ export const hospitalsResource: ResourceDefinition<HospitalCreate, HospitalUpdat
   select: "*, packages ( id, name, price_monthly )",
 
   searchFields: ["name", "region", "location"],
-  filterFields: ["status", "division", "district", "subdistrict", "package_id"],
+  filterFields: ["status", "division", "district", "subdistrict", "package_id", "listing_only"],
   defaultSort: { column: "created_at", ascending: false },
   roles: {
     // A hospital_admin reads their own hospital; RLS (0002) is what limits them

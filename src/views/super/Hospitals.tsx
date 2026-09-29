@@ -74,6 +74,10 @@ const Page = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const confirm = useConfirm();
 
+  // HealthFlow's hospitals, or the DrListify directory's listings (0116) —
+  // two thousand of those, so the split is made by the server.
+  const [listings, setListings] = useState(false);
+
   // Filter state
   const [division, setDivision] = useState("");
   const [district, setDistrict] = useState("");
@@ -102,6 +106,12 @@ const Page = () => {
 
   const extraFilters = (
     <div className="flex flex-wrap items-center gap-2">
+      <select value={listings ? "listings" : "platform"} onChange={e => setListings(e.target.value === "listings")}
+        aria-label={t("filters.kind")}
+        className="h-8 bg-muted/40 rounded-full px-3 text-xs outline-none">
+        <option value="platform">{t("filters.platform")}</option>
+        <option value="listings">{t("filters.listings")}</option>
+      </select>
       <div className="inline-flex items-center gap-1.5 bg-muted/40 rounded-full pl-3 pr-1 py-0.5">
         <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
         <select value={division} onChange={e => { setDivision(e.target.value); setDistrict(""); setSubdistrict(""); }}
@@ -256,6 +266,7 @@ const Page = () => {
       <ResourcePage<H> key={refreshKey} config={{
         storeKey: "super-hospitals",
         resource: "hospitals",
+        serverFilters: { listing_only: listings ? "true" : "false" },
         searchFields: ["name", "region", "location"],
         statuses: STATUSES.map(value => ({ value, label: statusLabel(value) })),
         extraFilters,

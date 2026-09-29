@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowRight, GraduationCap, MapPin, Star } from "lucide-react";
+import { ArrowRight, GraduationCap, MapPin, Phone, Star } from "lucide-react";
 import { useTranslations } from "next-intl";
 import TiltCard from "@/components/site/TiltCard";
 import { Avatar } from "@/components/common/Avatar";
@@ -53,6 +53,7 @@ export const DoctorCard = ({ d, i = 0, action }: { d: UIDoctor; i?: number; acti
           <FitText text={d.name} sizes={NAME_SIZES}
             className="font-display leading-tight text-primary group-hover:text-primary-glow transition-colors" />
           <p className="text-xs font-semibold text-primary-glow mt-0.5">{d.specialty}</p>
+          {d.designation && <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1" title={d.designation}>{d.designation}</p>}
           <div className="flex items-center gap-1 mt-1.5 text-xs text-foreground/70">
             <Star className="h-3 w-3 fill-primary-glow text-primary-glow" />
             <span className="font-semibold">{d.rating}</span>
@@ -112,6 +113,20 @@ export const DoctorCard = ({ d, i = 0, action }: { d: UIDoctor; i?: number; acti
       </Link>
     )}
   </TiltCard>
+  );
+};
+
+/**
+ * In place of Book Appointment for a doctor only at listing-only hospitals
+ * (0116): their serial number, to call. Nothing to book here.
+ */
+export const DoctorCardSerial = ({ phone }: { phone: string | null }) => {
+  const t = useTranslations("doctorCard");
+  if (!phone) return <DoctorCardNotBookable />;
+  return (
+    <a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className={DOCTOR_CARD_BUTTON} title={t("serialNote")}>
+      <Phone className="h-4 w-4" /> {t("callSerial")} · {phone}
+    </a>
   );
 };
 

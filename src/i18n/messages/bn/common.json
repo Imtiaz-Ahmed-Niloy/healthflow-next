@@ -25,6 +25,7 @@
     "other": "অন্যান্য",
     "clearAll": "সব মুছুন",
     "clearFilters": "ফিল্টার মুছুন",
+    "showMore": "আরও দেখুন ({total}টির মধ্যে {shown})",
     "clearSearch": "খোঁজ মুছুন",
     "viewAll": "সব দেখুন",
     "sortBy": "সাজান:",

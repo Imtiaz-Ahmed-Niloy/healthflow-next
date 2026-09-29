@@ -1,14 +1,14 @@
 "use client";
 
 import { SearchX, Search, Stethoscope, UserRound, X } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { DoctorCard } from "@/components/site/DoctorCard";
 import { SpecialtySelect } from "@/components/common/SpecialtySelect";
 import { FilterChip, FILTER_CONTROL, FILTER_ICON } from "@/components/common/FilterBar";
-import { LocationPickers, placeMatches, useLocationFilter } from "@/components/common/LocationPickers";
+import { LocationPickers, useLocationFilter } from "@/components/common/LocationPickers";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { UIDoctor } from "@/hooks/useDoctors";
+import { useDoctorSearch, type UIDoctor } from "@/hooks/useDoctors";
 import { cn } from "@/lib/utils";
 
 /**
@@ -34,19 +34,6 @@ type Gender = (typeof GENDERS)[number];
 // alone, so the other filter bars in the app do not change.
 const CONTROL = cn(FILTER_CONTROL, "bg-card hover:bg-card");
 
-const matchesQuery = (q: string, ...fields: string[]) => {
-  const s = q.trim().toLowerCase();
-  if (!s) return true;
-  return fields.some(f => f.toLowerCase().includes(s));
-};
-
-const sortDoctors = (list: UIDoctor[], sort: Sort) => {
-  if (sort === "experience") return [...list].sort((a, b) => (b.experience ?? -1) - (a.experience ?? -1));
-  if (sort === "feeLow") return [...list].sort((a, b) => a.fee - b.fee);
-  if (sort === "feeHigh") return [...list].sort((a, b) => b.fee - a.fee);
-  return list;
-};
-
 export type DoctorFinderInitial = {
   query?: string | null;
   specialty?: string | null;
@@ -56,14 +43,10 @@ export type DoctorFinderInitial = {
 };
 
 export const DoctorFinder = ({
-  doctors,
-  loading,
   initial = {},
   action,
   gridClassName = "grid gap-5 md:grid-cols-3",
 }: {
-  doctors: UIDoctor[];
-  loading: boolean;
   initial?: DoctorFinderInitial;
   action?: (d: UIDoctor) => ReactNode;
   gridClassName?: string;
@@ -82,17 +65,24 @@ export const DoctorFinder = ({
   const [sort, setSort] = useState<Sort>("recommended");
 
   const { division: wantDivision, district: wantDistrict, upazila: wantUpazila } = place.want;
-  const visible = useMemo(() => {
-    const want = { division: wantDivision, district: wantDistrict, upazila: wantUpazila };
-    const byPlace = !!(wantDivision || wantDistrict || wantUpazila);
-    const matched = doctors.filter(d =>
-      (!specialty || d.category === specialty) &&
-      (gender === ANY || d.gender === gender) &&
-      (!byPlace || d.places.some(p => placeMatches(want, p))) &&
-      matchesQuery(query, d.name, d.specialty, d.location, ...d.places.map(p => p.name)),
-    );
-    return sortDoctors(matched, sort);
-  }, [doctors, specialty, gender, query, sort, wantDivision, wantDistrict, wantUpazila]);
+
+  // The directory is searched in the database (0116), a page at a time; the
+  // typed search waits for a pause in the typing.
+  const [typed, setTyped] = useState(query);
+  useEffect(() => {
+    const timer = setTimeout(() => setTyped(query), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+  const { doctors: visible, total, loading, hasMore, loadMore } = useDoctorSearch({
+    query: typed,
+    specialty,
+    gender: gender === ANY ? "" : gender,
+    division: wantDivision,
+    district: wantDistrict,
+    upazila: wantUpazila,
+    sort,
+  });
+  const firstLoad = loading && visible.length === 0;
 
   const filtered = !!query.trim() || !!specialty || place.active || gender !== ANY;
   const clearAll = () => {
@@ -155,7 +145,7 @@ export const DoctorFinder = ({
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <p className="mr-1 text-sm text-muted-foreground">
-            {loading ? t("loading") : t.rich("found", { count: visible.length, b: chunks => <span className="font-semibold text-foreground">{chunks}</span> })}
+            {firstLoad ? t("loading") : t.rich("found", { count: total, b: chunks => <span className="font-semibold text-foreground">{chunks}</span> })}
           </p>
           {specialty && <FilterChip label={specialty} onClear={() => setSpecialty("")} />}
           {wantDivision && <FilterChip label={tl("divisionChip", { name: place.labels.division })} onClear={() => place.pickDivision("")} />}
@@ -181,7 +171,7 @@ export const DoctorFinder = ({
       </div>
 
       <div className="mt-6">
-        {loading ? (
+        {firstLoad ? (
           <div className="flex items-center justify-center py-20">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
           </div>
@@ -199,11 +189,21 @@ export const DoctorFinder = ({
             )}
           </div>
         ) : (
-          <div className={gridClassName}>
-            {visible.map((d, i) => (
-              <DoctorCard key={d.id} d={d} i={i} action={action?.(d)} />
-            ))}
-          </div>
+          <>
+            <div className={gridClassName}>
+              {visible.map((d, i) => (
+                <DoctorCard key={d.id} d={d} i={i % 24} action={action?.(d)} />
+              ))}
+            </div>
+            {hasMore && (
+              <div className="mt-8 flex justify-center">
+                <button type="button" onClick={loadMore} disabled={loading}
+                  className="rounded-full border border-border bg-card px-6 py-2.5 text-sm font-semibold text-foreground hover:bg-chip disabled:opacity-60">
+                  {loading ? t("loading") : t("loadMore", { shown: visible.length, total })}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </>

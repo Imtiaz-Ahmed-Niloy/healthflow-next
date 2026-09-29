@@ -9,7 +9,6 @@ import Footer from "@/components/site/Footer";
 import SectionGlow, { GLOW } from "@/components/site/SectionGlow";
 import { gradient } from "@/components/site/GradientWords";
 import { DoctorFinder } from "@/components/site/DoctorFinder";
-import { useDoctors } from "@/hooks/useDoctors";
 import { useSpecialties } from "@/hooks/useSpecialties";
 
 /**
@@ -19,7 +18,6 @@ import { useSpecialties } from "@/hooks/useSpecialties";
  */
 const Doctors = () => {
   const t = useTranslations("directory");
-  const { doctors, loading } = useDoctors();
   // The specialties list (0093) — the one a doctor's specialty is picked from.
   const { specialties } = useSpecialties();
 
@@ -47,8 +45,6 @@ const Doctors = () => {
           </div>
 
           <DoctorFinder
-            doctors={doctors}
-            loading={loading}
             gridClassName="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
           />
         </motion.div>

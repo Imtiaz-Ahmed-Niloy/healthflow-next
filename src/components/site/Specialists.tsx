@@ -1,9 +1,9 @@
 "use client";
 
-import { forwardRef, useMemo } from "react";
+import { forwardRef } from "react";
 import Link from "next/link";
 import { ArrowRight, FilterX } from "lucide-react";
-import { useDoctors } from "@/hooks/useDoctors";
+import { useDoctorSearch } from "@/hooks/useDoctors";
 import { DoctorCard } from "@/components/site/DoctorCard";
 import { useTranslations } from "next-intl";
 import { gradient } from "@/components/site/GradientWords";
@@ -20,30 +20,12 @@ type SpecialistsProps = {
 const Specialists = forwardRef<HTMLElement, SpecialistsProps>(
   ({ division, zilla, upazila, specialty }, ref) => {
     const t = useTranslations("specialists");
-    const { doctors, loading } = useDoctors();
-
-    const visible = useMemo(() => {
-      let result = doctors;
-      if (specialty) {
-        result = result.filter((d) => d.category === specialty);
-      }
-      if (division) {
-        result = result.filter((d) =>
-          d.location.toLowerCase().includes(division.toLowerCase())
-        );
-      }
-      if (zilla) {
-        result = result.filter((d) =>
-          d.location.toLowerCase().includes(zilla.toLowerCase())
-        );
-      }
-      if (upazila) {
-        result = result.filter((d) =>
-          d.location.toLowerCase().includes(upazila.toLowerCase())
-        );
-      }
-      return result.slice(0, 8);
-    }, [doctors, division, zilla, upazila, specialty]);
+    // The first eight that match, searched in the database (0116): partners
+    // first, then doctors with a photo.
+    const { doctors: visible, loading } = useDoctorSearch(
+      { specialty, division, district: zilla, upazila },
+      8,
+    );
 
     const activeFilterCount = [division, zilla, upazila, specialty].filter(Boolean).length;
 

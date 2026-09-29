@@ -12,8 +12,8 @@ import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import { Avatar } from "@/components/common/Avatar";
 import { FitText, pxRange } from "@/components/common/FitText";
-import { useDoctors, type DoctorPlace } from "@/hooks/useDoctors";
-import { useHospitals } from "@/hooks/useHospitals";
+import { useDoctor, useDoctorSearch, type DoctorPlace } from "@/hooks/useDoctors";
+import { useHospitalsBySlugs } from "@/hooks/useHospitals";
 import { useEffect, useMemo, useState } from "react";
 import { useFormatters } from "@/lib/appSettings";
 import type { Hospital } from "@/data/hospitals";
@@ -23,19 +23,18 @@ const DoctorDetail = () => {
   const slug = useParams<{ slug: string }>()?.slug;
   const router = useRouter();
   const { formatCurrency } = useFormatters();
-  const { doctors, loading: loadingDocs } = useDoctors();
-  // The patient's saved doctors (0092), for the Save button.
-  const savedDoctors = useSavedDoctors();
-  const hospitals = useHospitals();
-
   // One page per doctor (0090). A link to one of their listings — each
   // hospital or chamber row has its own slug, and those were the URLs before —
-  // still finds them.
-  const found = useMemo(() => {
-    if (!slug) return null;
-    const doc = doctors.find((x) => x.slug === slug || x.places.some((p) => p.slug === slug));
-    return doc ? { d: doc } : null;
-  }, [doctors, slug]);
+  // still finds them: useDoctor looks up both.
+  const { doctor, loading: loadingDocs } = useDoctor(slug);
+  // The patient's saved doctors (0092), for the Save button.
+  const savedDoctors = useSavedDoctors();
+  // Their hospitals, for each place's photo and area.
+  const hospitals = useHospitalsBySlugs(doctor?.places.map((p) => p.hospitalSlug) ?? []);
+  // Others in the same specialty, for the foot of the page.
+  const { doctors: sameSpecialty } = useDoctorSearch({ specialty: doctor?.category || "" }, 4);
+
+  const found = useMemo(() => (doctor ? { d: doctor } : null), [doctor]);
 
   // ...and then the address bar shows the doctor's one URL, not the listing's.
   useEffect(() => {
@@ -48,7 +47,7 @@ const DoctorDetail = () => {
   const searchParams = useSearchParams();
   const [booking, setBooking] = useState(false);
   useEffect(() => {
-    if (found && !found.d.independent && searchParams?.get("book") === "1") setBooking(true);
+    if (found && !found.d.independent && found.d.bookable && searchParams?.get("book") === "1") setBooking(true);
   }, [found, searchParams]);
   const closeBooking = () => {
     setBooking(false);
@@ -85,7 +84,7 @@ const DoctorDetail = () => {
   }
 
   const { d } = found;
-  const peers = doctors
+  const peers = sameSpecialty
     .filter((x) => x.slug !== d.slug && x.category === d.category)
     .slice(0, 3)
     .map((p) => ({ d: p }));
@@ -144,6 +143,18 @@ const DoctorDetail = () => {
                 <p className="mt-5 text-center w-full rounded-full border border-border py-3 text-xs font-semibold text-muted-foreground">
                   {t("notBookable")}
                 </p>
+              ) : !d.bookable ? (
+                // Only at listing-only hospitals (0116): their serial, by phone.
+                d.serialPhone ? (
+                  <a href={`tel:${d.serialPhone.replace(/[^\d+]/g, "")}`}
+                    className="mt-5 flex items-center justify-center gap-2 w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors">
+                    <Phone className="h-4 w-4" /> {t("callSerial", { phone: d.serialPhone })}
+                  </a>
+                ) : (
+                  <p className="mt-5 text-center w-full rounded-full border border-border py-3 text-xs font-semibold text-muted-foreground">
+                    {t("notBookable")}
+                  </p>
+                )
               ) : (
                 // Books right here — the same form as a patient's Find Doctors.
                 <button type="button" onClick={() => setBooking(true)} className="mt-5 block text-center w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors">
@@ -223,17 +234,28 @@ const DoctorDetail = () => {
                   {d.places.map((p) => {
                     const h = p.kind === "hospital" ? hospitalOf(p) : undefined;
                     const hours = (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                        <Calendar className="h-3 w-3 shrink-0" />{p.available || t("hoursNotSet")}
-                      </p>
+                      <>
+                        {p.designation && <p className="text-xs text-foreground/75 mt-1">{p.designation}</p>}
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                          <Calendar className="h-3 w-3 shrink-0" />{p.available || t("hoursNotSet")}
+                        </p>
+                        {/* A listing-only place (0116): the number for a serial. */}
+                        {!p.bookable && p.serialPhone && (
+                          <p className="text-xs font-semibold text-primary flex items-center gap-1 mt-1">
+                            <Phone className="h-3 w-3 shrink-0" />{t("serialAt", { phone: p.serialPhone })}
+                          </p>
+                        )}
+                      </>
                     );
-                    // What a visit here costs, large, on the right.
-                    const fee = (
+                    // What a visit here costs, large, on the right — when it is
+                    // known. A listed place never said, and a guess would be a
+                    // price nobody quoted.
+                    const fee = p.bookable || p.feeKnown ? (
                       <div className="shrink-0 text-right">
                         <p className="font-display text-xl text-primary leading-none">{formatCurrency(p.fee)}</p>
                         <p className="text-[11px] text-muted-foreground mt-1">{t("fee")}</p>
                       </div>
-                    );
+                    ) : null;
                     return p.kind === "chamber" ? (
                       // Their own chamber (0088): no hospital page behind it, so
                       // the address and phone are right here.

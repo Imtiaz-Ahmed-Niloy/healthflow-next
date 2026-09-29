@@ -26,11 +26,23 @@ const sitemap = async (): Promise<MetadataRoute.Sitemap> => {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://healthflowbd.com";
   const supabase = createPublicSupabase();
 
+  // Every row, a thousand at a time: PostgREST returns at most that many per
+  // request, and the DrListify directory (0116) is far bigger.
+  const allRows = async <T,>(view: "hospitals_public" | "doctors_public", columns: string) => {
+    const data: T[] = [];
+    for (let from = 0; ; from += 1000) {
+      const res = await supabase.from(view).select(columns).order("slug").range(from, from + 999);
+      if (res.error) return { data, error: res.error };
+      data.push(...(res.data as T[]));
+      if (res.data.length < 1000) return { data, error: null };
+    }
+  };
+
   const [pagesResult, postsResult, hospitalsResult, doctorsResult] = await Promise.all([
     supabase.from("cms_pages").select("path, updated_at"),
     supabase.from("cms_blog_posts").select("slug, updated_at"),
-    supabase.from("hospitals_public").select("id, slug, name"),
-    supabase.from("doctors_public").select("slug, person_slug"),
+    allRows<{ id: string | null; slug: string | null; name: string | null }>("hospitals_public", "id, slug, name"),
+    allRows<{ slug: string | null; person_slug: string | null }>("doctors_public", "slug, person_slug"),
   ]);
 
   for (const [what, result] of Object.entries({

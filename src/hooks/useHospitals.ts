@@ -47,6 +47,11 @@ type PublicHospital = {
   // jsonb array of { name, role, phone, email } — captured on the "Owner &
   // Management" step of the hospital form (src/data/hospitalFields.ts).
   management_body: unknown;
+  /** Listed on HealthFlow, not run on it (0116): no online booking. */
+  listing_only: boolean | null;
+  /** Its active doctors, counted in the view (0117) so the list needn't fetch them. */
+  doctors_listed: number | null;
+  doctor_specialties: string[] | null;
 };
 
 /** One row of `public.lab_tests_public` (0098). */
@@ -247,6 +252,9 @@ const mapPublicToHospital = (
     // "Diagnostic") used to fill it, which read as a set of categories; it
     // still shows as the summary when there is no summary.
     tag: r.is_partner ? w.partner : "",
+    listingOnly: !!r.listing_only,
+    doctorCount: r.doctors_listed ?? doctors.length,
+    doctorSpecialties: r.doctor_specialties ?? [],
     location: hospitalLocation(r),
     division: r.division,
     district: r.district,
@@ -315,24 +323,55 @@ type ApprovedRows = {
   rooms: PublicRoom[];
 };
 
-const fetchApproved = async (): Promise<ApprovedRows> => {
-  // All four views in parallel. `doctors_public` (0022), `lab_tests_public`
-  // and `hospital_rooms_public` (both 0098) each carry hospital_slug, so
-  // every one is joined to its hospital in memory rather than with a request
-  // per hospital.
-  const [hospitalRes, doctorRes, labTestRes, roomRes] = await Promise.all([
-    supabase.from("hospitals_public").select("*").order("created_at", { ascending: false }),
-    supabase.from("doctors_public").select("*").order("rating", { ascending: false, nullsFirst: false }),
-    supabase.from("lab_tests_public").select("*"),
-    supabase.from("hospital_rooms_public").select("*"),
+const EMPTY: ApprovedRows = { hospitals: [], doctors: [], labTests: [], rooms: [] };
+
+/**
+ * Every listed hospital, partners first, a thousand at a time — PostgREST
+ * returns at most that many per request, and with the DrListify directory
+ * (0116) there are over two thousand. Only the hospitals: each one's doctor
+ * count and specialties come with it (0117), and its doctors, lab tests and
+ * rooms are fetched on its own page.
+ */
+const fetchHospitalList = async (): Promise<ApprovedRows> => {
+  const all: PublicHospital[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from("hospitals_public")
+      .select("*")
+      .order("is_partner", { ascending: false })
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(from, from + 999);
+    if (error || !data) break;
+    all.push(...(data as PublicHospital[]));
+    if (data.length < 1000) break;
+  }
+  return { ...EMPTY, hospitals: all.filter((r) => r.name) };
+};
+
+/**
+ * One hospital with its doctors, lab tests and rooms, and a few others in the
+ * same district for "related" (partners first).
+ */
+const fetchHospitalPage = async (slug: string): Promise<ApprovedRows> => {
+  const hospitalRes = await supabase.from("hospitals_public").select("*").eq("slug", slug).maybeSingle();
+  if (hospitalRes.error || !hospitalRes.data) return EMPTY;
+  const hospital = hospitalRes.data as PublicHospital;
+
+  // A failed doctor/lab/room read must not blank the hospital — the page is
+  // still worth rendering without that section.
+  const [doctorRes, labTestRes, roomRes, relatedRes] = await Promise.all([
+    supabase.from("doctors_public").select("*").eq("hospital_slug", slug).limit(1000),
+    supabase.from("lab_tests_public").select("*").eq("hospital_slug", slug),
+    supabase.from("hospital_rooms_public").select("*").eq("hospital_slug", slug),
+    hospital.district
+      ? supabase.from("hospitals_public").select("*").eq("district", hospital.district).neq("slug", slug)
+          .order("is_partner", { ascending: false }).limit(3)
+      : supabase.from("hospitals_public").select("*").neq("slug", slug).eq("is_partner", true).limit(3),
   ]);
 
-  if (hospitalRes.error || !hospitalRes.data) return { hospitals: [], doctors: [], labTests: [], rooms: [] };
-
-  // A failed doctor/lab/room read must not blank the hospital list — the page
-  // is still worth rendering without that section.
   return {
-    hospitals: hospitalRes.data.filter((r) => r.name),
+    hospitals: [hospital, ...((relatedRes.data ?? []) as PublicHospital[])].filter((r) => r.name),
     doctors: (doctorRes.data ?? []) as PublicDoctor[],
     labTests: (labTestRes.data ?? []) as PublicLabTest[],
     rooms: (roomRes.data ?? []) as PublicRoom[],
@@ -403,8 +442,9 @@ const dedupeBySlug = (list: Hospital[]): Hospital[] => {
  */
 export const getAllHospitals = (): Hospital[] => dedupeBySlug([...staticHospitals]);
 
-const useApprovedHospitals = () => {
-  const [rows, setRows] = useState<ApprovedRows>({ hospitals: [], doctors: [], labTests: [], rooms: [] });
+/** The hospital list, or with `slug` one hospital's page (see the two fetches above). */
+const useApprovedHospitals = (slug?: string) => {
+  const [rows, setRows] = useState<ApprovedRows>(EMPTY);
   const [loading, setLoading] = useState(true);
   const locale = useLocale();
   const w = useWords();
@@ -414,13 +454,14 @@ const useApprovedHospitals = () => {
 
   useEffect(() => {
     let active = true;
-    void fetchApproved().then((fetched) => {
+    setLoading(true);
+    void (slug ? fetchHospitalPage(slug) : fetchHospitalList()).then((fetched) => {
       if (!active) return;
       setRows(fetched);
       setLoading(false);
     });
     return () => { active = false; };
-  }, []);
+  }, [slug]);
 
   // Approved rows only. `staticHospitals` used to be merged in behind them,
   // which meant the public site advertised 70 hospitals that existed nowhere
@@ -448,8 +489,25 @@ export const useHospitalList = useApprovedHospitals;
  * real hospital on first paint.
  */
 export const useHospital = (slug: string) => {
-  const { hospitals, loading } = useApprovedHospitals();
-  // `hospitals` comes back too so a detail page can render "related" without a
-  // second hook instance, which would mean a second fetch.
+  const { hospitals, loading } = useApprovedHospitals(slug || undefined);
+  // `hospitals` also carries a few in the same district, for "related".
   return { hospital: hospitals.find((h) => h.slug === slug), hospitals, loading };
+};
+
+/** Just these hospitals, by slug — a doctor's page, for each place's photo and area. */
+export const useHospitalsBySlugs = (slugs: string[]) => {
+  const [rows, setRows] = useState<PublicHospital[]>([]);
+  const locale = useLocale();
+  const w = useWords();
+  const key = [...new Set(slugs.filter(Boolean))].sort().join(",");
+  useEffect(() => {
+    if (!key) { setRows([]); return; }
+    let active = true;
+    void supabase.from("hospitals_public").select("*").in("slug", key.split(",")).then(({ data }) => {
+      if (active) setRows((data ?? []) as PublicHospital[]);
+    });
+    return () => { active = false; };
+  }, [key]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(() => rows.map((r) => mapPublicToHospital(r, w, locale)), [rows, locale]);
 };
