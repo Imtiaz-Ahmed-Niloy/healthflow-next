@@ -1,8 +1,10 @@
 "use client";
 
-import { Facebook, Instagram, Linkedin, Mail, Phone, Twitter } from "lucide-react";
+import { Facebook, Instagram, Linkedin, Mail, Phone, Smartphone, Twitter } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BRAND_INFO } from "@/constants/brand";
 import { defaultFooterContent, useFooterContent } from "@/data/footerContent";
 import { useGetGlobalSettingsQuery } from "@/redux/api/superApi";
@@ -32,6 +34,8 @@ const Footer = () => {
   // flashing first — and a cleared field hides its chip.
   const { data: globalSettings } = useGetGlobalSettingsQuery();
   const email = globalSettings?.data.support_email?.trim() || null;
+  // Neither app is out yet: both buttons open the same "coming soon".
+  const [appSoon, setAppSoon] = useState(false);
   const phone = globalSettings?.data.support_phone?.trim() || null;
 
   /**
@@ -148,27 +152,65 @@ const Footer = () => {
               survived the published-pages filter, rather than being fixed at
               two — otherwise a column that drops out leaves a hole where it
               used to be. */}
-          <div className={`md:col-span-4 lg:col-span-3 grid grid-cols-2 ${columnTracks} gap-8 lg:gap-10`}>
-            {columns.map(c => (
-              <div key={c.title}>
-                <h4 className="text-xs font-bold tracking-widest opacity-60">{columnTitle(c.title)}</h4>
-                <ul className="mt-4 space-y-2.5 text-sm">
-                  {c.links.map(l => (
-                    <li key={l.label}>
-                      <Link
-                        href={l.to}
-                        className="inline-block opacity-80 transition-all hover:opacity-100 hover:translate-x-0.5"
-                      >
-                        {linkLabel(l.label, l.to)}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+          <div className="md:col-span-4 lg:col-span-3">
+            <div className={`grid grid-cols-2 ${columnTracks} gap-8 lg:gap-10`}>
+              {columns.map(c => (
+                <div key={c.title}>
+                  <h4 className="text-xs font-bold tracking-widest opacity-60">{columnTitle(c.title)}</h4>
+                  <ul className="mt-4 space-y-2.5 text-sm">
+                    {c.links.map(l => (
+                      <li key={l.label}>
+                        <Link
+                          href={l.to}
+                          className="inline-block opacity-80 transition-all hover:opacity-100 hover:translate-x-0.5"
+                        >
+                          {linkLabel(l.label, l.to)}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+
+            {/* The apps, under the links. Buttons, not links: there is no
+                store page to go to yet, so each opens the notice below. */}
+            <div className="mt-10">
+              <h4 className="text-xs font-bold tracking-widest opacity-60">{t("app.title")}</h4>
+              {/* The stores' own badges, at one height. Google's file carries a
+                  clear margin inside the image (a quarter of it); Apple's has
+                  none — so Google's is drawn larger and pulled back in. */}
+              <div className="mt-4 flex items-center gap-3">
+                {[
+                  { store: "Google Play", line: t("app.android"), src: "/assets/badges/google-play.png", img: "-m-[10px] h-[60px]" },
+                  { store: "App Store", line: t("app.ios"), src: "/assets/badges/app-store.svg", img: "h-10" },
+                ].map(({ store, line, src, img }) => (
+                  <button
+                    key={store}
+                    type="button"
+                    onClick={() => setAppSoon(true)}
+                    className="shrink-0 rounded-lg transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  >
+                    <img src={src} alt={`${line} ${store}`} className={`${img} w-auto max-w-none`} />
+                  </button>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
         </div>
       </div>
+
+      <Dialog open={appSoon} onOpenChange={setAppSoon}>
+        <DialogContent className="max-w-sm text-center">
+          <DialogHeader className="items-center sm:text-center">
+            <span className="mb-2 grid h-12 w-12 place-items-center rounded-full bg-accent/20 text-primary">
+              <Smartphone className="h-6 w-6" />
+            </span>
+            <DialogTitle className="font-display text-2xl text-primary">{t("app.soonTitle")}</DialogTitle>
+            <DialogDescription>{t("app.soonBody")}</DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
 
       <div className="relative border-t border-surface-dark-foreground/10">
         <div className="container mx-auto flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-5 text-xs">
