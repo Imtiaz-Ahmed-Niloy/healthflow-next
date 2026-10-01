@@ -360,6 +360,7 @@
       "sortLabel": "Sort doctors",
       "sorts": {
         "recommended": "Recommended",
+        "nearest": "Nearest to you",
         "experience": "Most experienced",
         "feeLow": "Fee: low to high",
         "feeHigh": "Fee: high to low"

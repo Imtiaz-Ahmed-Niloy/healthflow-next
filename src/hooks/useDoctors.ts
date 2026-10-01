@@ -368,6 +368,9 @@ export type DoctorSearch = {
   district?: string;
   upazila?: string;
   sort?: string;
+  /** For the 'nearest' sort (0120): where the visitor is, as useNearbyArea guessed. */
+  nearDivision?: string;
+  nearDistrict?: string;
 };
 
 /**
@@ -402,6 +405,11 @@ export const useDoctorSearch = (search: DoctorSearch, pageSize = 24) => {
       p_sort: s.sort || "recommended",
       p_limit: pageSize,
       p_offset: page * pageSize,
+      // Only for the sort that reads them, so every other search is the call
+      // it always was.
+      ...(s.sort === "nearest"
+        ? { p_near_division: s.nearDivision || null, p_near_district: s.nearDistrict || null }
+        : {}),
     }))
       .then(({ data, error }) => {
         if (!active) return;

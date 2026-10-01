@@ -5018,6 +5018,8 @@ export type Database = {
           p_division?: string | null
           p_gender?: string | null
           p_limit?: number
+          p_near_district?: string | null
+          p_near_division?: string | null
           p_offset?: number
           p_q?: string | null
           p_sort?: string

@@ -59,6 +59,7 @@
   "specialists": {
     "heading": "Find Your <g>Specialist</g>",
     "showing": "Showing {count, plural, one {# result} other {# results}} for {filters}",
+    "near": "Doctors near you in {place}",
     "none": "No specialists match your filters.",
     "viewAll": "View All Doctors"
   },

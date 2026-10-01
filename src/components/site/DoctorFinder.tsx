@@ -9,6 +9,7 @@ import { FilterChip, FILTER_CONTROL, FILTER_ICON } from "@/components/common/Fil
 import { LocationPickers, useLocationFilter } from "@/components/common/LocationPickers";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDoctorSearch, type UIDoctor } from "@/hooks/useDoctors";
+import { useNearbyArea } from "@/hooks/useNearbyArea";
 import { cn } from "@/lib/utils";
 
 /**
@@ -24,8 +25,8 @@ import { cn } from "@/lib/utils";
 
 const ANY = "any";
 
-type Sort = "recommended" | "experience" | "feeLow" | "feeHigh";
-const SORTS: Sort[] = ["recommended", "experience", "feeLow", "feeHigh"];
+type Sort = "recommended" | "nearest" | "experience" | "feeLow" | "feeHigh";
+const SORTS: Sort[] = ["recommended", "nearest", "experience", "feeLow", "feeHigh"];
 
 const GENDERS = [ANY, "female", "male"] as const;
 type Gender = (typeof GENDERS)[number];
@@ -63,6 +64,10 @@ export const DoctorFinder = ({
   });
   const [gender, setGender] = useState<Gender>(ANY);
   const [sort, setSort] = useState<Sort>("recommended");
+  // Nearest first is offered only to a visitor whose district could be
+  // guessed (from their IP address, no prompt: useNearbyArea).
+  const { area } = useNearbyArea();
+  const sorts = area ? SORTS : SORTS.filter(s => s !== "nearest");
 
   const { division: wantDivision, district: wantDistrict, upazila: wantUpazila } = place.want;
 
@@ -81,6 +86,8 @@ export const DoctorFinder = ({
     district: wantDistrict,
     upazila: wantUpazila,
     sort,
+    nearDivision: area?.division,
+    nearDistrict: area?.district ?? undefined,
   });
   const firstLoad = loading && visible.length === 0;
 
@@ -165,7 +172,7 @@ export const DoctorFinder = ({
             <SelectValue />
           </SelectTrigger>
           <SelectContent align="end">
-            {SORTS.map(s => <SelectItem key={s} value={s}>{t(`sorts.${s}`)}</SelectItem>)}
+            {sorts.map(s => <SelectItem key={s} value={s}>{t(`sorts.${s}`)}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>

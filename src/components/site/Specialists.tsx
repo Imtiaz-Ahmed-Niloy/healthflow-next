@@ -1,11 +1,12 @@
 "use client";
 
-import { forwardRef } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, FilterX } from "lucide-react";
+import { ArrowRight, FilterX, MapPin } from "lucide-react";
 import { useDoctorSearch } from "@/hooks/useDoctors";
+import { useNearbyArea } from "@/hooks/useNearbyArea";
 import { DoctorCard } from "@/components/site/DoctorCard";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { gradient } from "@/components/site/GradientWords";
 import { motion } from "framer-motion";
 import { titleReveal } from "@/components/site/titleReveal";
@@ -20,14 +21,37 @@ type SpecialistsProps = {
 const Specialists = forwardRef<HTMLElement, SpecialistsProps>(
   ({ division, zilla, upazila, specialty }, ref) => {
     const t = useTranslations("specialists");
+    const locale = useLocale();
     // The first eight that match, searched in the database (0116): partners
     // first, then doctors with a photo.
-    const { doctors: visible, loading } = useDoctorSearch(
-      { specialty, division, district: zilla, upazila },
+    const activeFilterCount = [division, zilla, upazila, specialty].filter(Boolean).length;
+
+    // With nothing chosen, the visitor's own district — guessed from their IP
+    // address, no prompt (useNearbyArea). A chosen filter always wins, and a
+    // district with no doctors gives way to the whole directory.
+    const { area, loading: locating } = useNearbyArea();
+    const [nothingNear, setNothingNear] = useState(false);
+    const near = activeFilterCount === 0 && !nothingNear ? area : null;
+
+    const { doctors: visible, loading: searching } = useDoctorSearch(
+      near
+        ? { division: near.division, district: near.district ?? undefined }
+        : { specialty, division, district: zilla, upazila },
       8,
     );
+    // Waiting on the guess too, or the whole directory would flash up first.
+    const loading = searching || (locating && activeFilterCount === 0);
 
-    const activeFilterCount = [division, zilla, upazila, specialty].filter(Boolean).length;
+    // Only once the nearby search itself has run: on the render that switches
+    // to it, `visible` is still the last search's.
+    const nearSearched = useRef(false);
+    useEffect(() => {
+      if (!near) { nearSearched.current = false; return; }
+      if (searching) { nearSearched.current = true; return; }
+      if (nearSearched.current && visible.length === 0) setNothingNear(true);
+    }, [near, searching, visible.length]);
+
+    const nearName = near ? (locale === "bn" && near.bnName) || near.district || near.division : "";
 
     return (
       <section id="features" ref={ref} className="container mx-auto py-20">
@@ -44,6 +68,13 @@ const Specialists = forwardRef<HTMLElement, SpecialistsProps>(
                 filters: [specialty, upazila, zilla, division].filter(Boolean).join(" "),
               })}
             </span>
+          </div>
+        )}
+
+        {near && !loading && visible.length > 0 && (
+          <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
+            <MapPin className="h-4 w-4" />
+            <span>{t("near", { place: nearName })}</span>
           </div>
         )}
 
