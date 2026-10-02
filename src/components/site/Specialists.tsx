@@ -2,12 +2,12 @@
 
 import { forwardRef } from "react";
 import Link from "next/link";
-import { ArrowRight, FilterX, MapPin } from "lucide-react";
+import { ArrowRight, FilterX } from "lucide-react";
 import { useDoctorSearch } from "@/hooks/useDoctors";
 import { useNearbyArea } from "@/hooks/useNearbyArea";
-import { NearbyControls } from "@/components/site/NearbyControls";
+import { NearbyLine } from "@/components/site/NearbyControls";
 import { DoctorCard } from "@/components/site/DoctorCard";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { gradient } from "@/components/site/GradientWords";
 import { motion } from "framer-motion";
 import { titleReveal } from "@/components/site/titleReveal";
@@ -22,7 +22,6 @@ type SpecialistsProps = {
 const Specialists = forwardRef<HTMLElement, SpecialistsProps>(
   ({ division, zilla, upazila, specialty }, ref) => {
     const t = useTranslations("specialists");
-    const locale = useLocale();
     // The first eight that match, searched in the database (0116): partners
     // first, then doctors with a photo.
     const activeFilterCount = [division, zilla, upazila, specialty].filter(Boolean).length;
@@ -43,16 +42,6 @@ const Specialists = forwardRef<HTMLElement, SpecialistsProps>(
     // Waiting on the guess too, or the whole directory would flash up first.
     const loading = searching || (locating && activeFilterCount === 0);
 
-    // The district sits in the picker beside the line; only a division — all
-    // that could be told — is written out, and as one.
-    const bangla = locale === "bn";
-    const divisionName = area && !area.district
-      ? t("divisionName", { name: (bangla && area.bnName) || area.division })
-      : "";
-    const nearLine = !area ? t("nearUnset")
-      : divisionName ? t("nearInPlace", { place: divisionName })
-      : t("nearIn");
-
     return (
       <section id="features" ref={ref} className="container mx-auto py-20">
         <div className="mb-10">
@@ -71,13 +60,7 @@ const Specialists = forwardRef<HTMLElement, SpecialistsProps>(
           </div>
         )}
 
-        {activeFilterCount === 0 && !loading && (
-          <div className="mb-6 flex flex-wrap items-center gap-x-2 gap-y-2 text-sm text-muted-foreground">
-            <MapPin className="h-4 w-4" />
-            <span>{nearLine}</span>
-            <NearbyControls />
-          </div>
-        )}
+        {activeFilterCount === 0 && !loading && <NearbyLine className="mb-6" />}
 
         {loading ? (
           <div className="flex justify-center items-center py-20">

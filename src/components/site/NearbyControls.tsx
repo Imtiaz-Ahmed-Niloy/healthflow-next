@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { LocateFixed } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { LocateFixed, MapPin } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { SearchSelect } from "@/components/common/SearchSelect";
@@ -64,5 +65,26 @@ export const NearbyControls = () => {
         {finding ? t("locating") : t("useMyLocation")}
       </button>
     </>
+  );
+};
+
+/**
+ * The whole line: "Doctors near you in [Sherpur] · Use my location". The
+ * district sits in the picker; only a division — all that could be told — is
+ * written out, and as one. The same on the home page and on Find Doctors.
+ */
+export const NearbyLine = ({ className }: { className?: string }) => {
+  const t = useTranslations("specialists");
+  const bangla = useLocale() === "bn";
+  const { area } = useNearbyArea();
+  const line = !area ? t("nearUnset")
+    : area.district ? t("nearIn")
+    : t("nearInPlace", { place: t("divisionName", { name: (bangla && area.bnName) || area.division }) });
+  return (
+    <div className={cn("flex flex-wrap items-center gap-2 text-sm text-muted-foreground", className)}>
+      <MapPin className="h-4 w-4" />
+      <span>{line}</span>
+      <NearbyControls />
+    </div>
   );
 };

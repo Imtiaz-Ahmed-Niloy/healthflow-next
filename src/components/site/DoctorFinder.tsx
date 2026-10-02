@@ -10,6 +10,7 @@ import { LocationPickers, useLocationFilter } from "@/components/common/Location
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDoctorSearch, type UIDoctor } from "@/hooks/useDoctors";
 import { useNearbyArea } from "@/hooks/useNearbyArea";
+import { NearbyLine } from "@/components/site/NearbyControls";
 import { cn } from "@/lib/utils";
 
 /**
@@ -63,11 +64,13 @@ export const DoctorFinder = ({
     upazila: initial.upazila,
   });
   const [gender, setGender] = useState<Gender>(ANY);
-  const [sort, setSort] = useState<Sort>("recommended");
-  // Nearest first is offered only to a visitor whose district could be
-  // guessed (from their IP address, no prompt: useNearbyArea).
-  const { area } = useNearbyArea();
+  // Nearest first is the order for a visitor whose district is known — given
+  // by them, or guessed from their IP address (useNearbyArea) — until they
+  // pick a sort of their own. Without one it is not offered at all.
+  const { area, loading: locating } = useNearbyArea();
+  const [pickedSort, setSort] = useState<Sort | null>(null);
   const sorts = area ? SORTS : SORTS.filter(s => s !== "nearest");
+  const sort: Sort = pickedSort && sorts.includes(pickedSort) ? pickedSort : area ? "nearest" : "recommended";
 
   const { division: wantDivision, district: wantDistrict, upazila: wantUpazila } = place.want;
 
@@ -89,7 +92,8 @@ export const DoctorFinder = ({
     nearDivision: area?.division,
     nearDistrict: area?.district ?? undefined,
   });
-  const firstLoad = loading && visible.length === 0;
+  // Waiting on the district too, or the list would load once and reorder.
+  const firstLoad = (loading && visible.length === 0) || (locating && !pickedSort);
 
   const filtered = !!query.trim() || !!specialty || place.active || gender !== ANY;
   const clearAll = () => {
@@ -148,6 +152,10 @@ export const DoctorFinder = ({
 
         <LocationPickers filter={place} className={CONTROL} />
       </div>
+
+      {/* Whose "nearest" it is, and how to correct it — not while a place is
+          picked in the filters above, which already says where. */}
+      {!place.active && !locating && <NearbyLine className="mt-5" />}
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
