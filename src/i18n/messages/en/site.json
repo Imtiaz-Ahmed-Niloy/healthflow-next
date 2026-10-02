@@ -66,7 +66,16 @@
   "specialists": {
     "heading": "Find Your <g>Specialist</g>",
     "showing": "Showing {count, plural, one {# result} other {# results}} for {filters}",
-    "near": "Doctors near you in {place}",
+    "nearIn": "Doctors near you in",
+    "nearInPlace": "Doctors near you in {place}. Your district:",
+    "nearUnset": "See doctors near you:",
+    "divisionName": "{name} Division",
+    "chooseDistrict": "Choose district",
+    "useMyLocation": "Use my location",
+    "locating": "Finding you…",
+    "locationDenied": "Location wasn't allowed. Pick your district instead.",
+    "locationOutside": "You seem to be outside Bangladesh. Pick a district instead.",
+    "locationFailed": "Couldn't find your location. Pick your district instead.",
     "none": "No specialists match your filters.",
     "viewAll": "View All Doctors"
   },
