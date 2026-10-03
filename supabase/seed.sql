@@ -10,10 +10,10 @@
 -- Creates one demo hospital and the four accounts behind the demo buttons on
 -- the sign-in screen, one per role.
 --
---   Patient      p-user@demo.pro    patient123
---   Doctor       dr-smith@demo.pro  clinical456
---   Management   mgmt@demo.pro      flow789
---   Super Admin  root@demo.pro      system000
+--   Patient      p-user@demo.pro    health#123
+--   Doctor       dr-smith@demo.pro  health#123
+--   Management   mgmt@demo.pro      health#123
+--   Super Admin  root@demo.pro      health#123
 --
 -- Idempotent — safe to run repeatedly.
 
@@ -92,28 +92,28 @@ $$;
 select public.__seed_demo_user(
   '000d0000-0000-0000-0000-00000000a001',
   'p-user@demo.pro',
-  'patient123',
+  'health#123',
   '{"full_name":"Demo Patient"}'::jsonb
 );
 
 select public.__seed_demo_user(
   '000d0000-0000-0000-0000-00000000a002',
   'dr-smith@demo.pro',
-  'clinical456',
+  'health#123',
   '{"full_name":"Dr. Demo Smith","role":"doctor","tenant_id":"000d0000-0000-0000-0000-00000000d001"}'::jsonb
 );
 
 select public.__seed_demo_user(
   '000d0000-0000-0000-0000-00000000a003',
   'mgmt@demo.pro',
-  'flow789',
+  'health#123',
   '{"full_name":"Demo Hospital Admin","role":"hospital_admin","tenant_id":"000d0000-0000-0000-0000-00000000d001"}'::jsonb
 );
 
 select public.__seed_demo_user(
   '000d0000-0000-0000-0000-00000000a004',
   'root@demo.pro',
-  'system000',
+  'health#123',
   '{"full_name":"Demo Super Admin","role":"super_admin"}'::jsonb
 );
 

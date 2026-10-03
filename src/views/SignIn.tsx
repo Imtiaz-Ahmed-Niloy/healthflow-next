@@ -42,10 +42,10 @@ const BADGE_TONE: Record<string, string> = {
 
 // `role` names a key in auth.signIn.demoRoles.
 const demos = [
-  { icon: User, role: "patient", e: "p-user@demo.pro", p: "patient123" },
-  { icon: ShieldCheck, role: "doctor", e: "dr-smith@demo.pro", p: "clinical456" },
-  { icon: BarChart3, role: "management", e: "mgmt@demo.pro", p: "flow789" },
-  { icon: Stethoscope, role: "superAdmin", e: "root@demo.pro", p: "system000" },
+  { icon: User, role: "patient", e: "p-user@demo.pro", p: "health#123" },
+  { icon: ShieldCheck, role: "doctor", e: "dr-smith@demo.pro", p: "health#123" },
+  { icon: BarChart3, role: "management", e: "mgmt@demo.pro", p: "health#123" },
+  { icon: Stethoscope, role: "superAdmin", e: "root@demo.pro", p: "health#123" },
 ] as const;
 
 const AdCard = ({ ad }: { ad: SigninAd }) => {
