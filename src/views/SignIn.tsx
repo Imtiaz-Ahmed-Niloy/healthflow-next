@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BarChart3, Eye, EyeOff, ShieldCheck, Stethoscope, User } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useForm, type SubmitErrorHandler, type SubmitHandler } from "react-hook-form";
@@ -39,14 +39,6 @@ const BADGE_TONE: Record<string, string> = {
   destructive: "bg-destructive text-destructive-foreground",
   muted: "bg-muted text-muted-foreground",
 };
-
-// `role` names a key in auth.signIn.demoRoles.
-const demos = [
-  { icon: User, role: "patient", e: "p@hf.bd", p: "health#123" },
-  { icon: ShieldCheck, role: "doctor", e: "d@hf.bd", p: "health#123" },
-  { icon: BarChart3, role: "management", e: "a@hf.bd", p: "health#123" },
-  { icon: Stethoscope, role: "superAdmin", e: "s@hf.bd", p: "health#123" },
-] as const;
 
 const AdCard = ({ ad }: { ad: SigninAd }) => {
   const image = mediaUrl(ad.image_url);
@@ -132,11 +124,7 @@ const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
     return homePathForRole(role);
   };
 
-  /**
-   * The single sign-in path. Both the form and the demo buttons go through
-   * here, so there is no way for a shortcut to skip authentication — which is
-   * exactly what the old demo buttons did.
-   */
+  /** The single sign-in path. */
   const signInWith = async (email: string, password: string) => {
     setGeneralError(null);
     setIsLoading(true);
@@ -177,24 +165,6 @@ const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
   const onInvalid: SubmitErrorHandler<SignInFormValues> = () => {
     setGeneralError(null);
     toast.error(t("completeFields"));
-  };
-
-  /**
-   * One-click demo sign-in.
-   *
-   * These accounts are real Supabase users created by supabase/seed.sql, so
-   * this goes through the same signInWith path as the form — no fabricated
-   * session, no bypass. Previously the buttons forged a session client-side
-   * and redirected on an email prefix, which meant the demo shortcut was also
-   * an authentication bypass.
-   *
-   * Development convenience only. Remove this block before production.
-   */
-  const fillDemo = async (mail: string, p: string) => {
-    setValue("email", mail, { shouldDirty: true, shouldValidate: true });
-    setValue("password", p, { shouldDirty: true, shouldValidate: true });
-    clearErrors();
-    await signInWith(mail, p);
   };
 
   return (
@@ -322,23 +292,6 @@ const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
             <p className="text-center text-xs text-muted-foreground">{t("noAccount")} <Link href="/signup" className="font-semibold text-primary-glow hover:underline">{t("createOne")}</Link></p>
           </form>
 
-          <div className="mt-10 pt-6 border-t border-border/60">
-            <p className="text-center text-[10px] tracking-widest font-bold text-muted-foreground">{t("demoAccess")}</p>
-            {/* Always two columns. sm:grid-cols-4 fired on viewport width, but
-                this card is a fixed 520px at every breakpoint, so four cards
-                got ~80px each and the emails truncated. */}
-            <div className="grid grid-cols-2 gap-2.5 mt-4">
-              {demos.map(d => (
-                <button key={d.role} type="button" onClick={() => fillDemo(d.e, d.p)}
-                  className="text-left rounded-xl bg-muted/40 hover:bg-chip transition-colors p-3 border border-border/40">
-                  <d.icon className="h-3.5 w-3.5 text-primary" />
-                  <p className="text-xs font-semibold text-primary mt-2">{t(`demoRoles.${d.role}`)}</p>
-                  <p className="text-[10px] text-muted-foreground mt-1 truncate">{d.e}</p>
-                  <p className="text-[10px] text-muted-foreground font-mono">{t("demoPass", { password: d.p })}</p>
-                </button>
-              ))}
-            </div>
-          </div>
         </motion.div>
 
         <div className="hidden lg:flex flex-col gap-6">{right.map(a => <AdCard key={a.id} ad={a} />)}</div>
