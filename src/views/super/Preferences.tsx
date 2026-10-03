@@ -10,7 +10,7 @@ const Preferences = () => {
   const tc = useTranslations("common");
   const profile = [
     [t("displayName"), "Root Operator"],
-    [t("email"), "root@demo.pro"],
+    [t("email"), "s@hf.bd"],
     [t("phone"), "+1 (555) 010-0001"],
   ];
   const security = [
