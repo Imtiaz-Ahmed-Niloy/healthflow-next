@@ -2,16 +2,16 @@ import { useEffect, useSyncExternalStore } from "react";
 import { nearestDistrict } from "@/lib/districtCentres";
 
 /**
- * Where the visitor is, to the district. Three sources, the surest first:
+ * Where the visitor is, to the district — only ever what they said: a
+ * district they picked, or "Use my location" (the browser's own prompt), kept
+ * in this browser's storage. Where the browser was already allowed to give
+ * its location, NearbyControls asks it without a prompt.
  *
- *   1. what they said — a district they picked, or "Use my location" (the
- *      browser's own prompt), kept in this browser's storage;
- *   2. otherwise a guess from their IP address by /api/v1/geo, no prompt.
- *
- * The guess is often wrong on mobile data — every phone in the country
- * reaches the internet through Dhaka — which is why 1 exists. Null until an
- * answer arrives, and null for good when there is none (abroad, an unknown
- * address). One answer for the whole page: every caller shares it.
+ * Until then there is no answer, and nothing is guessed. It used to be
+ * guessed from the IP address, which in Bangladesh says Dhaka for most of the
+ * country — an ISP's addresses are registered there wherever its customers
+ * are — so someone in Jashore was shown "doctors near you" in Dhaka. One
+ * answer for the whole page: every caller shares it.
  */
 
 export type NearbyArea = { division: string; district: string | null; bnName: string | null };
@@ -40,25 +40,16 @@ const saved = (): NearbyArea | null => {
   }
 };
 
-const guess = () => {
-  set({ area: null, loading: true, chosen: false });
-  fetch("/api/v1/geo")
-    .then(res => (res.ok ? res.json() : null))
-    .then(body => (body?.data as NearbyArea | null) ?? null)
-    .catch(() => null)
-    // A district chosen while this was in the air stays.
-    .then(area => { if (!state.chosen) set({ area, loading: false, chosen: false }); });
-};
+const UNSET: State = { area: null, loading: false, chosen: false };
 
 const start = () => {
   if (started) return;
   started = true;
   const mine = saved();
-  if (mine) set({ area: mine, loading: false, chosen: true });
-  else guess();
+  set(mine ? { area: mine, loading: false, chosen: true } : UNSET);
 };
 
-/** The visitor's own answer, remembered here; null forgets it and goes back to the guess. */
+/** The visitor's own answer, remembered here; null forgets it. */
 export const chooseNearbyArea = (area: NearbyArea | null) => {
   try {
     if (area) localStorage.setItem(KEY, JSON.stringify(area));
@@ -66,8 +57,19 @@ export const chooseNearbyArea = (area: NearbyArea | null) => {
   } catch {
     // Not remembered, then; it still holds for this page.
   }
-  if (area) set({ area, loading: false, chosen: true });
-  else guess();
+  set(area ? { area, loading: false, chosen: true } : UNSET);
+};
+
+/**
+ * Whether this browser already lets the site read its location — so asking
+ * shows no prompt. False where the browser can't say (older Safari).
+ */
+export const locationAlreadyAllowed = async () => {
+  try {
+    return (await navigator.permissions.query({ name: "geolocation" })).state === "granted";
+  } catch {
+    return false;
+  }
 };
 
 export type LocateFailure = "denied" | "outside" | "failed";

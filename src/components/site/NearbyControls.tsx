@@ -1,26 +1,46 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { LocateFixed, MapPin } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { SearchSelect } from "@/components/common/SearchSelect";
 import { useBdLocations } from "@/hooks/useBdLocations";
-import { chooseNearbyArea, locateDistrict, useNearbyArea } from "@/hooks/useNearbyArea";
+import { chooseNearbyArea, locateDistrict, locationAlreadyAllowed, useNearbyArea } from "@/hooks/useNearbyArea";
+
+// Once per page load, however many of these are on it.
+let askedBrowser = false;
 
 /**
- * How a visitor corrects where the site thinks they are (useNearbyArea): the
- * district as a picker, and "Use my location" — the browser's own prompt —
- * beside it. Either answer is remembered in their browser. Picking nothing
- * goes back to the guess.
+ * How a visitor says where they are (useNearbyArea): the district as a
+ * picker, and "Use my location" — the browser's own prompt — beside it.
+ * Either answer is remembered in their browser. Picking nothing forgets it.
  */
 export const NearbyControls = () => {
   const t = useTranslations("specialists");
   const bangla = useLocale() === "bn";
-  const { area } = useNearbyArea();
+  const { area, loading } = useNearbyArea();
   const { divisions, districts } = useBdLocations();
   const [finding, setFinding] = useState(false);
+  const ready = !loading && !area && districts.length > 0 && divisions.length > 0;
+
+  // No answer yet, but the browser was already allowed to give its location
+  // (they pressed "Use my location" before and then cleared their district):
+  // take it, quietly. Never the prompt, and never an error.
+  useEffect(() => {
+    if (!ready || askedBrowser) return;
+    askedBrowser = true;
+    void locationAlreadyAllowed()
+      .then(allowed => (allowed ? locateDistrict() : null))
+      .then(name => {
+        const district = name ? districts.find(d => d.name === name) : undefined;
+        const division = district && divisions.find(v => v.id === district.division_id);
+        if (district && division) chooseNearbyArea({ division: division.name, district: district.name, bnName: district.bn_name });
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
 
   const choose = (name: string) => {
     const district = districts.find(d => d.name === name);

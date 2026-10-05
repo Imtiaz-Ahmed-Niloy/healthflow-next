@@ -53,5 +53,3 @@ next-env.d.ts
 # DrListify import: downloaded data (large, regenerable with scripts/drlistify/fetch.mjs)
 scripts/drlistify/data/
 
-# GeoIP database (120 MB, regenerable with `yarn geoip`)
-/data/geoip/

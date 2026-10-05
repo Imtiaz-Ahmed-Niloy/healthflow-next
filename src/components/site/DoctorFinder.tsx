@@ -65,7 +65,7 @@ export const DoctorFinder = ({
   });
   const [gender, setGender] = useState<Gender>(ANY);
   // Nearest first is the order for a visitor whose district is known — given
-  // by them, or guessed from their IP address (useNearbyArea) — until they
+  // by them (useNearbyArea) — until they
   // pick a sort of their own. Without one it is not offered at all.
   const { area, loading: locating } = useNearbyArea();
   const [pickedSort, setSort] = useState<Sort | null>(null);

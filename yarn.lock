@@ -4858,14 +4858,6 @@ math-intrinsics@^1.1.0:
   resolved "https://registry.yarnpkg.com/math-intrinsics/-/math-intrinsics-1.1.0.tgz#a0dd74be81e2aa5c2f27e65ce283605ee4e2b7f9"
   integrity sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==
 
-maxmind@^5.0.7:
-  version "5.0.7"
-  resolved "https://registry.yarnpkg.com/maxmind/-/maxmind-5.0.7.tgz#c7e24e7a15f9af5e66b07aa8a0c188fa2992d68d"
-  integrity sha512-+w637dwfv01MKjkrp4sKDBTEKHLPvWLYb647QTjiz3wG/teSemqudIKNShaS6eqZ7ffxC9oZlQQgIqY0rGojog==
-  dependencies:
-    mmdb-lib "3.0.3"
-    tiny-lru "13.0.0"
-
 mdast-util-from-markdown@^2.0.0:
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/mdast-util-from-markdown/-/mdast-util-from-markdown-2.0.3.tgz#c95822b91aab75f18a4cbe8b2f51b873ed2cf0c7"
@@ -5213,11 +5205,6 @@ minimist@^1.2.0, minimist@^1.2.6:
   version "1.2.8"
   resolved "https://registry.yarnpkg.com/minimist/-/minimist-1.2.8.tgz#c1a464e7693302e082a075cee0c057741ac4772c"
   integrity sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==
-
-mmdb-lib@3.0.3:
-  version "3.0.3"
-  resolved "https://registry.yarnpkg.com/mmdb-lib/-/mmdb-lib-3.0.3.tgz#3f19c7bc7733b6da01c9e08f5eeb5163929944e1"
-  integrity sha512-xQPoBXcNjjHiOvOraFBKtA++uNWF6aCVHL9dRKFXEov8eI3QJwtgiw3qApsonFT5SpoqsEVISUTg3HIDs2DiXw==
 
 motion-dom@^12.43.0:
   version "12.43.0"
@@ -6399,11 +6386,6 @@ tiny-invariant@^1.3.1:
   version "1.3.3"
   resolved "https://registry.yarnpkg.com/tiny-invariant/-/tiny-invariant-1.3.3.tgz#46680b7a873a0d5d10005995eb90a70d74d60127"
   integrity sha512-+FbBPE1o9QAYvviau/qC5SE3caw21q3xkvWKBtja5vgqOWIHHJ3ioaq1VPfn/Szqctz2bU/oYeKd9/z5BL+PVg==
-
-tiny-lru@13.0.0:
-  version "13.0.0"
-  resolved "https://registry.yarnpkg.com/tiny-lru/-/tiny-lru-13.0.0.tgz#6f68dc7e9b86c162f8ecae712895e6fa9f3ac2d9"
-  integrity sha512-xDHxKKS1FdF0Tv2P+QT7IeSEg74K/8cEDzbv3Tv6UyHHUgBOjOiQiBp818MGj66dhurQus/IBcoAbwIKtSGc6Q==
 
 tinybench@^2.9.0:
   version "2.9.0"

@@ -107,11 +107,6 @@ jobs:
             # Install dependencies (immutable lockfile)
             yarn install --frozen-lockfile
 
-            # This month's GeoIP database (src/server/geo.ts), fetched once a
-            # month and skipped otherwise. Never fails the deploy: without the
-            # file the home page lists doctors as it did before, not by district.
-            yarn geoip || echo "::warning::GeoIP database was not downloaded"
-
             # Build the production bundle. Reads the droplet's own .env for
             # the runtime secrets — the service-role key and the doctor login
             # encryption key live there, never in GitHub.

@@ -27,7 +27,7 @@ const Specialists = forwardRef<HTMLElement, SpecialistsProps>(
     const activeFilterCount = [division, zilla, upazila, specialty].filter(Boolean).length;
 
     // With nothing chosen, nearest first: the visitor's own district — the one
-    // they gave, or a guess from their IP address (useNearbyArea) — then the
+    // they gave (useNearbyArea), when they have given one — then the
     // rest of their division, then everyone (0120). An ordering, so a district
     // with one doctor still fills the row. A chosen filter always wins.
     const { area, loading: locating } = useNearbyArea();

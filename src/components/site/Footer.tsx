@@ -226,16 +226,6 @@ const Footer = () => {
               SourceExpert
             </a>
           </span>
-          {/* DB-IP's licence (CC BY 4.0) asks for this link wherever its data
-              is used: the home page's nearby doctors (src/server/geo.ts). */}
-          <a
-            href="https://db-ip.com"
-            target="_blank"
-            rel="noopener"
-            className="opacity-60 underline-offset-4 hover:underline hover:opacity-100"
-          >
-            IP Geolocation by DB-IP
-          </a>
         </div>
       </div>
     </footer>
