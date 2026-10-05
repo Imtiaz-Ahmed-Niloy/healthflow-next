@@ -1,4 +1,5 @@
 import Pricing from "@/views/Pricing";
+import { pageTitle } from "@/lib/pageTitle";
 import { notFound } from "next/navigation";
 import { getLocale } from "next-intl/server";
 import type { Locale } from "@/i18n/config";
@@ -9,6 +10,7 @@ import { blocksToPricingContent } from "@/data/pricingContent";
 // Revalidate every 60s. Edits in the CMS show up within a minute without
 // needing a redeploy or a cache purge.
 export const revalidate = 60;
+export const generateMetadata = pageTitle("pricing");
 
 export default async function PricingPage() {
   const supabase = createPublicSupabase();

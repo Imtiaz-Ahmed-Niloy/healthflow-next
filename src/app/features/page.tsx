@@ -1,4 +1,5 @@
 import Features from "@/views/Features";
+import { pageTitle } from "@/lib/pageTitle";
 import { notFound } from "next/navigation";
 import { createPublicSupabase } from "@/lib/supabase/server";
 import { pageIsDrafted } from "@/lib/cms/pages";
@@ -8,6 +9,7 @@ import { blocksToHero } from "@/data/cmsPageHero";
 // Revalidate every 60s. Edits in the CMS show up within a minute without
 // needing a redeploy or a cache purge.
 export const revalidate = 60;
+export const generateMetadata = pageTitle("features");
 
 export default async function FeaturesPage() {
   const supabase = createPublicSupabase();

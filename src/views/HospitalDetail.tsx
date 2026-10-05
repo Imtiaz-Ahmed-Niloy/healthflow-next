@@ -21,15 +21,21 @@ import { useHospitalDoctors } from "@/hooks/useDoctors";
 import { DoctorCard } from "@/components/site/DoctorCard";
 import { HospitalCard } from "@/components/site/HospitalCard";
 import { useFormatters } from "@/lib/appSettings";
+import type { HospitalPageRows } from "@/lib/publicDirectory";
 
-const HospitalDetail = () => {
+/**
+ * `initial` is the hospital, its doctors, lab tests and rooms as the server
+ * read them (app/hospitals/[slug]), so the page's HTML carries them. Left
+ * out, the page fetches for itself.
+ */
+const HospitalDetail = ({ initial }: { initial?: HospitalPageRows }) => {
   const t = useTranslations("hospitalDetail");
   const { formatCurrency } = useFormatters();
   const slug = useParams<{ slug: string }>()?.slug;
-  const { hospital, hospitals, loading } = useHospital(slug ?? "");
+  const { hospital, hospitals, loading } = useHospital(slug ?? "", initial);
   // Whoever practises here (doctors_public by hospital_slug) — the same
   // doctor cards as the home page and /doctors.
-  const { doctors: hospitalDoctors } = useHospitalDoctors(slug);
+  const { doctors: hospitalDoctors } = useHospitalDoctors(slug, initial?.doctors);
 
   const [docQuery, setDocQuery] = useState("");
   const [docSpec, setDocSpec] = useState("All");

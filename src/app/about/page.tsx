@@ -1,4 +1,5 @@
 import About from "@/views/About";
+import { pageTitle } from "@/lib/pageTitle";
 import { notFound } from "next/navigation";
 import { getLocale } from "next-intl/server";
 import { createPublicSupabase } from "@/lib/supabase/server";
@@ -10,6 +11,7 @@ import type { Locale } from "@/i18n/config";
 // Revalidate every 60s. Edits in the CMS show up within a minute without
 // needing a redeploy or a cache purge.
 export const revalidate = 60;
+export const generateMetadata = pageTitle("about");
 
 export default async function AboutPage() {
   const supabase = createPublicSupabase();

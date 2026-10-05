@@ -1,10 +1,12 @@
 import { notFound } from "next/navigation";
+import { blogPostTitle } from "@/lib/pageTitle";
 import BlogDetail from "@/views/BlogDetail";
 import { requirePublishedPage } from "@/lib/cms/pages";
 import { getBlogPost, getBlogPosts } from "@/lib/cms/blogPosts";
 
 // Revalidate every 60s, in step with the rest of the CMS-backed pages.
 export const revalidate = 60;
+export const generateMetadata = blogPostTitle;
 
 // Prerender the articles that exist at build time. An article added later is
 // still served — Next renders it on first request and caches it from there.

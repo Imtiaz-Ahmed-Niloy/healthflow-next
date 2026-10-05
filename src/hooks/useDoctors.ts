@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@/i18n/config";
 import { supabase } from "@/lib/supabase/client";
 import { mediaUrl } from "@/lib/media";
 import { availabilityLabel } from "@/lib/availability";
+import { fetchDoctorRows } from "@/lib/publicDirectory";
 
 export type DBDoctor = {
   id: string;
@@ -300,10 +301,15 @@ const doctorsFromRows = (rows: DBDoctor[], w: Words, locale: Locale): UIDoctor[]
  * Rows fetched by `load` and grouped into doctors for the page's language —
  * a language switch relabels them without a refetch. `key` refetches: pass
  * whatever `load` depends on. A null key loads nothing.
+ *
+ * `initial` is the same rows as the server already read them (the doctor's
+ * and the hospital's own pages): the first render has them, and the first
+ * fetch is skipped.
  */
-const useDoctorRows = (key: string | null, load: () => Promise<DBDoctor[]>) => {
-  const [rows, setRows] = useState<DBDoctor[]>([]);
-  const [loading, setLoading] = useState(key !== null);
+const useDoctorRows = (key: string | null, load: () => Promise<DBDoctor[]>, initial?: DBDoctor[]) => {
+  const [rows, setRows] = useState<DBDoctor[]>(initial ?? []);
+  const [loading, setLoading] = useState(key !== null && !initial);
+  const seeded = useRef(initial !== undefined);
   const locale = useLocale();
   const w = useWords();
   // `w` is rebuilt each render; the words only change with the language.
@@ -311,6 +317,7 @@ const useDoctorRows = (key: string | null, load: () => Promise<DBDoctor[]>) => {
   const doctors = useMemo(() => doctorsFromRows(rows, w, locale), [rows, locale]);
 
   useEffect(() => {
+    if (seeded.current) { seeded.current = false; return; }
     if (key === null) { setRows([]); setLoading(false); return; }
     let active = true;
     setLoading(true);
@@ -332,22 +339,15 @@ const selectRows = async (query: PromiseLike<{ data: unknown; error: { message: 
 };
 
 /** Every row of one doctor, found by their page's slug or any listing's slug (0090). */
-export const useDoctor = (slug: string | undefined) => {
-  const { doctors, loading } = useDoctorRows(slug ?? null, async () => {
-    const first = await selectRows(
-      supabase.from("doctors_public").select("*").or(`slug.eq.${slug},person_slug.eq.${slug}`),
-    );
-    const person = first[0]?.person_slug || first[0]?.slug;
-    if (!person || person === slug) return first;
-    return selectRows(supabase.from("doctors_public").select("*").or(`slug.eq.${person},person_slug.eq.${person}`));
-  });
+export const useDoctor = (slug: string | undefined, initial?: DBDoctor[]) => {
+  const { doctors, loading } = useDoctorRows(slug ?? null, () => fetchDoctorRows(supabase, slug!), initial);
   return { doctor: doctors[0] ?? null, loading };
 };
 
 /** The doctors at one hospital, by its slug. */
-export const useHospitalDoctors = (hospitalSlug: string | undefined) =>
+export const useHospitalDoctors = (hospitalSlug: string | undefined, initial?: DBDoctor[]) =>
   useDoctorRows(hospitalSlug ?? null, () =>
-    selectRows(supabase.from("doctors_public").select("*").eq("hospital_slug", hospitalSlug!).limit(1000)));
+    selectRows(supabase.from("doctors_public").select("*").eq("hospital_slug", hospitalSlug!).limit(1000)), initial);
 
 /** The doctors behind these doctors rows (a patient's saved list). */
 export const useDoctorsByIds = (ids: string[]) => {

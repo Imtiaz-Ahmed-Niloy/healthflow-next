@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@/i18n/config";
 import { hospitals as staticHospitals, type Hospital, type Doctor, type Room, type ManagementMember } from "@/data/hospitals";
@@ -7,13 +7,14 @@ import { mediaUrl } from "@/lib/media";
 import { parseWeek, summariseWeek } from "@/lib/hours";
 import { availabilityLabel } from "@/lib/availability";
 import { supabase } from "@/lib/supabase/client";
+import { fetchHospitalPage } from "@/lib/publicDirectory";
 const atriumFallback = "/assets/hub-atrium.jpg";
 
 const splitList = (s?: string | null) =>
   (s || "").split(",").map((x) => x.trim()).filter(Boolean);
 
 /** One row of `public.hospitals_public`, the safe public projection of tenants. */
-type PublicHospital = {
+export type PublicHospital = {
   id: string | null;
   name: string | null;
   slug: string | null;
@@ -55,7 +56,7 @@ type PublicHospital = {
 };
 
 /** One row of `public.lab_tests_public` (0098). */
-type PublicLabTest = {
+export type PublicLabTest = {
   hospital_slug: string | null;
   name: string | null;
   category: string | null;
@@ -64,7 +65,7 @@ type PublicLabTest = {
 };
 
 /** One row of `public.hospital_rooms_public` (0098) — a ward, or a cabin category, grouped with its bed/cabin counts. */
-type PublicRoom = {
+export type PublicRoom = {
   room_id: string | null;
   hospital_slug: string | null;
   type: string | null;
@@ -316,7 +317,7 @@ const mapPublicToHospital = (
  * Before 0008 this job was done by reading the super admin's localStorage, so
  * the public site only ever showed hospitals typed in the same browser.
  */
-type ApprovedRows = {
+export type ApprovedRows = {
   hospitals: PublicHospital[];
   doctors: PublicDoctor[];
   labTests: PublicLabTest[];
@@ -347,35 +348,6 @@ const fetchHospitalList = async (): Promise<ApprovedRows> => {
     if (data.length < 1000) break;
   }
   return { ...EMPTY, hospitals: all.filter((r) => r.name) };
-};
-
-/**
- * One hospital with its doctors, lab tests and rooms, and a few others in the
- * same district for "related" (partners first).
- */
-const fetchHospitalPage = async (slug: string): Promise<ApprovedRows> => {
-  const hospitalRes = await supabase.from("hospitals_public").select("*").eq("slug", slug).maybeSingle();
-  if (hospitalRes.error || !hospitalRes.data) return EMPTY;
-  const hospital = hospitalRes.data as PublicHospital;
-
-  // A failed doctor/lab/room read must not blank the hospital — the page is
-  // still worth rendering without that section.
-  const [doctorRes, labTestRes, roomRes, relatedRes] = await Promise.all([
-    supabase.from("doctors_public").select("*").eq("hospital_slug", slug).limit(1000),
-    supabase.from("lab_tests_public").select("*").eq("hospital_slug", slug),
-    supabase.from("hospital_rooms_public").select("*").eq("hospital_slug", slug),
-    hospital.district
-      ? supabase.from("hospitals_public").select("*").eq("district", hospital.district).neq("slug", slug)
-          .order("is_partner", { ascending: false }).limit(3)
-      : supabase.from("hospitals_public").select("*").neq("slug", slug).eq("is_partner", true).limit(3),
-  ]);
-
-  return {
-    hospitals: [hospital, ...((relatedRes.data ?? []) as PublicHospital[])].filter((r) => r.name),
-    doctors: (doctorRes.data ?? []) as PublicDoctor[],
-    labTests: (labTestRes.data ?? []) as PublicLabTest[],
-    rooms: (roomRes.data ?? []) as PublicRoom[],
-  };
 };
 
 /** Groups rows carrying `hospital_slug` into a Map, applying `map` to each. */
@@ -442,10 +414,17 @@ const dedupeBySlug = (list: Hospital[]): Hospital[] => {
  */
 export const getAllHospitals = (): Hospital[] => dedupeBySlug([...staticHospitals]);
 
-/** The hospital list, or with `slug` one hospital's page (see the two fetches above). */
-const useApprovedHospitals = (slug?: string) => {
-  const [rows, setRows] = useState<ApprovedRows>(EMPTY);
-  const [loading, setLoading] = useState(true);
+/**
+ * The hospital list, or with `slug` one hospital's page (fetchHospitalList
+ * above, fetchHospitalPage in src/lib/publicDirectory.ts).
+ *
+ * `initial` is that page as the server already read it (app/hospitals/[slug]):
+ * the first render has the hospital in it, and the first fetch is skipped.
+ */
+const useApprovedHospitals = (slug?: string, initial?: ApprovedRows) => {
+  const [rows, setRows] = useState<ApprovedRows>(initial ?? EMPTY);
+  const [loading, setLoading] = useState(!initial);
+  const seeded = useRef(initial !== undefined);
   const locale = useLocale();
   const w = useWords();
   // `w` is rebuilt each render; the words only change with the language.
@@ -453,9 +432,10 @@ const useApprovedHospitals = (slug?: string) => {
   const approved = useMemo(() => buildHospitals(rows, w, locale), [rows, locale]);
 
   useEffect(() => {
+    if (seeded.current) { seeded.current = false; return; }
     let active = true;
     setLoading(true);
-    void (slug ? fetchHospitalPage(slug) : fetchHospitalList()).then((fetched) => {
+    void (slug ? fetchHospitalPage(supabase, slug).catch(() => EMPTY) : fetchHospitalList()).then((fetched) => {
       if (!active) return;
       setRows(fetched);
       setLoading(false);
@@ -488,8 +468,8 @@ export const useHospitalList = useApprovedHospitals;
  * "still fetching" from "no such hospital", and would flash not-found for every
  * real hospital on first paint.
  */
-export const useHospital = (slug: string) => {
-  const { hospitals, loading } = useApprovedHospitals(slug || undefined);
+export const useHospital = (slug: string, initial?: ApprovedRows) => {
+  const { hospitals, loading } = useApprovedHospitals(slug || undefined, initial);
   // `hospitals` also carries a few in the same district, for "related".
   return { hospital: hospitals.find((h) => h.slug === slug), hospitals, loading };
 };

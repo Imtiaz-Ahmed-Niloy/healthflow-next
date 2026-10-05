@@ -12,13 +12,18 @@ import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import { Avatar } from "@/components/common/Avatar";
 import { FitText, pxRange } from "@/components/common/FitText";
-import { useDoctor, useDoctorSearch, type DoctorPlace } from "@/hooks/useDoctors";
+import { useDoctor, useDoctorSearch, type DBDoctor, type DoctorPlace } from "@/hooks/useDoctors";
 import { useHospitalsBySlugs } from "@/hooks/useHospitals";
 import { useEffect, useMemo, useState } from "react";
 import { useFormatters } from "@/lib/appSettings";
 import type { Hospital } from "@/data/hospitals";
 
-const DoctorDetail = () => {
+/**
+ * `initialRows` is the doctor as the server read them (app/doctors/[slug]), so
+ * the profile is in the page's HTML rather than behind a spinner. Left out,
+ * the page fetches for itself.
+ */
+const DoctorDetail = ({ initialRows }: { initialRows?: DBDoctor[] }) => {
   const t = useTranslations("doctorDetail");
   const slug = useParams<{ slug: string }>()?.slug;
   const router = useRouter();
@@ -26,7 +31,7 @@ const DoctorDetail = () => {
   // One page per doctor (0090). A link to one of their listings — each
   // hospital or chamber row has its own slug, and those were the URLs before —
   // still finds them: useDoctor looks up both.
-  const { doctor, loading: loadingDocs } = useDoctor(slug);
+  const { doctor, loading: loadingDocs } = useDoctor(slug, initialRows);
   // The patient's saved doctors (0092), for the Save button.
   const savedDoctors = useSavedDoctors();
   // Their hospitals, for each place's photo and area.

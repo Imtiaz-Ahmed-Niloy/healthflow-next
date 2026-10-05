@@ -44,9 +44,11 @@ const hindSiliguri = Hind_Siliguri({
 });
 
 export const metadata: Metadata = {
+  // What a page's canonical and social-image URLs are resolved against.
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://healthflowbd.com"),
   title: {
     default: BRAND_INFO.name,
-    template: `%s — ${BRAND_INFO.name}`,
+    template: `%s | ${BRAND_INFO.name}`,
   },
   description: BRAND_INFO.tagline,
 };

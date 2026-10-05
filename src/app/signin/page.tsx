@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { pageTitle } from "@/lib/pageTitle";
 import SignIn from "@/views/SignIn";
 import { createPublicSupabase } from "@/lib/supabase/server";
 import type { SigninAd } from "@/views/SignIn";
@@ -12,6 +13,7 @@ import type { SigninAd } from "@/views/SignIn";
  * the sign-in page should not hit the database on every load.
  */
 export const revalidate = 300;
+export const generateMetadata = pageTitle("signIn");
 
 const loadAds = async (): Promise<SigninAd[]> => {
   const supabase = createPublicSupabase();

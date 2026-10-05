@@ -25,13 +25,17 @@ const EVT = "app-settings-change";
  * The last resort, used before the platform's settings have arrived and if
  * they never do. The timezone is the browser's own, which is the only guess
  * available offline that is ever right.
+ *
+ * Taka, like the platform's own default (0057): this is also what a page
+ * rendered on the server prints, so a doctor's fee must not reach a search
+ * engine in dollars.
  */
 export const DEFAULTS: AppSettings = {
   timezone: typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC",
   language: "bn",
   dateFormat: "MMM DD, YYYY",
   timeFormat: "12h",
-  currency: "USD",
+  currency: "BDT",
 };
 
 /**

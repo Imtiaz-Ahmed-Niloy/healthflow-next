@@ -1,4 +1,7 @@
+import { pageTitle } from "@/lib/pageTitle";
+
 export const dynamic = "force-dynamic";
+export const generateMetadata = pageTitle("findDoctors");
 
 import { Suspense } from "react";
 import FindDoctors from "@/views/patient/FindDoctors";
