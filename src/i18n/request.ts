@@ -6,7 +6,7 @@ import { MESSAGES } from "./messages";
 /**
  * next-intl's per-request setup (found by the plugin in next.config.ts).
  *
- * The language comes from the cookie the switchers set, or English. Every
+ * The language comes from the cookie the switchers set, or Bangla. Every
  * server render — and so every page's first paint — is in that language.
  */
 export default getRequestConfig(async () => {

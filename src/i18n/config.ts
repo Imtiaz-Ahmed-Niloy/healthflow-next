@@ -9,7 +9,7 @@
 export const LOCALES = ["en", "bn"] as const;
 export type Locale = (typeof LOCALES)[number];
 
-export const DEFAULT_LOCALE: Locale = "en";
+export const DEFAULT_LOCALE: Locale = "bn";
 
 /** next-intl's own name for it. A year, on the whole site. */
 export const LOCALE_COOKIE = "NEXT_LOCALE";

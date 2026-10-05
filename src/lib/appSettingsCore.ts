@@ -28,7 +28,7 @@ const EVT = "app-settings-change";
  */
 export const DEFAULTS: AppSettings = {
   timezone: typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC",
-  language: "en",
+  language: "bn",
   dateFormat: "MMM DD, YYYY",
   timeFormat: "12h",
   currency: "USD",
