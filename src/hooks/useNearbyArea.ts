@@ -4,8 +4,8 @@ import { nearestDistrict } from "@/lib/districtCentres";
 /**
  * Where the visitor is, to the district — only ever what they said: a
  * district they picked, or "Use my location" (the browser's own prompt), kept
- * in this browser's storage. Where the browser was already allowed to give
- * its location, NearbyControls asks it without a prompt.
+ * in this browser's storage. NearbyControls asks the browser by itself once,
+ * on a first visit, and again whenever it was already allowed to answer.
  *
  * Until then there is no answer, and nothing is guessed. It used to be
  * guessed from the IP address, which in Bangladesh says Dhaka for most of the
@@ -67,6 +67,23 @@ export const chooseNearbyArea = (area: NearbyArea | null) => {
 export const locationAlreadyAllowed = async () => {
   try {
     return (await navigator.permissions.query({ name: "geolocation" })).state === "granted";
+  } catch {
+    return false;
+  }
+};
+
+const ASKED_KEY = "hf.nearbyAsked";
+
+/**
+ * True once per browser: the one time the site may raise the location prompt
+ * without being asked to. Remembered whatever the answer, so a "no" is the
+ * end of it. False where storage is off — never knowing means never asking.
+ */
+export const firstAsk = () => {
+  try {
+    if (localStorage.getItem(ASKED_KEY)) return false;
+    localStorage.setItem(ASKED_KEY, "1");
+    return true;
   } catch {
     return false;
   }

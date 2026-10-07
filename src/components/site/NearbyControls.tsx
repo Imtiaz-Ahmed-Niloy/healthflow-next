@@ -7,7 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { SearchSelect } from "@/components/common/SearchSelect";
 import { useBdLocations } from "@/hooks/useBdLocations";
-import { chooseNearbyArea, locateDistrict, locationAlreadyAllowed, useNearbyArea } from "@/hooks/useNearbyArea";
+import { chooseNearbyArea, firstAsk, locateDistrict, locationAlreadyAllowed, useNearbyArea } from "@/hooks/useNearbyArea";
 
 // Once per page load, however many of these are on it.
 let askedBrowser = false;
@@ -25,14 +25,16 @@ export const NearbyControls = () => {
   const [finding, setFinding] = useState(false);
   const ready = !loading && !area && districts.length > 0 && divisions.length > 0;
 
-  // No answer yet, but the browser was already allowed to give its location
-  // (they pressed "Use my location" before and then cleared their district):
-  // take it, quietly. Never the prompt, and never an error.
+  // No answer yet: ask the browser where it is. The first time that is its
+  // own permission prompt, once per browser (firstAsk) — a visitor who says
+  // no is not asked again, and picks a district or presses the button
+  // instead. Where it was already allowed there is no prompt at all. Never an
+  // error either way: nobody asked for this.
   useEffect(() => {
     if (!ready || askedBrowser) return;
     askedBrowser = true;
     void locationAlreadyAllowed()
-      .then(allowed => (allowed ? locateDistrict() : null))
+      .then(allowed => (allowed || firstAsk() ? locateDistrict() : null))
       .then(name => {
         const district = name ? districts.find(d => d.name === name) : undefined;
         const division = district && divisions.find(v => v.id === district.division_id);
