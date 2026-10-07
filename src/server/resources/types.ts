@@ -96,6 +96,25 @@ export type ResourceDefinition<TCreate = unknown, TUpdate = unknown> = {
   };
 
   /**
+   * Runs on create and update, after the body is validated and BEFORE anything
+   * is written — for a rule a schema cannot hold because it needs another row:
+   * an appointment has to fall inside its doctor's hours, and those are on the
+   * doctor.
+   *
+   * `values` is what is about to be written; on an update it is only the
+   * fields the caller sent, and `id` is the row being changed. Return a
+   * message to refuse the write with a 422. Return nothing to proceed.
+   *
+   * Like beforeDelete: runs with the caller's own client, so RLS still
+   * applies, and throwing is a 500 rather than a refusal.
+   */
+  beforeWrite?: (context: {
+    id?: string;
+    values: Record<string, unknown>;
+    auth: { role: AppRole | null; tenantId: string | null };
+  }) => Promise<string | void>;
+
+  /**
    * Runs after the caller is authorised but BEFORE the row is deleted, for the
    * side effects that have to happen while the row is still readable.
    *

@@ -197,6 +197,15 @@ export const createResourceRoute = <TCreate, TUpdate>(
       payload[definition.ownerColumn] = auth.userId;
     }
 
+    // The module's own rule, where it has one. See ResourceDefinition.beforeWrite.
+    if (definition.beforeWrite) {
+      const refusal = await definition.beforeWrite({
+        values: payload,
+        auth: { role: auth.role, tenantId: auth.tenantId },
+      });
+      if (refusal) return fail(refusal, 422);
+    }
+
     const supabase = await untyped();
     const { data, error } = await supabase
       .from(definition.table)
@@ -240,6 +249,15 @@ export const createResourceRoute = <TCreate, TUpdate>(
     // that exists — which is a lie, and impossible to debug from the client.
     const changes = Object.keys(payload).filter((key) => payload[key] !== undefined);
     if (!changes.length) return fail("No changes provided", 400);
+
+    if (definition.beforeWrite) {
+      const refusal = await definition.beforeWrite({
+        id,
+        values: payload,
+        auth: { role: auth.role, tenantId: auth.tenantId },
+      });
+      if (refusal) return fail(refusal, 422);
+    }
 
     const supabase = await untyped();
     const { data, error } = await supabase
