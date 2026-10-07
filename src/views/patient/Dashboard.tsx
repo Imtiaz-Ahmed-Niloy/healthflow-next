@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
 import { useSession, displayName } from "@/lib/auth/useSession";
+import { phoneOfLoginEmail } from "@/lib/phone";
 
 type UpcomingAppointment = {
   id: string;
@@ -132,7 +133,7 @@ const Dashboard = () => {
               </div>
               <div>
                 <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("email")}</p>
-                <p className="font-semibold text-primary">{user?.email ?? "—"}</p>
+                <p className="font-semibold text-primary">{phoneOfLoginEmail(user?.email) ?? user?.email ?? "—"}</p>
               </div>
             </div>
             <p className="text-sm text-muted-foreground mt-5">{t.rich("completeProfile", { link: chunks => <Link href="/patient/profile" className="text-primary-glow font-semibold hover:underline">{chunks}</Link> })}</p>

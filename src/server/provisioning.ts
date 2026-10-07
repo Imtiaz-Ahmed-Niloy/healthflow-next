@@ -38,6 +38,8 @@ type ProvisionInput = {
   tenantId: string | null;
   fullName?: string | null;
   phone?: string | null;
+  /** Use this password instead of a generated one — a patient's desk login. */
+  password?: string;
 };
 
 export const provisionUser = async ({
@@ -46,6 +48,7 @@ export const provisionUser = async ({
   tenantId,
   fullName = null,
   phone = null,
+  password: chosenPassword,
 }: ProvisionInput): Promise<ProvisionResult> => {
   if (role !== "super_admin" && role !== "patient" && role !== "doctor" && !tenantId) {
     return {
@@ -56,7 +59,7 @@ export const provisionUser = async ({
   }
 
   const admin = createAdminSupabase();
-  const password = generatePassword(12);
+  const password = chosenPassword ?? generatePassword(12);
 
   // Metadata keys must match what handle_new_user reads with ->>, and must be
   // strings: the trigger casts them itself.

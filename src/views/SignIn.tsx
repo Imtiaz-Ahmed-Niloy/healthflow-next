@@ -15,6 +15,7 @@ import { homePathForRole, type AppRole } from "@/lib/auth/permissions";
 import { BRAND_INFO } from "@/constants/brand";
 import { Label } from "@/components/ui/label";
 import { mediaUrl } from "@/lib/media";
+import { isBdMobile, phoneLoginEmail } from "@/lib/phone";
 
 /**
  * One promotional card, as `public.signin_ads` stores it (0064). A super
@@ -159,7 +160,11 @@ const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
 
   const onSubmit: SubmitHandler<SignInFormValues> = async (values) => {
     clearErrors();
-    await signInWith(values.email.trim().toLowerCase(), values.password);
+    // A patient given a login at a hospital's desk signs in with their mobile
+    // number; the account behind it lives under an address made from that
+    // number (src/lib/phone.ts).
+    const typed = values.email.trim().toLowerCase();
+    await signInWith(isBdMobile(typed) ? phoneLoginEmail(typed) : typed, values.password);
   };
 
   const onInvalid: SubmitErrorHandler<SignInFormValues> = () => {
@@ -200,7 +205,9 @@ const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
               <input
                 id="signin-email"
                 data-testid="signin-email-input"
-                type="email"
+                type="text"
+                inputMode="email"
+                autoComplete="username"
                 placeholder={t("emailPlaceholder")}
                 aria-invalid={Boolean(errors.email)}
                 aria-describedby={errors.email ? "signin-email-error" : undefined}
@@ -215,7 +222,7 @@ const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
                     }
 
                     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                    return emailPattern.test(trimmed) || t("emailInvalid");
+                    return emailPattern.test(trimmed) || isBdMobile(trimmed) || t("emailInvalid");
                   },
                 })}
               />

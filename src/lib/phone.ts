@@ -15,3 +15,23 @@ export const bdStoredPhone = (value: string) => {
   const local = bdLocalPart(value);
   return /^1\d{9}$/.test(local) ? `0${local}` : value.trim();
 };
+
+/** True for a mobile number in any spelling — +8801…, 8801…, 01… or 1…. */
+export const isBdMobile = (value: string) => /^1\d{9}$/.test(bdLocalPart(value));
+
+/**
+ * A patient added at a hospital's desk signs in with their mobile number, and
+ * Supabase Auth only knows email addresses. So the account behind a number
+ * lives under an address made from it, which nobody is ever shown or mailed:
+ * 01712345678@phone.healthflowbd.com. /signin turns a typed number into this
+ * (views/SignIn.tsx); api/v1/patients/[id]/login creates the account.
+ */
+const PHONE_LOGIN_DOMAIN = "phone.healthflowbd.com";
+
+export const phoneLoginEmail = (phone: string) => `${bdStoredPhone(phone)}@${PHONE_LOGIN_DOMAIN}`;
+
+/** The number a phone login signs in with, or null for a real email address. */
+export const phoneOfLoginEmail = (email: string | null | undefined) => {
+  const [name, domain] = (email ?? "").toLowerCase().split("@");
+  return domain === PHONE_LOGIN_DOMAIN && name ? name : null;
+};

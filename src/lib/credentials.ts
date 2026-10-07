@@ -1,6 +1,6 @@
 // Generates admin login credentials for a newly onboarded hospital.
 import "server-only";
-import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, randomBytes, randomInt } from "node:crypto";
 import { slugify } from "@/lib/slug";
 
 const adjectives = ["swift", "bright", "noble", "vital", "lucid", "prime", "alpha", "zen"];
@@ -30,7 +30,33 @@ export const generatePassword = (len = 12) => {
     .join("");
 };
 
-export const generateAdminCredentials = (hospitalName: string) => ({
+/**
+ * A patient's first password, made to be read out at a hospital desk and
+ * remembered: up to two initials from their name, then a random stretch of
+ * their own mobile number, six characters in all — "rk3456" for Rahim Khan on
+ * 01712345678. A name not written in Latin letters has no initials to type,
+ * so it is six digits of the number.
+ *
+ * Weak on purpose, and guessable by someone who knows both the name and the
+ * number: the hospital chose easy over strong for people who may never have
+ * had a password before.
+ */
+export const easyPatientPassword = (fullName: string, phone: string) => {
+  const initials = fullName
+    .trim()
+    .split(/\s+/)
+    .map(word => word[0]?.toLowerCase() ?? "")
+    .filter(letter => /[a-z]/.test(letter))
+    .slice(0, 2)
+    .join("");
+  const digits = phone.replace(/\D/g, "");
+  const need = 6 - initials.length;
+  if (digits.length < need) return initials + String(randomInt(0, 10 ** need)).padStart(need, "0");
+  const start = randomInt(0, digits.length - need + 1);
+  return initials + digits.slice(start, start + need);
+};
+
+export const generateAdminCredentials =(hospitalName: string) => ({
   username: generateUsername(hospitalName),
   password: generatePassword(12),
   tagline: pickRand(adjectives),

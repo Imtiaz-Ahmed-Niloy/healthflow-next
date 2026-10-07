@@ -12,6 +12,7 @@ import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
 import { mediaUrl, MAX_IMAGE_BYTES, ALLOWED_IMAGE_TYPES } from "@/lib/media";
 import { IdentityDocumentField, type IdentityDoc } from "@/components/patient/IdentityDocumentField";
 import type { Tables } from "@/lib/supabase/types";
+import { phoneOfLoginEmail } from "@/lib/phone";
 
 /**
  * What the page edits: the name and contact from `profiles`, plus everything
@@ -450,7 +451,7 @@ const Profile = () => {
                 {/* Read-only: it is the address this account signs in with, and
                     the API ignores it. Shown here so the form is complete. */}
                 <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("fields.email")}</span>
-                  <input type="email" className={`${inputClass} opacity-60 cursor-not-allowed`} value={profile.email ?? ""} readOnly disabled
+                  <input type="email" className={`${inputClass} opacity-60 cursor-not-allowed`} value={phoneOfLoginEmail(profile.email) ? "" : profile.email ?? ""} readOnly disabled
                     title={t("emailLocked")} /></label>
                 <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("fields.phone")}</span>
                   <input className={inputClass} value={draft.phone ?? ""} onChange={e => upd({ phone: e.target.value })} /></label>
@@ -464,7 +465,7 @@ const Profile = () => {
                 <ReadField label={t("fields.gender")} value={profile.gender ? t(`genders.${profile.gender}`) : "—"} />
                 <ReadField label={t("fields.marital")} value={profile.marital_status ? t(`maritalStatuses.${profile.marital_status}`) : "—"} />
                 <ReadField label={t("fields.nid")} value={profile.national_id ?? ""} />
-                <ReadField label={t("fields.email")} value={profile.email ?? ""} />
+                <ReadField label={t("fields.email")} value={phoneOfLoginEmail(profile.email) ? "" : profile.email ?? ""} />
                 <ReadField label={t("fields.phone")} value={profile.phone ?? ""} />
                 <div className="md:col-span-2"><ReadField label={t("fields.address")} value={profile.address ?? ""} /></div>
               </div>
