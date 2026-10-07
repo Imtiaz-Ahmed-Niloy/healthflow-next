@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import { DateInput } from "@/components/ui/date-input";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, Btn, Pill, Kpi, SectionTitle } from "@/components/admin/ui";
 import { Modal, Field, Input, Select, TextArea, ConfirmDialog, RowActions, exportCSV } from "@/components/admin/crud";
@@ -412,10 +413,10 @@ const Accounts = () => {
     <>
       <div className="flex flex-wrap items-end gap-3 mb-4 print:hidden">
         <Field label={t("trial.from")}>
-          <Input type="date" value={trialFrom} max={trialTo || undefined} onChange={e => setTrialFrom(e.target.value)} />
+          <DateInput value={trialFrom} max={trialTo || undefined} onChange={setTrialFrom} wrapperClassName="w-48" />
         </Field>
         <Field label={t("trial.to")}>
-          <Input type="date" value={trialTo} min={trialFrom || undefined} onChange={e => setTrialTo(e.target.value)} />
+          <DateInput value={trialTo} min={trialFrom || undefined} onChange={setTrialTo} wrapperClassName="w-48" />
         </Field>
         {(trialFrom || trialTo) && (
           <Btn variant="outline" onClick={() => { setTrialFrom(""); setTrialTo(""); }}>{t("trial.clear")}</Btn>
@@ -760,10 +761,10 @@ const Accounts = () => {
           </div>
           <div className="flex flex-wrap items-end gap-3 mb-4 print:hidden">
             <Field label={t("trial.from")}>
-              <Input type="date" value={vFrom} max={vTo || undefined} onChange={e => setVFrom(e.target.value)} />
+              <DateInput value={vFrom} max={vTo || undefined} onChange={setVFrom} wrapperClassName="w-48" />
             </Field>
             <Field label={t("trial.to")}>
-              <Input type="date" value={vTo} min={vFrom || undefined} onChange={e => setVTo(e.target.value)} />
+              <DateInput value={vTo} min={vFrom || undefined} onChange={setVTo} wrapperClassName="w-48" />
             </Field>
             {(vFrom || vTo) && (
               <Btn variant="outline" onClick={() => { setVFrom(""); setVTo(""); }}>{t("trial.clear")}</Btn>
@@ -1750,7 +1751,7 @@ const VoucherModal = ({ open, onClose, ledgers, centers, vouchers, onSaved, edit
       {/* The voucher: its number, date, type and whether it posts now. */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Field label={t("form.voucherNo")} required><Input value={f.no} onChange={e => setF({ ...f, no: e.target.value })} placeholder="PMT-0190" /></Field>
-        <Field label={t("cols.date")} required><Input type="date" value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></Field>
+        <Field label={t("cols.date")} required><DateInput value={f.date} onChange={date => setF({ ...f, date })} showClear={false} /></Field>
         <Field label={t("cols.type")}>
           <Select value={f.type} onChange={e => {
             const type = e.target.value as VoucherType;
@@ -2076,7 +2077,7 @@ const StockModal = ({ value, onClose, onSave }: {
 
       <h4 className="mt-5 mb-3 font-semibold text-primary">{t("form.purchaseDetails")}</h4>
       <div className="grid sm:grid-cols-2 gap-3">
-        <Field label={t("form.purchaseDate")}><Input type="date" value={f.purchase_date} onChange={e => setF({ ...f, purchase_date: e.target.value })} /></Field>
+        <Field label={t("form.purchaseDate")}><DateInput value={f.purchase_date} onChange={purchase_date => setF({ ...f, purchase_date })} /></Field>
         <Field label={t("form.invoiceNo")}><Input value={f.invoice_no} onChange={e => setF({ ...f, invoice_no: e.target.value })} /></Field>
         <div className="sm:col-span-2">
           <Field label={t("form.purchaseNotes")} hint={t("form.purchaseNotesHint")}>
@@ -2195,7 +2196,7 @@ const ReconcileModal = ({ open, lines, onClose, onReconcile, busy }: {
           {busy ? t("reconcile.matching") : t("reconcile.mark", { count: entryIds.length })}
         </Btn></>}>
       <p className="text-sm text-muted-foreground mb-3">{t("reconcile.intro")}</p>
-      <Field label={t("reconcile.statementDate")}><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></Field>
+      <Field label={t("reconcile.statementDate")}><DateInput value={date} onChange={setDate} showClear={false} /></Field>
       <div className="rounded-xl border border-border/40 divide-y divide-border/40 max-h-[45vh] overflow-y-auto">
         {lines.map(l => (
           <label key={l.id} className="flex items-center gap-3 px-3 py-2.5 text-sm cursor-pointer hover:bg-muted/30">

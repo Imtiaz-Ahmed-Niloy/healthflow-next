@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { hospitals } from "@/data/hospitals";
 import { Label } from "@/components/ui/label";
 import { useFormatters } from "@/lib/appSettings";
+import { DateInput, DATE_INPUT_LOOK } from "@/components/ui/date-input";
 
 const allRooms = hospitals.flatMap((h) => h.rooms.map((r) => ({ ...r, hospital: h })));
 
@@ -88,7 +89,7 @@ const RoomReservation = () => {
               className="mt-5 space-y-4">
               <div>
                 <Label className="text-[11px] uppercase tracking-widest font-bold text-muted-foreground" required>{t("checkIn")}</Label>
-                <Input required type="date" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} className="mt-2 rounded-xl" />
+                <DateInput required value={checkIn} onChange={setCheckIn} wrapperClassName="mt-2" className={`${DATE_INPUT_LOOK} rounded-xl`} />
               </div>
               <div>
                 <Label className="text-[11px] uppercase tracking-widest font-bold text-muted-foreground" required>{t("nights")}</Label>

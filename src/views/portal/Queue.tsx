@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { rememberedPlace, rememberPlace } from "@/lib/rxPlace";
+import { DateInput, DATE_INPUT_LOOK } from "@/components/ui/date-input";
 
 type Priority = "high" | "standard" | "routine";
 
@@ -317,8 +318,8 @@ const Queue = () => {
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="dob">{t("dob")}</Label>
-                  <Input id="dob" type="date" value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })}
-                    max={new Date().toISOString().split("T")[0]} />
+                  <DateInput id="dob" value={form.dob} onChange={dob => setForm({ ...form, dob })}
+                    max={new Date().toISOString().split("T")[0]} className={DATE_INPUT_LOOK} />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="reason">{t("reasonLabel")} <span className="text-muted-foreground font-normal">{t("optional")}</span></Label>

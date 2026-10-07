@@ -6,6 +6,7 @@ import { Btn } from "@/components/admin/ui";
 import { useFormatters } from "@/lib/appSettings";
 import { Modal, Field, Input, TextArea, Select } from "@/components/admin/crud";
 import { WORK_ORDER_STATUSES, type WorkOrderItem } from "@/server/resources/workOrders";
+import { DateInput } from "@/components/ui/date-input";
 
 /**
  * The work order form, in the order the paper form reads.
@@ -185,7 +186,7 @@ export const WorkOrderModal = ({
             <Input name="reference" required defaultValue={suggestedReference} />
           </Field>
           <Field label={t("fields.date")} required>
-            <Input name="issued_on" type="date" required
+            <DateInput name="issued_on" required
               defaultValue={new Date().toISOString().slice(0, 10)} />
           </Field>
           <Field label={t("fields.requestedBy")}>

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { BadgeInfo, CalendarDays, ChevronDown, Eye, EyeOff, Lock, Mail, Phone, User } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
-import { useForm, type SubmitErrorHandler, type SubmitHandler } from "react-hook-form";
+import { Controller, useForm, type SubmitErrorHandler, type SubmitHandler } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { AuthLayout } from "@/components/site/AuthLayout";
 import { GoogleAuthButton } from "@/components/site/GoogleAuthButton";
@@ -16,6 +16,7 @@ import { useAppDispatch } from "@/redux/hooks";
 import { supabase } from "@/lib/supabase/client";
 import { homePathForRole } from "@/lib/auth/permissions";
 import { Label } from "@/components/ui/label";
+import { DateInput } from "@/components/ui/date-input";
 
 type PatientSignupFormValues = PatientSignupRequest;
 
@@ -67,6 +68,7 @@ const Signup = () => {
   const [isLoading, setIsSubmitting] = useState(false);
   const {
     register,
+    control,
     handleSubmit,
     setError,
     clearErrors,
@@ -431,16 +433,15 @@ const Signup = () => {
                 {t("dob")}
               </Label>
               <div className="relative mt-2">
-                <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  id="dateOfBirth"
-                  data-testid="signup-date-of-birth-input"
-                  type="date"
-                  max={today}
-                  aria-invalid={Boolean(errors.dateOfBirth)}
-                  aria-describedby={errors.dateOfBirth ? "dateOfBirth-error" : undefined}
-                  className="w-full bg-muted/60 rounded-xl pl-10 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
-                  {...register("dateOfBirth", {
+                <Controller
+                  name="dateOfBirth"
+                  control={control}
+                  render={({ field }) => (
+                    <DateInput id="dateOfBirth" value={field.value} onChange={field.onChange} max={today}
+                      error={Boolean(errors.dateOfBirth)} showClear={false}
+                      className="rounded-xl bg-muted/60 pl-10 pr-4 py-3" />
+                  )}
+                  rules={{
                     required: t("dobRequired"),
                     validate: (value) => {
                       const trimmed = value.trim();
@@ -466,8 +467,10 @@ const Signup = () => {
 
                       return true;
                     },
-                  })}
+                  }}
                 />
+                {/* After the picker, so its background does not cover it. */}
+                <CalendarDays className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               </div>
               {errors.dateOfBirth?.message ? (
                 <p

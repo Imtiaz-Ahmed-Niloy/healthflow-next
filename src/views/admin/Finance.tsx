@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { DateInput } from "@/components/ui/date-input";
 import { Card, Btn, Pill, Kpi } from "@/components/admin/ui";
 import { DataTable, Toolbar, Modal, Field, Input, Select, RowActions, exportCSV, type Column } from "@/components/admin/crud";
 import { useResourceCrud } from "@/components/admin/useResourceCrud";
@@ -237,7 +238,7 @@ const Finance = () => {
             </Select>
           </Field>
           <Field label={t("fields.amount")} required><Input name="amount" type="number" min="0" step="0.01" required /></Field>
-          <Field label={t("fields.dueDate")} required><Input name="due_date" type="date" required /></Field>
+          <Field label={t("fields.dueDate")} required><DateInput name="due_date" required /></Field>
           <Field label={t("fields.patient")}>
             <Select name="patient_id" defaultValue="">
               <option value="">{t("notAPatientBill")}</option>

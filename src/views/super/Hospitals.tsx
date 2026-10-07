@@ -16,6 +16,7 @@ import { BD_UPAZILAS } from "@/data/bdUpazilas";
 import { useHospitalFields, useHospitalSteps } from "@/data/hospitalFields";
 import { useConfirm } from "@/components/common/ConfirmProvider";
 import type { Database } from "@/lib/supabase/types";
+import { DateInput } from "@/components/ui/date-input";
 
 /**
  * One list for every hospital in Bangladesh, filtered by status. There is no
@@ -140,11 +141,11 @@ const Page = () => {
       </div>
       <div className="inline-flex items-center gap-1.5 bg-muted/40 rounded-full pl-3 pr-2 py-0.5">
         <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
-        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-          className="h-7 bg-transparent text-xs outline-none" aria-label={t("filters.from")} />
+        <DateInput value={dateFrom} onChange={setDateFrom} max={dateTo || undefined} aria-label={t("filters.from")}
+          className="h-7 gap-1 border-0 bg-transparent px-0 py-0 text-xs" />
         <span className="text-xs text-muted-foreground">→</span>
-        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-          className="h-7 bg-transparent text-xs outline-none" aria-label={t("filters.to")} />
+        <DateInput value={dateTo} onChange={setDateTo} min={dateFrom || undefined} aria-label={t("filters.to")}
+          className="h-7 gap-1 border-0 bg-transparent px-0 py-0 text-xs" />
       </div>
       {hasFilter && (
         <button onClick={clearFilters}

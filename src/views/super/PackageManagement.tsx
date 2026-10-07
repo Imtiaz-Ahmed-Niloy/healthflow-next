@@ -16,6 +16,7 @@ import {
 import { useGetResourceQuery, useListResourceQuery } from "@/redux/api/createResourceApi";
 import { Label } from "@/components/ui/label";
 import { useFormatters } from "@/lib/appSettings";
+import { DateInput } from "@/components/ui/date-input";
 
 /**
  * Which plan each hospital is on, at what price, and the offers behind the
@@ -787,18 +788,18 @@ const AssignmentEditor = ({
         </Field>
 
         <Field label={t("editor.startDate")}>
-          <input
-            type="date" value={draft.start_date}
-            onChange={(e) => setDraft({ ...draft, start_date: e.target.value })}
-            className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm"
+          <DateInput
+            value={draft.start_date} showClear={false}
+            onChange={start_date => setDraft({ ...draft, start_date })}
+            className="bg-background border-border"
           />
         </Field>
 
         <Field label={t("editor.renewsOn")}>
-          <input
-            type="date" value={draft.renew_date ?? ""} min={draft.start_date}
-            onChange={(e) => setDraft({ ...draft, renew_date: e.target.value || null })}
-            className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm"
+          <DateInput
+            value={draft.renew_date ?? ""} min={draft.start_date}
+            onChange={renew_date => setDraft({ ...draft, renew_date: renew_date || null })}
+            className="bg-background border-border"
           />
         </Field>
 
@@ -946,10 +947,10 @@ const OfferEditor = ({
           </select>
         </Field>
         <Field label={t("offers.validUntil")}>
-          <input
-            type="date" value={draft.valid_until ?? ""}
-            onChange={(e) => setDraft({ ...draft, valid_until: e.target.value || null })}
-            className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm"
+          <DateInput
+            value={draft.valid_until ?? ""}
+            onChange={valid_until => setDraft({ ...draft, valid_until: valid_until || null })}
+            className="bg-background border-border"
           />
         </Field>
         <Field label={t("columns.status")} full>

@@ -49,6 +49,9 @@ export type DateTimePickerProps = {
   showClear?: boolean;
   error?: boolean;
   className?: string;
+  /** On the trigger button, for a label's htmlFor and for a field with no visible label. */
+  id?: string;
+  "aria-label"?: string;
   /** A timezone named under the header, for the reader only — "Asia/Dhaka". */
   timezone?: string;
   /** "YYYY-MM-DD HH:mm" to stand in for the browser's clock. */
@@ -100,6 +103,8 @@ export const DateTimePicker = ({
   showClear = true,
   error = false,
   className,
+  id,
+  "aria-label": ariaLabel,
   timezone,
   now,
   disablePastDates = false,
@@ -281,6 +286,8 @@ export const DateTimePicker = ({
     <>
       <button
         type="button"
+        id={id}
+        aria-label={ariaLabel}
         disabled={disabled}
         onClick={() => openChange(true)}
         className={cn(

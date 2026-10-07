@@ -13,6 +13,7 @@ import { mediaUrl, MAX_IMAGE_BYTES, ALLOWED_IMAGE_TYPES } from "@/lib/media";
 import { IdentityDocumentField, type IdentityDoc } from "@/components/patient/IdentityDocumentField";
 import type { Tables } from "@/lib/supabase/types";
 import { phoneOfLoginEmail } from "@/lib/phone";
+import { DateInput } from "@/components/ui/date-input";
 
 /**
  * What the page edits: the name and contact from `profiles`, plus everything
@@ -435,7 +436,8 @@ const Profile = () => {
                 <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("fields.fullName")}</span>
                   <input className={inputClass} value={draft.full_name ?? ""} onChange={e => upd({ full_name: e.target.value })} /></label>
                 <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("fields.dob")}</span>
-                  <input type="date" className={inputClass} value={draft.date_of_birth ?? ""} onChange={e => upd({ date_of_birth: e.target.value })} /></label>
+                  <DateInput className={inputClass} value={draft.date_of_birth ?? ""} onChange={date_of_birth => upd({ date_of_birth })}
+                    max={new Date().toISOString().slice(0, 10)} /></label>
                 <label className="space-y-1.5"><span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("fields.gender")}</span>
                   <select className={inputClass} value={draft.gender ?? ""} onChange={e => upd({ gender: (e.target.value || null) as Patient["gender"] })}>
                     <option value="">—</option>

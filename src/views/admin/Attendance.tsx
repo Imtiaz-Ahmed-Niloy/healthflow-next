@@ -12,6 +12,7 @@ import { Users2, CalendarCheck2, AlertTriangle, Plane, X, Printer } from "lucide
 import { getEligibleEmployees } from "@/lib/payroll";
 import type { EmployeeRow } from "@/redux/api/resources";
 import type { Tables } from "@/lib/supabase/types";
+import { DateInput } from "@/components/ui/date-input";
 
 type AttendanceRecord = Tables<"attendance_records"> & {
   employees?: { name: string; emp_id: string; department: string | null } | null;
@@ -532,7 +533,7 @@ const Attendance = () => {
           <button form="mark-form" type="submit" className="px-4 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground">{tc("save")}</button>
         </>}>
         <form id="mark-form" onSubmit={markManually}>
-          <Field label={t("fields.date")} required><Input name="work_date" type="date" required defaultValue={today} /></Field>
+          <Field label={t("fields.date")} required><DateInput name="work_date" required defaultValue={today} /></Field>
           <Field label={t("columns.status")} required>
             <Select name="status" required defaultValue={marking ? todayByEmployee.get(marking.id)?.status ?? "present" : "present"}>
               {ATT_STATUSES.map(s => (
@@ -579,8 +580,8 @@ const Attendance = () => {
               ))}
             </Select>
           </Field>
-          <Field label={t("columns.from")} required><Input name="start_date" type="date" required defaultValue={today} /></Field>
-          <Field label={t("columns.to")} required><Input name="end_date" type="date" required defaultValue={today} /></Field>
+          <Field label={t("columns.from")} required><DateInput name="start_date" required defaultValue={today} /></Field>
+          <Field label={t("columns.to")} required><DateInput name="end_date" required defaultValue={today} /></Field>
           <Field label={t("columns.reason")}><Input name="reason" /></Field>
         </form>
       </Modal>
@@ -602,7 +603,7 @@ const Attendance = () => {
           push({ title: t("holidayAdded"), tone: "ok" });
           setHolidayModal(false);
         }}>
-          <Field label={t("fields.date")} required><Input name="holiday_on" type="date" required defaultValue={today} /></Field>
+          <Field label={t("fields.date")} required><DateInput name="holiday_on" required defaultValue={today} /></Field>
           <Field label={t("fields.name")} required><Input name="name" required placeholder={t("holidayPlaceholder")} /></Field>
         </form>
       </Modal>

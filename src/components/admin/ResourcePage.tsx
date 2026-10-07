@@ -17,6 +17,7 @@ import { availabilityLabel, weekFromAvailability } from "@/lib/availability";
 import { WeeklyHoursField } from "./WeeklyHoursField";
 import { SpecialtySelect } from "@/components/common/SpecialtySelect";
 import { PhoneInput } from "@/components/common/PhoneInput";
+import { DateInput } from "@/components/ui/date-input";
 
 /**
  * Uploads to Cloudflare R2 and stores the object KEY, not a URL.
@@ -918,6 +919,10 @@ export function RecordFormFields({
                   defaultValue={(editing as never)?.[f.name]} />
               ) : f.type === "custom" ? (
                 f.render(editing as Record<string, unknown> | null)
+              ) : f.type === "date" ? (
+                <DateInput key={String((editing as { id?: string } | null)?.id ?? "new")} name={f.name} required={f.required}
+                  min={dayLimit(minFor(f, editing as Record<string, unknown> | null))} max={dayLimit(f.max)}
+                  defaultValue={String((editing as never)?.[f.name] ?? "")} />
               ) : (
                 <Input name={f.name} type={f.type} required={f.required}
                         min={minFor(f, editing as Record<string, unknown> | null)} max={f.max} step={f.numberStep}
@@ -988,6 +993,9 @@ export type ResourceConfig<T extends { id: string; status?: string }> = {
  * URIs and their consumers still expect the string form.
  */
 const JSON_VALUED_TYPES = new Set(["list", "social", "people"]);
+
+/** A date field's min or max, which FieldDef also lets be a number for number fields. */
+const dayLimit = (limit: number | string | undefined) => (typeof limit === "string" ? limit : undefined);
 
 /** A section's heading inside a form — FieldDef's "heading", and for a custom field that starts a section itself. */
 export function FormHeading({ label, hidden = false }: { label: string; hidden?: boolean }) {
@@ -1315,6 +1323,10 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
                         defaultValue={(editing as never)?.[f.name]} />
                     ) : f.type === "custom" ? (
                       f.render(editing as Record<string, unknown> | null)
+                    ) : f.type === "date" ? (
+                      <DateInput key={String((editing as { id?: string } | null)?.id ?? "new")} name={f.name} required={f.required} error={!!fieldError}
+                        min={dayLimit(minFor(f, editing as Record<string, unknown> | null))} max={dayLimit(f.max)}
+                        defaultValue={String((editing as never)?.[f.name] ?? "")} />
                     ) : (
                       <Input name={f.name} type={f.type} required={f.required} aria-invalid={!!fieldError}
                         min={minFor(f, editing as Record<string, unknown> | null)} max={f.max} step={f.numberStep}

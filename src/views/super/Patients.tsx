@@ -12,6 +12,7 @@ import {
 import { Avatar } from "@/components/common/Avatar";
 import { useFormatters } from "@/lib/appSettings";
 import { Users, KeyRound, BadgeCheck, UserX, UserCheck, Loader2, Copy } from "lucide-react";
+import { DateInput } from "@/components/ui/date-input";
 
 /**
  * Every patient on the platform, as people.
@@ -400,7 +401,7 @@ const Patients = () => {
               <>
                 <div className="grid sm:grid-cols-2 gap-x-4">
                   <Field label={t("fields.dob")}>
-                    <Input type="date" value={editDraft.date_of_birth} onChange={setEdit("date_of_birth")} max={new Date().toISOString().slice(0, 10)} />
+                    <DateInput value={editDraft.date_of_birth} onChange={date_of_birth => setEditDraft(d => ({ ...d, date_of_birth }))} max={new Date().toISOString().slice(0, 10)} />
                   </Field>
                   <Field label={t("fields.gender")}>
                     <Select value={editDraft.gender} onChange={setEdit("gender")}>{genderOptions}</Select>
@@ -437,7 +438,7 @@ const Patients = () => {
           <Field label={t("fields.email")} required hint={t("fields.emailHint")}><Input type="email" value={createDraft.email} onChange={setCreate("email")} /></Field>
           <Field label={t("fields.phone")}><Input type="tel" value={createDraft.phone} onChange={setCreate("phone")} /></Field>
           <Field label={t("fields.dob")}>
-            <Input type="date" value={createDraft.date_of_birth} onChange={setCreate("date_of_birth")} max={new Date().toISOString().slice(0, 10)} />
+            <DateInput value={createDraft.date_of_birth} onChange={date_of_birth => setCreateDraft(d => ({ ...d, date_of_birth }))} max={new Date().toISOString().slice(0, 10)} />
           </Field>
           <Field label={t("fields.gender")}>
             <Select value={createDraft.gender} onChange={setCreate("gender")}>{genderOptions}</Select>

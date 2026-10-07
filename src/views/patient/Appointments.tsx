@@ -8,12 +8,13 @@ import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
 import { useBookingClock } from "@/lib/appSettings";
-import { availabilityLabel, hoursOn, outsideAvailabilityReason, parseAvailability } from "@/lib/availability";
+import { availabilityLabel, outsideAvailabilityReason, parseAvailability } from "@/lib/availability";
 import { Button } from "@/components/ui/button";
 import { useConfirmAction } from "@/components/common/ConfirmProvider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+import { DATE_INPUT_LOOK } from "@/components/ui/date-input";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { Avatar } from "@/components/common/Avatar";
 
 type Bucket = "upcoming" | "past" | "cancelled";
@@ -93,8 +94,6 @@ const Appointments = () => {
     if (dayOrHours) return dayOrHours;
     return rescheduleForm.time ? clock.pastSlotReason(rescheduleForm.date, rescheduleForm.time) : null;
   })();
-  // The new date's own hours — a week can give each day different ones.
-  const rescheduleHours = hoursOn(rescheduleSchedule, rescheduleForm.date);
   const [savingReschedule, setSavingReschedule] = useState(false);
 
   /**
@@ -107,7 +106,6 @@ const Appointments = () => {
   const [rescheduleRefused, setRescheduleRefused] = useState<{ key: string; message: string } | null>(null);
   const rescheduleFieldProblem = rescheduleProblem
     ?? (rescheduleRefused?.key === rescheduleKey ? rescheduleRefused.message : null);
-  const rescheduleFieldClass = rescheduleFieldProblem ? "border-destructive focus-visible:ring-destructive" : "";
 
   const load = async () => {
     try {
@@ -395,25 +393,19 @@ const Appointments = () => {
           </DialogHeader>
           {rescheduling && (
             <form onSubmit={handleReschedule} className="space-y-4 mt-2">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label required>{tb("date")}</Label>
-                  <Input type="date" value={rescheduleForm.date}
-                    onChange={e => setRescheduleForm(f => ({ ...f, date: e.target.value }))}
-                    min={clock.today} required
-                    aria-invalid={!!rescheduleFieldProblem} aria-describedby={rescheduleFieldProblem ? "reschedule-problem" : undefined}
-                    className={rescheduleFieldClass} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label required>{tb("time")}</Label>
-                  <Input type="time" value={rescheduleForm.time}
-                    onChange={e => setRescheduleForm(f => ({ ...f, time: e.target.value }))}
-                    min={[rescheduleHours?.start, rescheduleForm.date === clock.today ? clock.nowTime : undefined].filter(Boolean).sort().pop()}
-                    max={rescheduleHours && rescheduleHours.end !== "24:00" ? rescheduleHours.end : undefined}
-                    required
-                    aria-invalid={!!rescheduleFieldProblem} aria-describedby={rescheduleFieldProblem ? "reschedule-problem" : undefined}
-                    className={rescheduleFieldClass} />
-                </div>
+              <div className="space-y-1.5">
+                <Label required>{tb("dateTime")}</Label>
+                {/* As the booking form: the doctor's days off, the hours they
+                    don't sit and everything before now are greyed out. */}
+                <DateTimePicker
+                  value={rescheduleForm.date && rescheduleForm.time ? `${rescheduleForm.date} ${rescheduleForm.time}` : ""}
+                  onChange={picked => {
+                    const [date = "", time = ""] = picked.split(" ");
+                    setRescheduleForm({ date, time });
+                  }}
+                  disableBefore={`${clock.today} ${clock.nowTime}`}
+                  isSlotDisabled={(date, time) => !!outsideAvailabilityReason(rescheduleSchedule, date, time ?? "")}
+                  error={!!rescheduleFieldProblem} className={DATE_INPUT_LOOK} />
               </div>
               {rescheduling.doctor?.availability && !rescheduleFieldProblem && (
                 <p className="text-xs text-muted-foreground -mt-2">

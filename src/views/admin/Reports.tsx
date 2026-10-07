@@ -7,6 +7,7 @@ import { Card, Btn, Pill, SectionTitle } from "@/components/admin/ui";
 import { exportCSV } from "@/components/admin/crud";
 import { useFormatters } from "@/lib/appSettings";
 import { Download, ShieldAlert, FileBarChart } from "lucide-react";
+import { DateInput } from "@/components/ui/date-input";
 
 /**
  * Reports, on /api/v1/reports.
@@ -82,13 +83,11 @@ const ReportsPage = () => {
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1">{t("from")}</p>
-            <input type="date" value={from} max={to} onChange={e => setFrom(e.target.value)} aria-label={t("from")}
-              className="bg-muted/40 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary" />
+            <DateInput value={from} max={to} onChange={setFrom} aria-label={t("from")} showClear={false} wrapperClassName="w-48" />
           </div>
           <div>
             <p className="text-[10px] tracking-widest font-bold text-muted-foreground mb-1">{t("to")}</p>
-            <input type="date" value={to} min={from} max={today} onChange={e => setTo(e.target.value)} aria-label={t("to")}
-              className="bg-muted/40 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary" />
+            <DateInput value={to} min={from} max={today} onChange={setTo} aria-label={t("to")} showClear={false} wrapperClassName="w-48" />
           </div>
           {data && (
             <p className="text-xs text-muted-foreground pb-2">

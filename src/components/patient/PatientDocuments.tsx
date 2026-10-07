@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { ALLOWED_IDENTITY_TYPES, MAX_DOCUMENT_BYTES } from "@/lib/media";
 import { useFormatters } from "@/lib/appSettings";
 import { ConfirmDialog } from "@/components/admin/crud";
+import { DateInput } from "@/components/ui/date-input";
 
 /**
  * The patient's own paperwork, on /patient/medical-records (0076).
@@ -176,8 +177,7 @@ export const PatientDocuments = () => {
         </label>
         <label className="space-y-1.5">
           <span className="text-[10px] tracking-widest font-bold text-muted-foreground">{t("date")}</span>
-          <input type="date" value={docDate} onChange={e => setDocDate(e.target.value)}
-            className="w-full bg-muted/40 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary text-sm" />
+          <DateInput value={docDate} onChange={setDocDate} />
         </label>
       </div>
 

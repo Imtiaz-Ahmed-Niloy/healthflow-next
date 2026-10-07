@@ -270,6 +270,7 @@
     "signInToBook": "Sign in to your patient account to book {doctor}.",
     "signInButton": "Sign in to book",
     "staffNotice": "Appointments are booked from a patient account. You're signed in as staff.",
+    "dateTime": "Date & time",
     "ok": "OK",
     "available": "Available {hours}",
     "where": "Where",

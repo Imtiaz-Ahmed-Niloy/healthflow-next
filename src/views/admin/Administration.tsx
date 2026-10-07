@@ -15,6 +15,7 @@ import {
 import type { Tables } from "@/lib/supabase/types";
 import { BRAND_INFO } from "@/constants/brand";
 import { CERTIFICATE_FORMATS, fieldsOf, type CertField } from "@/data/certificateFormats";
+import { DateInput } from "@/components/ui/date-input";
 
 /**
  * `fields` is spelled out rather than coming from `Tables<"certificates">`
@@ -88,11 +89,12 @@ const CertFieldInput = ({ field, defaultValue }: { field: CertField; defaultValu
       </Select>
     );
   }
+  if (field.type === "date") return <DateInput name={name} defaultValue={defaultValue} />;
   return (
     <Input
       name={name}
       defaultValue={defaultValue}
-      type={field.type === "number" ? "number" : field.type === "date" ? "date" : field.type === "time" ? "time" : "text"}
+      type={field.type === "number" ? "number" : field.type === "time" ? "time" : "text"}
       step={field.type === "number" ? "any" : undefined}
     />
   );
@@ -372,7 +374,7 @@ export default function Administration() {
                 </Select>
               </Field>
               <Field label={t("fields.issuedBy")}><Input name="issued_by" defaultValue={editing?.issued_by ?? ""} placeholder={t("issuedByPlaceholder")} /></Field>
-              <Field label={t("fields.issueDate")}><Input name="issued_on" type="date" defaultValue={editing?.issued_on ?? ""} /></Field>
+              <Field label={t("fields.issueDate")}><DateInput name="issued_on" defaultValue={editing?.issued_on ?? ""} /></Field>
               <Field label={t("columns.status")}>
                 <Select name="status" defaultValue={editing?.status ?? "issued"}>
                   {CERT_STATUSES.map(s => (

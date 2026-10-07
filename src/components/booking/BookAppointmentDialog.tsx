@@ -9,13 +9,14 @@ import { toast } from "sonner";
 import { Avatar } from "@/components/common/Avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+import { DATE_INPUT_LOOK } from "@/components/ui/date-input";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import type { UIDoctor } from "@/hooks/useDoctors";
 import { useSession } from "@/lib/auth/useSession";
 import { useBookingClock } from "@/lib/appSettings";
-import { availabilityLabel, describeSchedule, hoursOn, outsideAvailabilityReason, parseAvailability } from "@/lib/availability";
+import { availabilityLabel, describeSchedule, outsideAvailabilityReason, parseAvailability } from "@/lib/availability";
 
 /**
  * Booking a doctor — the one form for it, wherever a Book Appointment button
@@ -74,9 +75,6 @@ export const BookAppointmentDialog = ({ doctor, onClose }: {
     return form.time ? clock.pastSlotReason(form.date, form.time) : null;
   })();
 
-  // The picked date's own hours — a week can give each day different ones.
-  const dayHours = hoursOn(schedule, form.date);
-
   /**
    * What the server refused about a slot — already booked by someone else
    * (409), or outside hours or past by its clock (422). Tied to the place,
@@ -89,7 +87,6 @@ export const BookAppointmentDialog = ({ doctor, onClose }: {
 
   /** The problem with the date and time as picked: marks both fields and shows under them. */
   const fieldProblem = slotProblem ?? serverProblem;
-  const fieldClass = fieldProblem ? "border-destructive focus-visible:ring-destructive" : "";
 
   const confirm = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -208,21 +205,19 @@ export const BookAppointmentDialog = ({ doctor, onClose }: {
                 </div>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label required>{t("date")}</Label>
-                <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} min={clock.today} required
-                  aria-invalid={!!fieldProblem} aria-describedby={fieldProblem ? "slot-problem" : undefined} className={fieldClass} />
-              </div>
-              <div className="space-y-1.5">
-                <Label required>{t("time")}</Label>
-                {/* Bounded by the doctor's hours, and by now when the date is today. */}
-                <Input type="time" value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))}
-                  min={[dayHours?.start, form.date === clock.today ? clock.nowTime : undefined].filter(Boolean).sort().pop()}
-                  max={dayHours && dayHours.end !== "24:00" ? dayHours.end : undefined}
-                  required
-                  aria-invalid={!!fieldProblem} aria-describedby={fieldProblem ? "slot-problem" : undefined} className={fieldClass} />
-              </div>
+            <div className="space-y-1.5">
+              <Label required>{t("dateTime")}</Label>
+              {/* One picker for both. It greys out the doctor's days off and
+                  the hours they don't sit, and everything before now. */}
+              <DateTimePicker
+                value={form.date && form.time ? `${form.date} ${form.time}` : ""}
+                onChange={picked => {
+                  const [date = "", time = ""] = picked.split(" ");
+                  setForm(f => ({ ...f, date, time }));
+                }}
+                disableBefore={`${clock.today} ${clock.nowTime}`}
+                isSlotDisabled={(date, time) => !!outsideAvailabilityReason(schedule, date, time ?? "")}
+                error={!!fieldProblem} className={DATE_INPUT_LOOK} />
             </div>
             {schedule && !fieldProblem && (
               <p className="text-xs text-muted-foreground -mt-2">

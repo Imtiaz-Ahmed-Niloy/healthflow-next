@@ -16,6 +16,7 @@ import type { BlogContent } from "@/data/blogContent";
 import { useBlogContent } from "@/data/useBlogContent";
 import { useBlogPosts } from "@/data/blogPosts";
 import { formatPostDate, todayIso, type BlogPost } from "@/data/blogPost";
+import { DateInput, DATE_INPUT_LOOK } from "@/components/ui/date-input";
 
 const describeError = (cause: unknown, fallback: string) =>
   (cause as { data?: { error?: { message?: string } } })?.data?.error?.message ?? fallback;
@@ -234,7 +235,7 @@ const BlogPageEditor = () => {
                       <div className="space-y-1.5"><Label>{t("blog.dek")}</Label><Textarea rows={2} value={p.dek} onChange={e => setField(post, { dek: e.target.value })} /></div>
                       <div className="grid md:grid-cols-3 gap-3">
                         <div className="space-y-1.5"><Label>{t("blog.category")}</Label><Input value={p.category} onChange={e => setField(post, { category: e.target.value })} /></div>
-                        <div className="space-y-1.5"><Label>{t("blog.published")}</Label><Input type="date" value={p.published_at} onChange={e => setField(post, { published_at: e.target.value })} /></div>
+                        <div className="space-y-1.5"><Label>{t("blog.published")}</Label><DateInput value={p.published_at} onChange={published_at => setField(post, { published_at })} className={DATE_INPUT_LOOK} /></div>
                         <div className="space-y-1.5"><Label>{t("blog.readTime")}</Label><Input type="number" value={p.read_time} onChange={e => setField(post, { read_time: Number(e.target.value) || 0 })} /></div>
                       </div>
                       <div className="grid md:grid-cols-3 gap-3">

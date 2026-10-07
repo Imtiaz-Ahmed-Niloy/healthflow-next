@@ -16,6 +16,7 @@ import { useTransferBedMutation } from "@/redux/api/bedTransfers";
 import { doctorsApi, patientsApi, bedsApi, cabinsApi, type AdmissionRow } from "@/redux/api/resources";
 import { useFormatters } from "@/lib/appSettings";
 import { BedDouble, UserPlus, LogOut, Activity, Stethoscope, FileText, Printer, ArrowRightLeft } from "lucide-react";
+import { DateTimeLocalInput } from "@/components/ui/date-input";
 
 /**
  * HF-37 frontend wiring. Real tables now: admissions, bed_stays (via embed),
@@ -561,14 +562,13 @@ const Admissions = () => {
               </Select>
             </Field>
           )}
-          <Field label={t("fields.admittedAt")}><Input type="datetime-local" value={draft.admitted_at} onChange={e => setDraft(d => ({ ...d, admitted_at: e.target.value }))} /></Field>
+          <Field label={t("fields.admittedAt")}><DateTimeLocalInput value={draft.admitted_at} onChange={admitted_at => setDraft(d => ({ ...d, admitted_at }))} /></Field>
           {edit && draft.status === "discharged" && (
             <Field label={t("fields.dischargedAt")} required>
-              <Input
-                type="datetime-local"
+              <DateTimeLocalInput
                 value={draft.discharged_at}
                 min={draft.admitted_at}
-                onChange={e => setDraft(d => ({ ...d, discharged_at: e.target.value }))}
+                onChange={discharged_at => setDraft(d => ({ ...d, discharged_at }))}
               />
             </Field>
           )}
@@ -601,11 +601,10 @@ const Admissions = () => {
         {discharge && (
           <>
             <Field label={t("fields.dischargeWhen")} required>
-              <Input
-                type="datetime-local"
+              <DateTimeLocalInput
                 value={dischargeAt}
                 min={toLocalInput(discharge.admitted_at)}
-                onChange={e => setDischargeAt(e.target.value)}
+                onChange={setDischargeAt}
               />
             </Field>
             <p className="text-sm text-muted-foreground">
