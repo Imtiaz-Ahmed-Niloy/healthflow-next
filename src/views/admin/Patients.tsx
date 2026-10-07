@@ -62,7 +62,7 @@ const Page = () => {
         ],
 
         fields: [
-          { name: "phone", label: t("fields.phone"), type: "tel", required: true },
+          { name: "phone", label: t("fields.phone"), type: "phone", required: true, autoFocus: true },
           { name: "full_name", label: t("fields.fullName"), type: "text", required: true },
           { name: "gender", label: t("fields.gender"), type: "select", options: genders, placeholder: t("fields.select") },
           { name: "date_of_birth", label: t("fields.dob"), type: "date" },

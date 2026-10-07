@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ResourceDefinition } from "./types";
+import { bdStoredPhone } from "@/lib/phone";
 
 /**
  * Patient registry — the foundation Ward/Bed/Cabin/Admission are built on.
@@ -29,7 +30,8 @@ export const patientCreateSchema = z.object({
   date_of_birth: z.string().trim().optional().or(z.literal("")).transform(
     (value) => (value === "" ? undefined : value),
   ),
-  phone: z.string().trim().min(1, "Mobile number is required").max(50),
+  // One spelling per number, whoever posts it — the form already sends this.
+  phone: z.string().trim().min(1, "Mobile number is required").max(50).transform(bdStoredPhone),
   email: z.string().trim().email().optional().or(z.literal("")).transform(
     (value) => (value === "" ? undefined : value),
   ),

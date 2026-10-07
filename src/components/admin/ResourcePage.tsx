@@ -16,6 +16,7 @@ import { parseWeek, summariseWeek } from "@/lib/hours";
 import { availabilityLabel, weekFromAvailability } from "@/lib/availability";
 import { WeeklyHoursField } from "./WeeklyHoursField";
 import { SpecialtySelect } from "@/components/common/SpecialtySelect";
+import { BD_COUNTRY_CODE, bdLocalPart, bdStoredPhone } from "@/lib/phone";
 
 /**
  * Uploads to Cloudflare R2 and stores the object KEY, not a URL.
@@ -472,6 +473,30 @@ function ListField({ name, defaultValue, inputType = "text", placeholder }: { na
   );
 }
 
+/**
+ * A mobile number with +880 fixed in its own box, so nobody types it or
+ * wonders whether to. What posts is the stored spelling, 01712345678
+ * (src/lib/phone.ts) — the box is for the eye only.
+ */
+function PhoneField({ name, defaultValue, required, invalid, autoFocus }: { name: string; defaultValue?: unknown; required?: boolean; invalid?: boolean; autoFocus?: boolean }) {
+  const [local, setLocal] = useState(() => bdLocalPart(typeof defaultValue === "string" ? defaultValue : ""));
+  return (
+    <div className="flex items-stretch gap-2">
+      <input type="hidden" name={name} value={local ? bdStoredPhone(local) : ""} />
+      <span className="flex items-center gap-2 bg-muted/40 rounded-lg px-3 text-sm font-mono text-muted-foreground select-none">
+        {/* Drawn, not the emoji: Windows shows flag emoji as the letters "BD". */}
+        <svg viewBox="0 0 20 12" className="h-3 w-5 rounded-[2px] shrink-0" aria-hidden="true">
+          <rect width="20" height="12" fill="#006a4e" />
+          <circle cx="9" cy="6" r="4" fill="#f42a41" />
+        </svg>
+        {BD_COUNTRY_CODE}
+      </span>
+      <Input type="tel" inputMode="numeric" value={local} onChange={e => setLocal(bdLocalPart(e.target.value))}
+        required={required} aria-invalid={invalid} autoFocus={autoFocus} pattern="1[0-9]{9}" maxLength={10} placeholder="1712345678" className="flex-1 min-w-0" />
+    </div>
+  );
+}
+
 const SOCIAL_PLATFORMS = [
   { key: "facebook", label: "Facebook", Icon: Facebook },
   { key: "twitter", label: "Twitter / X", Icon: Twitter },
@@ -792,6 +817,8 @@ export type FieldDef = (
    * this field belongs to.
    */
   | { name: string; label: string; type: "text" | "email" | "tel" | "number" | "date" | "time"; required?: boolean; fullWidth?: boolean; min?: number | string; max?: number | string; numberStep?: number | "any" }
+  /** A Bangladeshi mobile number: +880 in a box of its own, the rest typed beside it. */
+  | { name: string; label: string; type: "phone"; autoFocus?: boolean; required?: boolean; fullWidth?: boolean }
   /**
    * Options are plain strings when the stored value is what a human should
    * read. Pass { value, label } when it is not — a database enum like
@@ -888,6 +915,9 @@ export function RecordFormFields({
                   defaultValue={(editing as never)?.[f.name] ?? ""} />
               ) : f.type === "people" ? (
                 <PeopleField name={f.name} defaultValue={(editing as never)?.[f.name]} roleOptions={f.roleOptions} addLabel={f.addLabel} />
+              ) : f.type === "phone" ? (
+                <PhoneField key={String((editing as { id?: string } | null)?.id ?? "new")} name={f.name} required={f.required} autoFocus={f.autoFocus}
+                  defaultValue={(editing as never)?.[f.name]} />
               ) : (
                 <Input name={f.name} type={f.type} required={f.required}
                         min={minFor(f, editing as Record<string, unknown> | null)} max={f.max} step={f.numberStep}
@@ -1088,7 +1118,7 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
       {/* Create / Edit */}
       <Modal open={creating || !!editing} onClose={() => { setCreating(false); setEditing(null); crud.clearFieldErrors(); }}
         size="lg"
-        title={editing ? t("editRecord") : t("createNew")}
+        title={editing ? t("editRecord") : config.addLabel ?? t("createNew")}
         footer={<>
           <button onClick={() => { setCreating(false); setEditing(null); crud.clearFieldErrors(); }} className="px-4 py-2 rounded-full text-sm font-semibold border border-border">{tc("cancel")}</button>
           {steps && !isFirstStep && (
@@ -1254,6 +1284,9 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
                         defaultValue={(editing as never)?.[f.name] ?? ""} />
                     ) : f.type === "people" ? (
                       <PeopleField name={f.name} defaultValue={(editing as never)?.[f.name]} roleOptions={f.roleOptions} addLabel={f.addLabel} />
+                    ) : f.type === "phone" ? (
+                      <PhoneField key={String((editing as { id?: string } | null)?.id ?? "new")} name={f.name} required={f.required} invalid={!!fieldError} autoFocus={f.autoFocus}
+                        defaultValue={(editing as never)?.[f.name]} />
                     ) : (
                       <Input name={f.name} type={f.type} required={f.required} aria-invalid={!!fieldError}
                         min={minFor(f, editing as Record<string, unknown> | null)} max={f.max} step={f.numberStep}
