@@ -6,6 +6,19 @@
  */
 export const BD_COUNTRY_CODE = "+880";
 
+/**
+ * The countries PhoneInput (components/common/PhoneInput.tsx) offers, and the
+ * one place to add another. `pattern`, `maxLength` and `placeholder` describe
+ * what is typed after the dial code. With a second entry the input's box
+ * becomes a picker; the flag for a new `iso` is drawn in that component, and
+ * the stored spelling below is still Bangladesh's and would need a say too.
+ */
+export const PHONE_COUNTRIES = [
+  { iso: "BD", dial: BD_COUNTRY_CODE, pattern: "1[0-9]{9}", maxLength: 10, placeholder: "1712345678" },
+] as const;
+
+export type PhoneCountry = (typeof PHONE_COUNTRIES)[number];
+
 /** What follows +880: 1712345678, however the number was written. */
 export const bdLocalPart = (value: string) =>
   value.replace(/\D/g, "").replace(/^(?:880)?0?/, "");

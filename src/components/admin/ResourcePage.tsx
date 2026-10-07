@@ -16,7 +16,7 @@ import { parseWeek, summariseWeek } from "@/lib/hours";
 import { availabilityLabel, weekFromAvailability } from "@/lib/availability";
 import { WeeklyHoursField } from "./WeeklyHoursField";
 import { SpecialtySelect } from "@/components/common/SpecialtySelect";
-import { BD_COUNTRY_CODE, bdLocalPart, bdStoredPhone } from "@/lib/phone";
+import { PhoneInput } from "@/components/common/PhoneInput";
 
 /**
  * Uploads to Cloudflare R2 and stores the object KEY, not a URL.
@@ -473,30 +473,6 @@ function ListField({ name, defaultValue, inputType = "text", placeholder }: { na
   );
 }
 
-/**
- * A mobile number with +880 fixed in its own box, so nobody types it or
- * wonders whether to. What posts is the stored spelling, 01712345678
- * (src/lib/phone.ts) — the box is for the eye only.
- */
-function PhoneField({ name, defaultValue, required, invalid, autoFocus }: { name: string; defaultValue?: unknown; required?: boolean; invalid?: boolean; autoFocus?: boolean }) {
-  const [local, setLocal] = useState(() => bdLocalPart(typeof defaultValue === "string" ? defaultValue : ""));
-  return (
-    <div className="flex items-stretch gap-2">
-      <input type="hidden" name={name} value={local ? bdStoredPhone(local) : ""} />
-      <span className="flex items-center gap-2 bg-muted/40 rounded-lg px-3 text-sm font-mono text-muted-foreground select-none">
-        {/* Drawn, not the emoji: Windows shows flag emoji as the letters "BD". */}
-        <svg viewBox="0 0 20 12" className="h-3 w-5 rounded-[2px] shrink-0" aria-hidden="true">
-          <rect width="20" height="12" fill="#006a4e" />
-          <circle cx="9" cy="6" r="4" fill="#f42a41" />
-        </svg>
-        {BD_COUNTRY_CODE}
-      </span>
-      <Input type="tel" inputMode="numeric" value={local} onChange={e => setLocal(bdLocalPart(e.target.value))}
-        required={required} aria-invalid={invalid} autoFocus={autoFocus} pattern="1[0-9]{9}" maxLength={10} placeholder="1712345678" className="flex-1 min-w-0" />
-    </div>
-  );
-}
-
 const SOCIAL_PLATFORMS = [
   { key: "facebook", label: "Facebook", Icon: Facebook },
   { key: "twitter", label: "Twitter / X", Icon: Twitter },
@@ -820,6 +796,19 @@ export type FieldDef = (
   /** A Bangladeshi mobile number: +880 in a box of its own, the rest typed beside it. */
   | { name: string; label: string; type: "phone"; autoFocus?: boolean; required?: boolean; fullWidth?: boolean }
   /**
+   * A field the module draws itself — picking a patient by their number, say.
+   * It must render an input (usually hidden) carrying `name`, because the
+   * form still reads its value from there. `editing` is the row being edited,
+   * or null on a new record.
+   */
+  | {
+      name: string; label: string; type: "custom"; render: (editing: Record<string, unknown> | null) => ReactNode; required?: boolean; fullWidth?: boolean;
+      /** Drawn full width with no label of its own — for one that lays out several labelled inputs itself. */
+      bare?: boolean;
+    }
+  /** Not an input: a heading that starts a section of the form. `name` only has to be unique. */
+  | { name: string; label: string; type: "heading"; required?: boolean; fullWidth?: boolean }
+  /**
    * Options are plain strings when the stored value is what a human should
    * read. Pass { value, label } when it is not — a database enum like
    * "on_leave", or a foreign key, where the value is a uuid and the label is
@@ -844,7 +833,11 @@ export type FieldDef = (
   // A doctor's specialty, picked from the specialties list (0093) — SpecialtySelect.
   | { name: string; label: string; type: "specialty"; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "people"; roleOptions?: string[]; addLabel?: string; required?: boolean; fullWidth?: boolean }
-) & { step?: number };
+) & {
+  step?: number;
+  /** Left out of the form for a new record, which takes the column's default — an appointment's status, say. */
+  editOnly?: boolean;
+};
 
 export type FormStep = { id: number; label: string };
 
@@ -882,6 +875,11 @@ export function RecordFormFields({
         const fieldStep = f.step ?? ids[0];
         const hidden = activeStepId !== undefined ? fieldStep !== activeStepId : false;
         const wide = f.fullWidth || f.type === "textarea" || f.type === "image" || f.type === "file" || f.type === "document" || f.type === "files" || f.type === "list" || f.type === "social" || f.type === "hours" || f.type === "availability" || f.type === "people";
+        if (f.editOnly && !editing) return null;
+        if (f.type === "heading") return <FormHeading key={f.name} label={f.label} hidden={hidden} />;
+        if (f.type === "custom" && f.bare) {
+          return <div key={f.name} className={`col-span-2 ${hidden ? "hidden" : ""}`}>{f.render(editing as Record<string, unknown> | null)}</div>;
+        }
         return (
           <div key={f.name} className={`${wide ? "col-span-2" : ""} ${hidden ? "hidden" : ""}`}>
             <Field label={f.label} required={f.required}>
@@ -916,8 +914,10 @@ export function RecordFormFields({
               ) : f.type === "people" ? (
                 <PeopleField name={f.name} defaultValue={(editing as never)?.[f.name]} roleOptions={f.roleOptions} addLabel={f.addLabel} />
               ) : f.type === "phone" ? (
-                <PhoneField key={String((editing as { id?: string } | null)?.id ?? "new")} name={f.name} required={f.required} autoFocus={f.autoFocus}
+                <PhoneInput key={String((editing as { id?: string } | null)?.id ?? "new")} name={f.name} required={f.required} autoFocus={f.autoFocus}
                   defaultValue={(editing as never)?.[f.name]} />
+              ) : f.type === "custom" ? (
+                f.render(editing as Record<string, unknown> | null)
               ) : (
                 <Input name={f.name} type={f.type} required={f.required}
                         min={minFor(f, editing as Record<string, unknown> | null)} max={f.max} step={f.numberStep}
@@ -954,6 +954,14 @@ export type ResourceConfig<T extends { id: string; status?: string }> = {
   addLabel?: string;
   defaults?: Partial<T>;
   onCreate?: (record: T) => void;
+  /**
+   * Runs on save, after the form is read and before anything is sent — for a
+   * value the form cannot simply hold, such as the id of a patient who has to
+   * be added first. Change `values` in place. `form` is the whole form, with
+   * any extra inputs a custom field drew. Resolve false to stop the save and
+   * keep the form open; say why yourself.
+   */
+  beforeSubmit?: (values: Record<string, unknown>, form: FormData) => Promise<boolean>;
   onUpdate?: (record: T) => void;
   extraFilters?: ReactNode;
   filterFn?: (row: T) => boolean;
@@ -980,6 +988,15 @@ export type ResourceConfig<T extends { id: string; status?: string }> = {
  * URIs and their consumers still expect the string form.
  */
 const JSON_VALUED_TYPES = new Set(["list", "social", "people"]);
+
+/** A section's heading inside a form — FieldDef's "heading", and for a custom field that starts a section itself. */
+export function FormHeading({ label, hidden = false }: { label: string; hidden?: boolean }) {
+  return (
+    <h4 className={`col-span-2 text-sm font-semibold text-primary border-b border-border/60 pb-2 mb-4 mt-2 first:mt-0 ${hidden ? "hidden" : ""}`}>
+      {label}
+    </h4>
+  );
+}
 
 export function ResourcePage<T extends { id: string; status?: string }>({ config, extra }: { config: ResourceConfig<T>; extra?: ReactNode }) {
   const t = useTranslations("resource");
@@ -1207,6 +1224,7 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
           const fd = new FormData(e.currentTarget);
           const obj: Record<string, unknown> = { ...((config.defaults as Record<string, unknown>) || {}) };
           config.fields.forEach(f => {
+            if (f.type === "heading" || (f.editOnly && !editing)) return;
             // A document field can post a second value — the uploaded file's
             // size — into a column of its own. It is not in `fields`, so this
             // loop is the only place that would ever pick it up.
@@ -1225,6 +1243,9 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
             if (raw === "") return;
             try { obj[f.name] = JSON.parse(raw); } catch { /* omit */ }
           });
+          // The module's last word on what is saved; null stops the save and
+          // leaves the form open. See ResourceConfig.beforeSubmit.
+          if (config.beforeSubmit && !(await config.beforeSubmit(obj, fd))) return;
           // A rejected save leaves the modal open with everything the user
           // typed still in it. Closing regardless — which is what this did —
           // threw the work away and left only a toast to explain it, and the
@@ -1251,6 +1272,11 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
               const hidden = steps ? fieldStep !== activeStepId : false;
               const wide = f.fullWidth || f.type === "textarea" || f.type === "image" || f.type === "file" || f.type === "document" || f.type === "files" || f.type === "list" || f.type === "social" || f.type === "hours" || f.type === "availability" || f.type === "people";
               const fieldError = crud.fieldErrors[f.name];
+              if (f.editOnly && !editing) return null;
+              if (f.type === "heading") return <FormHeading key={f.name} label={f.label} hidden={hidden} />;
+              if (f.type === "custom" && f.bare) {
+                return <div key={f.name} className={`col-span-2 ${hidden ? "hidden" : ""}`}>{f.render(editing as Record<string, unknown> | null)}</div>;
+              }
               return (
                 <div key={f.name} className={`${wide ? "col-span-2" : ""} ${hidden ? "hidden" : ""}`}>
                   <Field label={f.label} required={f.required} error={fieldError}>
@@ -1285,8 +1311,10 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
                     ) : f.type === "people" ? (
                       <PeopleField name={f.name} defaultValue={(editing as never)?.[f.name]} roleOptions={f.roleOptions} addLabel={f.addLabel} />
                     ) : f.type === "phone" ? (
-                      <PhoneField key={String((editing as { id?: string } | null)?.id ?? "new")} name={f.name} required={f.required} invalid={!!fieldError} autoFocus={f.autoFocus}
+                      <PhoneInput key={String((editing as { id?: string } | null)?.id ?? "new")} name={f.name} required={f.required} invalid={!!fieldError} autoFocus={f.autoFocus}
                         defaultValue={(editing as never)?.[f.name]} />
+                    ) : f.type === "custom" ? (
+                      f.render(editing as Record<string, unknown> | null)
                     ) : (
                       <Input name={f.name} type={f.type} required={f.required} aria-invalid={!!fieldError}
                         min={minFor(f, editing as Record<string, unknown> | null)} max={f.max} step={f.numberStep}

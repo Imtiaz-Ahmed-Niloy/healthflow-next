@@ -339,6 +339,15 @@
       "title": "Appointment Management",
       "subtitle": "Hospital-wide booking queue",
       "add": "Add Appointment",
+      "sections": {
+        "patient": "Patient",
+        "doctor": "Doctor",
+        "schedule": "Schedule"
+      },
+      "dateTimeRequired": "Pick the date and time.",
+      "allDepartments": "All departments",
+      "departmentLabel": "Department",
+      "searchDoctor": "Search doctors…",
       "loadingPatients": "Loading patients…",
       "selectPatient": "— Select a patient —",
       "loadingDoctors": "Loading doctors…",
@@ -367,7 +376,8 @@
         "date": "Date",
         "time": "Time",
         "status": "Status",
-        "notes": "Notes"
+        "dateTime": "Date & time",
+        "notes": "Reason for visit (optional)"
       }
     },
     "assets": {
@@ -977,6 +987,17 @@
       "subtitle": "Hospital-wide patient records",
       "add": "Add Patient",
       "years": "{count}y",
+      "lookup": {
+        "phone": "Mobile number",
+        "name": "Patient name",
+        "namePlaceholder": "Full name",
+        "numberFirst": "Fills in from the number",
+        "searching": "Looking up this number…",
+        "several": "Pick the patient",
+        "newPatient": "New number. This patient is added when you save.",
+        "required": "Enter the patient's mobile number and name.",
+        "saveFailed": "Could not add the patient"
+      },
       "login": {
         "view": "View this patient's login",
         "create": "Create a login for this patient",

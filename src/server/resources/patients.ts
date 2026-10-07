@@ -58,7 +58,8 @@ export const patientsResource: ResourceDefinition<PatientCreate, PatientUpdate> 
   createSchema: patientCreateSchema,
   updateSchema: patientUpdateSchema,
   searchFields: ["full_name", "mrn", "phone", "email"],
-  filterFields: ["gender"],
+  // phone: the appointment form finds a patient by the number they give.
+  filterFields: ["gender", "phone"],
   defaultSort: { column: "created_at", ascending: false },
   roles: {
     // doctor gets read so the admissions/ward views can resolve a patient's
