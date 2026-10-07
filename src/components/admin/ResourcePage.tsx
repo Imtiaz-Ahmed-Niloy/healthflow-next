@@ -798,7 +798,9 @@ export type FieldDef = (
    * "on_leave", or a foreign key, where the value is a uuid and the label is
    * the name it points at. Same shape as `statuses` below.
    */
-  | { name: string; label: string; type: "select"; options: SelectOption[]; required?: boolean; fullWidth?: boolean }
+  // `placeholder` adds an empty first option and starts a new record on it,
+  // instead of pre-picking the first real option.
+  | { name: string; label: string; type: "select"; options: SelectOption[]; placeholder?: string; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "textarea"; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "image"; folder?: MediaFolder; required?: boolean; fullWidth?: boolean }
   | { name: string; label: string; type: "file"; accept?: string; hint?: string; required?: boolean; fullWidth?: boolean }
@@ -857,7 +859,8 @@ export function RecordFormFields({
           <div key={f.name} className={`${wide ? "col-span-2" : ""} ${hidden ? "hidden" : ""}`}>
             <Field label={f.label} required={f.required}>
               {f.type === "select" ? (
-                <Select name={f.name} required={f.required} defaultValue={(editing as never)?.[f.name] ?? toOptions(f.options)[0]?.value ?? ""}>
+                <Select name={f.name} required={f.required} defaultValue={(editing as never)?.[f.name] ?? (f.placeholder !== undefined ? "" : toOptions(f.options)[0]?.value ?? "")}>
+                  {f.placeholder !== undefined && <option value="">{f.placeholder}</option>}
                   {toOptions(f.options).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </Select>
               ) : f.type === "textarea" ? (
@@ -1222,7 +1225,8 @@ export function ResourcePage<T extends { id: string; status?: string }>({ config
                 <div key={f.name} className={`${wide ? "col-span-2" : ""} ${hidden ? "hidden" : ""}`}>
                   <Field label={f.label} required={f.required} error={fieldError}>
                     {f.type === "select" ? (
-                      <Select name={f.name} required={f.required} aria-invalid={!!fieldError} defaultValue={(editing as never)?.[f.name] ?? toOptions(f.options)[0]?.value ?? ""}>
+                      <Select name={f.name} required={f.required} aria-invalid={!!fieldError} defaultValue={(editing as never)?.[f.name] ?? (f.placeholder !== undefined ? "" : toOptions(f.options)[0]?.value ?? "")}>
+                        {f.placeholder !== undefined && <option value="">{f.placeholder}</option>}
                         {toOptions(f.options).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </Select>
                     ) : f.type === "textarea" ? (

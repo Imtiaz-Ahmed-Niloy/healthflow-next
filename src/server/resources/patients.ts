@@ -23,16 +23,20 @@ const bloodGroupEnum = z.enum([
 
 export const patientCreateSchema = z.object({
   full_name: z.string().trim().min(1, "Full name is required").max(200),
-  gender: genderEnum.optional(),
+  gender: genderEnum.optional().or(z.literal("")).transform(
+    (value) => (value === "" ? undefined : value),
+  ),
   date_of_birth: z.string().trim().optional().or(z.literal("")).transform(
     (value) => (value === "" ? undefined : value),
   ),
-  phone: optionalText,
+  phone: z.string().trim().min(1, "Mobile number is required").max(50),
   email: z.string().trim().email().optional().or(z.literal("")).transform(
     (value) => (value === "" ? undefined : value),
   ),
   address: optionalText,
-  blood_group: bloodGroupEnum.optional(),
+  blood_group: bloodGroupEnum.optional().or(z.literal("")).transform(
+    (value) => (value === "" ? undefined : value),
+  ),
   emergency_contact_name: optionalText,
   emergency_contact_phone: optionalText,
   profile_id: z.string().uuid().optional(),

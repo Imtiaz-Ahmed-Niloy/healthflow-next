@@ -995,7 +995,8 @@
         "email": "Email",
         "address": "Address",
         "emergencyName": "Emergency contact name",
-        "emergencyPhone": "Emergency contact phone"
+        "emergencyPhone": "Emergency contact phone",
+        "select": "Select"
       }
     },
     "procurement": {

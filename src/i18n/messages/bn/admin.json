@@ -995,7 +995,8 @@
         "email": "ইমেইল",
         "address": "ঠিকানা",
         "emergencyName": "জরুরি যোগাযোগের নাম",
-        "emergencyPhone": "জরুরি যোগাযোগের ফোন"
+        "emergencyPhone": "জরুরি যোগাযোগের ফোন",
+        "select": "বাছাই করুন"
       }
     },
     "procurement": {

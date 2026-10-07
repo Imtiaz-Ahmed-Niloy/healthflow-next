@@ -62,11 +62,11 @@ const Page = () => {
         ],
 
         fields: [
+          { name: "phone", label: t("fields.phone"), type: "tel", required: true },
           { name: "full_name", label: t("fields.fullName"), type: "text", required: true },
-          { name: "gender", label: t("fields.gender"), type: "select", options: genders },
+          { name: "gender", label: t("fields.gender"), type: "select", options: genders, placeholder: t("fields.select") },
           { name: "date_of_birth", label: t("fields.dob"), type: "date" },
-          { name: "blood_group", label: t("fields.bloodGroup"), type: "select", options: BLOOD_GROUPS },
-          { name: "phone", label: t("fields.phone"), type: "tel" },
+          { name: "blood_group", label: t("fields.bloodGroup"), type: "select", options: BLOOD_GROUPS, placeholder: t("fields.select") },
           { name: "email", label: t("fields.email"), type: "email" },
           { name: "address", label: t("fields.address"), type: "textarea", fullWidth: true },
           { name: "emergency_contact_name", label: t("fields.emergencyName"), type: "text" },
