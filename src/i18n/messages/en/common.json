@@ -70,6 +70,15 @@
     "upazilas": "Upazilas"
   },
   "pickers": {
+    "date": "Date",
+    "time": "Time",
+    "today": "Today",
+    "cancel": "Cancel",
+    "done": "Done",
+    "clear": "Clear",
+    "selectDate": "Select date",
+    "selectDateTime": "Select date and time",
+    "localTime": "{zone} local time",
     "search": "Search…",
     "nothingFound": "Nothing found.",
     "selectSpecialty": "Select a specialty…",

@@ -70,6 +70,15 @@
     "upazilas": "উপজেলা"
   },
   "pickers": {
+    "date": "তারিখ",
+    "time": "সময়",
+    "today": "আজ",
+    "cancel": "বাতিল",
+    "done": "ঠিক আছে",
+    "clear": "মুছুন",
+    "selectDate": "তারিখ বাছাই করুন",
+    "selectDateTime": "তারিখ ও সময় বাছাই করুন",
+    "localTime": "{zone} স্থানীয় সময়",
     "search": "খুঁজুন…",
     "nothingFound": "কিছু পাওয়া যায়নি।",
     "selectSpecialty": "একটি বিশেষজ্ঞতা বেছে নিন…",

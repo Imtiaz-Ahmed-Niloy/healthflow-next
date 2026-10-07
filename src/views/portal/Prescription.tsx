@@ -1645,7 +1645,7 @@ type SidebarQueueEntry = {
                         setFollowUp(d ? localToIso(d) : null);
                         setFollowUpCalendarOpen(false);
                       }}
-                      initialFocus
+                      autoFocus
                     />
                   </PopoverContent>
                 </Popover>
