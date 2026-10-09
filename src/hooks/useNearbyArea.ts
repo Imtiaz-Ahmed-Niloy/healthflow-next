@@ -2,16 +2,18 @@ import { useEffect, useSyncExternalStore } from "react";
 import { nearestDistrict } from "@/lib/districtCentres";
 
 /**
- * Where the visitor is, to the district — only ever what they said: a
- * district they picked, or "Use my location" (the browser's own prompt), kept
- * in this browser's storage. NearbyControls asks the browser by itself once,
- * on a first visit, and again whenever it was already allowed to answer.
+ * Where the visitor is, to the district. Two sources, the surest first:
  *
- * Until then there is no answer, and nothing is guessed. It used to be
- * guessed from the IP address, which in Bangladesh says Dhaka for most of the
- * country — an ISP's addresses are registered there wherever its customers
- * are — so someone in Jashore was shown "doctors near you" in Dhaka. One
- * answer for the whole page: every caller shares it.
+ *   1. what they said (`chosen`) — a district they picked, or "Use my
+ *      location" (the browser's own prompt), kept in this browser's storage;
+ *   2. otherwise a guess from their IP address by /api/v1/geo, with no prompt
+ *      and never saved: it is asked again on the next visit.
+ *
+ * The guess comes from IPinfo (src/server/geo.ts). An earlier one, from
+ * DB-IP, said Dhaka for most of the country and was taken out. Null until an
+ * answer arrives, and null for good when there is none — abroad, an unknown
+ * address, a phone operator's Dhaka. NearbyControls then asks the browser,
+ * once. One answer for the whole page: every caller shares it.
  */
 
 export type NearbyArea = { division: string; district: string | null; bnName: string | null };
@@ -40,16 +42,28 @@ const saved = (): NearbyArea | null => {
   }
 };
 
-const UNSET: State = { area: null, loading: false, chosen: false };
+// Asked once per page load; forgetting a district goes back to the same answer.
+let guessed: Promise<NearbyArea | null> | null = null;
+
+const guess = () => {
+  if (!guessed) set({ area: null, loading: true, chosen: false });
+  guessed ??= fetch("/api/v1/geo")
+    .then(res => (res.ok ? res.json() : null))
+    .then(body => (body?.data as NearbyArea | null) ?? null)
+    .catch(() => null);
+  // A district chosen while this was in the air stays.
+  void guessed.then(area => { if (!state.chosen) set({ area, loading: false, chosen: false }); });
+};
 
 const start = () => {
   if (started) return;
   started = true;
   const mine = saved();
-  set(mine ? { area: mine, loading: false, chosen: true } : UNSET);
+  if (mine) set({ area: mine, loading: false, chosen: true });
+  else guess();
 };
 
-/** The visitor's own answer, remembered here; null forgets it. */
+/** The visitor's own answer, remembered here; null forgets it and goes back to the guess. */
 export const chooseNearbyArea = (area: NearbyArea | null) => {
   try {
     if (area) localStorage.setItem(KEY, JSON.stringify(area));
@@ -57,7 +71,8 @@ export const chooseNearbyArea = (area: NearbyArea | null) => {
   } catch {
     // Not remembered, then; it still holds for this page.
   }
-  set(area ? { area, loading: false, chosen: true } : UNSET);
+  if (area) set({ area, loading: false, chosen: true });
+  else guess();
 };
 
 /**

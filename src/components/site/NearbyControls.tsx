@@ -20,21 +20,22 @@ let askedBrowser = false;
 export const NearbyControls = () => {
   const t = useTranslations("specialists");
   const bangla = useLocale() === "bn";
-  const { area, loading } = useNearbyArea();
+  const { area, loading, chosen } = useNearbyArea();
   const { divisions, districts } = useBdLocations();
   const [finding, setFinding] = useState(false);
-  const ready = !loading && !area && districts.length > 0 && divisions.length > 0;
+  const ready = !loading && !chosen && districts.length > 0 && divisions.length > 0;
 
-  // No answer yet: ask the browser where it is. The first time that is its
-  // own permission prompt, once per browser (firstAsk) — a visitor who says
-  // no is not asked again, and picks a district or presses the button
-  // instead. Where it was already allowed there is no prompt at all. Never an
+  // Nothing they said yet. Where the browser was already allowed to give its
+  // location it is asked — no prompt, and surer than the guess from their IP
+  // address. Its own permission prompt is raised only when there is no guess
+  // either, and once per browser (firstAsk): a visitor who says no is not
+  // asked again, and picks a district or presses the button instead. Never an
   // error either way: nobody asked for this.
   useEffect(() => {
     if (!ready || askedBrowser) return;
     askedBrowser = true;
     void locationAlreadyAllowed()
-      .then(allowed => (allowed || firstAsk() ? locateDistrict() : null))
+      .then(allowed => (allowed || (!area && firstAsk()) ? locateDistrict() : null))
       .then(name => {
         const district = name ? districts.find(d => d.name === name) : undefined;
         const division = district && divisions.find(v => v.id === district.division_id);
