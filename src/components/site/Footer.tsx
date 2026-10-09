@@ -180,7 +180,9 @@ const Footer = () => {
               {/* The stores' own badges, at one height. Google's file carries a
                   clear margin inside the image (a quarter of it); Apple's has
                   none — so Google's is drawn larger and pulled back in. */}
-              <div className="mt-4 flex items-center gap-3">
+              {/* Wraps: on a tablet this column is too narrow for both side by
+                  side, and the second badge ran off the edge of the page. */}
+              <div className="mt-4 flex flex-wrap items-center gap-3">
                 {[
                   { store: "Google Play", line: t("app.android"), src: "/assets/badges/google-play.png", img: "-m-[10px] h-[60px]" },
                   { store: "App Store", line: t("app.ios"), src: "/assets/badges/app-store.svg", img: "h-10" },

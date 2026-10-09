@@ -59,7 +59,9 @@ const Navbar = ({ transparentAtTop = false }: { transparentAtTop?: boolean }) =>
           <img src={BRAND_INFO.logoMark} alt={`${BRAND_INFO.name} logo`} className="h-7 md:h-9 w-auto" />
           {BRAND_INFO.name}
         </Link>
-        <ul className="hidden md:flex items-center gap-10 text-sm font-medium text-foreground/80">
+        {/* From lg, not md: five links, the language switch and two buttons do
+            not fit a tablet's width, and wrapped onto the logo there. */}
+        <ul className="hidden lg:flex items-center gap-6 xl:gap-10 whitespace-nowrap text-sm font-medium text-foreground/80">
           {links.map((l) => (
             <li key={l.to}>
               <NavLink
@@ -77,7 +79,7 @@ const Navbar = ({ transparentAtTop = false }: { transparentAtTop?: boolean }) =>
             </li>
           ))}
         </ul>
-        <div className="hidden md:flex items-center gap-3">
+        <div className="hidden lg:flex items-center gap-3 whitespace-nowrap">
           <LanguageSwitcher />
           {/* Signed in: who you are and the way back to your panel, not an
               offer to sign in. Nothing until the session is known, so a
@@ -95,14 +97,14 @@ const Navbar = ({ transparentAtTop = false }: { transparentAtTop?: boolean }) =>
             </>
           )}
         </div>
-        <button className="md:hidden text-primary" onClick={() => setOpen(!open)} aria-label={open ? t("nav.closeMenu") : t("nav.openMenu")}>
+        <button className="lg:hidden text-primary" onClick={() => setOpen(!open)} aria-label={open ? t("nav.closeMenu") : t("nav.openMenu")}>
           {open ? <X /> : <Menu />}
         </button>
       </nav>
       {open && (
         // A white sheet under the bar: the links as a ruled list, then the
         // account buttons, then the language, centred, at the foot.
-        <div className="md:hidden border-t border-border/50 bg-card rounded-b-3xl shadow-card animate-fade-up">
+        <div className="lg:hidden border-t border-border/50 bg-card rounded-b-3xl shadow-card animate-fade-up">
           <ul className="container mx-auto pt-2 pb-6 flex flex-col text-sm font-medium">
             {links.map((l) => (
               <li key={l.to} className="border-b border-border/50">
