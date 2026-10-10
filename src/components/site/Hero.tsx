@@ -96,8 +96,12 @@ const Hero = ({ content }: { content: HomeCopy }) => {
               renders — the headline is written as lines, not left to the browser.
               The sizes step down at lg because the column halves there: the type
               is as large as the longest line can be without wrapping again.
-              Sized for Inter, which runs wider than the serif it replaced. */}
-          <h1 className="font-display text-[1.75rem] sm:text-4xl md:text-5xl lg:text-[2.2rem] xl:text-[2.75rem] 2xl:text-[3.3rem] leading-[1.1] text-primary whitespace-pre-line">
+              Sized for Inter, which runs wider than the serif it replaced.
+              The line height is said again at sm and md: text-4xl and text-5xl
+              carry their own (text-5xl's is 1, and it held from md up), which
+              beat a plain leading and set the comma of "Health," on the "i"
+              of the line below. */}
+          <h1 className="font-display text-[1.75rem] sm:text-4xl md:text-5xl lg:text-[2.2rem] xl:text-[2.75rem] 2xl:text-[3.3rem] leading-[1.2] sm:leading-[1.2] md:leading-[1.2] text-primary whitespace-pre-line">
             {plain}
             {highlight && <span className="lp-gradient-text">{highlight}</span>}
           </h1>
