@@ -1630,6 +1630,69 @@ export type Database = {
           },
         ]
       }
+      doctor_schedule_blocks: {
+        Row: {
+          blocks_booking: boolean
+          created_at: string
+          doctor_id: string | null
+          end_date: string | null
+          end_time: string | null
+          id: string
+          kind: string
+          note: string | null
+          profile_id: string
+          repeat_days: number[] | null
+          start_date: string
+          start_time: string | null
+          updated_at: string
+        }
+        Insert: {
+          blocks_booking?: boolean
+          created_at?: string
+          doctor_id?: string | null
+          end_date?: string | null
+          end_time?: string | null
+          id?: string
+          kind: string
+          note?: string | null
+          profile_id: string
+          repeat_days?: number[] | null
+          start_date: string
+          start_time?: string | null
+          updated_at?: string
+        }
+        Update: {
+          blocks_booking?: boolean
+          created_at?: string
+          doctor_id?: string | null
+          end_date?: string | null
+          end_time?: string | null
+          id?: string
+          kind?: string
+          note?: string | null
+          profile_id?: string
+          repeat_days?: number[] | null
+          start_date?: string
+          start_time?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_schedule_blocks_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_schedule_blocks_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctor_shifts: {
         Row: {
           created_at: string
@@ -4996,6 +5059,16 @@ export type Database = {
         Returns: undefined
       }
       auth_doctor_id: { Args: never; Returns: string }
+      doctor_blocked: {
+        Args: { p_date: string; p_doctor_id: string; p_time?: string }
+        Returns: {
+          end_date: string
+          end_time: string
+          kind: string
+          start_date: string
+          start_time: string
+        }[]
+      }
       auth_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]

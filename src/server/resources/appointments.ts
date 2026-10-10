@@ -3,6 +3,7 @@ import type { ResourceDefinition } from "./types";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { outsideAvailabilityReason, parseAvailability } from "@/lib/availability";
 import { pastSlotReason } from "@/lib/timezone";
+import { blockedReason } from "@/server/scheduleBlocks";
 
 /**
  * Appointment bookings — served at /api/v1/appointments, stored in
@@ -106,7 +107,12 @@ const slotRefusal: NonNullable<ResourceDefinition["beforeWrite"]> = async ({ id,
   // A doctor the caller cannot read is the foreign key's and RLS's to refuse.
   if (!doctor) return;
 
-  return outsideAvailabilityReason(parseAvailability(doctor.availability), date, time, doctor.name) ?? undefined;
+  const offHours = outsideAvailabilityReason(parseAvailability(doctor.availability), date, time, doctor.name);
+  if (offHours) return offHours;
+
+  // Nor in time the doctor blocked on their own schedule — leave, an
+  // operation, a round (0125).
+  return (await blockedReason(supabase, doctorId, date, time, doctor.name)) ?? undefined;
 };
 
 export const appointmentsResource: ResourceDefinition<

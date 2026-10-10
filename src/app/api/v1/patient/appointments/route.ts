@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createServerSupabase, createAdminSupabase, getAuthContext } from "@/lib/supabase/server";
 import { pastSlotReason } from "@/lib/timezone";
 import { outsideAvailabilityReason, parseAvailability } from "@/lib/availability";
+import { blockedReason } from "@/server/scheduleBlocks";
 
 /**
  * POST /api/v1/patient/appointments (HF-50)
@@ -119,6 +120,10 @@ export const POST = async (request: Request) => {
     parseAvailability(doctor.availability), scheduled_date, scheduled_time, doctor.name ?? undefined,
   );
   if (offHours) return fail(offHours, 422);
+
+  // And not in time the doctor blocked — leave, an operation, a round (0125).
+  const blocked = await blockedReason(supabase, doctor_id, scheduled_date, scheduled_time, doctor.name);
+  if (blocked) return fail(blocked, 422);
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
@@ -367,7 +372,7 @@ export const PATCH = async (request: Request) => {
   // And inside the doctor's days and hours, the same as a new booking.
   const { data: current } = await admin
     .from("appointments")
-    .select("doctors ( name, availability )")
+    .select("doctor_id, doctors ( name, availability )")
     .eq("id", id)
     .in("patient_id", patientIds)
     .maybeSingle();
@@ -376,6 +381,13 @@ export const PATCH = async (request: Request) => {
     parseAvailability(doctorRow?.availability), scheduled_date!, scheduled_time!, doctorRow?.name ?? undefined,
   );
   if (offHours) return fail(offHours, 422);
+
+  // Nor into time the doctor blocked (0125), the same as a new booking.
+  const movedDoctorId = (current as { doctor_id: string | null } | null)?.doctor_id;
+  if (movedDoctorId) {
+    const blocked = await blockedReason(admin, movedDoctorId, scheduled_date!, scheduled_time!, doctorRow?.name);
+    if (blocked) return fail(blocked, 422);
+  }
 
   // Reschedule: only a still-scheduled appointment can move — a cancelled
   // one is done, and completed is history.

@@ -2,12 +2,14 @@
 
 import { motion } from "framer-motion";
 import { useState, useEffect, useMemo } from "react";
-import { Calendar, ChevronLeft, ChevronRight, ClipboardList, Heart } from "lucide-react";
+import { AlertTriangle, Ban, Calendar, ChevronLeft, ChevronRight, ClipboardList, Heart, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { useLocale, useTranslations } from "next-intl";
 import { PortalLayout } from "@/components/portal/PortalLayout";
+import { AddScheduleBlockDialog, type BlockClash, type BlockPlace } from "@/components/portal/AddScheduleBlockDialog";
 import { displayTime } from "@/lib/availability";
+import { blockCoversDate, type ScheduleBlock } from "@/lib/scheduleBlocks";
 
 type Appointment = {
   id: string;
@@ -27,6 +29,8 @@ type Appointment = {
 };
 
 const WEEK_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+/** The same names by the database's weekday number, 0 = Sunday (a block's repeat_days). */
+const DAY_BY_DOW = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
 type ScheduleStats = {
   avgWaitMinutes: number | null;
@@ -56,6 +60,41 @@ const Schedule = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
+  // Time the doctor blocked themselves (0125) — leave, an operation, a round —
+  // drawn on the same calendar as the appointments.
+  const [blocks, setBlocks] = useState<ScheduleBlock[]>([]);
+  const [places, setPlaces] = useState<BlockPlace[]>([]);
+  const [adding, setAdding] = useState(false);
+  // Appointments already inside the block just added: nothing is cancelled,
+  // so they stay listed here until the doctor has seen them.
+  const [clashes, setClashes] = useState<BlockClash[]>([]);
+
+  useEffect(() => {
+    fetch("/api/v1/portal/schedule-blocks")
+      .then(res => (res.ok ? res.json() : null))
+      .then(body => {
+        if (!body) return;
+        setBlocks(body.data ?? []);
+        setPlaces(body.places ?? []);
+      })
+      .catch(err => console.error("Failed to load blocked time", err));
+  }, []);
+
+  const removeBlock = async (id: string) => {
+    const res = await fetch(`/api/v1/portal/schedule-blocks?id=${id}`, { method: "DELETE" }).catch(() => null);
+    if (!res?.ok) { toast.error(t("blockRemoveFailed")); return; }
+    setBlocks(list => list.filter(b => b.id !== id));
+    toast.success(t("blockRemoved"));
+  };
+
+  /** "9:00 AM – 1:00 PM · Every SAT, SUN · until 31 Oct" — when a block holds. */
+  const blockWhen = (b: ScheduleBlock) => [
+    b.start_time && b.end_time ? `${formatTime(b.start_time.slice(0, 5))} – ${formatTime(b.end_time.slice(0, 5))}` : t("blockAllDay"),
+    b.repeat_days && t("blockEvery", { days: b.repeat_days.map(d => t(`weekDays.${DAY_BY_DOW[d]}`)).join(", ") }),
+    b.end_date && b.end_date !== b.start_date && t("blockUntil", {
+      date: new Date(`${b.end_date}T00:00:00`).toLocaleDateString(dateLocale, { day: "numeric", month: "short", year: "numeric" }),
+    }),
+  ].filter(Boolean).join(" · ");
 
   useEffect(() => {
     const loadAppointments = async () => {
@@ -126,6 +165,7 @@ const Schedule = () => {
 
   const selectedDateKey = formatDateKey(selectedDate);
   const agendaAppointments = appointmentsByDate[selectedDateKey] || [];
+  const agendaBlocks = blocks.filter(b => blockCoversDate(b, selectedDateKey));
 
   const todayKey = formatDateKey(new Date());
   const todayAppointmentsCount = (appointmentsByDate[todayKey] || []).length;
@@ -139,17 +179,63 @@ const Schedule = () => {
           <h1 className="font-display text-5xl text-primary">{t("title")}</h1>
           <p className="text-sm text-muted-foreground mt-3">{t("subtitle")}</p>
         </div>
-        <div className="flex items-center rounded-full bg-chip p-1 border border-border/60">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center rounded-full bg-chip p-1 border border-border/60">
+            <button
+              onClick={() => { setView("split"); toast.info(t("splitView")); }}
+              className={`rounded-full px-5 py-2 text-sm font-semibold transition-colors ${view === "split" ? "bg-card text-primary shadow-soft" : "text-foreground/60 hover:text-primary"}`}
+            >{t("splitView")}</button>
+            <button
+              onClick={() => { setView("list"); toast.info(t("listView")); }}
+              className={`rounded-full px-5 py-2 text-sm font-semibold transition-colors ${view === "list" ? "bg-card text-primary shadow-soft" : "text-foreground/60 hover:text-primary"}`}
+            >{t("listView")}</button>
+          </div>
+          {/* Leave, an operation, a round, a class, busy — on the selected day. */}
           <button
-            onClick={() => { setView("split"); toast.info(t("splitView")); }}
-            className={`rounded-full px-5 py-2 text-sm font-semibold transition-colors ${view === "split" ? "bg-card text-primary shadow-soft" : "text-foreground/60 hover:text-primary"}`}
-          >{t("splitView")}</button>
-          <button
-            onClick={() => { setView("list"); toast.info(t("listView")); }}
-            className={`rounded-full px-5 py-2 text-sm font-semibold transition-colors ${view === "list" ? "bg-card text-primary shadow-soft" : "text-foreground/60 hover:text-primary"}`}
-          >{t("listView")}</button>
+            onClick={() => setAdding(true)}
+            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors"
+          >
+            <Plus className="h-4 w-4" /> {t("addToSchedule")}
+          </button>
         </div>
       </div>
+
+      <AddScheduleBlockDialog
+        open={adding}
+        onOpenChange={setAdding}
+        date={selectedDateKey}
+        places={places}
+        onAdded={(block, found) => {
+          setBlocks(list => [...list, block]);
+          setClashes(found);
+          toast.success(t("blockAdded"));
+        }}
+      />
+
+      {clashes.length > 0 && (
+        <div className="mt-6 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+              <div>
+                <p className="font-semibold text-foreground">{t("clashTitle", { count: clashes.length })}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{t("clashBody")}</p>
+              </div>
+            </div>
+            <button onClick={() => setClashes([])} aria-label={t("dismiss")} title={t("dismiss")} className="grid h-8 w-8 shrink-0 place-items-center rounded-full hover:bg-amber-500/20">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <ul className="mt-3 grid gap-1.5 text-sm sm:grid-cols-2">
+            {clashes.map(c => (
+              <li key={c.id} className="flex items-center gap-2">
+                <span className="rounded-md border border-border/40 bg-card px-2 py-0.5 text-xs font-semibold text-primary">{c.scheduled_date} · {formatTime(c.scheduled_time)}</span>
+                <span className="truncate">{c.patient || t("unknownPatient")}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-32">
@@ -172,7 +258,27 @@ const Schedule = () => {
             </div>
 
             <div className="mt-6 space-y-3 max-h-[500px] overflow-y-auto pr-1">
-              {agendaAppointments.length === 0 ? (
+              {/* What the doctor blocked on this day, ahead of who is booked. */}
+              {agendaBlocks.map(b => (
+                <div key={b.id} className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="flex items-center gap-1.5 font-semibold text-foreground">
+                      <Ban className="h-4 w-4 shrink-0 text-amber-600" /> {t(`kinds.${b.kind}`)}
+                    </p>
+                    <button onClick={() => removeBlock(b.id)} aria-label={t("removeBlock")} title={t("removeBlock")}
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <p className="mt-1 text-xs text-foreground/80">{blockWhen(b)}</p>
+                  {b.doctor_id && places.length > 1 && (
+                    <p className="mt-1 text-xs font-semibold text-primary-glow">{places.find(p => p.id === b.doctor_id)?.name}</p>
+                  )}
+                  {b.note && <p className="mt-1 text-xs text-muted-foreground">{b.note}</p>}
+                  {!b.blocks_booking && <p className="mt-2 text-[11px] font-semibold text-muted-foreground">{t("blockOpen")}</p>}
+                </div>
+              ))}
+              {agendaAppointments.length === 0 && agendaBlocks.length > 0 ? null : agendaAppointments.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground">
                   {t("noneThisDay")}
                 </div>
@@ -229,6 +335,7 @@ const Schedule = () => {
                   const dateStr = formatDateKey(date);
                   const dayAppointments = appointmentsByDate[dateStr] || [];
                   const activeAppts = dayAppointments.filter(a => a.status !== "cancelled");
+                  const dayBlocks = blocks.filter(b => blockCoversDate(b, dateStr));
                   const isToday = dateStr === todayKey;
                   const isSelected = dateStr === selectedDateKey;
 
@@ -249,6 +356,13 @@ const Schedule = () => {
 
                       {isToday && !isSelected && (
                         <div className="mt-1 text-[9px] bg-primary-glow/15 text-primary-glow font-semibold rounded px-1.5 py-0.5">{t("today")}</div>
+                      )}
+
+                      {/* One line per day: the first block's kind, and how many more. */}
+                      {dayBlocks.length > 0 && (
+                        <div className={`mt-1 truncate text-[9px] rounded px-1.5 py-0.5 font-semibold ${isSelected ? "bg-amber-400 text-amber-950" : "bg-amber-500/20 text-amber-700"}`}>
+                          {t(`kinds.${dayBlocks[0].kind}`)}{dayBlocks.length > 1 && ` +${dayBlocks.length - 1}`}
+                        </div>
                       )}
 
                       {activeAppts.length > 0 && (
@@ -274,6 +388,7 @@ const Schedule = () => {
                 <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-primary" /> {t("legend.selected")}</span>
                 <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-primary-glow" /> {t("legend.slots")}</span>
                 <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-destructive" /> {t("legend.high")}</span>
+                <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> {t("legend.blocked")}</span>
               </div>
               <button onClick={() => toast.success(t("exported"))} className="text-sm font-semibold text-primary hover:underline">{t("export")}</button>
             </div>
