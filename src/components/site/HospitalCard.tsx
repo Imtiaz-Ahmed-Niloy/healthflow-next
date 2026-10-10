@@ -11,6 +11,10 @@ import type { Hospital } from "@/data/hospitals";
 export const HOSPITAL_CARD_BUTTON =
   "flex flex-1 items-center justify-center gap-1.5 rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-glow group-hover/hospital:bg-primary-glow";
 
+/** The round icon button beside it: the phone, and whatever `extra` adds. */
+export const HOSPITAL_CARD_ICON_BUTTON =
+  "grid h-10 w-10 shrink-0 place-items-center rounded-full border border-primary/30 text-primary transition-colors hover:bg-primary/5";
+
 /**
  * One hospital, the same card everywhere a hospital is listed: the home page's
  * Verified Health Hub carousel, /hospitals, a patient's Find Hospitals, and
@@ -26,11 +30,13 @@ export const HOSPITAL_CARD_BUTTON =
  * like the carousel.
  */
 export const HospitalCard = ({
-  h, i = 0, action, lift, scale, animateIn = true, className = "",
+  h, i = 0, action, extra, lift, scale, animateIn = true, className = "",
 }: {
   h: Hospital;
   i?: number;
   action?: ReactNode;
+  /** One more round button at the end of the default row (HOSPITAL_CARD_ICON_BUTTON). */
+  extra?: ReactNode;
   lift?: number;
   scale?: number;
   animateIn?: boolean;
@@ -103,11 +109,11 @@ export const HospitalCard = ({
               <ArrowRight className="h-4 w-0 opacity-0 transition-all duration-300 group-hover/hospital:w-4 group-hover/hospital:opacity-100" />
             </Link>
             {h.phone && (
-              <a href={`tel:${h.phone}`} aria-label={t("call")} title={t("call")}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-primary/30 text-primary transition-colors hover:bg-primary/5">
+              <a href={`tel:${h.phone}`} aria-label={t("call")} title={t("call")} className={HOSPITAL_CARD_ICON_BUTTON}>
                 <Phone className="h-4 w-4" />
               </a>
             )}
+            {extra}
           </>
         )}
       </div>

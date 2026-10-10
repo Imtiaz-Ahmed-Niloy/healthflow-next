@@ -2,10 +2,12 @@
 
 import { Search, SearchX, Stethoscope, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
-import { HospitalCard } from "@/components/site/HospitalCard";
+import { HospitalCard, HOSPITAL_CARD_ICON_BUTTON } from "@/components/site/HospitalCard";
+import { DirectionsIcon } from "@/components/site/DirectionsIcon";
 import { SpecialtySelect } from "@/components/common/SpecialtySelect";
 import { FilterChip, FILTER_CONTROL, FILTER_ICON } from "@/components/common/FilterBar";
 import { LocationPickers, placeMatches, useLocationFilter } from "@/components/common/LocationPickers";
@@ -169,7 +171,16 @@ const FindHospitals = () => {
         ) : (
           <>
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {page.shown.map((h, i) => <HospitalCard key={h.slug} h={h} i={i % 24} />)}
+              {page.shown.map((h, i) => (
+                <HospitalCard key={h.slug} h={h} i={i % 24}
+                  // The way there, on its own page (views/patient/HospitalDirections.tsx).
+                  extra={
+                    <Link href={`/patient/find-hospitals/${h.slug}/directions`} aria-label={t("directions")} title={t("directions")} className={HOSPITAL_CARD_ICON_BUTTON}>
+                      <DirectionsIcon className="h-5 w-5" />
+                    </Link>
+                  }
+                />
+              ))}
             </div>
             {page.hasMore && (
               <div className="mt-8 flex justify-center">

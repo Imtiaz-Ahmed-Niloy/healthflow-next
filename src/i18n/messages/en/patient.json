@@ -384,7 +384,32 @@
         "name": "Name: A to Z"
       },
       "noneTitle": "No hospitals match these filters",
-      "noneBody": "Try another name, or widen the specialty or area."
+      "noneBody": "Try another name, or widen the specialty or area.",
+      "directions": "Directions"
+    },
+    "directions": {
+      "back": "Back to hospitals",
+      "title": "Directions to {name}",
+      "loading": "Loading hospital…",
+      "notFound": "Hospital not found",
+      "hint": "Allow your location, or type where you are starting from, to see the route.",
+      "from": "From",
+      "to": "To",
+      "fromPlaceholder": "Type an area or address",
+      "myLocation": "My location",
+      "showRoute": "Show route",
+      "fromTyped": "Showing the route from {place}.",
+      "fromYou": "Showing the route from your location.",
+      "fromDistrict": "Your exact location was not found, so the route starts from {place}. Press \"Use my location\" to try again.",
+      "fromDistrictDenied": "Location is blocked for this site, so the route starts from {place}. Allow it in your browser for the route from where you are.",
+      "useLocation": "Use my location",
+      "locating": "Finding you…",
+      "denied": "Location is blocked for this site. Allow it in your browser to see the route.",
+      "failed": "Could not find your location. Try again.",
+      "call": "Call {phone}",
+      "viewHospital": "View hospital",
+      "mapTitle": "Map to {name}",
+      "approximate": "The map finds the hospital by its name and address, so the pin can be a little off."
     }
   }
 }
