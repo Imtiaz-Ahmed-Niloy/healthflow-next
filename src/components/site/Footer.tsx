@@ -227,6 +227,17 @@ const Footer = () => {
             >
               SourceExpert
             </a>
+            {/* Lipighor's licence for the Bangla font (app/layout.tsx) asks
+                for this link in the footer. */}
+            {" · "}{t("webFont")}{" - "}
+            <a
+              href="https://lipighor.com/"
+              target="_blank"
+              rel="noopener"
+              className="font-semibold underline-offset-4 hover:underline hover:text-accent"
+            >
+              lipighor.com
+            </a>
           </span>
         </div>
       </div>

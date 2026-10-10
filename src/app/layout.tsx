@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Hind_Siliguri, Inter } from "next/font/google";
+import { Geist, Geist_Mono, Inter } from "next/font/google";
+import localFont from "next/font/local";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale } from "next-intl/server";
 import "./globals.css";
@@ -25,10 +26,17 @@ const geistMono = Geist_Mono({
  * Google Fonts @import at the top of globals.css, which the build dropped:
  * Inter never loaded, and every screen was set in the visitor's system font.
  *
- * Hind Siliguri draws the Bangla — Inter has no Bengali letters. It comes
+ * Li Ador Noirrit draws the Bangla — Inter has no Bengali letters. It comes
  * second in every font stack (--font-bangla), so it only ever draws Bangla
- * and English stays Inter. Without it Windows used Nirmala UI or Vrinda, which
- * set the visarga in "ডাঃ" small and adrift.
+ * and English stays Inter. Without one Windows used Nirmala UI or Vrinda, which
+ * set the visarga in "ডাঃ" small and adrift. It was Hind Siliguri until
+ * October 2026.
+ *
+ * The font is Lipighor's (lipighor.com), from the files in ./fonts, and is not
+ * an open one: their licence allows it as a web font with their permission by
+ * e-mail (admin@lipighor.com) and a "Web font - lipighor.com" link in the
+ * landing page's footer (components/site/Footer.tsx). It has no medium, so
+ * font-medium (500) is drawn in the regular.
  */
 const inter = Inter({
   variable: "--font-inter",
@@ -36,10 +44,13 @@ const inter = Inter({
   display: "swap",
 });
 
-const hindSiliguri = Hind_Siliguri({
+const bangla = localFont({
   variable: "--font-bangla",
-  subsets: ["bengali"],
-  weight: ["400", "500", "600", "700"],
+  src: [
+    { path: "./fonts/LiAdorNoirrit-Regular.ttf", weight: "400", style: "normal" },
+    { path: "./fonts/LiAdorNoirrit-SemiBold.ttf", weight: "600", style: "normal" },
+    { path: "./fonts/LiAdorNoirrit-Bold.ttf", weight: "700", style: "normal" },
+  ],
   display: "swap",
 });
 
@@ -79,7 +90,7 @@ export default async function RootLayout({
       // navigation an instant jump to the top, which Next.js 16 no longer does
       // on its own.
       data-scroll-behavior="smooth"
-      className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${hindSiliguri.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${bangla.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         {/* Hands the language and its messages to every client screen. */}

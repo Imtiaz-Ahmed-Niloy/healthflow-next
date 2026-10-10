@@ -23,7 +23,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        // Loaded by next/font in the root layout; Hind Siliguri draws only the
+        // Loaded by next/font in the root layout; Li Ador Noirrit draws only the
         // Bangla letters, which Inter has none of.
         sans: ["var(--font-inter)", "var(--font-bangla)", "system-ui", "sans-serif"],
         display: ["var(--font-inter)", "var(--font-bangla)", "system-ui", "sans-serif"],

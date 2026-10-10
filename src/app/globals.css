@@ -1,7 +1,7 @@
 /* First in the file: CSS requires @import before every other rule, and the
    @tailwind lines below expand into thousands of them. Webpack let an import
    below them through; Turbopack (Next 16's default) refuses to build. */
-/* Fonts: Inter, with Hind Siliguri for Bangla, loaded by next/font in the root
+/* Fonts: Inter, with Li Ador Noirrit for Bangla, loaded by next/font in the root
    layout as --font-inter and --font-bangla. A Google Fonts @import used to sit
    here; the build dropped it and nothing loaded. */
 
@@ -72,7 +72,7 @@
   .font-display { font-family: var(--font-inter), var(--font-bangla), system-ui, sans-serif; }
 
   /* Bangla headings. Inter has no Bengali letters, so these are drawn in
-     Hind Siliguri, whose vowel signs reach well above and below the
+     Li Ador Noirrit, whose vowel signs reach well above and below the
      line: at the Latin-tuned 1.1–1.25 two wrapped lines collide. The negative
      tracking also squeezes conjuncts together. Both are reset for Bangla only;
      `:lang(bn)` follows <html lang>, which the root layout sets from the
