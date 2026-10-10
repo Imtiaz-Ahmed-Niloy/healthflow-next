@@ -217,7 +217,6 @@
   "doctorDetail": {
     "notFound": "Doctor not found",
     "back": "Back",
-    "backToHospitals": "Back to Hospitals",
     "bmdc": "BMDC Reg. No.",
     "experience": "<b>{count}</b> {count, plural, one {year} other {years}} of experience",
     "notBookable": "Not taking bookings on HealthFlow yet",

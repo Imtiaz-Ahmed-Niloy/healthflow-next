@@ -217,7 +217,6 @@
   "doctorDetail": {
     "notFound": "ডাক্তার পাওয়া যায়নি",
     "back": "ফিরে যান",
-    "backToHospitals": "হাসপাতালে ফিরে যান",
     "bmdc": "বিএমডিসি রেজি. নং",
     "experience": "<b>{count}</b> বছরের অভিজ্ঞতা",
     "notBookable": "এখনো HealthFlow-এ বুকিং নিচ্ছেন না",

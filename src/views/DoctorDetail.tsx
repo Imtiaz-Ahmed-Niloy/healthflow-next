@@ -81,7 +81,7 @@ const DoctorDetail = ({ initialRows }: { initialRows?: DBDoctor[] }) => {
         <Navbar />
         <main className="container mx-auto py-32 text-center">
           <h1 className="font-display text-4xl text-primary">{t("notFound")}</h1>
-          <Link href="/hospitals" className="mt-6 inline-flex items-center gap-2 text-primary"><ArrowLeft className="h-4 w-4" /> {t("back")}</Link>
+          <Link href="/doctors" className="mt-6 inline-flex items-center gap-2 text-primary"><ArrowLeft className="h-4 w-4" /> {t("back")}</Link>
         </main>
         <Footer />
       </div>
@@ -98,9 +98,17 @@ const DoctorDetail = ({ initialRows }: { initialRows?: DBDoctor[] }) => {
     <div className="min-h-screen bg-gradient-hero">
       <Navbar />
       <main className="container mx-auto py-12">
-        <Link href="/hospitals" className="inline-flex items-center gap-1.5 text-sm text-primary hover:gap-2 transition-all mb-6">
-          <ArrowLeft className="h-4 w-4" /> {t("backToHospitals")}
-        </Link>
+        {/* Back to wherever they came from — a doctor is reached from the
+            home page, Find Doctors, a search, a hospital's own page. Opened
+            from a shared link there is nowhere to go back to, so it goes to
+            the doctor list. */}
+        <button
+          type="button"
+          onClick={() => (window.history.length > 1 ? router.back() : router.push("/doctors"))}
+          className="inline-flex items-center gap-1.5 text-sm text-primary hover:gap-2 transition-all mb-6"
+        >
+          <ArrowLeft className="h-4 w-4" /> {t("back")}
+        </button>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
           // grid-cols-1 is minmax(0, 1fr): without it the phone's single
