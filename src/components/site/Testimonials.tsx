@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Quote } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { useTestimonials, type TestimonialAudience } from "@/data/testimonials";
+import { useLocale, useTranslations } from "next-intl";
+import { testimonialText, useTestimonials, type TestimonialAudience } from "@/data/testimonials";
 import TiltCard from "@/components/site/TiltCard";
 import { gradient } from "@/components/site/GradientWords";
 import { motion } from "framer-motion";
@@ -30,7 +30,11 @@ const Testimonials = () => {
     Hospitals: tr("testimonials.hospitals"),
   };
 
-  const visible = useMemo(() => items.filter(i => i.audience === tab), [items, tab]);
+  const bangla = useLocale() === "bn";
+  const visible = useMemo(
+    () => items.filter(i => i.audience === tab).map(i => ({ ...i, ...testimonialText(i, bangla) })),
+    [items, tab, bangla],
+  );
 
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);

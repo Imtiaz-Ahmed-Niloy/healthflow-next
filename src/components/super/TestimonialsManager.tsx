@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useTestimonials, sampleAvatars, type Testimonial, type TestimonialAudience } from "@/data/testimonials";
+import { useTestimonials, sampleAvatars, type Testimonial, type TestimonialAudience, type TestimonialText } from "@/data/testimonials";
+import { LOCALES, LOCALE_LABELS, type Locale } from "@/i18n/config";
 
 type FormState = {
   audience: TestimonialAudience;
@@ -18,15 +19,23 @@ type FormState = {
   role: string;
   img: string;
   text: string;
+  bn: TestimonialText;
 };
-const empty: FormState = { audience: "Patients", name: "", role: "", img: sampleAvatars[0], text: "" };
+const noText: TestimonialText = { name: "", role: "", text: "" };
+const empty: FormState = { audience: "Patients", name: "", role: "", img: sampleAvatars[0], text: "", bn: noText };
 
 const AUDIENCES: TestimonialAudience[] = ["Patients", "Doctors", "Hospitals"];
 
-/** The audience is stored in English; only its label follows the language. */
+/**
+ * The audience is stored in English; only its label follows the language.
+ * The name, role and quote are kept in both languages: the switch in the
+ * dialog picks which is being typed, and one Save stores both.
+ */
 const TestimonialsManager = () => {
   const t = useTranslations("super.cmsEditor.testimonials");
+  const th = useTranslations("super.cmsEditor.home");
   const tc = useTranslations("common");
+  const [lang, setLang] = useState<Locale>("en");
   const audienceLabel = (a: TestimonialAudience) =>
     a === "Patients" ? t("audiences.patients") : a === "Doctors" ? t("audiences.doctors") : t("audiences.hospitals");
   const { items, add, update, remove } = useTestimonials();
@@ -34,12 +43,17 @@ const TestimonialsManager = () => {
   const [editing, setEditing] = useState<Testimonial | null>(null);
   const [form, setForm] = useState<FormState>(empty);
 
-  const openNew = () => { setEditing(null); setForm(empty); setOpen(true); };
+  const openNew = () => { setEditing(null); setForm(empty); setLang("en"); setOpen(true); };
   const openEdit = (item: Testimonial) => {
     setEditing(item);
-    setForm({ audience: item.audience, name: item.name, role: item.role, img: item.img, text: item.text });
+    setForm({ audience: item.audience, name: item.name, role: item.role, img: item.img, text: item.text, bn: item.bn ?? noText });
+    setLang("en");
     setOpen(true);
   };
+  /** The words in the language being typed. */
+  const words: TestimonialText = lang === "bn" ? form.bn : form;
+  const setWord = (k: keyof TestimonialText, v: string) =>
+    setForm(f => (lang === "bn" ? { ...f, bn: { ...f.bn, [k]: v } } : { ...f, [k]: v }));
   const save = () => {
     if (!form.name.trim() || !form.text.trim()) {
       toast.error(t("required"));
@@ -154,17 +168,33 @@ const TestimonialsManager = () => {
                 </div>
               </div>
             </div>
+            {/* Which language's words the three fields below hold. In Bangla
+                the English shows as the placeholder: it is what is being put
+                into Bangla, and what shows if a field is left empty. */}
+            <div className="inline-flex w-fit rounded-full bg-muted/60 p-1" role="group" aria-label={th("language")}>
+              {LOCALES.map(l => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => setLang(l)}
+                  aria-pressed={lang === l}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold transition ${lang === l ? "bg-card text-primary shadow-soft" : "text-muted-foreground hover:text-primary"}`}
+                >
+                  {LOCALE_LABELS[l]}
+                </button>
+              ))}
+            </div>
             <div className="space-y-1.5">
               <Label>{t("name")}</Label>
-              <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Sarah L." />
+              <Input value={words.name} onChange={e => setWord("name", e.target.value)} placeholder={lang === "bn" ? form.name : "Sarah L."} />
             </div>
             <div className="space-y-1.5">
               <Label>{t("role")}</Label>
-              <Input value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} placeholder={t("rolePlaceholder")} />
+              <Input value={words.role} onChange={e => setWord("role", e.target.value)} placeholder={lang === "bn" ? form.role : t("rolePlaceholder")} />
             </div>
             <div className="space-y-1.5">
               <Label>{t("quote")}</Label>
-              <Textarea rows={4} value={form.text} onChange={e => setForm({ ...form, text: e.target.value })} placeholder={t("quotePlaceholder")} />
+              <Textarea rows={4} value={words.text} onChange={e => setWord("text", e.target.value)} placeholder={lang === "bn" ? form.text : t("quotePlaceholder")} />
             </div>
           </div>
           <DialogFooter>
