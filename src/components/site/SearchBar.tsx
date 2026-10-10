@@ -17,13 +17,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const DOCTOR_HINTS = ["dr", "dr.", "doctor", "specialist", "physician"];
-const SPECIALTY_HINTS = [
-  "cardio", "neuro", "derm", "pediatric", "psych", "onco", "ortho",
-  "endo", "gastro", "uro", "gyne", "ophthal", "ent", "radiology",
-  "surgeon", "surgery", "immunolog", "genom",
-];
-
 type FilterSelectProps = {
   label: string;
   value: string;
@@ -108,29 +101,16 @@ const SearchBar = ({
       toast.error(t("needSomething"));
       return;
     }
-    const lc = query.toLowerCase();
-    const looksLikeDoctor =
-      DOCTOR_HINTS.some((h) => lc.startsWith(h + " ") || lc === h) ||
-      SPECIALTY_HINTS.some((h) => lc.includes(h));
-
+    // One page for both (views/Search.tsx): doctors and hospitals together.
+    // It used to guess which was meant from the words typed, and send a
+    // doctor search to the patient portal — a sign-in wall for a visitor.
     const params = new URLSearchParams();
     if (query) params.set("q", query);
-    if (location) params.set("loc", location);
     if (division) params.set("division", division);
     if (zilla) params.set("zilla", zilla);
     if (upazila) params.set("upazila", upazila);
     if (specialty) params.set("specialty", specialty);
-
-    const target = looksLikeDoctor || specialty ? "/patient/find-doctors" : "/hospitals";
-    router.push(`${target}${params.toString() ? `?${params}` : ""}`);
-    toast.success(
-      looksLikeDoctor || specialty
-        ? (location ? t("searchingSpecialistsIn", { location }) : t("searchingSpecialists"))
-        : query && location ? t("searchingHospitalsForIn", { query, location })
-        : query ? t("searchingHospitalsFor", { query })
-        : location ? t("searchingHospitalsIn", { location })
-        : t("searchingHospitals"),
-    );
+    router.push(`/search?${params}`);
   };
 
   return (

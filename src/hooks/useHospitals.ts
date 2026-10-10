@@ -474,6 +474,83 @@ export const useHospital = (slug: string, initial?: ApprovedRows) => {
   return { hospital: hospitals.find((h) => h.slug === slug), hospitals, loading };
 };
 
+export type HospitalSearch = {
+  query?: string;
+  /** A specialty one of its doctors has. */
+  specialty?: string;
+  division?: string;
+  district?: string;
+  upazila?: string;
+};
+
+/**
+ * One page at a time of the hospital list, searched in the database — the
+ * search page (/search), where fetching all two thousand to filter a few
+ * would be the wrong way round. The typed words are looked for in the name,
+ * the area, the district and the specialties. Partners first. `loadMore`
+ * appends the next page.
+ */
+export const useHospitalSearch = (search: HospitalSearch, pageSize = 24) => {
+  const [rows, setRows] = useState<PublicHospital[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const locale = useLocale();
+  const w = useWords();
+  const key = JSON.stringify(search);
+
+  // A new search starts again from the first page.
+  useEffect(() => { setPage(0); }, [key]);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    const s = search;
+    let request = supabase
+      .from("hospitals_public")
+      .select("*", { count: "exact" })
+      .not("name", "is", null);
+    // The characters PostgREST's or() and ilike read as their own are taken
+    // out of what was typed; the rest is quoted, so a comma can't end it.
+    const words = (s.query ?? "").replace(/["\\%*(),]/g, " ").replace(/\s+/g, " ").trim();
+    if (words) {
+      const like = `"*${words}*"`;
+      request = request.or(["name", "location", "district", "specialties"].map(c => `${c}.ilike.${like}`).join(","));
+    }
+    if (s.specialty) request = request.contains("doctor_specialties", [s.specialty]);
+    if (s.division) request = request.ilike("division", s.division);
+    if (s.district) request = request.ilike("district", s.district);
+    if (s.upazila) request = request.ilike("subdistrict", s.upazila);
+    void request
+      .order("is_partner", { ascending: false })
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(page * pageSize, page * pageSize + pageSize - 1)
+      .then(({ data, error, count }) => {
+        if (!active) return;
+        setLoading(false);
+        if (error) { console.error("Hospital search failed:", error); return; }
+        const found = (data ?? []) as PublicHospital[];
+        setTotal(count ?? 0);
+        setRows(prev => (page === 0 ? found : [...prev, ...found]));
+      });
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, page, pageSize]);
+
+  // `w` is rebuilt each render; the words only change with the language.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const hospitals = useMemo(() => dedupeBySlug(rows.map((r) => mapPublicToHospital(r, w, locale))), [rows, locale]);
+
+  return {
+    hospitals,
+    total,
+    loading,
+    hasMore: rows.length < total,
+    loadMore: () => setPage(p => p + 1),
+  };
+};
+
 /** Just these hospitals, by slug — a doctor's page, for each place's photo and area. */
 export const useHospitalsBySlugs = (slugs: string[]) => {
   const [rows, setRows] = useState<PublicHospital[]>([]);
