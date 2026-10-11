@@ -27,6 +27,7 @@ const fail = (message: string, status: number) => json({ error: { message } }, s
 
 type Row = {
   id: string;
+  slug: string;
   tenant_id: string | null;
   profile_id: string | null;
   /** One imported person across their rows (0116). */
@@ -80,7 +81,7 @@ export const GET = async () => {
       const { data, error } = await supabase
         .from("doctors")
         .select(
-          "id, tenant_id, profile_id, person_key, name, specialty, education, summary, bio, languages, expertise, experience_years, email, phone, photo_url, gender, bmdc_number, status, consultation_fee, availability, created_at, tenants ( name, kind, status, address, location, division, district, subdistrict, contact_phone, has_name ), profiles!doctors_profile_id_fkey ( is_active, email )",
+          "id, slug, tenant_id, profile_id, person_key, name, specialty, education, summary, bio, languages, expertise, experience_years, email, phone, photo_url, gender, bmdc_number, status, consultation_fee, availability, created_at, tenants ( name, kind, status, address, location, division, district, subdistrict, contact_phone, has_name ), profiles!doctors_profile_id_fkey ( is_active, email )",
         )
         .order("created_at", { ascending: true })
         .order("id", { ascending: true })
@@ -116,6 +117,7 @@ export const GET = async () => {
     profile_id: head.profile_id,
     // The oldest row is the one to edit; the sync trigger fans it out.
     doctor_id: head.id,
+    slug: head.slug,
     name: head.name,
     specialty: head.specialty,
     education: head.education,
