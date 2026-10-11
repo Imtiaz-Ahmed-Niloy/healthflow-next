@@ -21,6 +21,7 @@ import type { HomeCopy } from "@/data/homeContent";
  */
 // Each picture's description is in the messages, under hero.images.<name>.
 const HERO_IMAGES = [
+  { name: "banner" },
   { name: "diagnostic" },
   { name: "microscope" },
   { name: "infusion" },

@@ -41,6 +41,7 @@
   },
   "hero": {
     "images": {
+      "banner": "HealthFlow - Bangladesh's first integrated healthcare service platform",
       "diagnostic": "A CT scanner in a hospital imaging room",
       "microscope": "A microscope and workstation on a clinical laboratory bench",
       "infusion": "A nurse setting the rate on an infusion pump beside a patient monitor",
