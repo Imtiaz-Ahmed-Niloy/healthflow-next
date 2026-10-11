@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { BookAppointmentDialog } from "@/components/booking/BookAppointmentDialog";
 import { useSavedDoctors } from "@/hooks/useSavedDoctors";
 import { motion } from "framer-motion";
-import { ArrowLeft, Star, Calendar, Languages, GraduationCap, Award, Heart, Phone, MapPin, Clock, User, BadgeCheck, Store } from "lucide-react";
+import { ArrowLeft, Star, Calendar, Languages, GraduationCap, Award, Heart, Phone, MapPin, Clock, User, BadgeCheck, Store, Briefcase } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import Navbar from "@/components/site/Navbar";
@@ -136,7 +136,20 @@ const DoctorDetail = ({ initialRows }: { initialRows?: DBDoctor[] }) => {
               <FitText as="h1" text={d.name} sizes={pxRange(30, 20)} className="font-display text-primary mt-2" />
               {d.education && (
                 <p className="text-sm text-foreground/75 flex items-start gap-1.5 mt-2">
-                  <GraduationCap className="h-4 w-4 mt-0.5 shrink-0 text-primary-glow" />{d.education}
+                  <GraduationCap className="h-4 w-4 mt-0.5 shrink-0 text-primary-glow" />
+                  <span className="whitespace-pre-line">{d.education}</span>
+                </p>
+              )}
+              {d.designation && d.designation !== d.summary && (
+                <p className="text-sm text-foreground/75 flex items-start gap-1.5 mt-1.5">
+                  <Briefcase className="h-4 w-4 mt-0.5 shrink-0 text-primary-glow" />
+                  <span className="whitespace-pre-line">{d.designation}</span>
+                </p>
+              )}
+              {d.summary && (
+                <p className="text-sm text-foreground/75 flex items-start gap-1.5 mt-1.5">
+                  <Briefcase className="h-4 w-4 mt-0.5 shrink-0 text-primary-glow" />
+                  <span className="whitespace-pre-line">{d.summary}</span>
                 </p>
               )}
               {d.bmdc && (
@@ -261,11 +274,10 @@ const DoctorDetail = ({ initialRows }: { initialRows?: DBDoctor[] }) => {
                       </>
                     );
                     // What a visit here costs, large, on the right — when it is
-                    // known. A listed place never said, and a guess would be a
-                    // price nobody quoted.
-                    const fee = p.bookable || p.feeKnown ? (
+                    // known. If not set yet, nothing is shown.
+                    const fee = p.feeKnown != null ? (
                       <div className="shrink-0 text-right">
-                        <p className="font-display text-xl text-primary leading-none">{formatCurrency(p.fee)}</p>
+                        <p className="font-display text-xl text-primary leading-none">{formatCurrency(p.feeKnown)}</p>
                         <p className="text-[11px] text-muted-foreground mt-1">{t("fee")}</p>
                       </div>
                     ) : null;

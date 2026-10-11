@@ -34,6 +34,7 @@ type Row = {
   name: string;
   specialty: string | null;
   education: string | null;
+  summary: string | null;
   bio: string | null;
   languages: string | null;
   expertise: string | null;
@@ -79,7 +80,7 @@ export const GET = async () => {
       const { data, error } = await supabase
         .from("doctors")
         .select(
-          "id, tenant_id, profile_id, person_key, name, specialty, education, bio, languages, expertise, experience_years, email, phone, photo_url, gender, bmdc_number, status, consultation_fee, availability, created_at, tenants ( name, kind, status, address, location, division, district, subdistrict, contact_phone, has_name ), profiles!doctors_profile_id_fkey ( is_active, email )",
+          "id, tenant_id, profile_id, person_key, name, specialty, education, summary, bio, languages, expertise, experience_years, email, phone, photo_url, gender, bmdc_number, status, consultation_fee, availability, created_at, tenants ( name, kind, status, address, location, division, district, subdistrict, contact_phone, has_name ), profiles!doctors_profile_id_fkey ( is_active, email )",
         )
         .order("created_at", { ascending: true })
         .order("id", { ascending: true })
@@ -118,6 +119,7 @@ export const GET = async () => {
     name: head.name,
     specialty: head.specialty,
     education: head.education,
+    summary: head.summary,
     bio: head.bio,
     languages: head.languages,
     expertise: head.expertise,
@@ -155,6 +157,7 @@ const patchSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200).optional(),
   specialty: text(200).optional(),
   education: text().optional(),
+  summary: text().optional(),
   bio: text().optional(),
   languages: text().optional(),
   expertise: text().optional(),
@@ -212,6 +215,7 @@ const createSchema = z.object({
   bmdc_number: text(40),
   phone: text(40),
   education: text(),
+  summary: text().optional(),
   experience_years: z.union([z.literal(""), z.coerce.number().int().min(0).max(80)])
     .transform(v => (v === "" ? null : v)),
   gender: z.union([z.literal(""), z.enum(["male", "female", "other"])]).transform(v => (v === "" ? null : v)),
@@ -296,7 +300,7 @@ const editSchema = patchSchema.extend({
 });
 
 /** The person's own details, copied onto a home row when their last hospital goes. */
-const PERSONAL = "name, specialty, education, bio, languages, expertise, experience_years, email, phone, photo_url, gender, bmdc_number";
+const PERSONAL = "name, specialty, education, summary, bio, languages, expertise, experience_years, email, phone, photo_url, gender, bmdc_number";
 
 export const PATCH = async (request: Request) => {
   const auth = await getAuthContext();

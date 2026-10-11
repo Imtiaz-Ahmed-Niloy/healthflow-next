@@ -50,6 +50,7 @@ type Person = {
   name: string;
   specialty: string | null;
   education: string | null;
+  summary: string | null;
   bio: string | null;
   languages: string | null;
   expertise: string | null;
@@ -80,12 +81,12 @@ const DOCTOR_STATUSES = ["active", "on_leave", "suspended"] as const;
 
 type Draft = Record<string, string>;
 
-const EDIT_KEYS = ["name", "specialty", "bmdc_number", "phone", "education", "experience_years", "gender", "languages", "expertise", "bio", "photo_url"] as const;
+const EDIT_KEYS = ["name", "specialty", "bmdc_number", "phone", "education", "summary", "experience_years", "gender", "languages", "expertise", "bio", "photo_url"] as const;
 
 /** The person. Where they work — and when — is `assignments`. */
 const EMPTY_CREATE: Draft = {
   name: "", email: "", specialty: "", bmdc_number: "", phone: "",
-  education: "", experience_years: "", gender: "", languages: "", photo_url: "", expertise: "", bio: "",
+  education: "", summary: "", experience_years: "", gender: "", languages: "", photo_url: "", expertise: "", bio: "",
 };
 
 /** Gender labels, used by the details form and the drawer. */
@@ -192,7 +193,6 @@ const DoctorDetails = ({ draft, set, email, photo, note }: {
         </Field>
         <Field label={t("bmdc")}><Input value={draft.bmdc_number ?? ""} onChange={set("bmdc_number")} /></Field>
         <Field label={t("phone")}><Input type="tel" value={draft.phone ?? ""} onChange={set("phone")} /></Field>
-        <Field label={t("education")}><Input value={draft.education ?? ""} onChange={set("education")} placeholder="MBBS, FCPS" /></Field>
         <Field label={t("experience")}><Input type="number" min={0} value={draft.experience_years ?? ""} onChange={set("experience_years")} /></Field>
         <Field label={t("gender")}>
           <Select value={draft.gender ?? ""} onChange={set("gender")}>
@@ -201,6 +201,12 @@ const DoctorDetails = ({ draft, set, email, photo, note }: {
           </Select>
         </Field>
       </div>
+      <Field label={t("education")} hint={t("educationHint")}>
+        <TextArea rows={2} value={draft.education ?? ""} onChange={set("education")} placeholder={t("educationPlaceholder")} />
+      </Field>
+      <Field label={t("summary")} hint={t("summaryHint")}>
+        <TextArea rows={2} value={draft.summary ?? ""} onChange={set("summary")} placeholder={t("summaryPlaceholder")} />
+      </Field>
       <Field label={t("languages")} hint={t("commaSeparated")}>
         <Input value={draft.languages ?? ""} onChange={set("languages")} placeholder={t("languagesPlaceholder")} />
       </Field>
@@ -837,6 +843,7 @@ const Doctors = () => {
                 [t("view.phone"), viewing.phone],
                 [t("view.bmdc"), viewing.bmdc_number],
                 [t("view.education"), viewing.education],
+                [t("view.summary"), viewing.summary],
                 [t("view.experience"), viewing.experience_years != null ? t("view.years", { count: viewing.experience_years }) : null],
                 [t("view.gender"), genderLabel(viewing.gender)],
                 [t("view.languages"), viewing.languages],
@@ -845,7 +852,7 @@ const Doctors = () => {
               ] as const).map(([label, value]) => (
                 <div key={label} className="contents">
                   <dt className="text-muted-foreground">{label}</dt>
-                  <dd className="text-primary font-medium break-words">{value || "—"}</dd>
+                  <dd className="text-primary font-medium break-words whitespace-pre-line">{value || "—"}</dd>
                 </div>
               ))}
             </dl>

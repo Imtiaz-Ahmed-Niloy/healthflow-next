@@ -1655,6 +1655,7 @@
         "photo": "Doctor photo",
         "name": "Full name",
         "education": "Education / Qualifications",
+        "summary": "Professional Summary",
         "experience": "Experience (years)",
         "rating": "Rating (0–5)",
         "fee": "Consultation Fee ({currency})",

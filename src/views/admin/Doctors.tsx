@@ -53,6 +53,7 @@ type Doctor = {
   gender: string;
   status: string;
   education: string;
+  summary?: string;
   languages: string;
   expertise: string;
   bio: string;
@@ -421,7 +422,8 @@ const DirectoryTab = () => {
       // The specialties list (0093), searchable — the same one the site filters by.
       { name: "specialty", label: t("columns.specialty"), type: "specialty" },
       { name: "gender", label: t("columns.gender"), type: "select", options: GENDERS.map(value => ({ value, label: genderLabel(value) })) },
-      { name: "education", label: t("fields.education"), type: "text", required: true },
+      { name: "education", label: t("fields.education"), type: "textarea", required: true },
+      { name: "summary", label: t("fields.summary"), type: "textarea" },
       // min/max/numberStep mirror the check constraints in 0005. Without
       // numberStep a number input is integers-only, so "4.7" in a
       // numeric(2,1) column silently blocked the whole form from submitting.
