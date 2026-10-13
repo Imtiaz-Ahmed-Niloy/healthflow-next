@@ -413,7 +413,7 @@ const DirectoryTab = () => {
       { key: "education", label: t("columns.education"), accessor: r => r.education },
       { key: "availability", label: t("columns.availability"), accessor: r => availabilityLabel(r.availability, locale) ?? "" },
       { key: "experience_years", label: t("columns.experience"), accessor: r => r.experience_years, sortable: true },
-      { key: "consultation_fee", label: t("columns.fee"), accessor: r => r.consultation_fee },
+      { key: "consultation_fee", label: t("columns.fee"), accessor: r => r.consultation_fee, render: r => (Number(r.consultation_fee) ? r.consultation_fee : "-") },
       { key: "status", label: t("columns.status"), render: r => <Pill tone={statusTone(r.status)}>{statusLabel(r.status)}</Pill> },
     ],
     fields: [

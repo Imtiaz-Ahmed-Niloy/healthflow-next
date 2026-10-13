@@ -220,7 +220,7 @@ const Profile = () => {
                   <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
                     <dt className="text-muted-foreground">{t("fee")}</dt>
                     <dd className="text-right font-semibold text-primary">
-                      {h.consultation_fee == null ? "—" : formatCurrency(Number(h.consultation_fee))}
+                      {Number(h.consultation_fee) ? formatCurrency(Number(h.consultation_fee)) : "-"}
                     </dd>
                     <dt className="text-muted-foreground">{t("hours")}</dt>
                     <dd className="text-right font-semibold text-primary break-words">{availabilityLabel(h.availability, locale) || "—"}</dd>

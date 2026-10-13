@@ -1000,12 +1000,10 @@ const Doctors = () => {
                         {availabilityLabel(h.availability, locale) ?? noHours}
                       </p>
                     </div>
-                    {h.consultation_fee != null && (
-                      <div className="shrink-0 text-right">
-                        <p className="font-display text-lg text-primary leading-none">{formatCurrency(Number(h.consultation_fee))}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">{t("consultationFee")}</p>
-                      </div>
-                    )}
+                    <div className="shrink-0 text-right">
+                      <p className="font-display text-lg text-primary leading-none">{Number(h.consultation_fee) ? formatCurrency(Number(h.consultation_fee)) : "-"}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{t("consultationFee")}</p>
+                    </div>
                   </div>
                 ))}
 
@@ -1028,12 +1026,10 @@ const Doctors = () => {
                         {availabilityLabel(c.availability, locale) ?? noHours}
                       </p>
                     </div>
-                    {c.consultation_fee != null && (
-                      <div className="shrink-0 text-right">
-                        <p className="font-display text-lg text-primary leading-none">{formatCurrency(Number(c.consultation_fee))}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">{t("consultationFee")}</p>
-                      </div>
-                    )}
+                    <div className="shrink-0 text-right">
+                      <p className="font-display text-lg text-primary leading-none">{Number(c.consultation_fee) ? formatCurrency(Number(c.consultation_fee)) : "-"}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{t("consultationFee")}</p>
+                    </div>
                   </div>
                 ))}
               </section>

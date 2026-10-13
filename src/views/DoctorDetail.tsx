@@ -274,13 +274,14 @@ const DoctorDetail = ({ initialRows }: { initialRows?: DBDoctor[] }) => {
                       </>
                     );
                     // What a visit here costs, large, on the right — when it is
-                    // known. If not set yet, nothing is shown.
-                    const fee = p.feeKnown != null ? (
+                    // known. A place that has not set one shows a hyphen, never
+                    // a guessed price and never a zero.
+                    const fee = (
                       <div className="shrink-0 text-right">
-                        <p className="font-display text-xl text-primary leading-none">{formatCurrency(p.feeKnown)}</p>
+                        <p className="font-display text-xl text-primary leading-none">{p.feeKnown ? formatCurrency(p.feeKnown) : "-"}</p>
                         <p className="text-[11px] text-muted-foreground mt-1">{t("fee")}</p>
                       </div>
-                    ) : null;
+                    );
                     return p.kind === "chamber" ? (
                       // Their own chamber (0088): no hospital page behind it, so
                       // the address and phone are right here.

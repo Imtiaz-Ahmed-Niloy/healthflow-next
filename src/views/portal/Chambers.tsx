@@ -162,7 +162,7 @@ const Chambers = () => {
                   <dd className="text-right font-semibold text-primary">{c.phone || "—"}</dd>
                   <dt className="text-muted-foreground">{t("fee")}</dt>
                   <dd className="text-right font-semibold text-primary">
-                    {c.consultation_fee == null ? "—" : formatCurrency(Number(c.consultation_fee))}
+                    {Number(c.consultation_fee) ? formatCurrency(Number(c.consultation_fee)) : "-"}
                   </dd>
                   <dt className="text-muted-foreground flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> {t("hours")}</dt>
                   <dd className="text-right">
