@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Award, Eye, History, Settings, Users, Wallet } from "lucide-react";
+import { Award, Eye, Gift, History, Settings, Users, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { PharmacyLayout } from "@/components/pharmacy/PharmacyLayout";
@@ -145,11 +145,86 @@ const CustomerDetail = ({ id, onClose }: { id: string; onClose: () => void }) =>
   );
 };
 
+/**
+ * Points by hand, outside a sale: a bonus given, or points taken for a reward
+ * handed over at the counter. Both are the same correction underneath
+ * (pharmacy_adjust_points) with a reason on the customer's history.
+ */
+const PointsDialog = ({ target, onClose }: { target: { customer: PharmacyCustomer; mode: "award" | "redeem" } | null; onClose: () => void }) => {
+  const t = useTranslations("pharmacy.customers");
+  const tc = useTranslations("pharmacy.common");
+  const describe = usePharmacyError();
+  const { formatCurrency } = useFormatters();
+  const { data: settingsData } = usePharmacySettingsQuery();
+  const [adjust, { isLoading }] = useAdjustPointsMutation();
+  const [points, setPoints] = useState("");
+  const [spent, setSpent] = useState("");
+  const [reason, setReason] = useState("");
+
+  if (!target) return null;
+  const { customer, mode } = target;
+  const settings = settingsData?.data;
+  const count = Math.max(Math.floor(Number(points)) || 0, 0);
+  const worth = count * Number(settings?.loyalty_point_value ?? 1);
+  const tooMany = mode === "redeem" && count > customer.points;
+
+  const close = () => { setPoints(""); setSpent(""); setReason(""); onClose(); };
+
+  // What a purchase of this size would have earned, for a sale that was rung up without the customer on it.
+  const fromSpend = (value: string) => {
+    setSpent(value);
+    const per = Number(settings?.loyalty_spend_per_point ?? 100);
+    if (Number(value) > 0 && per > 0) setPoints(String(Math.floor(Number(value) / per)));
+  };
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    try {
+      await adjust({
+        customer_id: customer.id,
+        points: mode === "award" ? count : -count,
+        reason: reason.trim() || (mode === "award" ? t("awardReason") : t("redeemReason")),
+      }).unwrap();
+      toast.success(t("pointsSaved"));
+      close();
+    } catch (cause) {
+      toast.error(describe(cause));
+    }
+  };
+
+  return (
+    <Modal open onClose={close} title={mode === "award" ? t("awardTitle", { name: customer.name }) : t("redeemTitle", { name: customer.name })} size="sm">
+      <form onSubmit={submit}>
+        <p className="text-sm text-muted-foreground -mt-1 mb-4">{t("pointsNow", { count: customer.points })}</p>
+        {mode === "award" && (
+          <Field label={t("purchaseAmount")} hint={t("purchaseAmountHint")}>
+            <Input value={spent} onChange={e => fromSpend(e.target.value)} type="number" min={0} step="any" placeholder="0.00" />
+          </Field>
+        )}
+        <Field label={t("pointsChange")} required>
+          <Input value={points} onChange={e => setPoints(e.target.value.replace(/\D/g, ""))} inputMode="numeric" required autoFocus placeholder="0" />
+        </Field>
+        {mode === "redeem" && count > 0 && (
+          <p className={`-mt-2 mb-4 text-sm font-semibold ${tooMany ? "text-destructive" : "text-primary"}`}>
+            {tooMany ? describe({ data: { error: { code: "redeem_too_many" } } }) : t("redeemWorth", { amount: formatCurrency(worth) })}
+          </p>
+        )}
+        <Field label={t("pointsReason")}><Input value={reason} onChange={e => setReason(e.target.value)} maxLength={300} /></Field>
+        <div className="flex justify-end gap-2">
+          <Btn variant="outline" onClick={close}>{tc("cancel")}</Btn>
+          <Btn type="submit" disabled={isLoading || count <= 0 || tooMany}>{isLoading ? tc("saving") : tc("save")}</Btn>
+        </div>
+      </form>
+    </Modal>
+  );
+};
+
 const Page = () => {
   const t = useTranslations("pharmacy.customers");
   const tc = useTranslations("pharmacy.common");
   const tt = useTranslations("pharmacy.tiers");
   const can = usePharmacyCan();
+  const [pointsFor, setPointsFor] = useState<{ customer: PharmacyCustomer; mode: "award" | "redeem" } | null>(null);
   const { formatCurrency, formatDate } = useFormatters();
   const [tier, setTier] = useState<"all" | LoyaltyTier>("all");
   const [viewing, setViewing] = useState<string | null>(null);
@@ -245,13 +320,29 @@ const Page = () => {
         beside={can("administer") ? (
           <Link href="/pharmacy/settings#loyalty"><Btn variant="outline"><Settings className="h-4 w-4" /> {t("loyaltyRules")}</Btn></Link>
         ) : undefined}
+        sorts={[
+          { value: "created_at:desc", label: t("sorts.newest") },
+          { value: "name:asc", label: t("sorts.name") },
+          { value: "points:desc", label: t("sorts.points") },
+          { value: "total_spent:desc", label: t("sorts.spent") },
+          { value: "balance_due:desc", label: t("sorts.owes") },
+        ]}
         rowActions={row => (
-          <button type="button" onClick={() => setViewing(row.id)} title={t("view")} aria-label={t("view")}
-            className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 inline-flex">
-            <Eye className="h-4 w-4" />
-          </button>
+          <>
+            <button type="button" onClick={() => setViewing(row.id)} title={t("view")} aria-label={t("view")}
+              className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 inline-flex">
+              <Eye className="h-4 w-4" />
+            </button>
+            {loyaltyOn && can("administer") && <>
+              <button type="button" onClick={() => setPointsFor({ customer: row, mode: "award" })} title={t("award")} aria-label={t("award")}
+                className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 inline-flex"><Award className="h-4 w-4" /></button>
+              <button type="button" onClick={() => setPointsFor({ customer: row, mode: "redeem" })} title={t("redeem")} aria-label={t("redeem")}
+                disabled={row.points <= 0} className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 inline-flex disabled:opacity-40"><Gift className="h-4 w-4" /></button>
+            </>}
+          </>
         )}
       />
+      <PointsDialog key={pointsFor ? `${pointsFor.customer.id}-${pointsFor.mode}` : "none"} target={pointsFor} onClose={() => setPointsFor(null)} />
       {!loyaltyOn && can("administer") && (
         <p className="mt-4 text-sm text-muted-foreground">
           {t("loyaltyOff")} <Link href="/pharmacy/settings#loyalty" className="font-semibold text-primary underline">{t("loyaltyRules")}</Link>

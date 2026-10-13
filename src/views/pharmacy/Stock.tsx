@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { History, Pencil, Plus, SlidersHorizontal } from "lucide-react";
+import { History, Pencil, Plus, SlidersHorizontal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { PharmacyLayout } from "@/components/pharmacy/PharmacyLayout";
-import { ItemPicker, Pager, SearchBox, StateBlock, useDebounced, usePharmacyCan, usePharmacyError } from "@/components/pharmacy/ui";
+import {
+  ItemPicker, Pager, PerPage, SearchBox, SortSelect, StateBlock, useDebounced, usePharmacyCan, usePharmacyError,
+} from "@/components/pharmacy/ui";
 import { Btn, Card, Pill } from "@/components/admin/ui";
-import { Chips, DataTable, Field, Input, Modal, Select, type Column } from "@/components/admin/crud";
+import { Chips, ConfirmDialog, DataTable, Field, Input, Modal, Select, type Column } from "@/components/admin/crud";
 import { DateInput } from "@/components/ui/date-input";
 import { useBookingClock, useFormatters } from "@/lib/appSettings";
 import {
@@ -17,6 +19,9 @@ import {
 import { pharmacyBatchesApi, pharmacyMovementsApi, useStockActionMutation } from "@/redux/api/pharmacy";
 
 const STATES = ["all", "ok", "expiring_soon", "expired", "empty"] as const;
+type SortKey = "received_at_desc" | "item_name_asc" | "quantity_asc" | "quantity_desc" | "expiry_date_asc" | "location_asc";
+/** "<column>:<order>", as the list API takes them. */
+const SORTS = ["received_at:desc", "item_name:asc", "quantity:asc", "quantity:desc", "expiry_date:asc", "location:asc"] as const;
 const STATE_TONE: Record<BatchState, "ok" | "warn" | "bad" | "default"> = { ok: "ok", expiring_soon: "warn", expired: "bad", empty: "default" };
 
 // -------------------------------------------------------------------- add ---
@@ -238,12 +243,28 @@ const Page = () => {
     const wanted = new URLSearchParams(window.location.search).get("state");
     if (wanted && (STATES as readonly string[]).includes(wanted)) setState(wanted as (typeof STATES)[number]);
   }, []);
-  useEffect(() => { setPage(1); }, [search, state]);
+  const [sort, setSort] = useState<(typeof SORTS)[number]>("received_at:desc");
+  const [perPage, setPerPage] = useState(20);
+  const [removing, setRemoving] = useState<PharmacyBatch | null>(null);
+  const describe = usePharmacyError();
+  const [remove] = pharmacyBatchesApi.useRemove();
+  useEffect(() => { setPage(1); }, [search, state, sort, perPage]);
 
+  const [sortColumn, sortOrder] = sort.split(":") as [string, "asc" | "desc"];
   const { data, isLoading, isFetching, error, refetch } = pharmacyBatchesApi.useList({
-    page, limit: 20, q: search, filters: { state: state === "all" ? undefined : state },
+    page, limit: perPage, q: search, sort: sortColumn, order: sortOrder, filters: { state: state === "all" ? undefined : state },
   });
   const rows = data?.data ?? [];
+
+  const confirmRemove = async () => {
+    if (!removing) return;
+    try {
+      await remove(removing.id).unwrap();
+      toast.success(tc("deleted"));
+    } catch (cause) {
+      toast.error(describe(cause));
+    }
+  };
 
   const columns: Column<PharmacyBatch>[] = [
     { key: "product", label: t("columns.product"), render: r => (
@@ -278,6 +299,8 @@ const Page = () => {
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <SearchBox value={q} onChange={setQ} placeholder={t("searchPlaceholder")} className="flex-1" />
           <Chips value={state} onChange={setState} options={STATES.map(value => ({ value, label: t(`states.${value}`) }))} />
+          <SortSelect value={sort} onChange={setSort} options={SORTS.map(value => ({ value, label: t(`sorts.${value.replace(":", "_") as SortKey}`) }))} />
+          <PerPage value={perPage} onChange={setPerPage} />
           {mayManage && <Btn onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> {t("addStock")}</Btn>}
         </div>
 
@@ -291,6 +314,10 @@ const Page = () => {
                   {mayManage && <button onClick={() => setAdjusting(row)} className={iconBtn} title={t("adjust")} aria-label={t("adjust")}><SlidersHorizontal className="h-4 w-4" /></button>}
                   {mayManage && <button onClick={() => setEditing(row)} className={iconBtn} title={t("editBatch")} aria-label={t("editBatch")}><Pencil className="h-4 w-4" /></button>}
                   <button onClick={() => setTracing(row)} className={iconBtn} title={t("history")} aria-label={t("history")}><History className="h-4 w-4" /></button>
+                  {/* Only an emptied batch can go: one with stock is written off first, so the ledger says why. */}
+                  {mayManage && row.quantity === 0 && (
+                    <button onClick={() => setRemoving(row)} className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive" title={t("removeBatch")} aria-label={t("removeBatch")}><Trash2 className="h-4 w-4" /></button>
+                  )}
                 </div>
               )} />
           </div>
@@ -298,6 +325,8 @@ const Page = () => {
         {data?.meta && <Pager page={data.meta.page} totalPages={data.meta.totalPages} total={data.meta.total} onPage={setPage} />}
       </Card>
 
+      <ConfirmDialog open={removing !== null} onClose={() => setRemoving(null)} onConfirm={confirmRemove}
+        title={t("removeBatch")} description={t("removeBatchHint")} />
       <AddDialog open={adding} onClose={() => setAdding(false)} />
       <AdjustDialog batch={adjusting} onClose={() => setAdjusting(null)} />
       <EditDialog batch={editing} onClose={() => setEditing(null)} />

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle, ArrowLeft, Banknote, Check, CheckCircle2, Clock, CreditCard, Flame, Gift, Landmark, Layers, Minus, Package, Pause,
-  Phone, Pill as PillIcon, Play, Plus, Receipt, RotateCcw, ShoppingCart, Smartphone, Sparkles, Split, Trash2, UserPlus, Users, Wallet,
+  Phone, Pill as PillIcon, Play, Plus, Receipt, RotateCcw, ShieldAlert, ShoppingCart, Smartphone, Sparkles, Split, Trash2, UserPlus, Users, Wallet,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -19,11 +19,16 @@ import { Field, Input, Modal, Select } from "@/components/admin/crud";
 import { useFormatters } from "@/lib/appSettings";
 import {
   PAYMENT_METHODS, priceOf, sizeOf, tierRate, unitsOf,
-  type PaymentMethod, type PharmacyCustomer, type PharmacySale, type PosItem, type SaleUnit, type SplitMethod,
+  type InteractionCheck, type InteractionLevel, type PaymentMethod, type PharmacyCustomer, type PharmacySale, type PosItem, type SaleUnit, type SplitMethod,
 } from "@/lib/pharmacy";
 import {
-  pharmacyCustomersApi, useCreateSaleMutation, useDrawerQuery, usePharmacySettingsQuery, usePosItemsQuery,
+  pharmacyCustomersApi, useCheckInteractionsMutation, useCreateSaleMutation, useDrawerQuery, usePharmacySettingsQuery, usePosItemsQuery,
 } from "@/redux/api/pharmacy";
+
+const LEVEL_STYLE: Record<InteractionLevel, string> = {
+  minor: "bg-muted text-foreground/70", moderate: "bg-yellow-100 text-yellow-800",
+  major: "bg-orange-100 text-orange-900", severe: "bg-destructive/10 text-destructive",
+};
 
 /** `quantity` counts whatever `unit` is: 2 with "strip" is two strips. */
 type CartLine = { item: PosItem; unit: SaleUnit; quantity: number };
@@ -143,6 +148,19 @@ const Page = () => {
   const [lookingUp, setLookingUp] = useState(false);
   const [returning, setReturning] = useState<PharmacySale | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
+  const [checkInteractions, checking] = useCheckInteractionsMutation();
+  const [interactions, setInteractions] = useState<InteractionCheck | null>(null);
+
+  /** Asks the model whether the medicines in this order are safe together. Advice for the pharmacist; it blocks nothing. */
+  const runCheck = async () => {
+    const seen = new Map(cart.map(line => [line.item.id, { name: line.item.name, generic_name: line.item.generic_name }]));
+    try {
+      const answer = await checkInteractions({ items: [...seen.values()] }).unwrap();
+      setInteractions(answer.data);
+    } catch (cause) {
+      toast.error(describe(cause));
+    }
+  };
 
   // Held orders live in this browser, so they are read after the page is on screen.
   useEffect(() => { setHeld(readHeld()); }, []);
@@ -319,15 +337,17 @@ const Page = () => {
   const heading = typed ? t("searchResults", { count: items.length }) : category === RECENT ? t("recentUses") : category === ALL ? tc("all") : category;
   const chip = "px-2.5 py-1 rounded-lg text-xs font-medium bg-card border border-border/60 text-foreground/80 hover:border-primary/50 hover:text-primary transition";
   const panel = "rounded-2xl bg-muted/40 p-3.5 space-y-3";
+  /** The three buttons in the top bar: smaller than a page's main button, so the bar stays one line. */
+  const small = "!px-2.5 !py-1 !text-xs !gap-1.5";
 
   return (
     <PharmacyLayout title={t("title")} subtitle={t("subtitle")}
       actions={<>
-        <Btn variant="outline" onClick={() => setLookingUp(true)}><RotateCcw className="h-4 w-4" /> {t("customerReturn")}</Btn>
+        <Btn variant="outline" onClick={() => setLookingUp(true)} className={small}><RotateCcw className="h-3.5 w-3.5" /> {t("customerReturn")}</Btn>
         {held.length > 0 && (
-          <Btn variant="outline" onClick={() => setShowHeld(true)}><Pause className="h-4 w-4" /> {t("heldCount", { count: held.length })}</Btn>
+          <Btn variant="outline" onClick={() => setShowHeld(true)} className={small}><Pause className="h-3.5 w-3.5" /> {t("heldCount", { count: held.length })}</Btn>
         )}
-        <Link href="/pharmacy/cash-drawer"><Btn variant="outline"><ArrowLeft className="h-4 w-4" /> {t("backToDrawer")}</Btn></Link>
+        <Link href="/pharmacy/cash-drawer"><Btn variant="outline" className={small}><ArrowLeft className="h-3.5 w-3.5" /> {t("backToDrawer")}</Btn></Link>
       </>}>
       <div className="flex flex-col lg:flex-row gap-6 items-start">
         {/* Product catalogue */}
@@ -418,7 +438,7 @@ const Page = () => {
                       {item.generic_name && (
                         // The same medicine under other names: search by what is in it.
                         <button type="button" onClick={() => { setQ(item.generic_name ?? ""); setCategory(ALL); }} title={t("sameGeneric")}
-                          className="mt-0.5 block max-w-full truncate text-left text-[11px] italic text-muted-foreground hover:text-primary hover:underline">{item.generic_name}</button>
+                          className="mt-0.5 block max-w-full truncate text-left text-[11px] text-muted-foreground hover:text-primary hover:underline">{item.generic_name}</button>
                       )}
                       <div className="mt-1 flex items-center justify-between text-[11px]">
                         <span className={`font-medium ${out ? "text-destructive" : "text-foreground/70"}`}>{out ? t("outOfStock") : t("stockCount", { count: item.sellable })}</span>
@@ -440,7 +460,7 @@ const Page = () => {
                                 title={t("dispenseOne", { unit: tu(unit) })}
                                 className="flex flex-1 flex-col items-center gap-0.5 rounded-lg border border-border/60 bg-muted/30 px-1 py-1.5 transition hover:border-primary/60 hover:bg-primary/5 disabled:opacity-40 disabled:pointer-events-none">
                                 <span className="flex items-center gap-1 text-[11px] font-semibold text-foreground/90"><Icon className="h-3.5 w-3.5 shrink-0" /> {tu(unit)}</span>
-                                <span className="font-mono text-[10px] font-medium text-muted-foreground">({formatCurrency(priceOf(item, unit))})</span>
+                                <span className="font-mono text-[10px] font-medium text-muted-foreground">{formatCurrency(priceOf(item, unit))}</span>
                               </button>
                             );
                           })}
@@ -485,6 +505,14 @@ const Page = () => {
             </p>
           )}
 
+          {/* Two or more different medicines, and the checker switched on and set up on the server. */}
+          {new Set(cart.map(line => line.item.id)).size >= 2 && settings?.ai_interactions && settingsData?.ai_configured && (
+            <button type="button" onClick={runCheck} disabled={checking.isLoading}
+              className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-border/60 px-3 py-2 text-xs font-semibold text-foreground/80 transition hover:border-primary/50 hover:text-primary disabled:opacity-60">
+              <ShieldAlert className="h-3.5 w-3.5" /> {checking.isLoading ? t("checkingInteractions") : t("checkInteractions")}
+            </button>
+          )}
+
           <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
             {cart.length === 0 && <p className="py-8 text-center text-xs text-muted-foreground">{t("cartEmpty")}</p>}
             {cart.map(line => {
@@ -515,23 +543,22 @@ const Page = () => {
                   <div className="flex items-center justify-between gap-2 border-t border-border/40 pt-1.5">
                     {units.length > 1 ? (
                       <>
-                        <span className="text-[10px] font-medium text-muted-foreground">{t("dispense")}</span>
-                        <div className="flex items-center gap-1">
-                          {units.map(value => {
-                            const Icon = UNIT_ICON[value];
-                            return (
-                              <button key={value} type="button" onClick={() => changeUnit(line, value)}
-                                className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold transition ${
-                                  value === unit ? "bg-primary text-primary-foreground" : "bg-card border border-border/60 text-foreground/80 hover:border-primary/50"
-                                }`}>
-                                <Icon className="h-3 w-3" /> {tu(value)} ({formatCurrency(priceOf(item, value))})
-                              </button>
-                            );
-                          })}
+                        {/* No "Dispense:" label and no icons here: the panel is narrow, and three buttons with icons pushed the line total out of the card. */}
+                        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+                          {units.map(value => (
+                            <button key={value} type="button" onClick={() => changeUnit(line, value)}
+                              className={`flex flex-col items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-semibold leading-tight transition ${
+                                value === unit ? "bg-primary text-primary-foreground" : "bg-card border border-border/60 text-foreground/80 hover:border-primary/50"
+                              }`}>
+                              {/* Name above, price below: narrower than the two side by side. */}
+                              <span>{tu(value)}</span>
+                              <span className="font-mono font-medium opacity-80">{formatCurrency(priceOf(item, value))}</span>
+                            </button>
+                          ))}
                         </div>
                       </>
                     ) : <span />}
-                    <span className="font-mono text-xs font-bold text-primary">{formatCurrency(round2(each * quantity))}</span>
+                    <span className="shrink-0 font-mono text-xs font-bold text-primary">{formatCurrency(round2(each * quantity))}</span>
                   </div>
                 </div>
               );
@@ -812,6 +839,30 @@ const Page = () => {
             </li>
           ))}
         </ul>
+      </Modal>
+
+      <Modal open={interactions !== null} onClose={() => setInteractions(null)} title={t("interactionsTitle")} size="md">
+        {interactions && (
+          <>
+            <p className="text-sm text-foreground/80">{interactions.summary}</p>
+            {interactions.interactions.length > 0 && (
+              <ul className="mt-4 space-y-2">
+                {interactions.interactions.map((entry, index) => (
+                  <li key={index} className="rounded-xl border border-border/60 p-3">
+                    <p className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-sm font-semibold text-primary">{entry.drugs.join(" + ")}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${LEVEL_STYLE[entry.severity]}`}>{t(`levels.${entry.severity}`)}</span>
+                    </p>
+                    <p className="mt-1 text-xs text-foreground/80">{entry.effect}</p>
+                    <p className="mt-1 text-xs font-medium text-primary">{entry.advice}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {interactions.hidden > 0 && <p className="mt-3 text-[11px] text-muted-foreground">{t("interactionsHidden", { count: interactions.hidden })}</p>}
+            <p className="mt-4 text-[11px] text-muted-foreground">{t("interactionsNote")}</p>
+          </>
+        )}
       </Modal>
 
       <ReturnLookup open={lookingUp} onClose={() => setLookingUp(false)} onPick={sale => { setLookingUp(false); setReturning(sale); }} />

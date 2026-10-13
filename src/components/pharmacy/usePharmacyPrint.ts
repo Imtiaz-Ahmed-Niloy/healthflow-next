@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useFormatters } from "@/lib/appSettings";
 import { BRAND_INFO } from "@/constants/brand";
 import { usePharmacySettingsQuery } from "@/redux/api/pharmacy";
-import { asSold, dueOn, type CashShift, type PharmacySale, type PurchaseOrder, type SaleItem } from "@/lib/pharmacy";
+import { asSold, dueOn, type CashShift, type PharmacySale, type PurchaseOrder, type SaleItem, type SaleReturn } from "@/lib/pharmacy";
 
 /**
  * What the pharmacy prints: a sale (as a full-page invoice or a till slip), a
@@ -54,6 +54,7 @@ export const usePharmacyPrint = () => {
   const t = useTranslations("pharmacy.receipt");
   const tm = useTranslations("pharmacy.methods");
   const tu = useTranslations("pharmacy.unitCount");
+  const tc = useTranslations("pharmacy.sales");
   const tt = useTranslations("pharmacy.drawer.types");
   const te = useTranslations("pharmacy.errors");
   const { formatCurrency, formatDate, formatDateTime } = useFormatters();
@@ -207,5 +208,28 @@ export const usePharmacyPrint = () => {
       <div style="margin-top:36px;border-top:1px solid #000;padding-top:4px" class="sm c">${esc(t("signature"))}</div>`, 420));
   };
 
-  return { printSale, printOrder, printShift };
+  /** The slip a customer takes away with their refund: what came back, in what state, and who approved it. */
+  const printReturn = (sale: PharmacySale, entry: SaleReturn) => {
+    const lines = entry.lines.map(l => `
+      <div>${esc(l.item_name)}</div>
+      <div class="row sm"><span>${l.quantity} × ${esc(money(l.unit_price))} · ${esc(tc(`conditions.${l.condition}`))}</span><span>${esc(money(Number(l.unit_price) * l.quantity))}</span></div>`).join("");
+
+    show(openWindow(entry.return_number ?? sale.invoice_number, SLIP_CSS, `
+      <div class="c b big">${esc(name)}</div>
+      <div class="c b">${esc(t("returnTitle"))}</div>
+      <hr>
+      ${entry.return_number ? `<div class="row"><span>${esc(t("returnNo"))}</span><span class="b">${esc(entry.return_number)}</span></div>` : ""}
+      <div class="row"><span>${esc(t("invoice"))}</span><span>${esc(sale.invoice_number)}</span></div>
+      <div class="row"><span>${esc(t("date"))}</span><span>${esc(formatDateTime(entry.returned_at))}</span></div>
+      ${sale.customer_name ? `<div class="row"><span>${esc(t("customer"))}</span><span>${esc(sale.customer_name)}</span></div>` : ""}
+      <div class="row"><span>${esc(t("cashier"))}</span><span>${esc(entry.created_by_name ?? "")}</span></div>
+      ${entry.approved_by_name ? `<div class="row"><span>${esc(t("approvedBy"))}</span><span>${esc(entry.approved_by_name)}</span></div>` : ""}
+      <hr>${lines}<hr>
+      <div class="row b big"><span>${esc(t("refundTotal"))}</span><span>${esc(money(entry.refund_amount))}</span></div>
+      <div class="row"><span>${esc(entry.refund_method === "credit" ? t("keptAsCredit") : t("paidBack"))}</span><span>${esc(money(entry.paid_back))}</span></div>
+      <div class="row sm"><span>${esc(t("reason"))}</span><span>${esc(entry.reason)}</span></div>
+      <div style="margin-top:36px;border-top:1px solid #000;padding-top:4px" class="sm c">${esc(t("signature"))}</div>`, 420));
+  };
+
+  return { printSale, printOrder, printShift, printReturn };
 };

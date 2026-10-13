@@ -59,6 +59,8 @@ const ERROR_CODES = [
   "loyalty_off", "redeem_too_few", "redeem_too_many", "redeem_over_total", "bad_condition", "pin_required", "bad_pin",
   "pin_locked", "register_not_found", "register_in_use", "bad_staff_role", "staff_not_found", "branch_not_found",
   "own_access", "bad_pin_format", "tiers_out_of_order",
+  // the AI routes
+  "ai_not_configured", "ai_feature_off", "ai_no_answer", "ai_busy", "ai_unavailable",
 ] as const;
 
 type ErrorCode = (typeof ERROR_CODES)[number];
@@ -111,7 +113,79 @@ export const fetchAllRows = async <T,>(resource: string, query: Record<string, s
   return rows;
 };
 
+type Cell = string | number | null | undefined;
+
+/** The same rows as a real .xlsx workbook, for the people who live in Excel. Numbers stay numbers. */
+export const exportExcel = async (rows: Record<string, Cell>[], filename: string) => {
+  if (!rows.length) return false;
+  // Loaded when asked for: the library is not small, and most visits never export.
+  const { default: writeExcelFile } = await import("write-excel-file/browser");
+  const headers = Object.keys(rows[0]);
+  await writeExcelFile([
+    headers.map(header => ({ value: header, fontWeight: "bold" as const })),
+    ...rows.map(row => headers.map(header => ({ value: row[header] ?? "" }))),
+  ]).toFile(filename);
+  return true;
+};
+
+const escapeHtml = (value: unknown) =>
+  String(value ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c);
+
+/**
+ * A list on paper: a title, a line under it, and the rows as a table, in a
+ * window of its own that prints itself. False when the pop-up was blocked.
+ */
+export const printTable = (title: string, subtitle: string, rows: Record<string, Cell>[]) => {
+  const w = window.open("", "_blank", "width=1000,height=900");
+  if (!w) return false;
+  const headers = Object.keys(rows[0] ?? {});
+  w.document.write(
+    `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>
+      body{font-family:system-ui,-apple-system,"Segoe UI","Nirmala UI",sans-serif;color:#111;margin:0;padding:28px;font-size:12px}
+      h1{font-size:18px;margin:0}p{color:#555;margin:4px 0 16px}table{width:100%;border-collapse:collapse}
+      th,td{border-bottom:1px solid #e5e7eb;padding:6px;text-align:left;vertical-align:top}th{background:#f3f4f6;font-size:11px}
+    </style></head><body><h1>${escapeHtml(title)}</h1><p>${escapeHtml(subtitle)}</p>
+    <table><thead><tr>${headers.map(header => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map(row => `<tr>${headers.map(header => `<td>${escapeHtml(row[header])}</td>`).join("")}</tr>`).join("")}</tbody></table>
+    <script>window.onload=()=>setTimeout(()=>window.print(),200)</script></body></html>`,
+  );
+  w.document.close();
+  return true;
+};
+
 // ------------------------------------------------------------------ pieces ---
+
+const selectClass = "rounded-lg border border-border/60 bg-card px-2 py-1.5 text-xs font-semibold text-foreground/80 outline-none focus:border-primary/60";
+
+/** How many rows a page shows. */
+export const PerPage = ({ value, onChange, options = [10, 20, 50, 100] }: {
+  value: number; onChange: (value: number) => void; options?: number[];
+}) => {
+  const t = useTranslations("pharmacy.common");
+  return (
+    <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground print:hidden">
+      {t("perPage")}
+      <select value={value} onChange={event => onChange(Number(event.target.value))} className={selectClass}>
+        {options.map(option => <option key={option} value={option}>{option}</option>)}
+      </select>
+    </label>
+  );
+};
+
+/** Which order a list comes in. `value` is whatever the caller's options are keyed by. */
+export const SortSelect = <T extends string>({ value, onChange, options }: {
+  value: T; onChange: (value: T) => void; options: { value: T; label: string }[];
+}) => {
+  const t = useTranslations("pharmacy.common");
+  return (
+    <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground print:hidden">
+      {t("sortBy")}
+      <select value={value} onChange={event => onChange(event.target.value as T)} className={selectClass}>
+        {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+      </select>
+    </label>
+  );
+};
 
 export const SearchBox = ({ value, onChange, placeholder, className = "", autoFocus }: {
   value: string; onChange: (value: string) => void; placeholder?: string; className?: string; autoFocus?: boolean;

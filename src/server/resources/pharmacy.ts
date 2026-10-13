@@ -1,5 +1,6 @@
 import { z } from "zod";
-import type { AppRole } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { createServerSupabase, type AppRole } from "@/lib/supabase/server";
 import type { ResourceDefinition } from "./types";
 
 /**
@@ -205,6 +206,16 @@ export const pharmacyBatchesResource: ResourceDefinition = {
   filterFields: ["state", "item_id", "supplier_id"],
   defaultSort: { column: "received_at", ascending: false },
   roles,
+  /**
+   * Only an empty batch can be removed: it is a row nobody will sell from
+   * again. One with stock in it is written off through "Adjust stock", which
+   * asks why and puts the reason on the ledger.
+   */
+  beforeDelete: async ({ id }) => {
+    const supabase = (await createServerSupabase()) as unknown as SupabaseClient;
+    const { data } = await supabase.from("pharmacy_batches").select("quantity").eq("id", id).maybeSingle();
+    if (data && Number(data.quantity) > 0) return "This batch still has stock. Write it off first, then remove it.";
+  },
 };
 
 // ---------------------------------------------------------- read-only lists ---

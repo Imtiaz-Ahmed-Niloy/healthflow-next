@@ -1,8 +1,8 @@
 import { baseApi } from "./baseApi";
 import { createResourceApi } from "./createResourceApi";
 import type {
-  AuditRow, CashShift, CustomerLedgerLine, Drawer, LoyaltySummary, PaymentPart, PermissionFlags, PharmacyBatch,
-  PharmacyBranch, PharmacyCustomer, PharmacyDashboard, PharmacyExpense, PharmacyInsights, PharmacyItem, PharmacyMe,
+  AuditRow, CashShift, ChatMessage, CustomerLedgerLine, InteractionCheck, Drawer, LoyaltySummary, PaymentPart, PermissionFlags, PharmacyBatch,
+  PharmacyBranch, PharmacyCustomer, PharmacyProfile, PharmacyDashboard, PharmacyExpense, PharmacyInsights, PharmacyItem, PharmacyMe,
   PharmacyRegister, PharmacyReport, PharmacySale, PharmacySettings, PharmacySupplier, PosItem, PurchaseOrder,
   ReturnCondition, SaleUnit, StaffLogin, StaffRole, StockAlerts, StockMovement,
 } from "@/lib/pharmacy";
@@ -174,7 +174,14 @@ const pharmacyApi = api.injectEndpoints({
       providesTags: TOTALS,
     }),
 
-    pharmacySettings: build.query<{ data: PharmacySettings; hospital: string | null }, void>({
+    askAssistant: build.mutation<{ data: { reply: string } }, { messages: ChatMessage[] }>({
+      query: (body) => ({ url: "/pharmacy/assistant", method: "POST", body: { mode: "chat", ...body } }),
+    }),
+    checkInteractions: build.mutation<{ data: InteractionCheck }, { items: { name: string; generic_name: string | null }[] }>({
+      query: (body) => ({ url: "/pharmacy/assistant", method: "POST", body: { mode: "interactions", ...body } }),
+    }),
+
+    pharmacySettings: build.query<{ data: PharmacySettings; hospital: string | null; ai_configured: boolean }, void>({
       query: () => "/pharmacy/settings",
       providesTags: [own("SETTINGS")],
     }),
@@ -215,6 +222,15 @@ const pharmacyApi = api.injectEndpoints({
     pharmacyMe: build.query<{ data: PharmacyMe }, void>({
       query: () => "/pharmacy/me",
       providesTags: [own("ME")],
+    }),
+
+    pharmacyProfile: build.query<{ data: PharmacyProfile }, void>({
+      query: () => "/pharmacy/profile",
+      providesTags: [own("PROFILE"), own("ME")],
+    }),
+    savePharmacyProfile: build.mutation<{ data: PharmacyProfile }, { full_name: string; phone: string | null }>({
+      query: (body) => ({ url: "/pharmacy/profile", method: "PATCH", body }),
+      invalidatesTags: [own("PROFILE"), own("STAFF")],
     }),
 
     loyaltySummary: build.query<{ data: LoyaltySummary }, void>({
@@ -263,6 +279,10 @@ export const {
   usePharmacyStaffActionMutation,
   useSavePharmacyStaffMutation,
   usePharmacyMeQuery,
+  useAskAssistantMutation,
+  useCheckInteractionsMutation,
+  usePharmacyProfileQuery,
+  useSavePharmacyProfileMutation,
   useLoyaltySummaryQuery,
   useAdjustPointsMutation,
   usePharmacyAuditQuery,

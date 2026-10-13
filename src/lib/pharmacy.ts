@@ -66,6 +66,17 @@ export const ROLE_DEFAULTS: Record<StaffRole, Permission[]> = {
   stock_keeper: ["manage_stock"],
 };
 
+/** The signed-in person's own details, with what they are in the pharmacy. */
+export type PharmacyProfile = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+  role: string;
+  created_at: string;
+  pharmacy: PharmacyMe | null;
+};
+
 export type PharmacyMe = {
   role: string | null;
   staff_role: StaffRole | null;
@@ -554,7 +565,20 @@ export type PharmacySettings = {
   loyalty_silver_rate: number;
   loyalty_gold_rate: number;
   loyalty_platinum_rate: number;
+  /** AI features (0136). The two that call a model are ai_assistant and ai_interactions. */
+  ai_assistant: boolean;
+  ai_interactions: boolean;
+  ai_predictions: boolean;
+  ai_expiry: boolean;
+  ai_interaction_level: InteractionLevel;
 };
+
+export const INTERACTION_LEVELS = ["minor", "moderate", "major", "severe"] as const;
+export type InteractionLevel = (typeof INTERACTION_LEVELS)[number];
+
+export type DrugInteraction = { drugs: string[]; severity: InteractionLevel; effect: string; advice: string };
+export type InteractionCheck = { interactions: DrugInteraction[]; hidden: number; summary: string };
+export type ChatMessage = { role: "user" | "assistant"; content: string };
 
 /** How much faster this tier earns points than bronze. */
 export const tierRate = (settings: PharmacySettings, tier: LoyaltyTier) =>

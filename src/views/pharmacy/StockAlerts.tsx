@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AlertTriangle, CalendarClock, CalendarX, CheckCircle2, PackageX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PharmacyLayout } from "@/components/pharmacy/PharmacyLayout";
-import { StateBlock, Tile } from "@/components/pharmacy/ui";
+import { Pager, PerPage, SearchBox, StateBlock, Tile } from "@/components/pharmacy/ui";
 import { Btn, Card, Pill } from "@/components/admin/ui";
 import { Chips, DataTable, type Column } from "@/components/admin/crud";
 import { useFormatters } from "@/lib/appSettings";
@@ -26,6 +26,9 @@ const Page = () => {
   const t = useTranslations("pharmacy.alerts");
   const { formatDate } = useFormatters();
   const [kind, setKind] = useState<(typeof KINDS)[number]>("all");
+  const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
   const { data, isLoading, error, refetch } = useStockAlertsQuery();
 
   const rows = useMemo<AlertRow[]>(() => {
@@ -44,21 +47,28 @@ const Page = () => {
   }, [data]);
 
   const count = (wanted: Kind) => rows.filter(row => row.kind === wanted).length;
-  const shown = kind === "all" ? rows : rows.filter(row => row.kind === kind);
+  const needle = q.trim().toLowerCase();
+  const matching = rows.filter(row =>
+    (kind === "all" || row.kind === kind)
+    && (!needle || [row.name, row.generic_name, row.sku, row.batch_number, row.location].some(value => value?.toLowerCase().includes(needle))));
+  const totalPages = Math.max(Math.ceil(matching.length / perPage), 1);
+  const current = Math.min(page, totalPages);
+  // The alerts arrive whole, so the page is cut here. Sorting by a column header sorts what is on the page.
+  const shown = matching.slice((current - 1) * perPage, current * perPage);
 
   const columns: Column<AlertRow>[] = [
-    { key: "product", label: t("columns.product"), render: r => (
+    { key: "product", label: t("columns.product"), accessor: r => r.name.toLowerCase(), sortable: true, render: r => (
       <div className="min-w-0">
         <p className="font-semibold text-primary truncate">{r.name}</p>
         {r.generic_name && <p className="text-xs text-muted-foreground truncate">{r.generic_name}</p>}
       </div>
     ) },
     { key: "sku", label: t("columns.sku"), render: r => <span className="font-mono text-xs">{r.sku}</span> },
-    { key: "quantity", label: t("columns.quantity"), render: r => <span className="tabular-nums font-semibold">{r.quantity}</span> },
+    { key: "quantity", label: t("columns.quantity"), accessor: r => r.quantity, sortable: true, render: r => <span className="tabular-nums font-semibold">{r.quantity}</span> },
     { key: "reorder", label: t("columns.reorder"), render: r => r.reorder === null ? "—" : <span className="tabular-nums">{r.reorder}</span> },
     { key: "batch", label: t("columns.batch"), render: r => r.batch_number ? <span className="font-mono text-xs">{r.batch_number}</span> : "—" },
-    { key: "expiry", label: t("columns.expiry"), render: r => r.expiry_date ? <span className="whitespace-nowrap">{formatDate(r.expiry_date)}</span> : "—" },
-    { key: "shelf", label: t("columns.shelf"), render: r => r.location ?? "—" },
+    { key: "expiry", label: t("columns.expiry"), accessor: r => r.expiry_date ?? "9999", sortable: true, render: r => r.expiry_date ? <span className="whitespace-nowrap">{formatDate(r.expiry_date)}</span> : "—" },
+    { key: "shelf", label: t("columns.shelf"), accessor: r => r.location ?? "", sortable: true, render: r => r.location ?? "—" },
     { key: "alert", label: t("columns.alert"), render: r => <Pill tone={KIND_TONE[r.kind]}>{t(`kinds.${r.kind}`)}</Pill> },
   ];
 
@@ -73,7 +83,9 @@ const Page = () => {
 
       <Card className="p-4 lg:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <Chips value={kind} onChange={setKind} options={KINDS.map(value => ({ value, label: t(`kinds.${value}`) }))} />
+          <SearchBox value={q} onChange={value => { setQ(value); setPage(1); }} placeholder={t("searchPlaceholder")} className="flex-1" />
+          <Chips value={kind} onChange={value => { setKind(value); setPage(1); }} options={KINDS.map(value => ({ value, label: t(`kinds.${value}`) }))} />
+          <PerPage value={perPage} onChange={value => { setPerPage(value); setPage(1); }} />
           <div className="flex flex-wrap gap-2">
             <Link href="/pharmacy/stock"><Btn variant="outline">{t("goToStock")}</Btn></Link>
             <Link href="/pharmacy/purchases"><Btn variant="outline">{t("orderMore")}</Btn></Link>
@@ -89,8 +101,9 @@ const Page = () => {
             <p className="text-sm text-muted-foreground mt-1">{t("allGoodHint")}</p>
           </div>
         ) : (
-          <DataTable<AlertRow> rows={shown} columns={columns} />
+          <DataTable<AlertRow> rows={shown} columns={columns} empty={t("noMatch")} />
         )}
+        {rows.length > 0 && <Pager page={current} totalPages={totalPages} total={matching.length} onPage={setPage} />}
 
         {data?.data && <p className="text-[11px] text-muted-foreground mt-4">{t("windowHint", { days: data.data.expiring_soon_days })}</p>}
       </Card>

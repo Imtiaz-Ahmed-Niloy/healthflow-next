@@ -111,8 +111,27 @@ panel at `/pharmacy`; its hospital's admin can open it too. The order is
 | ✅ | Staff & Roles — manager, pharmacist, cashier, stock keeper; six permissions; a PIN to approve returns | — |
 | ✅ | Branches & Registers — where a sale was made and whose drawer it went into | — |
 | ✅ | Audit Log — the pharmacy's own slice of the audit trail | — |
+| ✅ | Notifications — stock alerts as an inbox, with a bell in the top bar | — |
+| ✅ | Profile — a person's own name, phone and password | — |
+| ✅ | AI Analytics — reorder predictions and a sell-first expiry plan | — |
+| ✅ | AI Assistant — questions about the pharmacy's own figures (needs the server key) | — |
+| ✅ | AI Settings — which AI features are on | — |
 
-**17 of 17 done.** None of it has been through QA in a browser yet.
+**22 of 22 done.** None of it has been through QA in a browser yet.
+
+Added 13 Oct 2026 (migration 0135), the rest of what the reference design had
+that was real: sort and per-page controls, Excel and print exports, a return
+voucher, quick-amount chips in the cash drawer, award and redeem dialogs for
+points, staff filters, live register status, an inspect view on the audit
+log, and a command bar (Ctrl+Shift+K).
+
+The AI screens were added the same day (migration 0136). Predictions and the
+expiry plan are arithmetic over the hospital's own sales and batches. The
+assistant and the drug interaction checker call Claude from the server and
+need `ANTHROPIC_API_KEY` in the server's environment; without it they answer
+"not set up". AI product search and prescription processing are listed as
+coming soon. "Import from Web" is still not built: it needs a drug database
+we do not have.
 
 Added 13 Oct 2026 (migrations 0133 and 0134), following the second commit of
 the reference design:

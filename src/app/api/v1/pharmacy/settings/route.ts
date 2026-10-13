@@ -40,6 +40,12 @@ const DEFAULTS = {
   loyalty_silver_rate: 1.25,
   loyalty_gold_rate: 1.5,
   loyalty_platinum_rate: 2,
+  // AI features (0136). Each can be switched off on its own.
+  ai_assistant: true,
+  ai_interactions: true,
+  ai_predictions: true,
+  ai_expiry: true,
+  ai_interaction_level: "moderate",
 };
 
 const text = (max: number) =>
@@ -73,6 +79,11 @@ const settingsSchema = z.object({
   loyalty_silver_rate: z.coerce.number().min(1).max(10).optional(),
   loyalty_gold_rate: z.coerce.number().min(1).max(10).optional(),
   loyalty_platinum_rate: z.coerce.number().min(1).max(10).optional(),
+  ai_assistant: z.boolean().optional(),
+  ai_interactions: z.boolean().optional(),
+  ai_predictions: z.boolean().optional(),
+  ai_expiry: z.boolean().optional(),
+  ai_interaction_level: z.enum(["minor", "moderate", "major", "severe"]).optional(),
 });
 
 export const GET = async () => {
@@ -89,6 +100,8 @@ export const GET = async () => {
     data: { ...DEFAULTS, ...(settings.data ?? {}) },
     // What a receipt falls back to when no pharmacy name has been set.
     hospital: hospital.data?.name ?? null,
+    // Whether the server has a key for the model. Only yes or no ever leaves the server.
+    ai_configured: Boolean(process.env.ANTHROPIC_API_KEY),
   });
 };
 

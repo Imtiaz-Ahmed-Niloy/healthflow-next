@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Printer } from "lucide-react";
+import { Download, FileSpreadsheet, Printer } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useTranslations } from "next-intl";
 import { PharmacyLayout } from "@/components/pharmacy/PharmacyLayout";
-import { StateBlock, Tile } from "@/components/pharmacy/ui";
+import { StateBlock, Tile, exportExcel } from "@/components/pharmacy/ui";
 import { Btn, Card, SectionTitle } from "@/components/admin/ui";
 import { exportCSV } from "@/components/admin/crud";
 import { DateInput } from "@/components/ui/date-input";
@@ -191,6 +191,10 @@ const Page = () => {
           <DateInput value={to} onChange={setTo} min={from} max={today} aria-label={tc("to")} wrapperClassName="w-40" showClear={false} />
           <div className="ml-auto flex gap-2">
             <Btn variant="outline" onClick={download} disabled={!report}><Download className="h-4 w-4" /> {tc("exportCsv")}</Btn>
+            <Btn variant="outline" disabled={!report}
+              onClick={() => report && exportExcel(report.daily.map(row => ({ day: row.day, sales: Number(row.revenue), invoices: row.transactions })), `pharmacy-report-${from}-${to}.xlsx`)}>
+              <FileSpreadsheet className="h-4 w-4" /> {tc("excel")}
+            </Btn>
             <Btn variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4" /> {tc("print")}</Btn>
           </div>
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode, useEffect, useState } from "react";
-import { Download, Plus } from "lucide-react";
+import { Download, FileSpreadsheet, Plus, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { Btn, Card } from "@/components/admin/ui";
@@ -10,7 +10,9 @@ import { RecordFormFields, type FieldDef } from "@/components/admin/ResourcePage
 import {
   useCreateResourceMutation, useListResourceQuery, useRemoveResourceMutation, useUpdateResourceMutation,
 } from "@/redux/api/createResourceApi";
-import { Pager, SearchBox, StateBlock, fetchAllRows, useDebounced, usePharmacyError } from "./ui";
+import {
+  Pager, PerPage, SearchBox, SortSelect, StateBlock, exportExcel, fetchAllRows, printTable, useDebounced, usePharmacyError,
+} from "./ui";
 
 /**
  * A list with a form, for the pharmacy's plain records: products, suppliers,
@@ -55,6 +57,10 @@ export type PagedResourceProps<T extends { id: string }> = {
   limit?: number;
   /** False for a login that may read these records but not change them: no add, edit or delete. */
   canWrite?: boolean;
+  /** The orders the list can be put in. `value` is "<column>:asc" or "<column>:desc"; the first is the default. */
+  sorts?: { value: string; label: string }[];
+  /** With `exportName`: also offer the same rows as an Excel workbook and as a printed report with this title. */
+  reportTitle?: string;
 };
 
 /** Selects compare by string, and a row's booleans would never match "true". */
@@ -63,20 +69,25 @@ const forForm = (row: Record<string, unknown> | undefined) =>
 
 export function PagedResource<T extends { id: string }>({
   resource, columns, fields, searchPlaceholder, addLabel, newTitle, editTitle, filters, toolbar, beside, above,
-  empty, defaults, rowActions, formNote, deleteHint, exportName, limit = 20, canWrite = true,
+  empty, defaults, rowActions, formNote, deleteHint, exportName, limit = 20, canWrite = true, sorts, reportTitle,
 }: PagedResourceProps<T>) {
   const tc = useTranslations("pharmacy.common");
   const describe = usePharmacyError();
 
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(limit);
+  const [sort, setSort] = useState(sorts?.[0]?.value ?? "");
   const search = useDebounced(q);
   const filterKey = JSON.stringify(filters ?? {});
+  const [sortColumn, sortOrder] = sort.split(":") as [string, "asc" | "desc" | undefined];
 
-  // A new search or filter starts from its own first page.
-  useEffect(() => { setPage(1); }, [search, filterKey]);
+  // A new search, filter, order or page size starts from its own first page.
+  useEffect(() => { setPage(1); }, [search, filterKey, sort, perPage]);
 
-  const { data, isLoading, isFetching, error, refetch } = useListResourceQuery({ resource, page, limit, q: search, filters });
+  const { data, isLoading, isFetching, error, refetch } = useListResourceQuery({
+    resource, page, limit: perPage, q: search, filters, ...(sortColumn ? { sort: sortColumn, order: sortOrder ?? "asc" } : {}),
+  });
   const rows = (data?.data ?? []) as T[];
   const meta = data?.meta;
 
@@ -107,11 +118,23 @@ export function PagedResource<T extends { id: string }>({
 
   const [exporting, setExporting] = useState(false);
 
-  const download = async () => {
+  /** Everything that matches, as plain cells: nested lists and objects are left out of a flat file. */
+  const allRows = async () => {
+    const all = await fetchAllRows<Record<string, unknown>>(resource, { ...filters, q: search || undefined });
+    return all.map(row => Object.fromEntries(
+      Object.entries(row)
+        .filter(([key, value]) => key !== "tenant_id" && (value === null || typeof value !== "object"))
+        .map(([key, value]) => [key, typeof value === "boolean" ? String(value) : (value as string | number | null)]),
+    ));
+  };
+
+  const download = async (kind: "csv" | "excel" | "print") => {
     setExporting(true);
     try {
-      const all = await fetchAllRows<Record<string, unknown>>(resource, { ...filters, q: search || undefined });
-      exportCSV(all, `${exportName}.csv`);
+      const all = await allRows();
+      if (kind === "csv") exportCSV(all, `${exportName}.csv`);
+      else if (kind === "excel") await exportExcel(all, `${exportName}.xlsx`);
+      else if (!printTable(reportTitle ?? "", tc("records", { count: all.length }), all)) toast.error(tc("popupBlocked"));
     } catch (cause) {
       toast.error(describe(cause));
     } finally {
@@ -136,11 +159,21 @@ export function PagedResource<T extends { id: string }>({
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <SearchBox value={q} onChange={setQ} placeholder={searchPlaceholder} className="flex-1" />
           {toolbar}
+          {sorts && <SortSelect value={sort} onChange={setSort} options={sorts} />}
+          <PerPage value={perPage} onChange={setPerPage} />
           {exportName && (
-            <Btn variant="outline" onClick={download} disabled={exporting || rows.length === 0}>
+            <Btn variant="outline" onClick={() => download("csv")} disabled={exporting || rows.length === 0}>
               <Download className="h-4 w-4" /> {tc("exportCsv")}
             </Btn>
           )}
+          {exportName && reportTitle && <>
+            <Btn variant="outline" onClick={() => download("excel")} disabled={exporting || rows.length === 0}>
+              <FileSpreadsheet className="h-4 w-4" /> {tc("excel")}
+            </Btn>
+            <Btn variant="outline" onClick={() => download("print")} disabled={exporting || rows.length === 0}>
+              <Printer className="h-4 w-4" /> {tc("print")}
+            </Btn>
+          </>}
           {beside}
           {canWrite && <Btn onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> {addLabel}</Btn>}
         </div>

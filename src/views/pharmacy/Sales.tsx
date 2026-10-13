@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Banknote, Download, Eye, Printer, ReceiptText, RotateCcw, ShoppingCart, Undo2, X } from "lucide-react";
+import { Banknote, Copy, Download, Eye, Printer, ReceiptText, RotateCcw, ShoppingCart, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { PharmacyLayout } from "@/components/pharmacy/PharmacyLayout";
 import { ReturnDialog } from "@/components/pharmacy/ReturnDialog";
-import { Pager, SearchBox, StateBlock, Tile, fetchAllRows, useDebounced, usePharmacyCan, usePharmacyError } from "@/components/pharmacy/ui";
+import {
+  Pager, PerPage, SearchBox, SortSelect, StateBlock, Tile, fetchAllRows, printTable, useDebounced, usePharmacyCan, usePharmacyError,
+} from "@/components/pharmacy/ui";
 import { usePharmacyPrint } from "@/components/pharmacy/usePharmacyPrint";
 import { Btn, Card, Pill } from "@/components/admin/ui";
 import { Chips, DataTable, Field, Input, Modal, Select, exportCSV, type Column } from "@/components/admin/crud";
@@ -25,6 +27,12 @@ type Period = (typeof PERIODS)[number];
 const STATUSES = ["all", "completed", "partial_return", "returned"] as const;
 const STATUS_TONE: Record<SaleStatus, "ok" | "warn" | "bad"> = { completed: "ok", partial_return: "warn", returned: "bad" };
 const PAID_TONE: Record<PaymentStatus, "ok" | "warn" | "bad"> = { paid: "ok", partial: "warn", unpaid: "bad" };
+
+const SORTS = ["sold_at:desc", "sold_at:asc", "total_amount:desc", "total_amount:asc"] as const;
+type SortKey = "newest" | "oldest" | "highest" | "lowest";
+const SORT_KEY: Record<(typeof SORTS)[number], SortKey> = {
+  "sold_at:desc": "newest", "sold_at:asc": "oldest", "total_amount:desc": "highest", "total_amount:asc": "lowest",
+};
 
 /** Far enough back to mean "everything". */
 const EPOCH = "2000-01-01";
@@ -90,7 +98,7 @@ const SaleDetail = ({ sale, onClose, onReturn, onCollect }: {
   const tpos = useTranslations("pharmacy.pos");
   const tu = useTranslations("pharmacy.unitCount");
   const { formatCurrency, formatDate, formatDateTime } = useFormatters();
-  const { printSale } = usePharmacyPrint();
+  const { printSale, printReturn } = usePharmacyPrint();
   const { data: settings } = usePharmacySettingsQuery();
 
   if (!sale) return null;
@@ -177,7 +185,11 @@ const SaleDetail = ({ sale, onClose, onReturn, onCollect }: {
                     {entry.return_number && <span className="font-mono text-xs text-primary mr-2">{entry.return_number}</span>}
                     {entry.lines.map(line => `${line.quantity}× ${line.item_name} (${t(`conditions.${line.condition}`)})`).join(", ")}
                   </span>
-                  <span className="tabular-nums font-semibold text-destructive">-{formatCurrency(Number(entry.refund_amount))}</span>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="tabular-nums font-semibold text-destructive">-{formatCurrency(Number(entry.refund_amount))}</span>
+                    <button type="button" onClick={() => printReturn(sale, entry)} title={t("printVoucher")} aria-label={t("printVoucher")}
+                      className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-muted"><Printer className="h-3.5 w-3.5" /></button>
+                  </span>
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1">
                   {formatDateTime(entry.returned_at)} · {entry.created_by_name ?? "—"} · {entry.reason} · {entry.refund_method === "credit"
@@ -231,6 +243,8 @@ const Page = () => {
   const [status, setStatus] = useState<(typeof STATUSES)[number]>("all");
   const [customer, setCustomer] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<(typeof SORTS)[number]>("sold_at:desc");
+  const [perPage, setPerPage] = useState(20);
   const search = useDebounced(q);
 
   const [viewing, setViewing] = useState<string | null>(null);
@@ -252,10 +266,11 @@ const Page = () => {
     return { from: from || today, to: to || today };
   }, [period, from, to, today]);
 
-  useEffect(() => { setPage(1); }, [search, range.from, range.to, method, status, customer]);
+  useEffect(() => { setPage(1); }, [search, range.from, range.to, method, status, customer, sort, perPage]);
 
+  const [sortColumn, sortOrder] = sort.split(":") as [string, "asc" | "desc"];
   const { data, isLoading, isFetching, error, refetch } = pharmacySalesApi.useList({
-    page, limit: 20, q: search,
+    page, limit: perPage, q: search, sort: sortColumn, order: sortOrder,
     filters: {
       sale_date_from: range.from, sale_date_to: range.to,
       payment_method: method || undefined, status: status === "all" ? undefined : status, customer_id: customer ?? undefined,
@@ -269,7 +284,15 @@ const Page = () => {
   const find = (id: string | null) => rows.find(row => row.id === id) ?? null;
 
   const columns: Column<PharmacySale>[] = [
-    { key: "invoice", label: t("columns.invoice"), render: r => <span className="font-mono text-xs font-semibold text-primary">{r.invoice_number}</span> },
+    { key: "invoice", label: t("columns.invoice"), render: r => (
+      <span className="inline-flex items-center gap-1 whitespace-nowrap">
+        <span className="font-mono text-xs font-semibold text-primary">{r.invoice_number}</span>
+        <button type="button" title={t("copyInvoice")} aria-label={t("copyInvoice")} className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-muted"
+          onClick={async event => { event.stopPropagation(); await navigator.clipboard.writeText(r.invoice_number); toast.success(tc("copied")); }}>
+          <Copy className="h-3 w-3" />
+        </button>
+      </span>
+    ) },
     { key: "date", label: t("columns.date"), render: r => <span className="whitespace-nowrap">{formatDateTime(r.sold_at)}</span> },
     { key: "customer", label: t("columns.customer"), render: r => r.customer_name ?? <span className="text-muted-foreground">{tc("walkIn")}</span> },
     { key: "items", label: t("columns.items"), render: r => {
@@ -293,12 +316,25 @@ const Page = () => {
   ];
 
   // Every sale that matches what is on screen, not only this page of it.
-  const download = async () => {
+  const download = async (kind: "csv" | "print") => {
     try {
       const all = await fetchAllRows<PharmacySale>("pharmacy-sales", {
-        q: search || undefined, sale_date_from: range.from, sale_date_to: range.to,
+        q: search || undefined, sale_date_from: range.from, sale_date_to: range.to, sort: sortColumn, order: sortOrder,
         payment_method: method || undefined, status: status === "all" ? undefined : status, customer_id: customer ?? undefined,
       });
+      if (kind === "print") {
+        // The columns of the table, in the reader's own words, for paper.
+        const printed = printTable(t("title"), `${range.from} – ${range.to} · ${tc("records", { count: all.length })}`, all.map(r => ({
+          [t("columns.invoice")]: r.invoice_number, [t("columns.date")]: formatDateTime(r.sold_at),
+          [t("columns.customer")]: r.customer_name ?? tc("walkIn"),
+          [t("columns.items")]: r.items.map(item => `${item.quantity}× ${item.item_name}`).join(", "),
+          [t("columns.payment")]: tm(r.payment_method), [t("columns.status")]: ts(r.status),
+          [t("columns.amount")]: formatCurrency(Number(r.total_amount) - Number(r.refunded_amount)),
+          [t("columns.cashier")]: r.created_by_name ?? "",
+        })));
+        if (!printed) toast.error(tc("popupBlocked"));
+        return;
+      }
       exportCSV(all.map(r => ({
         invoice: r.invoice_number, date: r.sold_at, customer: r.customer_name ?? "", phone: r.customer_phone ?? "",
         items: r.items.map(item => `${item.quantity}x ${item.item_name}`).join("; "),
@@ -330,7 +366,10 @@ const Page = () => {
             <option value="">{t("allMethods")}</option>
             {[...PAYMENT_METHODS, "store_credit" as const].map(value => <option key={value} value={value}>{tm(value)}</option>)}
           </Select>
-          <Btn variant="outline" onClick={download}><Download className="h-4 w-4" /> {tc("exportCsv")}</Btn>
+          <SortSelect value={sort} onChange={setSort} options={SORTS.map(value => ({ value, label: t(`sorts.${SORT_KEY[value]}`) }))} />
+          <PerPage value={perPage} onChange={setPerPage} />
+          <Btn variant="outline" onClick={() => download("print")}><Printer className="h-4 w-4" /> {tc("printReport")}</Btn>
+          <Btn variant="outline" onClick={() => download("csv")}><Download className="h-4 w-4" /> {tc("exportCsv")}</Btn>
           <Link href="/pharmacy/pos"><Btn><ShoppingCart className="h-4 w-4" /> {tn("pos")}</Btn></Link>
         </div>
         <div className="flex flex-wrap items-center gap-3 mb-4">

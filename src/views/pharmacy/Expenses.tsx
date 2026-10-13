@@ -122,6 +122,13 @@ const Page = () => {
         editTitle={t("editTitle")}
         empty={t("noExpenses")}
         exportName={`pharmacy-expenses-${from}-${to}`}
+        reportTitle={`${t("title")} · ${from} – ${to}`}
+        sorts={[
+          { value: "expense_date:desc", label: t("sorts.newest") },
+          { value: "expense_date:asc", label: t("sorts.oldest") },
+          { value: "amount:desc", label: t("sorts.highest") },
+          { value: "amount:asc", label: t("sorts.lowest") },
+        ]}
         filters={{ expense_date_from: from || undefined, expense_date_to: to || undefined, category: category || undefined }}
         defaults={{ expense_date: today, category: categories[0] }}
         above={

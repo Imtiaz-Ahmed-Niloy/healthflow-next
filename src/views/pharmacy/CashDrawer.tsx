@@ -7,7 +7,7 @@ import {
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { PharmacyLayout } from "@/components/pharmacy/PharmacyLayout";
-import { Pager, StateBlock, Tile, fetchAllRows, usePharmacyCan, usePharmacyError } from "@/components/pharmacy/ui";
+import { Pager, SearchBox, StateBlock, Tile, fetchAllRows, usePharmacyCan, usePharmacyError } from "@/components/pharmacy/ui";
 import { usePharmacyPrint } from "@/components/pharmacy/usePharmacyPrint";
 import { Btn, Card, Pill } from "@/components/admin/ui";
 import { Chips, ConfirmDialog, DataTable, Field, Input, Modal, Select, TextArea, exportCSV, type Column } from "@/components/admin/crud";
@@ -23,6 +23,9 @@ type MoveType = "cash_in" | "cash_out" | "expense";
 const LINE_TONE: Record<CashLineType, "ok" | "warn" | "bad" | "info"> = {
   sale: "ok", payment: "ok", cash_in: "info", cash_out: "warn", expense: "warn", refund: "bad",
 };
+/** Round figures that are typed most often when cash goes in or out. */
+const QUICK_AMOUNTS = [100, 500, 1000, 2000, 5000];
+const LINE_TYPES: CashLineType[] = ["sale", "payment", "cash_in", "cash_out", "expense", "refund"];
 /** The lines a person typed in themselves, and so may take back. */
 const BY_HAND: CashLineType[] = ["cash_in", "cash_out", "expense"];
 
@@ -66,35 +69,55 @@ const MoveDialog = ({ type, onClose, onAct, busy }: {
   const t = useTranslations("pharmacy.drawer");
   const tc = useTranslations("pharmacy.common");
   const { data: settings } = usePharmacySettingsQuery();
+  const [amount, setAmount] = useState("");
+  const [category, setCategory] = useState("");
+  const [note, setNote] = useState("");
   if (!type) return null;
   const title = { cash_in: t("actions.cashIn"), cash_out: t("actions.cashOut"), expense: t("actions.expense") }[type];
+  const categories = settings?.data.expense_categories ?? [];
+  const chosen = category || categories[0] || "";
+
+  const close = () => { setAmount(""); setCategory(""); setNote(""); onClose(); };
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
     const ok = await onAct({
-      action: type, amount: Number(form.get("amount")),
-      note: String(form.get("note") ?? "") || null, category: String(form.get("category") ?? "") || null,
+      action: type, amount: Number(amount), note: note.trim() || null, category: type === "expense" ? chosen || null : null,
     }, t("lineSaved"));
-    if (ok) onClose();
+    if (ok) close();
   };
 
+  const chip = "px-2.5 py-1 rounded-lg text-xs font-medium bg-muted/40 hover:bg-muted text-foreground/80 tabular-nums";
+
   return (
-    <Modal open onClose={onClose} title={title} size="sm">
+    <Modal open onClose={close} title={title} size="sm">
       <form onSubmit={submit}>
         <Field label={tc("amount")} required>
-          <Input name="amount" type="number" min={0.01} step="any" placeholder="0.00" required autoFocus className="text-right tabular-nums" />
+          <Input value={amount} onChange={e => setAmount(e.target.value)} type="number" min={0.01} step="any" placeholder="0.00" required autoFocus className="text-right tabular-nums" />
         </Field>
+        <div className="flex flex-wrap items-center gap-1.5 -mt-2 mb-4">
+          <span className="text-[11px] text-muted-foreground">{t("quick")}</span>
+          {QUICK_AMOUNTS.map(value => <button key={value} type="button" onClick={() => setAmount(String(value))} className={chip}>{value}</button>)}
+        </div>
         {type === "expense" && (
-          <Field label={t("expenseCategory")}>
-            <Select name="category" defaultValue={settings?.data.expense_categories[0] ?? ""}>
-              {(settings?.data.expense_categories ?? []).map(name => <option key={name} value={name}>{name}</option>)}
-            </Select>
-          </Field>
+          <>
+            <Field label={t("expenseCategory")}>
+              <Select value={chosen} onChange={e => setCategory(e.target.value)}>
+                {categories.map(name => <option key={name} value={name}>{name}</option>)}
+              </Select>
+            </Field>
+            {/* One tap for the usual ones: it picks the category and writes the note. */}
+            <div className="flex flex-wrap items-center gap-1.5 -mt-2 mb-4">
+              <span className="text-[11px] text-muted-foreground">{t("commonExpenses")}</span>
+              {categories.slice(0, 5).map(name => (
+                <button key={name} type="button" onClick={() => { setCategory(name); setNote(name); }} className={chip}>{name}</button>
+              ))}
+            </div>
+          </>
         )}
-        <Field label={tc("note")}><Input name="note" placeholder={t("notePlaceholder")} /></Field>
+        <Field label={tc("note")}><Input value={note} onChange={e => setNote(e.target.value)} placeholder={t("notePlaceholder")} /></Field>
         <div className="flex justify-end gap-2">
-          <Btn variant="outline" onClick={onClose}>{tc("cancel")}</Btn>
+          <Btn variant="outline" onClick={close}>{tc("cancel")}</Btn>
           <Btn type="submit" disabled={busy}>{busy ? tc("saving") : tc("save")}</Btn>
         </div>
       </form>
@@ -151,6 +174,8 @@ const CloseDialog = ({ expected, shiftId, open, onClose, onAct, busy }: {
 const LinesTable = ({ lines, onRemove }: { lines: CashLine[]; onRemove?: (line: CashLine) => void }) => {
   const t = useTranslations("pharmacy.drawer");
   const { formatCurrency, formatTime } = useFormatters();
+  const [q, setQ] = useState("");
+  const [type, setType] = useState<CashLineType | "">("");
 
   const columns: Column<CashLine>[] = [
     { key: "time", label: t("columns.time"), render: r => <span className="whitespace-nowrap tabular-nums">{formatTime(r.created_at)}</span> },
@@ -164,13 +189,29 @@ const LinesTable = ({ lines, onRemove }: { lines: CashLine[]; onRemove?: (line: 
     { key: "by", label: t("columns.by"), render: r => <span className="text-xs">{r.created_by_name ?? "—"}</span> },
   ];
 
+  const needle = q.trim().toLowerCase();
+  const shown = lines.filter(line =>
+    (type === "" || line.type === type)
+    && (!needle || [line.note, line.created_by_name, String(line.amount)].some(value => value?.toLowerCase().includes(needle))));
+
   return (
-    <DataTable<CashLine> rows={lines} columns={columns} empty={t("noLines")}
-      actions={onRemove ? row => BY_HAND.includes(row.type) ? (
-        <button onClick={() => onRemove(row)} className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive" aria-label={t("removeLine")}>
-          <Trash2 className="h-4 w-4" />
-        </button>
-      ) : null : undefined} />
+    <>
+      {lines.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 mb-3">
+          <SearchBox value={q} onChange={setQ} placeholder={t("searchLines")} className="flex-1" />
+          <Select value={type} onChange={e => setType(e.target.value as CashLineType | "")} className="!w-auto" aria-label={t("columns.type")}>
+            <option value="">{t("allTypes")}</option>
+            {LINE_TYPES.map(value => <option key={value} value={value}>{t(`types.${value}`)}</option>)}
+          </Select>
+        </div>
+      )}
+      <DataTable<CashLine> rows={shown} columns={columns} empty={t("noLines")}
+        actions={onRemove ? row => BY_HAND.includes(row.type) ? (
+          <button onClick={() => onRemove(row)} className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive" aria-label={t("removeLine")}>
+            <Trash2 className="h-4 w-4" />
+          </button>
+        ) : null : undefined} />
+    </>
   );
 };
 

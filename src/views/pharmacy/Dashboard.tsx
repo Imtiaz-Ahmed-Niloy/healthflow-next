@@ -8,7 +8,7 @@ import {
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useTranslations } from "next-intl";
 import { usePharmacyCan } from "@/components/pharmacy/ui";
-import { PharmacyLayout } from "@/components/pharmacy/PharmacyLayout";
+import { PharmacyLayout, pharmacyNav } from "@/components/pharmacy/PharmacyLayout";
 import { StateBlock, Tile } from "@/components/pharmacy/ui";
 import { Btn, Card, Pill, SectionTitle } from "@/components/admin/ui";
 import { useFormatters } from "@/lib/appSettings";
@@ -42,7 +42,9 @@ const Body = ({ d }: { d: PharmacyDashboard }) => {
   const { formatCurrency, formatDate, formatDateTime } = useFormatters();
   const money = (value: number) => formatCurrency(Number(value));
   // Takings, profit and the month's totals are a report (0133). The till still sees stock and its own recent sales.
-  const sees = usePharmacyCan()("see_reports");
+  const can = usePharmacyCan();
+  const sees = can("see_reports");
+  const tn = useTranslations("pharmacyNav.links");
   const net =Number(d.month.revenue) - Number(d.month.expenses);
   const trend = d.trend.map(point => ({ ...point, revenue: Number(point.revenue), label: formatDate(point.day, "DD MMM") }));
   const hours = d.hourly.map(point => ({ hour: `${point.hour}:00`, revenue: Number(point.revenue) }));
@@ -217,6 +219,19 @@ const Body = ({ d }: { d: PharmacyDashboard }) => {
           )}
         </Card>
       </div>
+
+      {/* Every screen this login may open, one tap away. */}
+      <Card className="p-5">
+        <SectionTitle title={t("shortcuts")} />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
+          {pharmacyNav.filter(item => item.key !== "dashboard" && (!item.needs || can(item.needs))).map(item => (
+            <Link key={item.to} href={item.to}
+              className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-2.5 text-xs font-semibold text-foreground/80 transition hover:border-primary/50 hover:text-primary">
+              <item.icon className="h-4 w-4 shrink-0" /> <span className="truncate">{tn(item.key)}</span>
+            </Link>
+          ))}
+        </div>
+      </Card>
     </div>
   );
 };

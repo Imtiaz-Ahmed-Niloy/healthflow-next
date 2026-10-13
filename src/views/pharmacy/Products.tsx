@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Download, Upload } from "lucide-react";
+import { ChevronDown, Download, TrendingUp, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { PharmacyLayout } from "@/components/pharmacy/PharmacyLayout";
@@ -12,7 +12,7 @@ import { Chips, Modal, Select, type Column } from "@/components/admin/crud";
 import type { FieldDef } from "@/components/admin/ResourcePage";
 import { useFormatters } from "@/lib/appSettings";
 import { parseCsv, priceOf, unitsOf, type ItemStatus, type PharmacyItem } from "@/lib/pharmacy";
-import { useImportPharmacyItemsMutation, usePosItemsQuery, type ImportResult } from "@/redux/api/pharmacy";
+import { useImportPharmacyItemsMutation, usePharmacyInsightsQuery, usePosItemsQuery, type ImportResult } from "@/redux/api/pharmacy";
 
 const STATUS_TONE: Record<ItemStatus, "ok" | "warn" | "bad"> = { active: "ok", low_stock: "warn", out_of_stock: "bad" };
 const FILTERS = ["all", "active", "low_stock", "out_of_stock"] as const;
@@ -101,6 +101,62 @@ const ImportDialog = ({ open, onClose }: { open: boolean; onClose: () => void })
         </div>
       )}
     </Modal>
+  );
+};
+
+/**
+ * Products priced under what they cost, and the ones making very little.
+ * Closed until asked for: the figures come from the insights function, which
+ * reads every product, and most visits to this page are to edit one.
+ */
+const MarginInsights = () => {
+  const t = useTranslations("pharmacy.products");
+  const { formatCurrency } = useFormatters();
+  const [open, setOpen] = useState(false);
+  const { data, isFetching, refetch } = usePharmacyInsightsQuery(undefined, { skip: !open });
+
+  const flags = data?.data.flags ?? [];
+  const rows = [
+    ...(flags.find(flag => flag.type === "under_cost")?.rows ?? []).map(row => ({ ...row, loss: true })),
+    ...(flags.find(flag => flag.type === "thin_margin")?.rows ?? []).map(row => ({ ...row, loss: false })),
+  ] as { name: string; sku: string | null; price: number; cost: number; margin: number | null; loss: boolean }[];
+
+  return (
+    <div className="mb-4 rounded-2xl border border-border/60 bg-card shadow-soft">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+        <p className="flex items-center gap-2 text-sm font-semibold text-primary"><TrendingUp className="h-4 w-4" /> {t("marginTitle")}</p>
+        <div className="flex items-center gap-2">
+          {open && <Btn variant="outline" onClick={() => refetch()} disabled={isFetching}>{t("marginRefresh")}</Btn>}
+          <Btn variant="outline" onClick={() => setOpen(value => !value)}>
+            {open ? t("marginHide") : t("marginAnalyze")} <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
+          </Btn>
+        </div>
+      </div>
+      {open && (
+        <div className="border-t border-border/50 px-4 py-3">
+          {isFetching && rows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("marginLoading")}</p>
+          ) : rows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("marginAllGood")}</p>
+          ) : (
+            <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {rows.map(row => (
+                <li key={`${row.sku}-${row.name}`} className="rounded-xl bg-muted/40 px-3 py-2 text-sm">
+                  <p className="flex items-center justify-between gap-2">
+                    <span className="truncate font-semibold text-primary">{row.name}</span>
+                    <Pill tone={row.loss ? "bad" : "warn"}>{row.loss ? t("marginLoss") : t("marginThin")}</Pill>
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">
+                    {t("marginLine", { price: formatCurrency(Number(row.price)), cost: formatCurrency(Number(row.cost)) })}
+                    {row.margin != null && ` · ${t("margin", { percent: Number(row.margin).toFixed(0) })}`}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -198,6 +254,16 @@ const Page = () => {
         deleteHint={t("deleteHint")}
         exportName="pharmacy-products"
         canWrite={can("manage_stock")}
+        // The forecast behind the margins is stock work as much as it is a report.
+        above={(can("manage_stock") || can("see_reports")) && <MarginInsights />}
+        sorts={[
+          { value: "name:asc", label: t("sorts.name") },
+          { value: "selling_price:desc", label: t("sorts.priceHigh") },
+          { value: "selling_price:asc", label: t("sorts.priceLow") },
+          { value: "stock:asc", label: t("sorts.stockLow") },
+          { value: "stock:desc", label: t("sorts.stockHigh") },
+          { value: "created_at:desc", label: t("sorts.newest") },
+        ]}
         toolbar={<>
           <Chips value={status} onChange={setStatus} options={FILTERS.map(value => ({ value, label: t(`filters.${value}`) }))} />
           {categories.length > 0 && (

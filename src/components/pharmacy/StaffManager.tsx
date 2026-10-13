@@ -4,7 +4,7 @@ import { ReactNode, useState } from "react";
 import { Copy, KeyRound, Plus, ShieldCheck, UserCheck, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
-import { StateBlock, usePharmacyError } from "@/components/pharmacy/ui";
+import { SearchBox, StateBlock, usePharmacyError } from "@/components/pharmacy/ui";
 import { Btn, Card, Pill, SectionTitle } from "@/components/admin/ui";
 import { ConfirmDialog, DataTable, Field, Input, Modal, Select, type Column } from "@/components/admin/crud";
 import { useSession } from "@/lib/auth/useSession";
@@ -130,7 +130,20 @@ export const StaffManager = ({ title, note }: {
   const [secret, setSecret] = useState<(StaffSecret & { title: string }) | null>(null);
   const [stopping, setStopping] = useState<StaffLogin | null>(null);
 
-  const rows = data?.data ?? [];
+  const [q, setQ] = useState("");
+  const [roleFilter, setRoleFilter] = useState<StaffRole | "">("");
+  const [branchFilter, setBranchFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"" | "active" | "inactive">("");
+
+  const everyone = data?.data ?? [];
+  const needle = q.trim().toLowerCase();
+  const rows = everyone.filter(row =>
+    (!roleFilter || row.staff_role === roleFilter)
+    && (!branchFilter || row.branch_id === branchFilter)
+    && (!statusFilter || row.is_active === (statusFilter === "active"))
+    && (!needle || [row.full_name, row.email, row.phone].some(value => value?.toLowerCase().includes(needle))));
+  // The branches people are actually assigned to, for the filter.
+  const branchOptions = [...new Map(everyone.filter(row => row.branch_id).map(row => [row.branch_id as string, row.branch_name ?? ""])).entries()];
   const pinInvalid = access.pin.length > 0 && access.pin.length !== 4;
 
   const startAdding = () => { setAccess(accessOf(null)); setAdding(true); };
@@ -220,6 +233,26 @@ export const StaffManager = ({ title, note }: {
           <p className="text-sm text-muted-foreground max-w-xl">{t("hint")}</p>
           {!title && <Btn onClick={startAdding}><Plus className="h-4 w-4" /> {t("add")}</Btn>}
         </div>
+        {everyone.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <SearchBox value={q} onChange={setQ} placeholder={t("searchPlaceholder")} className="flex-1" />
+            <Select value={roleFilter} onChange={e => setRoleFilter(e.target.value as StaffRole | "")} className="!w-auto" aria-label={t("role")}>
+              <option value="">{t("allRoles")}</option>
+              {STAFF_ROLES.map(role => <option key={role} value={role}>{tr(role)}</option>)}
+            </Select>
+            {branchOptions.length > 0 && (
+              <Select value={branchFilter} onChange={e => setBranchFilter(e.target.value)} className="!w-auto" aria-label={t("branch")}>
+                <option value="">{t("allBranches")}</option>
+                {branchOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+              </Select>
+            )}
+            <Select value={statusFilter} onChange={e => setStatusFilter(e.target.value as typeof statusFilter)} className="!w-auto" aria-label={t("columns.status")}>
+              <option value="">{t("allStatus")}</option>
+              <option value="active">{t("active")}</option>
+              <option value="inactive">{t("inactive")}</option>
+            </Select>
+          </div>
+        )}
         {isLoading || error ? (
           <StateBlock loading={isLoading} error={error} onRetry={refetch} rows={3} />
         ) : (

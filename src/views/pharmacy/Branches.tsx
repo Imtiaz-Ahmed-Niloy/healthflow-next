@@ -9,7 +9,7 @@ import { StateBlock, usePharmacyError } from "@/components/pharmacy/ui";
 import { Btn, Card, Pill } from "@/components/admin/ui";
 import { ConfirmDialog, Field, Input, Modal, Select, TextArea } from "@/components/admin/crud";
 import type { PharmacyBranch, PharmacyRegister } from "@/lib/pharmacy";
-import { pharmacyBranchesApi, pharmacyRegistersApi } from "@/redux/api/pharmacy";
+import { pharmacyBranchesApi, pharmacyCashShiftsApi, pharmacyRegistersApi } from "@/redux/api/pharmacy";
 
 const STATUS_TONE: Record<PharmacyBranch["status"], "ok" | "warn" | "bad"> = { active: "ok", maintenance: "warn", inactive: "bad" };
 
@@ -137,6 +137,9 @@ const Page = () => {
   const [droppingRegister, setDroppingRegister] = useState<PharmacyRegister | null>(null);
 
   const registers = registersList.data?.data ?? [];
+  // A register is in use while somebody has a drawer open on it: that is its live status.
+  const openShifts = pharmacyCashShiftsApi.useList({ limit: 100, filters: { status: "open" } });
+  const usedBy = new Map((openShifts.data?.data ?? []).filter(shift => shift.register_id).map(shift => [shift.register_id as string, shift.opened_by_name ?? ""]));
   const branches = data?.data ?? [];
 
   const drop = async (action: () => Promise<unknown>) => {
@@ -212,7 +215,9 @@ const Page = () => {
                             <Monitor className="h-4 w-4 shrink-0 text-muted-foreground" />
                             <span className="truncate font-semibold">{till.name}</span>
                             <span className="font-mono text-xs text-muted-foreground">{till.code}</span>
-                            {!till.is_active && <Pill>{t("registerOff")}</Pill>}
+                            {!till.is_active ? <Pill>{t("registerOff")}</Pill>
+                              : usedBy.has(till.id) ? <Pill tone="warn">{t("registerBusy", { name: usedBy.get(till.id) ?? "" })}</Pill>
+                              : <Pill tone="ok">{t("registerFree")}</Pill>}
                           </span>
                           <span className="inline-flex items-center gap-1 shrink-0">
                             <button onClick={() => setRegisterForm({ branchId: branch.id, register: till })} className={iconBtn} title={tc("edit")} aria-label={tc("edit")}><Pencil className="h-3.5 w-3.5" /></button>

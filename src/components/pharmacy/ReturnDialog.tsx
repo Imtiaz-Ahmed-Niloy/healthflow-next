@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ShieldCheck } from "lucide-react";
+import { CheckCircle2, Printer, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { SearchBox, StateBlock, useDebounced, usePharmacyCan, usePharmacyError } from "@/components/pharmacy/ui";
+import { usePharmacyPrint } from "@/components/pharmacy/usePharmacyPrint";
 import { Btn, Pill } from "@/components/admin/ui";
 import { Field, Input, Modal, Select, TextArea } from "@/components/admin/crud";
 import { useFormatters } from "@/lib/appSettings";
-import { RETURN_CONDITIONS, asSold, type PharmacySale, type ReturnCondition } from "@/lib/pharmacy";
+import { RETURN_CONDITIONS, asSold, type PharmacySale, type ReturnCondition, type SaleReturn } from "@/lib/pharmacy";
 import { pharmacySalesApi, useSaleActionMutation } from "@/redux/api/pharmacy";
 
 const RETURN_REASONS = ["changed_mind", "wrong_item", "damaged", "expired", "doctor_changed", "other"] as const;
@@ -37,13 +38,38 @@ export const ReturnDialog = ({ sale, onClose }: { sale: PharmacySale | null; onC
   const [method, setMethod] = useState<RefundMethod>("cash");
   const [notes, setNotes] = useState("");
   const [pin, setPin] = useState("");
+  // Once saved: the sale as it now stands and the return just made, for the voucher.
+  const [saved, setSaved] = useState<{ sale: PharmacySale; entry: SaleReturn } | null>(null);
   const [act, { isLoading }] = useSaleActionMutation();
+  const { printReturn } = usePharmacyPrint();
 
   useEffect(() => {
-    setQuantities({}); setConditions({}); setReason("changed_mind"); setOther(""); setMethod("cash"); setNotes(""); setPin("");
+    setQuantities({}); setConditions({}); setReason("changed_mind"); setOther(""); setMethod("cash"); setNotes(""); setPin(""); setSaved(null);
   }, [sale?.id]);
 
   if (!sale) return null;
+
+  if (saved) {
+    return (
+      <Modal open onClose={onClose} title={t("returnDone")} size="sm"
+        footer={<>
+          <Btn variant="outline" onClick={onClose}>{tc("close")}</Btn>
+          <Btn onClick={() => printReturn(saved.sale, saved.entry)}><Printer className="h-4 w-4" /> {t("printVoucher")}</Btn>
+        </>}>
+        <div className="text-center">
+          <CheckCircle2 className="h-10 w-10 text-emerald-600 mx-auto" />
+          {saved.entry.return_number && <p className="mt-3 font-mono text-sm font-bold text-primary">{saved.entry.return_number}</p>}
+          <p className="mt-1 font-display text-2xl text-primary tabular-nums">{formatCurrency(Number(saved.entry.refund_amount))}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {saved.entry.refund_method === "credit"
+              ? t("keptAsCredit", { amount: formatCurrency(Number(saved.entry.paid_back)) })
+              : t("paidBack", { amount: formatCurrency(Number(saved.entry.paid_back)) })}
+            {saved.entry.approved_by_name && ` · ${t("approvedBy", { name: saved.entry.approved_by_name })}`}
+          </p>
+        </div>
+      </Modal>
+    );
+  }
 
   const needsPin = !can("approve_returns");
   const goods = sale.items.reduce((sum, item) => sum + (quantities[item.id] ?? 0) * Number(item.unit_price), 0);
@@ -55,7 +81,7 @@ export const ReturnDialog = ({ sale, onClose }: { sale: PharmacySale | null; onC
 
   const submit = async () => {
     try {
-      await act({
+      const answer = await act({
         id: sale.id,
         body: {
           action: "return",
@@ -69,7 +95,10 @@ export const ReturnDialog = ({ sale, onClose }: { sale: PharmacySale | null; onC
         },
       }).unwrap();
       toast.success(t("returnDone"));
-      onClose();
+      // The newest return on the sale is the one just made. Show it, so the voucher can be printed.
+      const entry = [...answer.data.returns].sort((a, b) => b.returned_at.localeCompare(a.returned_at))[0];
+      if (entry) setSaved({ sale: answer.data, entry });
+      else onClose();
     } catch (cause) {
       setPin("");
       toast.error(describe(cause));

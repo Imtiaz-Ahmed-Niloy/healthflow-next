@@ -3,15 +3,17 @@
     "panel": "PHARMACY",
     "backToAdmin": "Back to admin panel",
     "signInRequired": "Please sign in",
+    "commandPlaceholder": "Type where you want to go…", "commandEmpty": "Nothing matches.", "commandHint": "Jump to any screen", "profile": "Your profile",
     "noAccessTitle": "This screen is not open to you",
     "noAccessBody": "Ask a pharmacy manager or the hospital admin if you need it.",
-    "groups": { "overview": "Overview", "sell": "Point of sale", "stock": "Inventory", "buying": "Purchasing", "money": "Finance", "administration": "Administration" },
+    "groups": { "overview": "Overview", "sell": "Point of sale", "stock": "Inventory", "buying": "Purchasing", "money": "Finance", "ai": "AI", "administration": "Administration" },
     "links": {
       "dashboard": "Dashboard", "pos": "Point of Sale", "sales": "Sales History", "cashDrawer": "Cash Drawer",
       "products": "Products", "stock": "Stock", "stockAlerts": "Stock Alerts",
       "purchases": "Purchase Orders", "suppliers": "Suppliers",
       "expenses": "Expenses", "reports": "Reports", "customers": "Customers & Loyalty", "insights": "Insights",
-      "staff": "Staff & Roles", "branches": "Branches & Registers", "audit": "Audit Log",
+      "staff": "Staff & Roles", "branches": "Branches & Registers", "audit": "Audit Log", "notifications": "Notifications",
+      "ai": "AI Analytics", "aiAssistant": "AI Assistant", "aiSettings": "AI Settings",
       "settings": "Settings"
     },
     "staffRoles": { "manager": "Pharmacy manager", "pharmacist": "Pharmacist", "cashier": "Cashier", "stock_keeper": "Stock keeper" }
@@ -29,7 +31,9 @@
       "pageOf": "Page {page} of {total}", "records": "{count} records", "previous": "Previous", "next": "Next",
       "nothing": "Nothing here yet.", "confirmDelete": "Delete this?", "cannotUndo": "This cannot be undone.",
       "saved": "Saved", "deleted": "Deleted", "name": "Name", "phone": "Phone", "email": "Email", "address": "Address",
-      "notes": "Notes", "active": "Active", "inactive": "Inactive", "by": "By", "when": "When"
+      "notes": "Notes", "active": "Active", "inactive": "Inactive", "by": "By", "when": "When",
+      "perPage": "Per page:", "sortBy": "Sort by:", "excel": "Excel", "printReport": "Print Report", "copied": "Copied",
+      "popupBlocked": "The print window was blocked. Allow pop-ups for this site and try again."
     },
     "errors": {
       "generic": "Something went wrong. Please try again.",
@@ -100,7 +104,71 @@
       "branch_not_found": "That branch could not be found.",
       "own_access": "You cannot take this away from yourself.",
       "bad_pin_format": "A PIN is four digits.",
-      "tiers_out_of_order": "Each loyalty tier has to start higher than the one before it."
+      "tiers_out_of_order": "Each loyalty tier has to start higher than the one before it.",
+      "ai_not_configured": "The AI features are not set up on this server yet.",
+      "ai_feature_off": "This AI feature is switched off in AI Settings.",
+      "ai_no_answer": "The AI could not answer that. Try asking another way.",
+      "ai_busy": "The AI is busy. Try again in a moment.",
+      "ai_unavailable": "The AI could not be reached. Try again shortly."
+    },
+    "ai": {
+      "title": "AI Analytics", "subtitle": "What your own numbers suggest doing next",
+      "run": "Run analysis", "goToSettings": "AI Settings",
+      "tabs": { "predictions": "Inventory Predictions", "expiry": "Expiry Management" },
+      "predictionsHint": "From what sold in the last 30 days.", "expiryHint": "First to expire, first out.",
+      "featureOff": "This is switched off in AI Settings.",
+      "noPredictions": "No stock or sales to predict from yet.", "noExpiry": "No batch is expired or close to its date.",
+      "cols": { "product": "Product", "stock": "In stock", "daily": "Sold per day", "daysLeft": "Days left", "action": "Suggested action" },
+      "reorder": "Reorder +{count} units", "optimal": "Stock optimal ({days}d)", "noDemand": "Not selling",
+      "expiryLine": "{count} on the shelf · expires {date} · {shelf}", "expiredAgo": "expired {days} days ago", "daysLeft": "{days} days left",
+      "actions": { "remove": "Take off the shelf and write off", "markdown": "Sell first, consider a 15% markdown", "front": "Move to the front of the shelf" },
+      "featuresTitle": "Available AI features",
+      "states": { "on": "On", "off": "Off", "needsKey": "Needs server key", "soon": "Coming soon" },
+      "features": {
+        "assistant": { "title": "AI Assistant", "body": "Ask about sales, stock and profit in plain words." },
+        "interactions": { "title": "Drug Interaction Checker", "body": "Checks the medicines in an order against each other at the till." },
+        "predictions": { "title": "Inventory Predictions", "body": "How long stock will last and how much to reorder." },
+        "expiry": { "title": "Smart Expiry Management", "body": "Which batches to sell first, mark down or remove." },
+        "substitution": { "title": "Medication Substitution", "body": "Other brands of the same generic, one click from any product at the till." },
+        "search": { "title": "AI Product Search", "body": "Find a medicine by describing what it is for." },
+        "prescription": { "title": "Prescription Processing", "body": "Read a prescription photo into an order." }
+      },
+      "honesty": "Predictions and the expiry plan are worked out from your own sales and batches and need no AI key. The assistant and the interaction checker send data to an AI model."
+    },
+    "assistant": {
+      "title": "AI Assistant", "subtitle": "Ask anything about your pharmacy data", "clear": "Clear Chat",
+      "notConfigured": "The AI key is not set up on the server yet, so the assistant cannot answer.",
+      "switchedOff": "The assistant is switched off.", "openSettings": "Open AI Settings",
+      "emptyTitle": "How can I help?", "emptyHint": "I can see today's figures, the last 30 days, the stock forecast and the stock alerts.",
+      "suggested": "Suggested questions",
+      "questions": {
+        "today": "How are sales today compared with yesterday?", "topSellers": "What are my top selling products this month?",
+        "lowStock": "Which products are running low?", "expiring": "What is expiring soon?",
+        "profit": "What was my gross profit in the last 30 days?", "reorder": "What should I reorder this week?"
+      },
+      "thinking": "Thinking…", "placeholder": "Ask about sales, stock, profit…", "send": "Send",
+      "disclaimer": "Answers come from an AI model reading your pharmacy's totals. Check important figures on the Reports screen. The chat is not saved."
+    },
+    "aiSettings": {
+      "title": "AI Configuration", "subtitle": "Which AI features are on, and how they behave", "saved": "AI settings saved", "save": "Save Settings",
+      "keyTitle": "AI key", "keyReady": "A key is set up on the server.", "keyMissing": "No key is set up on the server yet.",
+      "keyWhy": "The assistant and the interaction checker use Claude, from Anthropic. The key is kept on the server, not typed here, so that nobody signed in to the pharmacy can read it.",
+      "steps": {
+        "one": "Create an API key at console.anthropic.com.",
+        "two": "Add it to the server's environment as",
+        "three": "Restart or redeploy the app. This page then shows the key as set up."
+      },
+      "keyNote": "Using the key is billed by Anthropic to whoever owns it.",
+      "featuresTitle": "AI features",
+      "features": {
+        "ai_assistant": { "title": "AI Assistant", "body": "A chat that answers questions from the pharmacy's totals." },
+        "ai_interactions": { "title": "Drug Interaction Checker", "body": "A button at the till that checks an order's medicines against each other." },
+        "ai_predictions": { "title": "Inventory Predictions", "body": "Reorder suggestions on the AI Analytics screen." },
+        "ai_expiry": { "title": "Smart Expiry Management", "body": "The sell-first plan on the AI Analytics screen." }
+      },
+      "sendsData": "Sends data to the AI model when used.",
+      "advancedTitle": "Advanced", "level": "Show interactions from", "levelHint": "Milder interactions than this are counted but not listed.",
+      "levels": { "minor": "Minor: show all", "moderate": "Moderate and above", "major": "Major and severe only", "severe": "Severe only" }
     },
     "methods": { "cash": "Cash", "card": "Card", "mobile": "Mobile banking", "credit": "On account", "other": "Other", "split": "Split", "store_credit": "Store credit" },
     "units": { "unit": "Piece", "strip": "Strip", "box": "Box" },
@@ -122,7 +190,28 @@
       "trendTitle": "Sales, last 14 days", "paymentMix": "How people paid today", "noSalesToday": "No sales yet today.",
       "hourly": "Today by hour", "topSellers": "Top sellers, last 7 days", "recentSales": "Recent sales", "stockWatch": "Needs attention",
       "viewAll": "View all", "qty": "Qty", "revenue": "Sales", "stockLeft": "{count} left · reorder at {reorder}", "expires": "Expires {date}",
-      "noTopSellers": "Nothing sold in the last 7 days.", "noRecent": "No sales yet.", "allGood": "Stock and expiry dates look fine."
+      "noTopSellers": "Nothing sold in the last 7 days.", "noRecent": "No sales yet.", "allGood": "Stock and expiry dates look fine.",
+      "shortcuts": "Shortcuts"
+    },
+    "notifications": {
+      "title": "Notifications", "subtitle": "Stock alerts that need somebody to act",
+      "scanNow": "Scan now", "markAllRead": "Mark all read", "all": "All", "unread": "Unread ({count})", "count": "{count} alerts",
+      "noneTitle": "Nothing to act on", "noneFiltered": "Nothing matches this filter.", "noneHint": "Stock levels and expiry dates all look fine.",
+      "unreadDot": "Unread",
+      "hint": "These come from the stock right now, so a product that is restocked drops off the list. Read marks are kept on this computer.",
+      "body": {
+        "out_of_stock": "None left to sell. Order more or receive a delivery.",
+        "low_stock": "{count} left, at or under the reorder level of {reorder}.",
+        "expired": "Batch {batch}: {count} on the shelf, expired on {date}. Take it off and write it off.",
+        "expiring_soon": "Batch {batch}: {count} on the shelf, {days} days left."
+      }
+    },
+    "profile": {
+      "title": "Your Profile", "subtitle": "Your own details and password",
+      "details": "Your details", "saved": "Profile saved", "emailHint": "This is what you sign in with. Ask an administrator to change it.",
+      "access": "Your access", "since": "Login since", "accessHint": "A pharmacy manager or the hospital admin decides what you may do.",
+      "password": "Password", "newPassword": "New password", "repeatPassword": "New password again", "changePassword": "Change password",
+      "mismatch": "The two passwords do not match.", "tooShort": "Use at least 8 characters.", "passwordChanged": "Password changed"
     },
     "pos": {
       "title": "Point of Sale", "subtitle": "Ring up a sale",
@@ -167,6 +256,10 @@
       "creditAccount": "Customer account", "creditNote": "The sale will be recorded on this customer's account.",
       "otherRef": "Reference note:", "otherRefPlaceholder": "Cheque / Voucher / Note",
       "pointsDiscount": "Points discount ({count} pts):", "saleCompleted": "Sale completed! ({amount})", "viewInvoice": "View / Print Invoice",
+      "checkInteractions": "Check drug interactions", "checkingInteractions": "Checking…", "interactionsTitle": "Drug interaction check",
+      "levels": { "minor": "Minor", "moderate": "Moderate", "major": "Major", "severe": "Severe" },
+      "interactionsHidden": "{count} milder interactions are not shown. Change the level in AI Settings.",
+      "interactionsNote": "This is advice from an AI model, not a rule. The pharmacist's judgement and the prescription decide.",
       "heldFooter": "{count} suspended order(s)", "noHeld": "No orders on hold.", "linesCount": "{count} lines", "discardHeld": "Discard this held order"
     },
     "sales": {
@@ -197,6 +290,8 @@
       "pointsUsed": "{count} points used", "pointsEarned": "{count} loyalty points earned",
       "keptAsCredit": "{amount} kept as store credit", "approvedBy": "approved by {name}", "pointsTakenBack": "{count} points taken back",
       "collectTitle": "Take payment · {invoice}", "amountDue": "Amount due", "paidBy": "Paid by", "confirmPayment": "Save payment", "paymentDone": "Payment saved",
+      "copyInvoice": "Copy invoice number", "printVoucher": "Print return voucher",
+      "sorts": { "newest": "Newest first", "oldest": "Oldest first", "highest": "Highest amount", "lowest": "Lowest amount" },
       "noSales": "No sales in this period."
     },
     "drawer": {
@@ -215,7 +310,8 @@
       "confirmClose": "Close drawer", "closedDone": "Drawer closed", "opened": "Drawer opened",
       "history": { "opened": "Opened", "closed": "Closed", "opening": "Opening", "expected": "Expected", "counted": "Counted", "difference": "Difference", "stillOpen": "Open" },
       "printSlip": "Print slip", "closeFor": "Close this drawer", "noHistory": "No drawers yet.", "viewLines": "View lines",
-      "register": "Register", "noRegister": "No register"
+      "register": "Register", "noRegister": "No register",
+      "quick": "Quick:", "commonExpenses": "Common expenses:", "searchLines": "Search transactions", "allTypes": "All types"
     },
     "products": {
       "title": "Products", "subtitle": "What the pharmacy sells", "add": "Add product", "import": "Import CSV",
@@ -234,6 +330,10 @@
       "newTitle": "Add product", "editTitle": "Edit product",
       "stockHint": "Prices, cost and stock are for one piece (one tablet, one bottle). Leave a strip or box price blank to charge its pieces added up. Stock comes from purchase orders and Add stock.",
       "deleteHint": "A product with stock or sales cannot be deleted. Switch it off sale instead.",
+      "marginTitle": "Margin Insights", "marginAnalyze": "Analyze Margins", "marginHide": "Hide", "marginRefresh": "Refresh",
+      "marginLoading": "Working it out…", "marginAllGood": "No product is priced under its cost or making under 10%.",
+      "marginLoss": "Under cost", "marginThin": "Thin margin", "marginLine": "Price {price} · Cost {cost}",
+      "sorts": { "name": "Name", "priceHigh": "Price, high to low", "priceLow": "Price, low to high", "stockLow": "Stock, low to high", "stockHigh": "Stock, high to low", "newest": "Newest" },
       "importTitle": "Import products from CSV",
       "importHint": "Columns: name, sku, generic_name, category, manufacturer, selling_price, cost_price, reorder, requires_prescription. A SKU you already have is skipped.",
       "downloadTemplate": "Download template", "chooseFile": "Choose a CSV file", "rowsReady": "{count} rows ready",
@@ -251,6 +351,11 @@
       "adjust": "Adjust", "editBatch": "Edit details", "history": "History",
       "addTitle": "Add stock", "addHint": "For stock that did not come through a purchase order.", "pickProduct": "Search a product",
       "batchNumber": "Batch number", "expiryDate": "Expiry date", "unitCost": "Unit cost",
+      "sorts": {
+        "received_at_desc": "Newest received", "item_name_asc": "Product name", "quantity_asc": "Quantity, low to high",
+        "quantity_desc": "Quantity, high to low", "expiry_date_asc": "Expiry, soonest first", "location_asc": "Shelf"
+      },
+      "removeBatch": "Remove this empty batch", "removeBatchHint": "It has no stock left. Its history stays on the stock ledger.",
       "countedIn": "Counted in", "countedHint": "Each holds {count} pieces. Stock and unit cost are kept per piece.",
       "adjustTitle": "Adjust stock · {name}", "recorded": "Recorded now", "counted": "Counted on the shelf", "reason": "Why",
       "reasons": { "adjustment": "Recount or correction", "damaged": "Damaged", "expired": "Expired", "lost": "Lost or stolen" },
@@ -264,6 +369,7 @@
       "title": "Stock Alerts", "subtitle": "What to reorder and what to take off the shelf",
       "kinds": { "all": "All", "out_of_stock": "Out of stock", "low_stock": "Low stock", "expiring_soon": "Expiring soon", "expired": "Expired" },
       "columns": { "product": "Product", "sku": "SKU", "quantity": "Quantity", "reorder": "Reorder level", "batch": "Batch", "expiry": "Expiry", "shelf": "Shelf", "alert": "Alert" },
+      "searchPlaceholder": "Search alerts", "noMatch": "No alerts match.",
       "allGood": "Nothing needs attention.", "allGoodHint": "Stock levels and expiry dates all look fine.",
       "orderMore": "Go to purchase orders", "goToStock": "Go to stock",
       "windowHint": "Expiring soon means within {days} days. You can change that in Settings."
@@ -305,6 +411,7 @@
       "columns": { "date": "Date", "category": "Category", "description": "Description", "amount": "Amount", "by": "Entered by" },
       "fromDrawer": "From cash drawer",
       "categoriesTitle": "Expense categories", "newCategory": "New category", "categoriesSaved": "Categories saved",
+      "sorts": { "newest": "Newest first", "oldest": "Oldest first", "highest": "Highest amount", "lowest": "Lowest amount" },
       "noExpenses": "No expenses in this period."
     },
     "reports": {
@@ -342,7 +449,11 @@
         "earned": "Earned", "redeemed": "Used", "bonus": "Bonus", "adjusted": "Corrected", "reversed": "Taken back", "restored": "Given back",
         "credit_added": "Credit added", "credit_used": "Credit used"
       },
-      "pointsDelta": "{count} pts"
+      "pointsDelta": "{count} pts",
+      "award": "Award points", "redeem": "Redeem points", "awardTitle": "Award points · {name}", "redeemTitle": "Redeem points · {name}",
+      "pointsNow": "{count} points now", "purchaseAmount": "Purchase amount", "purchaseAmountHint": "Optional. Fills in the points a sale of this size earns.",
+      "redeemWorth": "Worth {amount}", "awardReason": "Points awarded by hand", "redeemReason": "Points redeemed at the counter",
+      "sorts": { "newest": "Newest", "name": "Name", "points": "Most points", "spent": "Spent the most", "owes": "Owes the most" }
     },
     "staff": {
       "title": "Staff & Roles", "subtitle": "Who signs in to the pharmacy, and what each may do", "add": "Add staff",
@@ -374,7 +485,8 @@
       "reset": "Reset password", "deactivate": "Deactivate", "activate": "Reactivate", "editAccess": "Role and access",
       "deactivated": "Login deactivated", "activated": "Login reactivated", "inactive": "Deactivated", "active": "Active",
       "deactivateConfirm": "Deactivate {name}?",
-      "deactivateHint": "They are signed out everywhere and cannot sign in again until they are reactivated."
+      "deactivateHint": "They are signed out everywhere and cannot sign in again until they are reactivated.",
+      "searchPlaceholder": "Search name, email or phone", "allRoles": "All roles", "allBranches": "All branches", "allStatus": "All status"
     },
     "branches": {
       "title": "Branches & Registers", "subtitle": "The pharmacy's counters and the tills at each", "add": "Add branch",
@@ -387,6 +499,7 @@
       },
       "registers": "Registers", "noRegisters": "No registers yet.", "addRegister": "Add register", "editRegister": "Edit register",
       "registerName": "Register name", "registerCode": "Code", "registerActive": "In use", "registerOff": "Not in use",
+      "registerBusy": "Open · {name}", "registerFree": "Free",
       "deleteBranch": "Delete this branch?", "deleteBranchHint": "Its registers go with it. Sales already made keep their history.",
       "deleteRegister": "Delete this register?", "saved": "Saved", "deleted": "Deleted",
       "mainTaken": "There is already a main branch. Untick it there first.", "codeTaken": "That code is already used."
@@ -395,7 +508,9 @@
       "title": "Audit Log", "subtitle": "Who changed what in the pharmacy",
       "searchPlaceholder": "Search by person or email", "allTables": "Everything", "allActions": "All actions",
       "actions": { "insert": "Added", "update": "Changed", "delete": "Removed" },
-      "columns": { "when": "When", "who": "Who", "what": "What", "action": "Action", "record": "Record", "changed": "Fields changed" },
+      "columns": { "when": "When", "who": "Who", "what": "What", "action": "Action", "record": "Record", "changed": "Fields changed", "severity": "Severity" },
+      "severity": { "high": "High", "medium": "Medium", "low": "Low" },
+      "inspect": "Inspect", "inspectTitle": "Audit entry", "entryNo": "Entry number",
       "tables": {
         "pharmacy_sales": "Sale", "pharmacy_sale_returns": "Return", "pharmacy_sale_payments": "Payment on a sale", "pharmacy_items": "Product",
         "pharmacy_batches": "Stock batch", "pharmacy_suppliers": "Supplier", "pharmacy_customers": "Customer", "pharmacy_purchase_orders": "Purchase order",
@@ -459,6 +574,8 @@
       "paid": "Paid", "change": "Change", "refunded": "Refunded", "balance": "Balance due", "paidBy": "Paid by",
       "thanks": "Thank you.", "licence": "Licence: {number}", "taxId": "BIN: {number}", "returned": "returned {count}",
       "pointsUsed": "{count} loyalty points used", "pointsEarned": "{count} loyalty points earned on this sale",
+      "returnTitle": "Return voucher", "returnNo": "Return no.", "approvedBy": "Approved by", "refundTotal": "Refund",
+      "keptAsCredit": "Kept as store credit", "paidBack": "Paid back", "reason": "Reason",
       "processReturn": "Process Return", "copyNumber": "Copy invoice number", "salesInvoice": "Sales Invoice", "thermalSlip": "Thermal Slip",
       "poTitle": "Purchase order", "supplier": "Supplier", "orderDate": "Order date", "expected": "Expected by",
       "ordered": "Ordered", "received": "Received", "unitCost": "Unit cost", "notes": "Notes",

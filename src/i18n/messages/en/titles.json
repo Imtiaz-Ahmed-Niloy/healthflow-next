@@ -107,6 +107,11 @@
     "pharmacySettings": "Pharmacy Settings",
     "pharmacyStaff": "Pharmacy Staff & Roles",
     "pharmacyBranches": "Branches & Registers",
-    "pharmacyAudit": "Pharmacy Audit Log"
+    "pharmacyAudit": "Pharmacy Audit Log",
+    "pharmacyNotifications": "Pharmacy Notifications",
+    "pharmacyProfile": "Your Profile",
+    "pharmacyAi": "AI Analytics",
+    "pharmacyAiAssistant": "AI Assistant",
+    "pharmacyAiSettings": "AI Settings"
   }
 }

@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download } from "lucide-react";
+import { Download, Eye, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { PharmacyLayout } from "@/components/pharmacy/PharmacyLayout";
-import { Pager, SearchBox, StateBlock, useDebounced, usePharmacyError } from "@/components/pharmacy/ui";
+import { Pager, SearchBox, StateBlock, printTable, useDebounced, usePharmacyError } from "@/components/pharmacy/ui";
 import { Btn, Card, Pill } from "@/components/admin/ui";
-import { Chips, Select, exportCSV } from "@/components/admin/crud";
+import { Chips, Modal, Select, exportCSV } from "@/components/admin/crud";
 import { DateInput } from "@/components/ui/date-input";
 import { useBookingClock, useFormatters } from "@/lib/appSettings";
 import { shiftDay, type AuditRow } from "@/lib/pharmacy";
@@ -20,6 +20,21 @@ const TABLES = [
   "pharmacy_customers", "pharmacy_staff", "pharmacy_branches", "pharmacy_registers", "pharmacy_settings",
 ] as const;
 type Table = (typeof TABLES)[number];
+
+type Severity = "high" | "medium" | "low";
+const SEVERITY_TONE: Record<Severity, "bad" | "warn" | "default"> = { high: "bad", medium: "warn", low: "default" };
+const SENSITIVE = ["pharmacy_staff", "pharmacy_settings", "pharmacy_branches", "pharmacy_registers"];
+const WATCHED = ["pharmacy_batches", "pharmacy_items", "pharmacy_cash_shifts", "pharmacy_cash_transactions", "pharmacy_expenses", "pharmacy_sale_returns"];
+
+/**
+ * How closely an entry deserves a look. Worked out here from what it is, not
+ * stored: anything removed, or a change to who may do what, is high; stock,
+ * cash and returns are medium; the day's ordinary sales are low.
+ */
+const severityOf = (row: AuditRow): Severity =>
+  row.action === "delete" || SENSITIVE.includes(row.table_name) ? "high"
+  : WATCHED.includes(row.table_name) ? "medium"
+  : "low";
 
 const ACTIONS = ["all", "insert", "update", "delete"] as const;
 const ACTION_TONE: Record<AuditRow["action"], "ok" | "info" | "bad"> = { insert: "ok", update: "info", delete: "bad" };
@@ -37,6 +52,7 @@ const Page = () => {
   const [table, setTable] = useState("");
   const [action, setAction] = useState<(typeof ACTIONS)[number]>("all");
   const [page, setPage] = useState(1);
+  const [inspecting, setInspecting] = useState<AuditRow | null>(null);
   const search = useDebounced(q);
 
   useEffect(() => { setPage(1); }, [search, from, to, table, action]);
@@ -50,7 +66,7 @@ const Page = () => {
   const who = (row: AuditRow) => row.actor_name ?? row.actor_email ?? t("system");
 
   // Everything that matches, not only this page: read two hundred at a time.
-  const download = async () => {
+  const download = async (kind: "csv" | "print" = "csv") => {
     try {
       const all: AuditRow[] = [];
       for (let next = 1; next <= 25; next += 1) {
@@ -61,6 +77,16 @@ const Page = () => {
         if (!response.ok) throw { data: body };
         all.push(...(body.data as AuditRow[]));
         if (next >= body.meta.totalPages) break;
+      }
+      if (kind === "print") {
+        const printed = printTable(t("title"), `${from} – ${to} · ${tc("records", { count: all.length })}`, all.map(row => ({
+          [t("columns.when")]: formatDateTime(row.occurred_at), [t("columns.who")]: who(row),
+          [t("columns.severity")]: t(`severity.${severityOf(row)}`), [t("columns.action")]: t(`actions.${row.action}`),
+          [t("columns.what")]: tableName(row.table_name), [t("columns.record")]: row.label ?? "",
+          [t("columns.changed")]: row.changed_fields.join(", "),
+        })));
+        if (!printed) toast.error(tc("popupBlocked"));
+        return;
       }
       exportCSV(all.map(row => ({
         when: row.occurred_at, who: who(row), email: row.actor_email ?? "", what: tableName(row.table_name),
@@ -80,7 +106,8 @@ const Page = () => {
             <option value="">{t("allTables")}</option>
             {TABLES.map(name => <option key={name} value={name}>{t(`tables.${name}`)}</option>)}
           </Select>
-          <Btn variant="outline" onClick={download} disabled={rows.length === 0}><Download className="h-4 w-4" /> {tc("exportCsv")}</Btn>
+          <Btn variant="outline" onClick={() => download("print")} disabled={rows.length === 0}><Printer className="h-4 w-4" /> {tc("printReport")}</Btn>
+          <Btn variant="outline" onClick={() => download("csv")} disabled={rows.length === 0}><Download className="h-4 w-4" /> {tc("exportCsv")}</Btn>
         </div>
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <DateInput value={from} onChange={setFrom} max={to || today} aria-label={tc("from")} wrapperClassName="w-40" showClear={false} />
@@ -98,10 +125,12 @@ const Page = () => {
                 <tr>
                   <th className="py-2 pr-3">{t("columns.when").toUpperCase()}</th>
                   <th className="py-2 px-3">{t("columns.who").toUpperCase()}</th>
+                  <th className="py-2 px-3">{t("columns.severity").toUpperCase()}</th>
                   <th className="py-2 px-3">{t("columns.action").toUpperCase()}</th>
                   <th className="py-2 px-3">{t("columns.what").toUpperCase()}</th>
                   <th className="py-2 px-3">{t("columns.record").toUpperCase()}</th>
                   <th className="py-2 pl-3">{t("columns.changed").toUpperCase()}</th>
+                  <th className="py-2 pl-3" />
                 </tr>
               </thead>
               <tbody>
@@ -112,12 +141,17 @@ const Page = () => {
                       <p className="font-semibold text-primary">{who(row)}</p>
                       {row.actor_name && row.actor_email && <p className="text-[11px] text-muted-foreground">{row.actor_email}</p>}
                     </td>
+                    <td className="py-2.5 px-3"><Pill tone={SEVERITY_TONE[severityOf(row)]}>{t(`severity.${severityOf(row)}`)}</Pill></td>
                     <td className="py-2.5 px-3"><Pill tone={ACTION_TONE[row.action]}>{t(`actions.${row.action}`)}</Pill></td>
                     <td className="py-2.5 px-3">{tableName(row.table_name)}</td>
                     <td className="py-2.5 px-3">
                       {row.label ?? <span className="text-muted-foreground">{row.action === "delete" || !row.record_id ? "—" : t("deletedRecord")}</span>}
                     </td>
                     <td className="py-2.5 pl-3 text-xs text-muted-foreground">{row.changed_fields.join(", ") || "—"}</td>
+                    <td className="py-2.5 pl-3 text-right">
+                      <button type="button" onClick={() => setInspecting(row)} title={t("inspect")} aria-label={t("inspect")}
+                        className="p-1.5 rounded-lg hover:bg-muted text-foreground/70"><Eye className="h-4 w-4" /></button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -127,6 +161,25 @@ const Page = () => {
         {data?.meta && <Pager page={data.meta.page} totalPages={data.meta.totalPages} total={data.meta.total} onPage={setPage} />}
         <p className="text-[11px] text-muted-foreground mt-4">{t("hint")}</p>
       </Card>
+
+      <Modal open={inspecting !== null} onClose={() => setInspecting(null)} title={t("inspectTitle")} size="md">
+        {inspecting && (
+          <dl className="grid grid-cols-[140px_1fr] gap-x-4 gap-y-2.5 text-sm">
+            <dt className="text-muted-foreground">{t("columns.when")}</dt><dd>{formatDateTime(inspecting.occurred_at)}</dd>
+            <dt className="text-muted-foreground">{t("columns.severity")}</dt>
+            <dd><Pill tone={SEVERITY_TONE[severityOf(inspecting)]}>{t(`severity.${severityOf(inspecting)}`)}</Pill></dd>
+            <dt className="text-muted-foreground">{t("columns.who")}</dt>
+            <dd>{who(inspecting)}{inspecting.actor_email && inspecting.actor_name ? ` · ${inspecting.actor_email}` : ""}</dd>
+            <dt className="text-muted-foreground">{t("columns.action")}</dt>
+            <dd><Pill tone={ACTION_TONE[inspecting.action]}>{t(`actions.${inspecting.action}`)}</Pill></dd>
+            <dt className="text-muted-foreground">{t("columns.what")}</dt><dd>{tableName(inspecting.table_name)}</dd>
+            <dt className="text-muted-foreground">{t("columns.record")}</dt><dd>{inspecting.label ?? t("deletedRecord")}</dd>
+            <dt className="text-muted-foreground">{t("columns.changed")}</dt><dd>{inspecting.changed_fields.join(", ") || "—"}</dd>
+            <dt className="text-muted-foreground">{t("entryNo")}</dt><dd className="font-mono text-xs">#{inspecting.id}</dd>
+          </dl>
+        )}
+        <p className="text-[11px] text-muted-foreground mt-4">{t("hint")}</p>
+      </Modal>
     </PharmacyLayout>
   );
 };
