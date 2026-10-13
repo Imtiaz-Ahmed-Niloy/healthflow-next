@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useLocale, useTranslations } from "next-intl";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { AddScheduleBlockDialog, type BlockClash, type BlockPlace } from "@/components/portal/AddScheduleBlockDialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { displayTime } from "@/lib/availability";
 import { blockCoversDate, type ScheduleBlock } from "@/lib/scheduleBlocks";
 
@@ -238,8 +239,26 @@ const Schedule = () => {
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center py-32">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        // The shape of what is coming, so the page does not jump when it lands.
+        <div className={`grid grid-cols-1 gap-6 mt-8 ${view === "split" ? "lg:grid-cols-[400px_1fr]" : ""}`} aria-busy="true">
+          <div className="rounded-3xl bg-card border border-border/60 p-6 shadow-soft">
+            <Skeleton className="h-7 w-40" />
+            <Skeleton className="mt-2 h-3 w-28" />
+            <div className="mt-6 space-y-3">
+              {[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full rounded-2xl" />)}
+            </div>
+          </div>
+          {view === "split" && (
+            <div className="rounded-3xl bg-card border border-border/60 p-6 shadow-soft">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-8 w-48" />
+                <Skeleton className="h-9 w-40 rounded-full" />
+              </div>
+              <div className="mt-6 grid grid-cols-7 gap-2 rounded-2xl bg-muted/30 p-4 border border-border/40">
+                {Array.from({ length: 35 }, (_, i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
+              </div>
+            </div>
+          )}
         </div>
       ) : view === "split" ? (
         <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6 mt-8">
