@@ -1218,35 +1218,47 @@
       }
     },
     "pharmacy": {
-      "title": "Pharmacy Management",
-      "subtitle": "Inventory, restock & dispensing",
-      "categories": {
-        "analgesic": "Analgesic",
-        "antibiotic": "Antibiotic",
-        "endocrine": "Endocrine",
-        "cardio": "Cardio",
-        "vitamins": "Vitamins"
+      "title": "Pharmacy",
+      "subtitle": "The pharmacy panel, and who can sign in to it",
+      "openPanel": "Open pharmacy panel",
+      "panelHint": "Sales, stock, purchase orders and the cash drawer are in the pharmacy's own panel. You can open it too.",
+      "stats": {
+        "todaySales": "Sales today",
+        "monthSales": "Sales this month",
+        "lowStock": "Low or out of stock",
+        "owed": "Owed by customers"
       },
-      "statuses": {
+      "staff": {
+        "title": "Pharmacy logins",
+        "hint": "Each person at the counter signs in with their own login, so every sale and every cash drawer has a name on it.",
+        "add": "Add login",
+        "none": "No pharmacy logins yet.",
+        "name": "Name",
+        "email": "Email",
+        "phone": "Phone",
+        "status": "Status",
         "active": "Active",
-        "low_stock": "Low Stock",
-        "out_of_stock": "Out of Stock"
-      },
-      "columns": {
-        "sku": "SKU",
-        "item": "Item",
-        "category": "Category",
-        "stock": "Stock",
-        "reorder": "Reorder At",
-        "status": "Status"
-      },
-      "fields": {
-        "sku": "SKU",
-        "name": "Item name",
-        "category": "Category",
-        "stock": "Stock quantity",
-        "reorder": "Reorder threshold",
-        "status": "Status"
+        "inactive": "Deactivated",
+        "created": "Added",
+        "reset": "Reset password",
+        "deactivate": "Deactivate",
+        "activate": "Reactivate",
+        "fullName": "Full name",
+        "create": "Create login",
+        "creating": "Creating…",
+        "createdTitle": "Login created",
+        "resetTitle": "Password reset",
+        "credentialsHint": "Give these to them now. The password is shown once and cannot be looked up later.",
+        "password": "Password",
+        "copy": "Copy",
+        "copied": "Copied",
+        "done": "Done",
+        "deactivateConfirm": "Deactivate {name}?",
+        "deactivateHint": "They are signed out everywhere and cannot sign in again until you reactivate them.",
+        "deactivated": "Login deactivated",
+        "activated": "Login reactivated",
+        "signInAt": "They sign in on the usual sign-in page and land in the pharmacy panel.",
+        "failed": "That did not work. Please try again."
       }
     },
     "vendors": {

@@ -93,7 +93,7 @@ export type VendorRow = Tables["vendors"]["Row"];
 export type LabTestRow = Tables["lab_tests"]["Row"];
 
 /** Pharmacy stock is a flat inventory — dispensing lives elsewhere and is not embedded. */
-export type PharmacyItemRow = Tables["pharmacy_items"]["Row"];
+// The pharmacy's rows and hooks are in src/lib/pharmacy.ts and ./pharmacy.ts.
 
 /**
  * The hospital staff register. Read by three screens, not one: onboarding owns

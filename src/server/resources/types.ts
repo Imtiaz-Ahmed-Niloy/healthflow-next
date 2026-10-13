@@ -58,6 +58,14 @@ export type ResourceDefinition<TCreate = unknown, TUpdate = unknown> = {
   filterFields?: string[];
 
   /**
+   * Columns a list can be narrowed to a span of: `<column>_from` and
+   * `<column>_to` in the query string, both ends included. For a date the
+   * reader picks — an expense's day, a sale's — where "this month" is the
+   * question and an exact match answers nothing.
+   */
+  rangeFields?: string[];
+
+  /**
    * Fixed column values that decide which rows are this module's at all.
    * Every read, update and delete is held to them, and a create is stamped
    * with them. `tenants` holds hospitals and doctors' chambers (0088); the

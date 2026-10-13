@@ -25,9 +25,12 @@ const ROUTE_ROLES: { prefix: string; roles: AppRole[] }[] = [
       "hr_admin",
       "finance_admin",
       "lab_admin",
-      "pharmacy_admin",
     ],
   },
+  // The pharmacy has a panel of its own (0126). Its hospital's admin may open
+  // it too. No super_admin: the panel works one hospital's pharmacy, and a
+  // super admin has no hospital to work it for.
+  { prefix: "/pharmacy", roles: ["hospital_admin", "pharmacy_admin"] },
   { prefix: "/portal", roles: ["super_admin", "doctor"] },
   { prefix: "/patient", roles: ["super_admin", "patient"] },
 ];

@@ -55,7 +55,7 @@ panel look one page further behind than it is.
 | ✅ | Wards & Beds — floor map, ward pricing and cabins, all on real rows | HF-47 |
 | ✅ | Admissions — admit, transfer and discharge, every one through bed-transfers | HF-47, HF-37 |
 | ✅ | Laboratory — catalogue and requests | HF-66 |
-| ✅ | Pharmacy | HF-63 |
+| ✅ | Pharmacy — opens the pharmacy panel, and manages its logins | HF-63 |
 | ✅ | Hospital Profile | HF-85 |
 | ✅ | HR Dashboard — headcount, attendance, leave decisions, last payroll run | — |
 | ✅ | Employees | HF-68 |
@@ -83,6 +83,58 @@ panel, and they landed together (HF-47) because they are one screen split in
 two: what a bed costs and who is in it.
 
 **Settings** is the only page left, and it is not a rewiring job — see below.
+
+---
+
+## Pharmacy Panel
+
+Added 11 Oct 2026 (migrations 0126 to 0130), extended 13 Oct 2026 (0133, 0134). The `pharmacy_admin` role's own
+panel at `/pharmacy`; its hospital's admin can open it too. The order is
+`pharmacyNav` in `src/components/pharmacy/PharmacyLayout.tsx`.
+
+| | | Ticket |
+|---|---|---|
+| ✅ | Dashboard — today, this month, alerts, 14-day trend | — |
+| ✅ | Point of Sale — by the piece, strip or box; points, split payments, held orders; sells oldest-expiry stock first | — |
+| ✅ | Sales History — approved returns, and payments against sales on account | — |
+| ✅ | Cash Drawer — one per cashier, counted at closing | — |
+| ✅ | Products — the catalogue, with CSV import | — |
+| ✅ | Stock — every batch, add, write off, history | — |
+| ✅ | Stock Alerts — out, low, expiring, expired | — |
+| ✅ | Purchase Orders — raise, receive into batches, pay, cancel | — |
+| ✅ | Suppliers | — |
+| ✅ | Expenses — with the hospital's own categories | — |
+| ✅ | Reports — sales, profit and stock for any span of days | — |
+| ✅ | Customers & Loyalty — orders, balance owed, points, tier, store credit and their history | — |
+| ✅ | Insights — a stock forecast from real sales, and flags | — |
+| ✅ | Settings — receipt wording, VAT, numbering, loyalty rules | — |
+| ✅ | Staff & Roles — manager, pharmacist, cashier, stock keeper; six permissions; a PIN to approve returns | — |
+| ✅ | Branches & Registers — where a sale was made and whose drawer it went into | — |
+| ✅ | Audit Log — the pharmacy's own slice of the audit trail | — |
+
+**17 of 17 done.** None of it has been through QA in a browser yet.
+
+Added 13 Oct 2026 (migrations 0133 and 0134), following the second commit of
+the reference design:
+
+- **Packs.** Stock, cost and price are per single piece. A product can also be
+  sold by the strip and the box, each with a size and an optional price.
+- **Loyalty.** Points earned on a sale and spent on a later one, four tiers,
+  and store credit. Off until switched on in Settings.
+- **Split payments**, and paying with store credit.
+- **Returns** have their own number, a condition per line (only good stock
+  goes back on the shelf), and somebody who approved them: the person at the
+  till if they may, otherwise a manager's four-digit PIN.
+- **Permissions** are checked in the database, not in the menu. One of them,
+  "reports", only decides which screens a login is shown: a cashier has to read
+  sales to print a receipt, so the figures are not a secret from them.
+- **Stock is still one pool per hospital.** A branch does not have shelves of
+  its own.
+
+Not built, on purpose: the reference design's AI chat and its OpenAI-key page
+were mock screens with nothing behind them. Not connected yet: a sale is not
+tied to a hospital patient or a prescription, and pharmacy sales are not
+posted to the hospital's accounts.
 
 ---
 
