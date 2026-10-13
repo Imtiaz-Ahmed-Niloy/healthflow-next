@@ -47,6 +47,7 @@ export const doctorCreateSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
   specialty: optionalText,
   education: optionalText,
+  summary: optionalText,
   bio: optionalText,
   languages: optionalText,
   expertise: optionalText,

@@ -21,8 +21,13 @@ import { availabilityLabel, weekFromAvailability } from "@/lib/availability";
 import { chamberPlace, type Chamber } from "@/lib/chambers";
 import { useFormatters } from "@/lib/appSettings";
 import { useShowMore } from "@/hooks/useShowMore";
+import { mediaUrl } from "@/lib/media";
+import { FitText, pxRange } from "@/components/common/FitText";
 import type { Locale } from "@/i18n/config";
-import { Stethoscope, KeyRound, Building2, UserX, UserCheck, Loader2, Copy, Plus, Trash2, Store } from "lucide-react";
+import {
+  Stethoscope, KeyRound, Building2, UserX, UserCheck, Loader2, Copy, Plus, Trash2, Store,
+  GraduationCap, Briefcase, BadgeCheck, Award, Star, Languages, Calendar, User, Mail, Phone, MapPin, ExternalLink,
+} from "lucide-react";
 
 /**
  * Every doctor on the platform, as people (0077).
@@ -45,11 +50,13 @@ type Assignment = { key: number; tenant_id: string; consultation_fee: string; we
 type Person = {
   id: string;
   key: string;
+  slug?: string;
   profile_id: string | null;
   doctor_id: string;
   name: string;
   specialty: string | null;
   education: string | null;
+  summary: string | null;
   bio: string | null;
   languages: string | null;
   expertise: string | null;
@@ -80,12 +87,12 @@ const DOCTOR_STATUSES = ["active", "on_leave", "suspended"] as const;
 
 type Draft = Record<string, string>;
 
-const EDIT_KEYS = ["name", "specialty", "bmdc_number", "phone", "education", "experience_years", "gender", "languages", "expertise", "bio", "photo_url"] as const;
+const EDIT_KEYS = ["name", "specialty", "bmdc_number", "phone", "education", "summary", "experience_years", "gender", "languages", "expertise", "bio", "photo_url"] as const;
 
 /** The person. Where they work — and when — is `assignments`. */
 const EMPTY_CREATE: Draft = {
   name: "", email: "", specialty: "", bmdc_number: "", phone: "",
-  education: "", experience_years: "", gender: "", languages: "", photo_url: "", expertise: "", bio: "",
+  education: "", summary: "", experience_years: "", gender: "", languages: "", photo_url: "", expertise: "", bio: "",
 };
 
 /** Gender labels, used by the details form and the drawer. */
@@ -192,7 +199,6 @@ const DoctorDetails = ({ draft, set, email, photo, note }: {
         </Field>
         <Field label={t("bmdc")}><Input value={draft.bmdc_number ?? ""} onChange={set("bmdc_number")} /></Field>
         <Field label={t("phone")}><Input type="tel" value={draft.phone ?? ""} onChange={set("phone")} /></Field>
-        <Field label={t("education")}><Input value={draft.education ?? ""} onChange={set("education")} placeholder="MBBS, FCPS" /></Field>
         <Field label={t("experience")}><Input type="number" min={0} value={draft.experience_years ?? ""} onChange={set("experience_years")} /></Field>
         <Field label={t("gender")}>
           <Select value={draft.gender ?? ""} onChange={set("gender")}>
@@ -201,6 +207,12 @@ const DoctorDetails = ({ draft, set, email, photo, note }: {
           </Select>
         </Field>
       </div>
+      <Field label={t("education")} hint={t("educationHint")}>
+        <TextArea rows={2} value={draft.education ?? ""} onChange={set("education")} placeholder={t("educationPlaceholder")} />
+      </Field>
+      <Field label={t("summary")} hint={t("summaryHint")}>
+        <TextArea rows={2} value={draft.summary ?? ""} onChange={set("summary")} placeholder={t("summaryPlaceholder")} />
+      </Field>
       <Field label={t("languages")} hint={t("commaSeparated")}>
         <Input value={draft.languages ?? ""} onChange={set("languages")} placeholder={t("languagesPlaceholder")} />
       </Field>
@@ -820,95 +832,214 @@ const Doctors = () => {
       </Card>
 
       {/* View */}
-      <Drawer open={!!viewing} onClose={() => setViewKey(null)} title={t("drawerTitle")}>
-        {viewing && (
-          <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              <Avatar src={viewing.photo_url} name={viewing.name} className="h-16 w-16" />
-              <div className="min-w-0">
-                <p className="font-display text-2xl text-primary truncate">{viewing.name}</p>
-                <p className="text-sm text-muted-foreground">{viewing.specialty || t("noSpecialty")}</p>
-                <div className="mt-1"><Pill tone={loginState(viewing).tone}>{loginState(viewing).label}</Pill></div>
-              </div>
-            </div>
-            <dl className="grid grid-cols-[120px_1fr] gap-y-2 text-sm">
-              {([
-                [t("view.email"), viewing.email],
-                [t("view.phone"), viewing.phone],
-                [t("view.bmdc"), viewing.bmdc_number],
-                [t("view.education"), viewing.education],
-                [t("view.experience"), viewing.experience_years != null ? t("view.years", { count: viewing.experience_years }) : null],
-                [t("view.gender"), genderLabel(viewing.gender)],
-                [t("view.languages"), viewing.languages],
-                [t("view.expertise"), viewing.expertise],
-                [t("view.since"), formatDate(viewing.joined_at)],
-              ] as const).map(([label, value]) => (
-                <div key={label} className="contents">
-                  <dt className="text-muted-foreground">{label}</dt>
-                  <dd className="text-primary font-medium break-words">{value || "—"}</dd>
-                </div>
-              ))}
-            </dl>
-            {viewing.bio && <p className="text-sm text-foreground/80 whitespace-pre-line">{viewing.bio}</p>}
-            <div>
-              <p className="font-display text-lg text-primary mb-2">
-                {t("view.hospitals", { count: viewing.hospitals.length })}
-              </p>
-              {viewing.hospitals.length === 0 && (
-                <p className="text-sm text-muted-foreground">{t("view.noHospitals")}</p>
-              )}
-              <div className="space-y-2">
-                {viewing.hospitals.map(h => (
-                  <div key={h.doctor_id} className="flex items-center justify-between gap-3 rounded-xl bg-muted/30 border border-border/40 px-3 py-2.5">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-primary truncate">{h.name}</p>
-                      <p className="text-xs text-muted-foreground">{statusLabel(h.status)}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{availabilityLabel(h.availability, locale) ?? noHours}</p>
+      <Drawer open={!!viewing} onClose={() => setViewKey(null)} title={t("drawerTitle")} size="xl">
+        {viewing && (() => {
+          const photo = mediaUrl(viewing.photo_url);
+          const expertiseList = viewing.expertise
+            ? viewing.expertise.split(",").map(s => s.trim()).filter(Boolean)
+            : [];
+          return (
+            <div className="space-y-6">
+              {/* Doctor Hero Card — matching /doctors/[slug] */}
+              <div className="rounded-3xl bg-card border border-border/60 overflow-hidden shadow-card">
+                <div className="relative aspect-[4/5] bg-gradient-to-br from-accent/40 to-primary/10">
+                  {photo ? (
+                    <img src={photo} alt={viewing.name} className="absolute inset-0 w-full h-full object-cover" />
+                  ) : (
+                    <div className="absolute inset-0 grid place-items-center">
+                      <Avatar src={null} name={viewing.name} className="h-32 w-32 text-4xl" />
                     </div>
-                    <span className="text-sm font-semibold text-primary shrink-0">
-                      {h.consultation_fee == null ? "—" : formatCurrency(Number(h.consultation_fee))}
-                    </span>
+                  )}
+                  <span className="absolute top-4 left-4 inline-flex items-center gap-1 rounded-full bg-card/95 backdrop-blur px-3 py-1 text-xs font-semibold text-primary shadow-soft">
+                    <Star className="h-3 w-3 fill-accent text-accent" /> 4.5
+                  </span>
+                  <div className="absolute top-4 right-4">
+                    <Pill tone={loginState(viewing).tone}>{loginState(viewing).label}</Pill>
+                  </div>
+                </div>
+
+                <div className="p-6">
+                  <span className="text-[10px] uppercase tracking-widest font-bold text-primary-glow">
+                    {viewing.specialty || t("noSpecialty")}
+                  </span>
+                  <FitText as="h2" text={viewing.name} sizes={pxRange(26, 18)} className="font-display text-primary mt-1.5" />
+
+                  {viewing.education && (
+                    <p className="text-sm text-foreground/75 flex items-start gap-1.5 mt-2">
+                      <GraduationCap className="h-4 w-4 mt-0.5 shrink-0 text-primary-glow" />
+                      <span className="whitespace-pre-line">{viewing.education}</span>
+                    </p>
+                  )}
+                  {viewing.summary && (
+                    <p className="text-sm text-foreground/75 flex items-start gap-1.5 mt-1.5">
+                      <Briefcase className="h-4 w-4 mt-0.5 shrink-0 text-primary-glow" />
+                      <span className="whitespace-pre-line">{viewing.summary}</span>
+                    </p>
+                  )}
+                  {viewing.bmdc_number && (
+                    <p className="text-sm text-foreground/75 flex items-center gap-1.5 mt-1.5">
+                      <BadgeCheck className="h-4 w-4 shrink-0 text-primary-glow" />
+                      {t("view.bmdc")} <span className="font-semibold text-primary">{viewing.bmdc_number}</span>
+                    </p>
+                  )}
+                  {viewing.experience_years != null && viewing.experience_years > 0 && (
+                    <p className="text-sm text-foreground/75 flex items-center gap-1.5 mt-1.5">
+                      <Award className="h-4 w-4 shrink-0 text-primary-glow" />
+                      <span>{t("view.years", { count: viewing.experience_years })}</span>
+                    </p>
+                  )}
+
+                  {/* Super admin actions */}
+                  <div className="mt-5 pt-4 border-t border-border/40 space-y-2">
+                    {viewing.slug && (
+                      <a
+                        href={`/doctors/${viewing.slug}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center justify-center gap-2 w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors"
+                      >
+                        <ExternalLink className="h-4 w-4" /> {t("viewPublicProfile")}
+                      </a>
+                    )}
+                    <div className="flex gap-2">
+                      <Btn variant="outline" className="flex-1" onClick={() => { setViewKey(null); openEdit(viewing); }}>
+                        {tc("edit")}
+                      </Btn>
+                      <Btn variant="outline" className="flex-1" onClick={() => onKey(viewing)} disabled={loginBusy === viewing.key}>
+                        {loginBusy === viewing.key ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+                        {viewing.has_login ? t("viewLogin") : t("createLogin")}
+                      </Btn>
+                    </div>
+                    {viewing.has_login && (
+                      <Btn
+                        variant={viewing.is_active ? "danger" : "primary"}
+                        className="w-full"
+                        onClick={() => setPendingActive({ person: viewing, active: !viewing.is_active })}
+                      >
+                        {viewing.is_active ? t("suspendLogin") : t("reactivateLogin")}
+                      </Btn>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* About Section Card */}
+              <section className="rounded-3xl bg-card border border-border/60 p-6 shadow-soft space-y-3">
+                <h3 className="font-display text-xl text-primary">
+                  {t("aboutDoctor", { name: viewing.name.split(" ").slice(-1)[0] })}
+                </h3>
+                {viewing.bio ? (
+                  <p className="text-foreground/75 leading-relaxed whitespace-pre-line text-sm">
+                    {viewing.bio}
+                  </p>
+                ) : (
+                  <p className="text-muted-foreground text-sm italic">{t("noBio")}</p>
+                )}
+                <div className="grid sm:grid-cols-2 gap-3 pt-3 border-t border-border/40 text-sm">
+                  {viewing.languages && (
+                    <div className="flex items-center gap-2 text-foreground/70 min-w-0">
+                      <Languages className="h-4 w-4 text-primary-glow shrink-0" />
+                      <span className="truncate">{viewing.languages}</span>
+                    </div>
+                  )}
+                  {viewing.gender && (
+                    <div className="flex items-center gap-2 text-foreground/70 min-w-0">
+                      <User className="h-4 w-4 text-primary-glow shrink-0" />
+                      <span>{genderLabel(viewing.gender)}</span>
+                    </div>
+                  )}
+                  {viewing.email && (
+                    <div className="flex items-center gap-2 text-foreground/70 min-w-0">
+                      <Mail className="h-4 w-4 text-primary-glow shrink-0" />
+                      <span className="truncate">{viewing.email}</span>
+                    </div>
+                  )}
+                  {viewing.phone && (
+                    <div className="flex items-center gap-2 text-foreground/70 min-w-0">
+                      <Phone className="h-4 w-4 text-primary-glow shrink-0" />
+                      <span className="truncate">{viewing.phone}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 text-foreground/70 min-w-0">
+                    <Calendar className="h-4 w-4 text-primary-glow shrink-0" />
+                    <span>{formatDate(viewing.joined_at)}</span>
+                  </div>
+                </div>
+              </section>
+
+              {/* Areas of Expertise Card */}
+              {(expertiseList.length > 0 || viewing.specialty) && (
+                <section className="rounded-3xl bg-card border border-border/60 p-6 shadow-soft">
+                  <h3 className="font-display text-xl text-primary mb-3">{t("view.expertise")}</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {(expertiseList.length > 0 ? expertiseList : [viewing.specialty].filter(Boolean)).map(e => (
+                      <span key={e} className="rounded-full bg-accent/40 text-primary text-xs font-medium px-3 py-1.5">{e}</span>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Practicing At Card */}
+              <section className="rounded-3xl bg-card border border-border/60 p-6 shadow-soft space-y-3">
+                <h3 className="font-display text-xl text-primary mb-2">{t("practicingAt")}</h3>
+                {viewing.hospitals.length === 0 && viewing.chambers.length === 0 && (
+                  <p className="text-sm text-muted-foreground">{t("view.noHospitals")}</p>
+                )}
+                {viewing.hospitals.map(h => (
+                  <div key={h.doctor_id} className="flex items-center gap-3.5 rounded-2xl bg-accent/20 p-4 border border-border/30">
+                    <div className="h-12 w-12 shrink-0 rounded-xl bg-card grid place-items-center text-primary border border-border/40">
+                      <Building2 className="h-6 w-6 text-primary-glow" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-display text-base text-primary font-semibold truncate">{h.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <Pill tone={h.status === "active" ? "ok" : "default"}>{statusLabel(h.status)}</Pill>
+                      </div>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                        <Calendar className="h-3 w-3 shrink-0 text-primary-glow" />
+                        {availabilityLabel(h.availability, locale) ?? noHours}
+                      </p>
+                    </div>
+                    {h.consultation_fee != null && (
+                      <div className="shrink-0 text-right">
+                        <p className="font-display text-lg text-primary leading-none">{formatCurrency(Number(h.consultation_fee))}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{t("consultationFee")}</p>
+                      </div>
+                    )}
                   </div>
                 ))}
-              </div>
-            </div>
-            {viewing.chambers.length > 0 && (
-              <div>
-                <p className="font-display text-lg text-primary mb-2">
-                  {t("view.chambers", { count: viewing.chambers.length })}
-                </p>
-                <div className="space-y-2">
-                  {viewing.chambers.map(c => (
-                    <div key={c.id} className="flex items-center justify-between gap-3 rounded-xl bg-muted/30 border border-border/40 px-3 py-2.5">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-primary truncate">{c.name}</p>
-                        <p className="text-xs text-muted-foreground">{c.open ? t("view.taking") : t("cards.closed")}</p>
-                        {chamberPlace(c) && <p className="text-xs text-muted-foreground mt-0.5">{chamberPlace(c)}</p>}
-                        <p className="text-xs text-muted-foreground mt-0.5">{availabilityLabel(c.availability, locale) ?? noHours}</p>
-                      </div>
-                      <span className="text-sm font-semibold text-primary shrink-0">
-                        {c.consultation_fee == null ? "—" : formatCurrency(Number(c.consultation_fee))}
-                      </span>
+
+                {viewing.chambers.map(c => (
+                  <div key={c.id} className="flex items-center gap-3.5 rounded-2xl bg-accent/20 p-4 border border-border/30">
+                    <div className="h-12 w-12 shrink-0 rounded-xl bg-card grid place-items-center text-primary border border-border/40">
+                      <Store className="h-6 w-6 text-primary-glow" />
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div className="flex gap-2">
-              <Btn variant="outline" onClick={() => { setViewKey(null); openEdit(viewing); }}>{tc("edit")}</Btn>
-              <Btn variant="outline" onClick={() => onKey(viewing)} disabled={loginBusy === viewing.key}>
-                {loginBusy === viewing.key ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
-                {viewing.has_login ? t("viewLogin") : t("createLogin")}
-              </Btn>
-              {viewing.has_login && (
-                <Btn variant={viewing.is_active ? "danger" : "primary"}
-                  onClick={() => setPendingActive({ person: viewing, active: !viewing.is_active })}>
-                  {viewing.is_active ? t("suspendLogin") : t("reactivateLogin")}
-                </Btn>
-              )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-display text-base text-primary font-semibold truncate">{c.name}</p>
+                      <p className="text-xs text-muted-foreground">{c.open ? t("view.taking") : t("cards.closed")}</p>
+                      {chamberPlace(c) && (
+                        <p className="text-xs text-muted-foreground flex items-start gap-1 mt-1">
+                          <MapPin className="h-3 w-3 mt-0.5 shrink-0 text-primary-glow" />
+                          <span className="truncate">{chamberPlace(c)}</span>
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                        <Calendar className="h-3 w-3 shrink-0 text-primary-glow" />
+                        {availabilityLabel(c.availability, locale) ?? noHours}
+                      </p>
+                    </div>
+                    {c.consultation_fee != null && (
+                      <div className="shrink-0 text-right">
+                        <p className="font-display text-lg text-primary leading-none">{formatCurrency(Number(c.consultation_fee))}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{t("consultationFee")}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </section>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </Drawer>
 
       {/* Edit */}

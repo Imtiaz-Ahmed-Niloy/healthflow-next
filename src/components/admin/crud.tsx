@@ -58,15 +58,31 @@ export const Modal = ({ open, onClose, title, children, footer, size = "md" }: {
 };
 
 // ============ Drawer ============
-export const Drawer = ({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) => {
+const DRAWER_SIZES = {
+  sm: "max-w-sm",
+  md: "max-w-md",
+  lg: "max-w-lg",
+  xl: "max-w-xl",
+  "2xl": "max-w-2xl",
+  "3xl": "max-w-3xl",
+} as const;
+
+export const Drawer = ({ open, onClose, title, children, size = "md", className }: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+  size?: keyof typeof DRAWER_SIZES;
+  className?: string;
+}) => {
   if (!open) return null;
   return createPortal(
     <div className="fixed inset-0 z-[60]">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="absolute right-0 top-0 h-full w-full max-w-md bg-card border-l border-border/60 shadow-2xl flex flex-col">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className={`absolute right-0 top-0 h-full w-full ${DRAWER_SIZES[size] || "max-w-md"} bg-card border-l border-border/60 shadow-2xl flex flex-col ${className || ""}`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-border/40">
           <h3 className="font-display text-xl text-primary">{title}</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted"><X className="h-4 w-4" /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted" aria-label="Close"><X className="h-4 w-4" /></button>
         </div>
         <div className="px-6 py-5 overflow-y-auto flex-1">{children}</div>
       </div>

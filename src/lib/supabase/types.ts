@@ -1790,6 +1790,7 @@ export type Database = {
           person_key: string | null
           source_ref: string | null
           designation: string | null
+          summary: string | null
         }
         Insert: {
           availability?: string | null
@@ -1816,6 +1817,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["doctor_status"]
           tenant_id?: string | null
           updated_at?: string
+          summary?: string | null
         }
         Update: {
           availability?: string | null
@@ -1842,6 +1844,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["doctor_status"]
           tenant_id?: string | null
           updated_at?: string
+          summary?: string | null
         }
         Relationships: [
           {
@@ -4808,6 +4811,7 @@ export type Database = {
           bookable: boolean | null
           serial_phone: string | null
           designation: string | null
+          summary: string | null
         }
         Relationships: [
           {

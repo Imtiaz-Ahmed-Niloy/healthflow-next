@@ -14,6 +14,7 @@ export type DBDoctor = {
   slug: string;
   specialty: string | null;
   education: string | null;
+  summary: string | null;
   bio: string | null;
   languages: string | null;
   expertise: string | null;
@@ -112,6 +113,8 @@ export type UIDoctor = {
   /** Years of experience as they entered it; null when not entered. */
   experience: number | null;
   fee: number;
+  /** The fee as stored; null when the place never said. */
+  feeKnown: number | null;
   available: string;
   /**
    * The first place's availability as stored, with no fallback. `available`
@@ -122,6 +125,8 @@ export type UIDoctor = {
   photo: string | null;
   /** Their degrees as they entered them, e.g. "MBBS, FCPS (Medicine)" — null when none. */
   education: string | null;
+  /** Professional summary or credentials — null when none. */
+  summary: string | null;
   languages: string[];
   patients: number;
   /**
@@ -207,13 +212,13 @@ const toPlace = (d: DBDoctor, w: Words, locale: Locale): DoctorPlace => ({
   subdistrict: d.subdistrict,
   address: d.practice_address,
   phone: d.practice_phone,
-  fee: Number(d.consultation_fee) || 500,
+  fee: Number(d.consultation_fee) || 0,
   availability: d.availability,
   available: availabilityLabel(d.availability, locale) || "",
   bookable: d.bookable !== false,
   serialPhone: d.serial_phone,
   designation: d.designation,
-  feeKnown: Number(d.consultation_fee) || null,
+  feeKnown: d.consultation_fee != null ? Number(d.consultation_fee) : null,
 });
 
 /**
@@ -262,7 +267,8 @@ const toDoctor = (rows: DBDoctor[], w: Words, locale: Locale): UIDoctor => {
     slug: d.person_slug || d.slug,
     // As entered, or null — not a default year they never claimed.
     experience: d.experience_years ?? null,
-    fee: first?.fee ?? (Number(d.consultation_fee) || 500),
+    fee: first?.fee ?? (d.consultation_fee != null ? Number(d.consultation_fee) : 0),
+    feeKnown: first?.feeKnown ?? (d.consultation_fee != null ? Number(d.consultation_fee) : null),
     // Described, not raw: a week from the editor is JSON (src/lib/availability.ts).
     available: first?.available || availabilityLabel(d.availability, locale) || w.noHours,
     availability: first ? first.availability : d.availability,
@@ -270,6 +276,7 @@ const toDoctor = (rows: DBDoctor[], w: Words, locale: Locale): UIDoctor => {
     // As they entered it, or nothing. A default degree would be a
     // qualification nobody claimed, printed on their card.
     education: d.education?.trim() || null,
+    summary: d.summary?.trim() || null,
     languages: d.languages ? d.languages.split(",").map(s => s.trim()).filter(Boolean) : w.languages,
     patients: d.patients_treated || 100,
     independent: places.length === 0,
