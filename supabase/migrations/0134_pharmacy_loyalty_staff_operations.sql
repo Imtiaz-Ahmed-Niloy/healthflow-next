@@ -1,5 +1,5 @@
--- 0132_pharmacy_loyalty_staff_operations.sql
--- The functions for 0131: selling by the strip and the box, split payments,
+-- 0134_pharmacy_loyalty_staff_operations.sql
+-- The functions for 0133: selling by the strip and the box, split payments,
 -- loyalty points, store credit, returns that somebody approved, staff and
 -- their PINs, and the pharmacy's own view of the audit trail.
 --
@@ -69,7 +69,7 @@ as $$
 $$;
 
 -- Returns get a number of their own (RET-2026-000007). The settings row is no
--- longer made here: a cashier may not write settings (0131), and a hospital
+-- longer made here: a cashier may not write settings (0133), and a hospital
 -- without one simply uses the default prefixes.
 create or replace function public.pharmacy_next_number(p_tenant uuid, p_kind text)
 returns text
@@ -1040,7 +1040,7 @@ $$;
 -- ---------------------------------------------------------------- staff ---
 -- The one door into pharmacy_staff and the PIN table.
 --
--- SECURITY DEFINER: nobody is granted a write on either (0131). So it checks
+-- SECURITY DEFINER: nobody is granted a write on either (0133). So it checks
 -- everything itself — that the caller administers this hospital's pharmacy,
 -- that the login being edited is a pharmacy login of that same hospital, and
 -- that the branch is theirs too.

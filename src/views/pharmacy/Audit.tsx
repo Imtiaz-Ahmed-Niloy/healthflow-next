@@ -13,7 +13,7 @@ import { useBookingClock, useFormatters } from "@/lib/appSettings";
 import { shiftDay, type AuditRow } from "@/lib/pharmacy";
 import { usePharmacyAuditQuery } from "@/redux/api/pharmacy";
 
-/** The pharmacy tables the log is kept for (0126, 0131), in the order a person would look for them. */
+/** The pharmacy tables the log is kept for (0126, 0133), in the order a person would look for them. */
 const TABLES = [
   "pharmacy_sales", "pharmacy_sale_returns", "pharmacy_sale_payments", "pharmacy_cash_shifts", "pharmacy_cash_transactions",
   "pharmacy_expenses", "pharmacy_items", "pharmacy_batches", "pharmacy_purchase_orders", "pharmacy_suppliers",

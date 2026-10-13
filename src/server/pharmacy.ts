@@ -59,7 +59,7 @@ export const pharmacyAccess = async (
 /**
  * For the routes that have to use the service-role client afterwards (making
  * a login, resetting a password), where the database is not there to say no:
- * is this person allowed to administer the pharmacy (0131)? Asked of the
+ * is this person allowed to administer the pharmacy (0133)? Asked of the
  * database, on the caller's own client, so there is one definition of it.
  */
 export const pharmacyAdministrator = async (): Promise<Granted | { refusal: NextResponse }> => {

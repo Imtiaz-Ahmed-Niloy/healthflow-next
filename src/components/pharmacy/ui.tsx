@@ -20,7 +20,7 @@ export const useDebounced = <T,>(value: T, ms = 300) => {
 };
 
 /**
- * May the signed-in person do this (0131)? For hiding a button they could not
+ * May the signed-in person do this (0133)? For hiding a button they could not
  * use. False until the answer is in. The database asks the same question again
  * when the thing is attempted, so this is never the only check.
  */
@@ -54,7 +54,7 @@ const ERROR_CODES = [
   "receive_too_many", "batch_required", "expiry_required", "order_cannot_cancel", "drawer_already_open",
   "bad_cash_type", "cash_line_not_found", "cash_line_fixed", "drawer_counted", "not_your_drawer",
   "batch_not_found", "no_change", "write_off_adds", "bad_reason", "wrong_hospital", "batch_item_fixed", "email_taken",
-  // 0132
+  // 0134
   "no_permission", "customer_required", "split_needs_parts", "split_over", "split_short", "credit_short", "bad_unit",
   "loyalty_off", "redeem_too_few", "redeem_too_many", "redeem_over_total", "bad_condition", "pin_required", "bad_pin",
   "pin_locked", "register_not_found", "register_in_use", "bad_staff_role", "staff_not_found", "branch_not_found",

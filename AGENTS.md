@@ -19,7 +19,7 @@ a query, an auth check, a tenant filter or pagination means the factory is
 being bypassed. Field names are column names — form values post straight
 through with no mapping layer. Read `docs/module-guide.md` before adding one.
 
-The pharmacy (0126–0132) is the one module that is mostly not CRUD. Anything
+The pharmacy (0126–0130, 0133, 0134) is the one module that is mostly not CRUD. Anything
 that moves stock or money — a sale, a return, receiving a purchase order, the
 cash drawer — is a `pharmacy_*` database function called from
 `/api/v1/pharmacy/*`, so it happens whole or not at all. Its lists are still

@@ -29,7 +29,7 @@ const DEFAULTS = {
   expense_categories: ["Rent", "Utilities", "Salaries", "Supplies", "Maintenance", "Transport", "Marketing", "Other"],
   tax_id: null as string | null,
   payment_terms: null as string | null,
-  // Loyalty (0131). Off until the pharmacy switches it on.
+  // Loyalty (0133). Off until the pharmacy switches it on.
   loyalty_enabled: false,
   loyalty_spend_per_point: 100,
   loyalty_point_value: 1,
@@ -112,7 +112,7 @@ export const PUT = async (request: Request) => {
     )
     .select("*")
     .single();
-  // The tier lines have to rise: silver, then gold, then platinum (0131).
+  // The tier lines have to rise: silver, then gold, then platinum (0133).
   if (error?.code === "23514") return fail("Each loyalty tier has to start higher than the one before it.", 422, { code: "tiers_out_of_order" });
   if (error) return fromRpc(error);
 

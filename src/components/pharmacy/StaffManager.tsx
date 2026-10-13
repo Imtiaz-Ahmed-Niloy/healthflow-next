@@ -23,7 +23,7 @@ import {
  *
  * Every login carries the same role (pharmacy_admin). What sets a cashier
  * apart from a manager is the six permissions here, and the database checks
- * each of them again whenever the thing is actually attempted (0131).
+ * each of them again whenever the thing is actually attempted (0133).
  */
 
 type Access = { role: StaffRole; branch: string; perms: Record<Permission, boolean>; pin: string; clearPin: boolean };

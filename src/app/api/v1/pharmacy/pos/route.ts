@@ -8,7 +8,7 @@ import { pharmacySalesResource } from "@/server/resources/pharmacy";
  *   GET   ?q=&category=&limit=   what can be sold right now, best sellers first
  *   POST                         make a sale
  *
- * The sale itself is pharmacy_create_sale (0127, rewritten in 0132): it takes the stock from the
+ * The sale itself is pharmacy_create_sale (0127, rewritten in 0134): it takes the stock from the
  * batch that expires soonest, prices every line from the catalogue, writes the
  * invoice and the drawer line, and does all of it or none of it. The request
  * says what and how many; it never says how much.
@@ -19,7 +19,7 @@ const saleSchema = z.object({
     .array(z.object({
       item_id: z.string().uuid(),
       quantity: z.coerce.number().int().positive().max(100_000),
-      // How it is counted: single units, strips or boxes (0131).
+      // How it is counted: single units, strips or boxes (0133).
       unit: z.enum(["unit", "strip", "box"]).default("unit"),
     }))
     .min(1, "Add at least one product to the order.")

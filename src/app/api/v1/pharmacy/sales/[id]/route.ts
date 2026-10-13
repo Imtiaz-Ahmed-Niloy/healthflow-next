@@ -63,7 +63,7 @@ export const POST = async (request: Request, context: Context) => {
     });
     if (error) return fromRpc(error);
 
-    // A refused PIN is an answer, not an error (0132): the database has to
+    // A refused PIN is an answer, not an error (0134): the database has to
     // commit the count of wrong guesses, which a raise would roll back.
     const answer = data as { ok: boolean; code?: string };
     if (!answer?.ok) {

@@ -226,7 +226,7 @@ const Page = () => {
   const [state, setState] = useState<(typeof STATES)[number]>("all");
   const [page, setPage] = useState(1);
   const search = useDebounced(q);
-  // Reading the shelf is everyone's. Changing it is stock work (0131).
+  // Reading the shelf is everyone's. Changing it is stock work (0133).
   const mayManage = usePharmacyCan()("manage_stock");
   const [adding, setAdding] = useState(false);
   const [adjusting, setAdjusting] = useState<PharmacyBatch | null>(null);

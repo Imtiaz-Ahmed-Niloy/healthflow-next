@@ -31,7 +31,7 @@ type NavKey =
   | "expenses" | "reports" | "customers" | "insights" | "staff" | "branches" | "audit" | "settings";
 
 /**
- * `needs` is the permission (0131) a login must hold to be shown the link.
+ * `needs` is the permission (0133) a login must hold to be shown the link.
  * Hiding a link is a courtesy: the database refuses the work behind it anyway.
  */
 type NavItem = { to: string; icon: LucideIcon; key: NavKey; group: NavGroup; needs?: Permission };

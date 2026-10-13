@@ -261,7 +261,7 @@ const Page = () => {
       payment_method: method || undefined, status: status === "all" ? undefined : status, customer_id: customer ?? undefined,
     },
   });
-  // The totals above the list are a report, and reports are for those given them (0131).
+  // The totals above the list are a report, and reports are for those given them (0133).
   const seesReports = can("see_reports");
   const { data: report } = usePharmacyReportQuery(range, { skip: !seesReports });
   const rows = data?.data ?? [];

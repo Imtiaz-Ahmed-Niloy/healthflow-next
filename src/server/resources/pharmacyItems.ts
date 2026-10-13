@@ -31,7 +31,7 @@ const wholeNumber = z
   .optional();
 
 /**
- * How many single units a strip or a box holds, and what one costs (0131).
+ * How many single units a strip or a box holds, and what one costs (0133).
  * "" clears it: the product then stops being sold that way, or goes back to
  * costing its units added up.
  */

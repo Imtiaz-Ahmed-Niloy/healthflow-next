@@ -88,7 +88,7 @@ two: what a bed costs and who is in it.
 
 ## Pharmacy Panel
 
-Added 11 Oct 2026 (migrations 0126 to 0130), extended 13 Oct 2026 (0131, 0132). The `pharmacy_admin` role's own
+Added 11 Oct 2026 (migrations 0126 to 0130), extended 13 Oct 2026 (0133, 0134). The `pharmacy_admin` role's own
 panel at `/pharmacy`; its hospital's admin can open it too. The order is
 `pharmacyNav` in `src/components/pharmacy/PharmacyLayout.tsx`.
 
@@ -114,7 +114,7 @@ panel at `/pharmacy`; its hospital's admin can open it too. The order is
 
 **17 of 17 done.** None of it has been through QA in a browser yet.
 
-Added 13 Oct 2026 (migrations 0131 and 0132), following the second commit of
+Added 13 Oct 2026 (migrations 0133 and 0134), following the second commit of
 the reference design:
 
 - **Packs.** Stock, cost and price are per single piece. A product can also be

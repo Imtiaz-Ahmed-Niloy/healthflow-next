@@ -10,7 +10,7 @@ import { accessSchema, saveStaffArgs } from "@/server/pharmacyStaff";
  *   POST   create one; answers with the password, once
  *
  * For the hospital admin and for pharmacy staff who administer the pharmacy
- * (0131). Every pharmacy login carries the same role, pharmacy_admin; what
+ * (0133). Every pharmacy login carries the same role, pharmacy_admin; what
  * kind of login it is — manager, pharmacist, cashier, stock keeper — and its
  * permissions are a row in pharmacy_staff, written by pharmacy_save_staff.
  *

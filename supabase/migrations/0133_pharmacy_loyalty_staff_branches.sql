@@ -1,4 +1,4 @@
--- 0131_pharmacy_loyalty_staff_branches.sql
+-- 0133_pharmacy_loyalty_staff_branches.sql
 -- The second half of the pharmacy panel. 0126 gave it stock, sales and a cash
 -- drawer; this is what a counter with more than one person behind it needs:
 --
@@ -13,7 +13,7 @@
 --   returns          a number of their own, a condition per line, and who
 --                    approved them
 --
--- The functions that use all this are 0132.
+-- The functions that use all this are 0134.
 --
 -- Stock stays one pool per hospital. A branch says where a sale was made and
 -- whose drawer it went into; it does not have shelves of its own yet.
@@ -80,7 +80,7 @@ create trigger pharmacy_registers_same_tenant
   for each row execute function public.pharmacy_same_tenant('pharmacy_branches', 'branch_id');
 
 -- ---------------------------------------------------------------- staff ---
--- One row per pharmacy login. Written only by pharmacy_save_staff (0132),
+-- One row per pharmacy login. Written only by pharmacy_save_staff (0134),
 -- which is why nobody signed in is granted insert, update or delete below.
 create table public.pharmacy_staff (
   id                  uuid primary key default gen_random_uuid(),
@@ -122,7 +122,7 @@ create trigger pharmacy_staff_set_updated_at
 
 -- The PIN, hashed, and how many wrong guesses its owner has just made at
 -- somebody else's. No policy at all: nothing signed in can read or write
--- this table, only the two definer functions in 0132.
+-- this table, only the two definer functions in 0134.
 create table public.pharmacy_staff_pins (
   profile_id   uuid primary key references public.profiles (id) on delete cascade,
   pin_hash     text,

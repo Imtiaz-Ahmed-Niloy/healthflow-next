@@ -41,7 +41,7 @@ for each feature.
 ## Pharmacy
 
 Done on 11 Oct 2026 (migrations 0126 to 0130, panel at `/pharmacy`) and
-extended on 13 Oct 2026 (0131, 0132). It was one stock list. It now has
+extended on 13 Oct 2026 (0133, 0134). It was one stock list. It now has
 everything on their list except one thing:
 
 - ✅ Buying medicine from a supplier, with batch number and expiry date

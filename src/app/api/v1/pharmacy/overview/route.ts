@@ -21,7 +21,7 @@ export const GET = async (request: Request) => {
   const url = new URL(request.url);
   const view = url.searchParams.get("view") ?? "dashboard";
 
-  // Reports and insights are shown to those given them (0131). This decides
+  // Reports and insights are shown to those given them (0133). This decides
   // what a login is shown; the sales underneath stay readable to the till.
   if (view === "report" || view === "insights") {
     // The forecast is also what a stock keeper orders from, so stock work opens insights too.

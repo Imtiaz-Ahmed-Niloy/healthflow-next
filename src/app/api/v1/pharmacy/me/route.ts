@@ -2,7 +2,7 @@ import { fromRpc, json, pharmacyAccess } from "@/server/pharmacy";
 
 /**
  * GET /api/v1/pharmacy/me — what the signed-in person is in the pharmacy and
- * what they may do there (0131): their staff role, their branch, whether they
+ * what they may do there (0133): their staff role, their branch, whether they
  * have a PIN, and one yes or no per permission.
  *
  * The panel asks this once to decide which screens and buttons to show. It is

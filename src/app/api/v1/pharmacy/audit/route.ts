@@ -5,7 +5,7 @@ import { fail, fromRpc, json, pharmacyAccess } from "@/server/pharmacy";
  *
  *   ?from=&to=&table=&action=&q=&page=&limit=
  *
- * The same log as /super/logs, cut down by pharmacy_audit_log (0132) to the
+ * The same log as /super/logs, cut down by pharmacy_audit_log (0134) to the
  * caller's own hospital and to the pharmacy's tables. That function refuses
  * anyone who does not administer the pharmacy, so nothing is checked here
  * beyond the shape of the query.

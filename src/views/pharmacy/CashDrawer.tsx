@@ -181,7 +181,7 @@ const Current = ({ drawer, onAct, busy }: { drawer: Drawer; onAct: (action: Draw
   const [moving, setMoving] = useState<MoveType | null>(null);
   const [closing, setClosing] = useState(false);
   const [removing, setRemoving] = useState<CashLine | null>(null);
-  // Putting cash in or taking it out by hand is for those allowed to (0131). Selling and closing are everyone's.
+  // Putting cash in or taking it out by hand is for those allowed to (0133). Selling and closing are everyone's.
   const mayMove = usePharmacyCan()("manage_cash");
 
   return (

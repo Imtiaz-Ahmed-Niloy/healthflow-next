@@ -41,7 +41,7 @@ const Body = ({ d }: { d: PharmacyDashboard }) => {
   const ta = useTranslations("pharmacy.alerts.kinds");
   const { formatCurrency, formatDate, formatDateTime } = useFormatters();
   const money = (value: number) => formatCurrency(Number(value));
-  // Takings, profit and the month's totals are a report (0131). The till still sees stock and its own recent sales.
+  // Takings, profit and the month's totals are a report (0133). The till still sees stock and its own recent sales.
   const sees = usePharmacyCan()("see_reports");
   const net =Number(d.month.revenue) - Number(d.month.expenses);
   const trend = d.trend.map(point => ({ ...point, revenue: Number(point.revenue), label: formatDate(point.day, "DD MMM") }));

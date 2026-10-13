@@ -77,7 +77,7 @@ export const pharmacyCustomerCreateSchema = z.object({
 });
 
 /**
- * Reads and writes through the view (0126, 0131), which adds each customer's
+ * Reads and writes through the view (0126, 0133), which adds each customer's
  * order count, what they have spent and still owe, their last visit and their
  * loyalty tier. The view passes a write to the customer's own columns straight
  * down to pharmacy_customers.
@@ -97,7 +97,7 @@ export const pharmacyCustomersResource: ResourceDefinition = {
   roles,
 };
 
-/** A customer's points and store credit, line by line. Written by a trigger (0131). */
+/** A customer's points and store credit, line by line. Written by a trigger (0133). */
 export const pharmacyCustomerLedgerResource: ResourceDefinition = {
   name: "pharmacy-customer-ledger",
   table: "pharmacy_customer_ledger",
@@ -125,7 +125,7 @@ export const pharmacyBranchCreateSchema = z.object({
   opening_hours: optionalText(200),
 });
 
-/** Who may change these is decided in the database (0131): administrators of the pharmacy. */
+/** Who may change these is decided in the database (0133): administrators of the pharmacy. */
 export const pharmacyBranchesResource: ResourceDefinition = {
   name: "pharmacy-branches",
   table: "pharmacy_branches",

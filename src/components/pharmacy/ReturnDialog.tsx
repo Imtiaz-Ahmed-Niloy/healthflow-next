@@ -20,7 +20,7 @@ type RefundMethod = "cash" | "original" | "credit";
  * Each line says how many came back and in what state: only what can be sold
  * again goes back on the shelf. Somebody has to approve it — the person at the
  * till if they may, otherwise a manager types their PIN here. The database
- * decides which (pharmacy_return_sale, 0132); this only asks for the PIN when
+ * decides which (pharmacy_return_sale, 0134); this only asks for the PIN when
  * it is going to be needed.
  */
 export const ReturnDialog = ({ sale, onClose }: { sale: PharmacySale | null; onClose: () => void }) => {

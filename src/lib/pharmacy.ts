@@ -16,7 +16,7 @@ export const SPLIT_METHODS = ["cash", "card", "mobile", "other", "store_credit"]
 export type SplitMethod = (typeof SPLIT_METHODS)[number];
 export type PaymentPart = { method: SplitMethod; amount: number; reference: string | null };
 
-/** How a product is counted at the till (0131). Stock is always single units. */
+/** How a product is counted at the till (0133). Stock is always single units. */
 export const SALE_UNITS = ["unit", "strip", "box"] as const;
 export type SaleUnit = (typeof SALE_UNITS)[number];
 
@@ -53,7 +53,7 @@ export type ReturnCondition = (typeof RETURN_CONDITIONS)[number];
 export const STAFF_ROLES = ["manager", "pharmacist", "cashier", "stock_keeper"] as const;
 export type StaffRole = (typeof STAFF_ROLES)[number];
 
-/** One yes or no each (0131). The database checks every one of them again. */
+/** One yes or no each (0133). The database checks every one of them again. */
 export const PERMISSIONS = ["discount", "approve_returns", "manage_cash", "manage_stock", "see_reports", "administer"] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 export type PermissionFlags = Record<`can_${Permission}`, boolean>;
