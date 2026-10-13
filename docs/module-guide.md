@@ -119,8 +119,10 @@ select public.apply_role_gate('public.employees',
                               '{hospital_admin,hr_admin}');
 ```
 
-The gate is a RESTRICTIVE policy, so it ANDs with the tenant one and can only
-narrow access, never widen it. Keep it in step with the `roles` in step 2 —
+The gate is RESTRICTIVE policies, so it ANDs with the tenant one and can only
+narrow access, never widen it. Reading is held to the first list; adding,
+changing and deleting are held to the second (0130 — before it, a role that
+could only read could also delete). Keep it in step with the `roles` in step 2 —
 the resource definition returns a clean 403, this stops the same request
 reaching the database another way. **The publishable key ships in the browser
 bundle**, so anyone signed in can query Postgres directly and never touch our
@@ -227,7 +229,7 @@ You now have:
 
 | | |
 |---|---|
-| `GET /api/v1/things` | list — `?page=&limit=&q=&sort=&order=` plus your `filterFields` |
+| `GET /api/v1/things` | list — `?page=&limit=&q=&sort=&order=` plus your `filterFields`, and `<column>_from` / `<column>_to` for each of your `rangeFields` |
 | `GET /api/v1/things/:id` | one record |
 | `POST /api/v1/things` | create |
 | `PATCH /api/v1/things/:id` | update |

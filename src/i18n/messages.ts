@@ -8,6 +8,7 @@ import enPatient from "./messages/en/patient.json";
 import enPortal from "./messages/en/portal.json";
 import enAdmin from "./messages/en/admin.json";
 import enSuper from "./messages/en/super.json";
+import enPharmacy from "./messages/en/pharmacy.json";
 
 import bnCommon from "./messages/bn/common.json";
 import bnSite from "./messages/bn/site.json";
@@ -17,6 +18,7 @@ import bnPatient from "./messages/bn/patient.json";
 import bnPortal from "./messages/bn/portal.json";
 import bnAdmin from "./messages/bn/admin.json";
 import bnSuper from "./messages/bn/super.json";
+import bnPharmacy from "./messages/bn/pharmacy.json";
 
 /**
  * Every string the app shows, per language — one file per area of the app
@@ -30,6 +32,7 @@ import bnSuper from "./messages/bn/super.json";
  *   portal   the doctor portal (/portal)
  *   admin    the hospital admin panel (/admin)
  *   super    the super admin panel (/super)
+ *   pharmacy the pharmacy panel (/pharmacy)
  *
  * English is the reference. Bangla is typed against it below, so a key
  * added in English and missing in Bangla fails the typecheck instead of
@@ -45,6 +48,7 @@ export const en = {
   ...enPortal,
   ...enAdmin,
   ...enSuper,
+  ...enPharmacy,
 };
 
 export type Messages = typeof en;
@@ -58,6 +62,7 @@ export const bn: Messages = {
   ...bnPortal,
   ...bnAdmin,
   ...bnSuper,
+  ...bnPharmacy,
 };
 
 export const MESSAGES: Record<Locale, Messages> = { en, bn };

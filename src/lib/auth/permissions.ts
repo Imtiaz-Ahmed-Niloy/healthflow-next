@@ -85,6 +85,7 @@ export const can = (
  * looks like a broken login rather than a bad constant.
  *
  * The doctor portal has no /dashboard: its landing page is the patient queue.
+ * The pharmacy has its own panel, not a page in the admin one.
  */
 export const homePathForRole = (role: AppRole | null | undefined): string => {
   switch (role) {
@@ -94,8 +95,9 @@ export const homePathForRole = (role: AppRole | null | undefined): string => {
     case "hr_admin":
     case "finance_admin":
     case "lab_admin":
-    case "pharmacy_admin":
       return "/admin/dashboard";
+    case "pharmacy_admin":
+      return "/pharmacy/dashboard";
     case "doctor":
       return "/portal/queue";
     case "patient":

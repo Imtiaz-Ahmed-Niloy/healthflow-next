@@ -6,9 +6,9 @@ each other role. I did not create or save anything there.
 
 ## Roles
 
-They have 9 logins. We have 4 real panels (super admin, hospital admin, doctor,
-patient). Our `hr_admin`, `finance_admin`, `lab_admin` and `pharmacy_admin`
-exist, but they all open the same admin panel.
+They have 9 logins. We have 5 real panels (super admin, hospital admin, doctor,
+patient, and since 11 Oct 2026 the pharmacy). Our `hr_admin`, `finance_admin`
+and `lab_admin` exist, but they all open the same admin panel.
 
 | Their role | What that person does there | Us |
 |---|---|---|
@@ -16,7 +16,7 @@ exist, but they all open the same admin panel.
 | Doctor | Patients, prescriptions, admissions, operation theatre, own leave | Have it, minus the missing modules below |
 | Patient | Appointments, prescriptions, bills, test results, medicine bought | Have it |
 | Accountant | Income, expense, bills, payroll, inventory, reports | Partly: `finance_admin`, no own panel |
-| Pharmacist | Medicines, purchases, sales, stock | Partly: `pharmacy_admin`, no own panel |
+| Pharmacist | Medicines, purchases, sales, stock | Have it: `pharmacy_admin`, own panel at `/pharmacy` |
 | Pathologist | Tests and results, blood bank | Partly: `lab_admin`, no own panel |
 | Radiologist | Same screens as Pathologist | Missing |
 | Receptionist | Register patients, book, admit, discharge, beds, ambulance calls | **Missing** |
@@ -40,12 +40,26 @@ for each feature.
 
 ## Pharmacy
 
-Ours is one stock list (name, SKU, stock, reorder level). They also have:
+Done on 11 Oct 2026 (migrations 0126 to 0130, panel at `/pharmacy`) and
+extended on 13 Oct 2026 (0131, 0132). It was one stock list. It now has
+everything on their list except one thing:
 
-- Buying medicine from a supplier, with batch number and expiry date
-- Selling medicine to a patient, with payment and balance due
-- Damaged and expired stock
-- Warehouses, manufacturers, units, buy and sell price
+- ✅ Buying medicine from a supplier, with batch number and expiry date
+- ✅ Selling medicine at the counter, with payment and balance due
+- ✅ Damaged and expired stock, written off with a reason
+- ✅ Manufacturer, buy price and sell price on each product
+- ❌ Warehouses: we have a shelf name on each batch, not separate stores
+- ✅ Units: a product is stocked by the piece and sold by the piece, the strip
+  or the box (13 Oct 2026)
+
+Beyond theirs: a cash drawer per cashier counted at closing, returns that go
+back to the batch they came from and need a manager's approval, a ledger of
+every stock change, a forecast worked out from real sales, loyalty points and
+store credit, split payments, and staff roles with their own permissions.
+
+Still to connect: a sale is not tied to a hospital patient or a prescription,
+so the patient does not see medicine bought, and pharmacy sales are not posted
+to the hospital's accounts.
 
 ## Billing and payments
 

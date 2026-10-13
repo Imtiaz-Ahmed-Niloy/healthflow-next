@@ -89,6 +89,24 @@
     "specialties": "Specialties",
     "tickets": "Support Tickets",
     "verification": "Patient Verification",
-    "whitelisting": "Whitelisting"
+    "whitelisting": "Whitelisting",
+
+    "pharmacyDashboard": "Pharmacy Dashboard",
+    "pharmacyPos": "Point of Sale",
+    "pharmacySales": "Sales History",
+    "pharmacyCashDrawer": "Cash Drawer",
+    "pharmacyProducts": "Products",
+    "pharmacyStock": "Stock",
+    "pharmacyStockAlerts": "Stock Alerts",
+    "pharmacyPurchases": "Purchase Orders",
+    "pharmacySuppliers": "Suppliers",
+    "pharmacyExpenses": "Expenses",
+    "pharmacyReports": "Pharmacy Reports",
+    "pharmacyCustomers": "Customers & Loyalty",
+    "pharmacyInsights": "Insights",
+    "pharmacySettings": "Pharmacy Settings",
+    "pharmacyStaff": "Pharmacy Staff & Roles",
+    "pharmacyBranches": "Branches & Registers",
+    "pharmacyAudit": "Pharmacy Audit Log"
   }
 }

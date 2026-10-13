@@ -136,6 +136,13 @@ export const createResourceRoute = <TCreate, TUpdate>(
       }
     }
 
+    for (const field of definition.rangeFields ?? []) {
+      const from = url.searchParams.get(`${field}_from`);
+      const to = url.searchParams.get(`${field}_to`);
+      if (from) query = query.gte(field, from);
+      if (to) query = query.lte(field, to);
+    }
+
     const sortColumn = url.searchParams.get("sort") ?? definition.defaultSort?.column;
     if (sortColumn) {
       const ascending =

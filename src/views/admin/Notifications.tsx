@@ -51,7 +51,7 @@ const ENTITY_HREF: Record<string, string> = {
   finance_invoices: "/admin/invoices",
   certificates: "/admin/administration",
   lab_orders: "/admin/laboratory",
-  pharmacy_items: "/admin/pharmacy",
+  pharmacy_items: "/pharmacy/products",
 };
 
 const FILTERS = ["all", "unread", "feed", "local"] as const;

@@ -9,7 +9,8 @@ applied here is applied there; a row deleted here is gone.
 `src/app/**/page.tsx` re-exports a component from `src/views/**` — edit the
 view. `/` is ISR (`revalidate = 60`), the rest `force-dynamic`. Panels are
 gated by prefix in `src/proxy.ts` (Next 16's name for middleware): `/super`,
-`/admin`, `/portal` (doctor), `/patient`.
+`/admin`, `/portal` (doctor), `/patient`, `/pharmacy` (`pharmacy_admin`, and
+its hospital's admin).
 
 A module is three files: the migration, `src/server/resources/<name>.ts`, and a
 route that re-exports `createResourceRoute(...)`. The frontend mirror is
@@ -17,6 +18,18 @@ route that re-exports `createResourceRoute(...)`. The frontend mirror is
 a query, an auth check, a tenant filter or pagination means the factory is
 being bypassed. Field names are column names — form values post straight
 through with no mapping layer. Read `docs/module-guide.md` before adding one.
+
+The pharmacy (0126–0132) is the one module that is mostly not CRUD. Anything
+that moves stock or money — a sale, a return, receiving a purchase order, the
+cash drawer — is a `pharmacy_*` database function called from
+`/api/v1/pharmacy/*`, so it happens whole or not at all. Its lists are still
+the factory. `pharmacy_items.stock` is kept by a trigger from
+`pharmacy_batches`; never write it. Its row types are hand-written in
+`src/lib/pharmacy.ts` until `src/lib/supabase/types.ts` is regenerated.
+Every pharmacy login is the one role, `pharmacy_admin`; what it may do is a
+row in `pharmacy_staff`, asked through `pharmacy_can('<permission>')` from
+policies and functions alike. Stock and prices are per single piece: a strip
+or a box is a size on the product, and a sale line always counts pieces.
 
 ## Security
 
