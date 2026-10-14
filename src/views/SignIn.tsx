@@ -151,6 +151,18 @@ const SignIn = ({ ads = [] }: { ads?: SigninAd[] }) => {
         ? (data.claims.user_role as AppRole)
         : null;
 
+    // The token hook (custom_access_token_hook) gives a deactivated profile no
+    // role. Without this they would be signed in with nowhere to go and land
+    // on the home page with no word why.
+    if (!role) {
+      await supabase.auth.signOut();
+      setIsLoading(false);
+      setValue("password", "");
+      setGeneralError(t("deactivated"));
+      toast.error(t("deactivated"));
+      return;
+    }
+
     toast.success(t("welcomeBack"), { description: t("redirecting") });
 
     // refresh() so server components re-render with the new session cookie.
