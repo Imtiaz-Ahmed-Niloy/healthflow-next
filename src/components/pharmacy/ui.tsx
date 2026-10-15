@@ -118,14 +118,21 @@ type Cell = string | number | null | undefined;
 /** The same rows as a real .xlsx workbook, for the people who live in Excel. Numbers stay numbers. */
 export const exportExcel = async (rows: Record<string, Cell>[], filename: string) => {
   if (!rows.length) return false;
-  // Loaded when asked for: the library is not small, and most visits never export.
-  const { default: writeExcelFile } = await import("write-excel-file/browser");
-  const headers = Object.keys(rows[0]);
-  await writeExcelFile([
-    headers.map(header => ({ value: header, fontWeight: "bold" as const })),
-    ...rows.map(row => headers.map(header => ({ value: row[header] ?? "" }))),
-  ]).toFile(filename);
-  return true;
+  try {
+    // Loaded when asked for: the library is not small, and most visits never export.
+    const pkg = "write-excel-file/browser";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mod = await import(/* webpackIgnore: true */ pkg) as any;
+    const writeExcelFile = mod?.default ?? mod;
+    const headers = Object.keys(rows[0]);
+    await writeExcelFile([
+      headers.map(header => ({ value: header, fontWeight: "bold" as const })),
+      ...rows.map(row => headers.map(header => ({ value: row[header] ?? "" }))),
+    ]).toFile(filename);
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 const escapeHtml = (value: unknown) =>

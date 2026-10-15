@@ -13,6 +13,7 @@ import Testimonials from "@/components/site/Testimonials";
 import Footer from "@/components/site/Footer";
 import Chatbot from "@/components/site/Chatbot";
 import AnnouncementPopup from "@/components/site/AnnouncementPopup";
+import BrochurePromptPopup from "@/components/site/BrochurePromptPopup";
 import SectionGlow from "@/components/site/SectionGlow";
 import { homeCopyFor, type HomeContent } from "@/data/homeContent";
 import type { Locale } from "@/i18n/config";
@@ -113,6 +114,7 @@ const Index = ({
       <Footer />
       <Chatbot />
       <AnnouncementPopup announcements={announcements} />
+      <BrochurePromptPopup />
     </div>
   );
 };

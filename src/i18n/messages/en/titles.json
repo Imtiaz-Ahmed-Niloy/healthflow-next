@@ -20,6 +20,7 @@
     "signIn": "Sign In",
     "signUp": "Sign Up",
     "telehealth": "Telehealth",
+    "brochure": "Digital Healthcare Brochure",
     "terms": "Terms of Service",
 
     "dashboard": "Dashboard",
@@ -69,6 +70,7 @@
 
     "ads": "Advertisements",
     "announcements": "Announcements",
+    "brochureManagement": "Brochure Management",
     "cms": "CMS Management",
     "cmsAbout": "CMS: About Us",
     "cmsBlog": "CMS: Blog",

@@ -8,7 +8,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Building2, ShieldCheck, FileBarChart, Package, Globe2, ListChecks,
   FileCode2, Receipt, Settings, LogOut, Bell, Menu, X, Network, Megaphone, LifeBuoy, ScrollText, Mail,
-  ChevronDown, Stethoscope, Users, Tags,
+  ChevronDown, Stethoscope, Users, Tags, BookOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
@@ -47,6 +47,7 @@ export const superNav = [
   { to: "/super/billing", icon: Receipt, key: "billing", group: "commerce" },
   { to: "/super/cms", icon: FileCode2, key: "cms", group: "content" },
   { to: "/super/announcements", icon: Megaphone, key: "announcements", group: "content" },
+  { to: "/super/brochure", icon: BookOpen, key: "brochure", group: "content" },
   { to: "/super/ads", icon: ImageIcon, key: "ads", group: "content" },
   { to: "/super/contact-messages", icon: Mail, key: "contactMessages", group: "content" },
   { to: "/super/tickets", icon: LifeBuoy, key: "tickets", group: "system" },

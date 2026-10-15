@@ -295,6 +295,19 @@
     "dismiss": "Dismiss",
     "close": "Close"
   },
+  "brochurePopup": {
+    "badge": "Digital Healthcare Brochure",
+    "title": "Explore HealthFlow Brochure",
+    "description": "Discover Bangladesh's first integrated healthcare platform for Doctors, Hospitals, Pathology Labs, and Pharmacies in an interactive digital deck.",
+    "question": "Would you like to open our digital brochure?",
+    "viewBrochure": "View Brochure",
+    "dismiss": "Maybe Later",
+    "close": "Close",
+    "pillChamber": "Smart Chamber",
+    "pillHospital": "Hospital ERP",
+    "pillLabs": "Lab LIMS",
+    "pillPharmacy": "Pharmacy POS"
+  },
   "chatbot": {
     "greeting": "Hi! I'm your HealthFlow assistant. Ask me about doctors, hospitals, bookings, or anything else. You can type or use the mic 🎙️",
     "title": "HealthFlow Assistant",
