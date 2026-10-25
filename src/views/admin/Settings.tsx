@@ -15,8 +15,8 @@ const TABS = ["preferences", "roles", "security", "audit"] as const;
 type Tab = (typeof TABS)[number];
 
 /** The roles RBAC is edited for, by the value the token carries. */
-const ROLES = ["super_admin", "hospital_admin", "hr_admin", "finance_admin", "lab_admin", "pharmacy_admin"] as const;
-const RESOURCES = ["doctors", "patients", "lab", "pharmacy", "finance", "hr"] as const;
+const ROLES = ["super_admin", "hospital_admin", "hr_admin", "finance_admin", "lab_admin"] as const;
+const RESOURCES = ["doctors", "patients", "lab", "finance", "hr"] as const;
 const ACTIONS = ["view", "create", "edit", "delete", "approve"] as const;
 
 const TIMEZONES: string[] =

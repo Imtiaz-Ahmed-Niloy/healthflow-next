@@ -27,6 +27,7 @@ type DirectoryPatient = {
   next_appointment: { id: string; scheduled_date: string; scheduled_time: string } | null;
   high_priority: boolean;
   latest_bp: { systolic: number; diastolic: number } | null;
+  bp_history?: { date: string; systolic: number; diastolic: number }[];
   chief_complaint: string[];
   medications: Medicine[];
   conditions: string[];
@@ -101,6 +102,26 @@ const Directory = () => {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const selected = patients.find((p) => p.id === selectedId) ?? null;
+
+  const bmiInfo = useMemo(() => {
+    if (!selected?.weight_kg || !selected.height_feet) return null;
+    const heightM = ((selected.height_feet * 12) + (selected.height_inches || 0)) * 0.0254;
+    if (heightM <= 0) return null;
+    const bmi = Number((selected.weight_kg / (heightM * heightM)).toFixed(1));
+    let label = "স্বাভাবিক (Normal)";
+    let cls = "text-emerald-700 bg-emerald-50 border-emerald-200";
+    if (bmi < 18.5) {
+      label = "কম ওজন (Underweight)";
+      cls = "text-blue-700 bg-blue-50 border-blue-200";
+    } else if (bmi >= 23 && bmi < 27.5) {
+      label = "অতিরিক্ত ওজন (Overweight - Asian)";
+      cls = "text-amber-700 bg-amber-50 border-amber-200";
+    } else if (bmi >= 27.5) {
+      label = "স্থূলতা (Obese)";
+      cls = "text-rose-700 bg-rose-50 border-rose-200";
+    }
+    return { bmi, label, cls };
+  }, [selected]);
 
   return (
     <PortalLayout>
@@ -238,6 +259,104 @@ const Directory = () => {
                         <p className="mt-2"><span className="font-display text-2xl text-primary">{selected.height_feet}&apos;{selected.height_inches ?? 0}&quot;</span></p>
                       </div>
                     )}
+                    {bmiInfo && (
+                      <div className="rounded-xl bg-muted/40 p-4">
+                        <p className="text-[10px] tracking-widest font-bold text-muted-foreground">BMI (বডি ম্যাস)</p>
+                        <p className="mt-2 flex items-baseline gap-1">
+                          <span className="font-display text-2xl text-primary">{bmiInfo.bmi}</span>
+                          <span className="text-[10px] text-muted-foreground">kg/m²</span>
+                        </p>
+                        <span className={`inline-block mt-1 text-[9px] font-bold px-2 py-0.5 rounded-full border ${bmiInfo.cls}`}>
+                          {bmiInfo.label}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Longitudinal BP Trend Chart */}
+                {selected.bp_history && selected.bp_history.length > 1 && (
+                  <div className="mt-5 pt-4 border-t border-border/60 space-y-2.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-primary flex items-center gap-1.5">
+                        <Activity className="h-3.5 w-3.5 text-rose-500" />
+                        {locale === "bn" ? "রক্তচাপের গতিধারা (BP Longitudinal Trend)" : "Blood Pressure Trajectory"}
+                      </span>
+                      <div className="flex items-center gap-3 text-[10px] font-medium">
+                        <span className="flex items-center gap-1 text-rose-600">
+                          <span className="h-2 w-2 rounded-full bg-rose-500"></span> সিস্টোলিক
+                        </span>
+                        <span className="flex items-center gap-1 text-blue-600">
+                          <span className="h-2 w-2 rounded-full bg-blue-500"></span> ডায়াস্টোলিক
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* SVG Multi-point Sparkline */}
+                    <div className="bg-slate-50/80 border border-slate-200/90 rounded-2xl p-4 shadow-2xs">
+                      <div className="h-24 w-full flex items-end gap-2 relative">
+                        <svg className="w-full h-full overflow-visible" viewBox="0 0 300 80" preserveAspectRatio="none">
+                          {/* Guideline at 120/80 */}
+                          <line x1="0" y1="28" x2="300" y2="28" stroke="#f43f5e" strokeDasharray="3 3" strokeOpacity="0.3" strokeWidth="1" />
+                          <line x1="0" y1="52" x2="300" y2="52" stroke="#3b82f6" strokeDasharray="3 3" strokeOpacity="0.3" strokeWidth="1" />
+                          
+                          {/* Systolic Polyline */}
+                          <polyline
+                            fill="none"
+                            stroke="#e11d48"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            points={selected.bp_history.map((pt, i) => {
+                              const x = (i / (selected.bp_history!.length - 1)) * 280 + 10;
+                              const y = Math.max(5, Math.min(75, 80 - ((pt.systolic - 70) / (180 - 70)) * 70));
+                              return `${x},${y}`;
+                            }).join(" ")}
+                          />
+                          {/* Systolic Points */}
+                          {selected.bp_history.map((pt, i) => {
+                            const x = (i / (selected.bp_history!.length - 1)) * 280 + 10;
+                            const y = Math.max(5, Math.min(75, 80 - ((pt.systolic - 70) / (180 - 70)) * 70));
+                            return (
+                              <g key={`sys-${i}`}>
+                                <circle cx={x} cy={y} r="3.5" fill="#e11d48" className="transition-all hover:r-5 cursor-pointer" />
+                                <text x={x} y={y - 6} textAnchor="middle" fontSize="9" fontWeight="bold" fill="#9f1239">{pt.systolic}</text>
+                              </g>
+                            );
+                          })}
+
+                          {/* Diastolic Polyline */}
+                          <polyline
+                            fill="none"
+                            stroke="#2563eb"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            points={selected.bp_history.map((pt, i) => {
+                              const x = (i / (selected.bp_history!.length - 1)) * 280 + 10;
+                              const y = Math.max(10, Math.min(75, 80 - ((pt.diastolic - 50) / (130 - 50)) * 65));
+                              return `${x},${y}`;
+                            }).join(" ")}
+                          />
+                          {/* Diastolic Points */}
+                          {selected.bp_history.map((pt, i) => {
+                            const x = (i / (selected.bp_history!.length - 1)) * 280 + 10;
+                            const y = Math.max(10, Math.min(75, 80 - ((pt.diastolic - 50) / (130 - 50)) * 65));
+                            return (
+                              <g key={`dia-${i}`}>
+                                <circle cx={x} cy={y} r="3" fill="#2563eb" className="transition-all hover:r-5 cursor-pointer" />
+                                <text x={x} y={y + 11} textAnchor="middle" fontSize="9" fontWeight="bold" fill="#1d4ed8">{pt.diastolic}</text>
+                              </g>
+                            );
+                          })}
+                        </svg>
+                      </div>
+                      <div className="flex justify-between text-[10px] text-slate-500 font-mono pt-2 border-t border-slate-200/50 mt-1">
+                        {selected.bp_history.map((pt, idx) => (
+                          <span key={idx}>{pt.date.slice(5)}</span>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

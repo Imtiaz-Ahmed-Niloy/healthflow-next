@@ -48,7 +48,7 @@ const Pricing = ({ hero, plans, compareRows, faqs }: PricingContent) => {
                 <p className="text-sm text-muted-foreground mt-1">{p.tag}</p>
                 <div className="mt-5 flex items-baseline gap-1">
                   <span className="font-display text-5xl text-primary">{t("price", { amount: p.price })}</span>
-                  <span className="text-sm text-muted-foreground">{t("perPrescription")}</span>
+                  <span className="text-sm text-muted-foreground">{p.unit || t("perPrescription")}</span>
                 </div>
                 <ul className="mt-6 space-y-3">
                   {p.features.map(f => (

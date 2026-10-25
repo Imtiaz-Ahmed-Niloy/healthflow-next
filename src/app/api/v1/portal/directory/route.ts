@@ -157,6 +157,15 @@ export const GET = async () => {
       .slice(0, 3)
       .map((r) => ({ id: r.id, scheduled_date: r.scheduled_date, department: r.department, notes: r.notes, advice: asStringArray(r.advice) }));
 
+    const bpHistory = rows
+      .filter((r) => r.bp_systolic != null && r.bp_diastolic != null)
+      .map((r) => ({
+        date: r.scheduled_date,
+        systolic: r.bp_systolic as number,
+        diastolic: r.bp_diastolic as number,
+      }))
+      .reverse();
+
     return {
       id: patient.id,
       mrn: patient.mrn,
@@ -174,6 +183,7 @@ export const GET = async () => {
       next_appointment: nextAppt ? { id: nextAppt.id, scheduled_date: nextAppt.scheduled_date, scheduled_time: nextAppt.scheduled_time } : null,
       high_priority: upcoming.some((r) => r.priority === "high"),
       latest_bp: bpSource ? { systolic: bpSource.bp_systolic as number, diastolic: bpSource.bp_diastolic as number } : null,
+      bp_history: bpHistory,
       chief_complaint: asStringArray(contentSource?.complaints),
       medications: asMedicines(contentSource?.medicines),
       conditions,

@@ -92,7 +92,7 @@
     "subheading": "আপনার ডাক্তাররা যে প্রেসক্রিপশন লেখেন, শুধু তার জন্যই মূল্য দিন।\nযে মাসে কোনো প্রেসক্রিপশন নেই, সে মাসে কোনো খরচ নেই।",
     "recommended": "প্রস্তাবিত",
     "price": "৳{amount}",
-    "perPrescription": "প্রতি প্রেসক্রিপশন"
+    "perPrescription": "প্রতি ইনভয়েস"
   },
   "directory": {
     "backHome": "হোমে ফিরে যান",
@@ -352,7 +352,7 @@
   "pricingPage": {
     "mostPopular": "সবচেয়ে জনপ্রিয়",
     "price": "৳{amount}",
-    "perPrescription": "প্রতি প্রেসক্রিপশন",
+    "perPrescription": "প্রতি ইনভয়েস",
     "compareTitle": "<g>প্ল্যানগুলো</g> তুলনা করুন",
     "compareSub": "প্রতিটি প্ল্যানে কী আছে, পাশাপাশি।",
     "included": "অন্তর্ভুক্ত",

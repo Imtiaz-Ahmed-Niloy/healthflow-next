@@ -6,6 +6,7 @@ export type PricingFeature = { text: string; on: boolean };
 export type PricingPlan = {
   name: string;
   price: string;
+  unit?: string;
   tag: string;
   cta: string;
   featured: boolean;
@@ -44,35 +45,37 @@ export const defaultPricingContent: PricingContent = {
   },
   plans: [
     {
-      name: "Basic",
+      name: "Doctor Panel",
       price: "10",
+      unit: "Per Prescription",
       tag: "For clinics and doctors' chambers.",
       cta: "Talk to us",
       featured: false,
       features: [
-        { text: "Doctor portal with a live patient queue", on: true },
         { text: "Digital prescriptions", on: true },
-        { text: "Appointments and patient records", on: true },
-        { text: "Patient portal for your patients", on: true },
-        { text: "Your hospital listed on HealthFlow", on: true },
-        { text: "Wards, beds and admissions", on: false },
-        { text: "Laboratory and pharmacy", on: false },
+        { text: "Live patient queue", on: true },
+        { text: "Appointment scheduling & calendar", on: true },
+        { text: "Patient records & visit history", on: true },
+        { text: "Multi-chamber management", on: true },
+        { text: "Doctor assistant delegation", on: true },
+        { text: "Drug & diagnosis dictionary", on: true },
       ],
     },
     {
-      name: "Professional",
-      price: "30",
-      tag: "For hospitals with wards, a lab and a pharmacy.",
+      name: "Pharmacy Panel",
+      price: "5",
+      unit: "Per Invoice",
+      tag: "For pharmacies, medical stores and dispensaries.",
       cta: "Talk to us",
       featured: true,
       features: [
-        { text: "Everything in Basic", on: true },
-        { text: "Wards, beds and admissions", on: true },
-        { text: "Laboratory orders and results", on: true },
-        { text: "Pharmacy stock with reorder alerts", on: true },
-        { text: "Patient billing and invoices", on: true },
-        { text: "Staff, attendance and leave", on: true },
-        { text: "Payroll and accounts", on: false },
+        { text: "Fast POS & barcode billing", on: true },
+        { text: "Batch & expiry stock tracking", on: true },
+        { text: "Low stock & expiry alerts", on: true },
+        { text: "Purchase orders & suppliers", on: true },
+        { text: "Cash drawer & shift closing", on: true },
+        { text: "Sales history & invoice receipts", on: true },
+        { text: "Expense & profit/loss reports", on: true },
       ],
     },
     {
@@ -149,35 +152,37 @@ export const defaultPricingContentBn: PricingContent = {
   },
   plans: [
     {
-      name: "বেসিক",
+      name: "ডাক্তার প্যানেল",
       price: "10",
+      unit: "প্রতি প্রেসক্রিপশন",
       tag: "ক্লিনিক ও ডাক্তারের চেম্বারের জন্য।",
       cta: "যোগাযোগ করুন",
       featured: false,
       features: [
-        { text: "রোগীর সরাসরি সারিসহ ডাক্তার পোর্টাল", on: true },
         { text: "ডিজিটাল প্রেসক্রিপশন", on: true },
-        { text: "অ্যাপয়েন্টমেন্ট ও রোগীর রেকর্ড", on: true },
-        { text: "আপনার রোগীদের জন্য রোগী পোর্টাল", on: true },
-        { text: "HealthFlow-এ আপনার হাসপাতালের তালিকা", on: true },
-        { text: "ওয়ার্ড, বেড ও ভর্তি", on: false },
-        { text: "ল্যাবরেটরি ও ফার্মেসি", on: false },
+        { text: "লাইভ রোগী কিউ", on: true },
+        { text: "অ্যাপয়েন্টমেন্ট শিডিউলিং ও ক্যালেন্ডার", on: true },
+        { text: "রোগীর রেকর্ড ও চিকিৎসার ইতিহাস", on: true },
+        { text: "একাধিক চেম্বার ব্যবস্থাপনা", on: true },
+        { text: "ডাক্তার সহকারী দায়িত্ব বণ্টন", on: true },
+        { text: "ওষুধ ও রোগ নির্ণয় অভিধান", on: true },
       ],
     },
     {
-      name: "প্রফেশনাল",
-      price: "30",
-      tag: "ওয়ার্ড, ল্যাব ও ফার্মেসিসহ হাসপাতালের জন্য।",
+      name: "ফার্মেসি প্যানেল",
+      price: "5",
+      unit: "প্রতি ইনভয়েস",
+      tag: "ফার্মেসি, ওষুধের দোকান ও ডিসপেনসারির জন্য।",
       cta: "যোগাযোগ করুন",
       featured: true,
       features: [
-        { text: "বেসিকের সবকিছু", on: true },
-        { text: "ওয়ার্ড, বেড ও ভর্তি", on: true },
-        { text: "ল্যাবরেটরি অর্ডার ও ফলাফল", on: true },
-        { text: "পুনঃঅর্ডার সতর্কতাসহ ফার্মেসির মজুদ", on: true },
-        { text: "রোগীর বিলিং ও ইনভয়েস", on: true },
-        { text: "কর্মী, হাজিরা ও ছুটি", on: true },
-        { text: "বেতন ও হিসাব", on: false },
+        { text: "দ্রুত POS ও বারকোড বিলিং", on: true },
+        { text: "ব্যাচ ও মেয়াদ স্টক ট্র্যাকিং", on: true },
+        { text: "কম স্টক ও মেয়াদের সতর্কতা", on: true },
+        { text: "ক্রয় আদেশ ও সরবরাহকারী", on: true },
+        { text: "ক্যাশ ড্রয়ার ও শিফট ক্লোজিং", on: true },
+        { text: "বিক্রয় ইতিহাস ও ইনভয়েস রশিদ", on: true },
+        { text: "খরচ ও লাভ/ক্ষতি রিপোর্ট", on: true },
       ],
     },
     {
@@ -253,6 +258,7 @@ const normalizePlan = (p: unknown): PricingPlan => {
   return {
     name: plan.name ?? "",
     price: plan.price ?? "",
+    unit: typeof plan.unit === "string" && plan.unit.trim() ? plan.unit.trim() : undefined,
     tag: plan.tag ?? "",
     cta: plan.cta ?? "",
     featured: plan.featured ?? false,
@@ -314,7 +320,7 @@ export const blocksToPricingContent = (blocks: unknown, locale: Locale = "en"): 
   const bangla = parsePricing(blocksFor(blocks, "bn") as PricingBlocks, defaultPricingContentBn);
   const plans = english.plans.map((plan, i) => {
     const words = bangla.plans[i];
-    return words ? { ...words, price: plan.price, featured: plan.featured } : plan;
+    return words ? { ...words, price: plan.price, featured: plan.featured, unit: words.unit || plan.unit } : plan;
   });
   return {
     ...bangla,

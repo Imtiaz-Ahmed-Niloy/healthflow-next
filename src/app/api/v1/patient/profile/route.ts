@@ -67,6 +67,18 @@ const personalSchema = z.object({
     z.string().trim().email("That email does not look right").nullable().optional(),
   ),
   emergency_contact_address: optionalText,
+  family_members: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string().trim().min(1, "Name is required"),
+      relation: z.string().trim().min(1, "Relation is required"),
+      dob: z.string().nullable().optional(),
+      gender: z.string().nullable().optional(),
+      blood_group: z.string().nullable().optional(),
+      phone: z.string().nullable().optional(),
+      notes: z.string().nullable().optional(),
+    }),
+  ).optional(),
 });
 
 const profileSchema = identitySchema.merge(personalSchema);

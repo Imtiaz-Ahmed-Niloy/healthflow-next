@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode, useEffect, useState } from "react";
-import { BadgeCheck, Image as ImageIcon } from "lucide-react";
+import { BadgeCheck, Image as ImageIcon, Pill as PillIcon, FlaskConical } from "lucide-react";
 import Link from "next/link";
 import { NavLink } from "@/components/NavLink";
 import { usePathname, useRouter } from "next/navigation";
@@ -34,6 +34,8 @@ export const superNav = [
   // No separate onboarding queue: Hospital Management lists every hospital and
   // `pending` is the queue. /super/onboarding redirects there.
   { to: "/super/hospitals", icon: Building2, key: "hospitals", group: "tenants" },
+  { to: "/super/pharmacy", icon: PillIcon, key: "pharmacy", group: "tenants" },
+  { to: "/super/lab", icon: FlaskConical, key: "lab", group: "tenants" },
   { to: "/super/roles", icon: ShieldCheck, key: "roles", group: "tenants" },
   { to: "/super/package-management", icon: Package, key: "packages", group: "tenants" },
   // People, not hospital rows: one entry per doctor or patient however many

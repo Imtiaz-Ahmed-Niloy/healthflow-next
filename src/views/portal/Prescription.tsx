@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Plus, ClipboardList, ClipboardCheck, FlaskConical, Stethoscope, Lightbulb, History, AlertTriangle, Users, Printer, X, Search, Check, Store, Building2, CalendarClock } from "lucide-react";
+import { Plus, ClipboardList, ClipboardCheck, FlaskConical, Stethoscope, Lightbulb, History, AlertTriangle, Users, Printer, X, Search, Check, Store, Building2, CalendarClock, Sparkles, Copy, FileText, ChevronDown, ChevronUp, FileBadge, BookOpen, Coffee, BellRing, HeartPulse, ShieldAlert, Phone, Video } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { PrescriptionPreview } from "@/components/common/PrescriptionPreview";
 import type { LucideIcon } from "lucide-react";
@@ -22,6 +22,14 @@ import { rememberedPlace, rememberPlace } from "@/lib/rxPlace";
 import { useFormatters } from "@/lib/appSettings";
 import { SuggestInput, type Suggestion } from "@/components/portal/SuggestInput";
 import { MedicineSig, formKind, isSigFilled, needsMeal } from "@/components/portal/MedicineSig";
+import { ClinicalPresetsDialog, type ClinicalPreset } from "@/components/portal/ClinicalPresetsDialog";
+import { SectionPresetsDialog, type SectionType } from "@/components/portal/SectionPresetsDialog";
+import { MedicalCertificatesDialog } from "@/components/portal/MedicalCertificatesDialog";
+import { PatientHandoutsDialog } from "@/components/portal/PatientHandoutsDialog";
+import { VoiceDictationButton } from "@/components/portal/VoiceDictationButton";
+import { TelemedicineRoomModal } from "@/components/portal/TelemedicineRoomModal";
+import { playSound } from "@/lib/audio";
+import { checkPrescriptionSafety, type ClinicalSafetyWarning } from "@/lib/clinicalSafety";
 import { useInvestigations } from "@/hooks/useInvestigations";
 import { useAdvice } from "@/hooks/useAdvice";
 import { COMPLAINT_DURATIONS, useComplaints } from "@/hooks/useComplaints";
@@ -77,6 +85,16 @@ type Age = { value: number; unit: "years" | "months" | "days" };
 // meal is "" for forms where it doesn't apply (eye drops, creams, injections, inhalers).
 type Medicine = { name: string; dosage_form: string; dose: string; frequency: string; days: string; meal: string };
 
+type LabReport = {
+  id: string;
+  reference: string;
+  test_name: string;
+  status: string;
+  requested_at: string;
+  result: unknown;
+  reported_at: string | null;
+};
+
 type ConsultationCtx = {
   /** `name` is null for a chamber with no name of its own (0091). */
   hospital: { name: string | null; address: string | null; contact_phone: string | null };
@@ -113,7 +131,15 @@ type ConsultationCtx = {
     /** YYYY-MM-DD, when the doctor wants them back (0103). */
     follow_up_date: string | null;
   };
-  history:{ id: string; scheduled_date: string; department: string | null; notes: string | null }[];
+  history: {
+    id: string;
+    scheduled_date: string;
+    department: string | null;
+    notes: string | null;
+    diagnosis?: string[];
+    medicines?: Medicine[];
+  }[];
+  lab_reports?: LabReport[];
 };
 
 /** One of the doctor's hospitals or chambers, as /api/v1/portal/me lists it. */
@@ -177,15 +203,34 @@ type EditableSectionProps = {
    */
   detailsFor?: (name: string) => string[];
   detailPlaceholder?: string;
+  sectionType?: SectionType;
+  onApplyPreset?: (items: string[], mode: "append" | "replace") => void;
 };
 
 /** Between a complaint and its detail in a saved entry. Names on the 0101 list have no colon. */
 const DETAIL_SEP = ": ";
 
-const EditableSection = ({ icon: Icon, title, action, items, onAdd, onUpdate, onRemove, placeholder, multiline, suggestions, detailsFor, detailPlaceholder }: EditableSectionProps) => {
+const EditableSection = ({
+  icon: Icon,
+  title,
+  action,
+  items,
+  onAdd,
+  onUpdate,
+  onRemove,
+  onApplyPreset,
+  sectionType,
+  placeholder,
+  multiline,
+  suggestions,
+  detailsFor,
+  detailPlaceholder,
+}: EditableSectionProps) => {
   const t = useTranslations("portal.prescription");
   const tc = useTranslations("common");
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
+  const [presetsOpen, setPresetsOpen] = useState(false);
   const [value, setValue] = useState("");
   // null = the open input is adding a new entry; an index = editing that
   // entry in `items` in place (clicking an existing line, same pattern as
@@ -272,14 +317,33 @@ const EditableSection = ({ icon: Icon, title, action, items, onAdd, onUpdate, on
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div>
         <h3 className="flex items-center gap-2 font-semibold text-primary text-sm"><Icon className="h-4 w-4" /> {title}</h3>
-        <button
-          onClick={toggleAdd}
-          className="flex items-center gap-1 text-xs font-semibold text-primary border border-border rounded-full px-3 py-1 hover:bg-chip transition-colors"
-        >
-          <Plus className={`h-3 w-3 transition-transform ${open && editingIndex === null ? "rotate-45" : ""}`} /> {action}
-        </button>
+        <div className="flex flex-wrap items-center gap-1.5 mt-2">
+          <VoiceDictationButton
+            onTranscript={(text) => {
+              onAdd(text);
+              toast.success(`${title}: "${text}"`);
+            }}
+          />
+          {sectionType && onApplyPreset && (
+            <button
+              type="button"
+              onClick={() => setPresetsOpen(true)}
+              className="flex items-center gap-1 text-xs font-semibold text-primary border border-border/70 rounded-full px-2.5 py-1 hover:bg-chip hover:border-primary/40 transition-colors shadow-2xs cursor-pointer"
+              title={`${title} Presets`}
+            >
+              <Sparkles className="h-3 w-3 text-primary" />
+              <span className="text-[11px] font-medium">{locale === "bn" ? "প্রিসেট" : "Presets"}</span>
+            </button>
+          )}
+          <button
+            onClick={toggleAdd}
+            className="flex items-center gap-1 text-xs font-semibold text-primary border border-border rounded-full px-3 py-1 hover:bg-chip transition-colors cursor-pointer"
+          >
+            <Plus className={`h-3 w-3 transition-transform ${open && editingIndex === null ? "rotate-45" : ""}`} /> {action}
+          </button>
+        </div>
       </div>
 
       {open && (
@@ -374,6 +438,16 @@ const EditableSection = ({ icon: Icon, title, action, items, onAdd, onUpdate, on
           ))
         )}
       </div>
+
+      {sectionType && onApplyPreset && (
+        <SectionPresetsDialog
+          open={presetsOpen}
+          onOpenChange={setPresetsOpen}
+          sectionType={sectionType}
+          currentItems={items}
+          onApplyItems={onApplyPreset}
+        />
+      )}
     </div>
   );
 };
@@ -722,6 +796,146 @@ type SidebarQueueEntry = {
   // the form may hold edits that were never saved.
   const [previewSaved, setPreviewSaved] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [presetsOpen, setPresetsOpen] = useState(false);
+  const [advicePresetsOpen, setAdvicePresetsOpen] = useState(false);
+  const [certificatesOpen, setCertificatesOpen] = useState(false);
+  const [handoutsOpen, setHandoutsOpen] = useState(false);
+  const [telemedOpen, setTelemedOpen] = useState(false);
+  const [autoBookFollowUp, setAutoBookFollowUp] = useState(false);
+  const [breakEndsAt, setBreakEndsAt] = useState<number | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("healthflow_queue_break_ends_at");
+        if (stored) {
+          const parsed = Number(stored);
+          if (parsed > Date.now()) return parsed;
+          localStorage.removeItem("healthflow_queue_break_ends_at");
+        }
+      } catch {}
+    }
+    return null;
+  });
+  const [breakSecondsLeft, setBreakSecondsLeft] = useState<number>(0);
+
+  // Sync cross-tab / cross-window break broadcast
+  useEffect(() => {
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel("healthflow_queue_broadcast");
+      channel.onmessage = (event) => {
+        if (event.data?.type === "BREAK_START" && event.data?.data) {
+          try {
+            localStorage.setItem("healthflow_queue_break_ends_at", String(event.data.data.endsAt));
+          } catch {}
+          setBreakEndsAt(event.data.data.endsAt);
+        } else if (event.data?.type === "BREAK_END") {
+          try {
+            localStorage.removeItem("healthflow_queue_break_ends_at");
+          } catch {}
+          setBreakEndsAt(null);
+        }
+      };
+    } catch {}
+    return () => {
+      channel?.close();
+    };
+  }, []);
+
+  // Sync live break timer countdown
+  useEffect(() => {
+    if (!breakEndsAt) {
+      setBreakSecondsLeft(0);
+      return;
+    }
+    const update = () => {
+      const diff = Math.max(0, Math.round((breakEndsAt - Date.now()) / 1000));
+      setBreakSecondsLeft(diff);
+      if (diff <= 0) {
+        setBreakEndsAt(null);
+      }
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [breakEndsAt]);
+
+  const handleToggleBreak = (minutes = 10) => {
+    try {
+      const channel = new BroadcastChannel("healthflow_queue_broadcast");
+      if (breakEndsAt && breakEndsAt > Date.now()) {
+        try {
+          localStorage.removeItem("healthflow_queue_break_ends_at");
+        } catch {}
+        channel.postMessage({ type: "BREAK_END" });
+        channel.close();
+        setBreakEndsAt(null);
+        toast.success(
+          locale === "bn" ? "বিরতি সমাপ্ত হয়েছে, রোগী দেখা পুনরায় শুরু করুন" : "Break ended, resume consultation",
+          { icon: "▶️" }
+        );
+      } else {
+        const targetEnd = Date.now() + minutes * 60 * 1000;
+        try {
+          localStorage.setItem("healthflow_queue_break_ends_at", String(targetEnd));
+        } catch {}
+        setBreakEndsAt(targetEnd);
+        channel.postMessage({
+          type: "BREAK_START",
+          data: { minutes, endsAt: targetEnd },
+        });
+        channel.close();
+        playSound("chime");
+        if (typeof window !== "undefined" && "speechSynthesis" in window) {
+          try {
+            const text = locale === "bn"
+              ? "সম্মানিত রোগীগণ, ডাক্তার ১০ মিনিটের সংক্ষিপ্ত বিরতিতে আছেন। অনুগ্রহ করে অপেক্ষা করুন।"
+              : "Attention patients, the doctor is on a brief 10-minute break. Consultation will resume shortly.";
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 0.95;
+            utterance.pitch = 1.0;
+            window.speechSynthesis.speak(utterance);
+          } catch {}
+        }
+        toast.info(
+          locale === "bn" ? "টিভি বোর্ডে ১০ মিনিটের বিরতি কাউন্টডাউন শুরু হয়েছে" : "10-minute break countdown active on TV board",
+          { icon: "☕" }
+        );
+      }
+    } catch {
+      toast.info("১০ মিনিটের বিরতি সক্রিয় করা হয়েছে", { icon: "☕" });
+    }
+  };
+
+  // Clinical Drug-Drug & Disease-Drug Safety Evaluation
+  const safetyWarnings = useMemo(() => {
+    return checkPrescriptionSafety(medicines, diagnosis);
+  }, [medicines, diagnosis]);
+
+  const handleApplyPreset = (preset: ClinicalPreset, mode: "append" | "replace") => {
+    if (mode === "replace") {
+      if (preset.complaints) setComplaints(preset.complaints);
+      if (preset.examination) setExamination(preset.examination);
+      if (preset.investigation) setInvestigation(preset.investigation);
+      if (preset.diagnosis) setDiagnosis(preset.diagnosis);
+      if (preset.medicines) setMedicines(preset.medicines);
+      if (preset.advice) setAdvice(preset.advice);
+      if (preset.followUpDays) {
+        setFollowUp(addToDate(new Date().toISOString().slice(0, 10), { days: preset.followUpDays }));
+      }
+      toast.success(locale === "bn" ? `"${preset.nameBn || preset.name}" প্রয়োগ করা হয়েছে` : `Applied "${preset.name}" preset`);
+    } else {
+      if (preset.complaints?.length) setComplaints((prev) => Array.from(new Set([...prev, ...preset.complaints!])));
+      if (preset.examination?.length) setExamination((prev) => Array.from(new Set([...prev, ...preset.examination!])));
+      if (preset.investigation?.length) setInvestigation((prev) => Array.from(new Set([...prev, ...preset.investigation!])));
+      if (preset.diagnosis?.length) setDiagnosis((prev) => Array.from(new Set([...prev, ...preset.diagnosis!])));
+      if (preset.medicines?.length) setMedicines((prev) => [...prev, ...preset.medicines!]);
+      if (preset.advice?.length) setAdvice((prev) => Array.from(new Set([...prev, ...preset.advice!])));
+      if (preset.followUpDays && !followUp) {
+        setFollowUp(addToDate(new Date().toISOString().slice(0, 10), { days: preset.followUpDays }));
+      }
+      toast.success(locale === "bn" ? `"${preset.nameBn || preset.name}" যুক্ত করা হয়েছে` : `Appended "${preset.name}" items`);
+    }
+  };
 
   // Draft autosave -- a doctor's whole visit-in-progress (complaints,
   // examination, investigation, diagnosis, medicines, advice) used to live
@@ -971,7 +1185,7 @@ type SidebarQueueEntry = {
       const res = await fetch(`/api/v1/portal/consultation/${appointmentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "complete", complaints, examination, investigation, diagnosis, medicines, advice, follow_up_date: followUp }),
+        body: JSON.stringify({ action: "complete", complaints, examination, investigation, diagnosis, medicines, advice, follow_up_date: followUp, auto_book_follow_up: autoBookFollowUp }),
       });
       const body = await res.json().catch(() => null);
       if (res.status === 409) {
@@ -1286,7 +1500,111 @@ type SidebarQueueEntry = {
   return (
   <PortalLayout>
     <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
-      className="rounded-3xl bg-card shadow-soft p-8">
+      className="space-y-4">
+      {/* Quick Chamber Intercom & Clinical Tools Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-card border border-border/70 rounded-2xl p-2.5 shadow-2xs">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1 pl-1">
+            <BellRing className="h-3.5 w-3.5 text-slate-500" /> {locale === "bn" ? "চেম্বার ইন্টারকম:" : "Chamber Intercom:"}
+          </span>
+          <button
+            type="button"
+            onClick={() => toast.success(locale === "bn" ? "সংকেত পাঠানো হয়েছে: পরবর্তী রোগীকে পাঠান" : "Signal sent: Call next patient")}
+            className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:border-emerald-500 hover:text-emerald-700 hover:bg-emerald-50/50 transition-all shadow-2xs"
+          >
+            {locale === "bn" ? "পরবর্তী রোগী পাঠান" : "Call Next Patient"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const patientName = patient.full_name && patient.full_name !== "—" ? patient.full_name : (locale === "bn" ? "রোগী" : "Patient");
+              const tokenStr = patient.mrn && patient.mrn !== "—" ? patient.mrn.slice(-2) : "01";
+
+              // Broadcast to waiting room TV board via BroadcastChannel
+              try {
+                const channel = new BroadcastChannel("healthflow_queue_broadcast");
+                channel.postMessage({
+                  type: "CALL_TOKEN",
+                  data: {
+                    token: tokenStr,
+                    name: patientName,
+                    time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                    purpose: "vitals",
+                  },
+                });
+              } catch {}
+
+              // Play local audio chime + speech
+              playSound("chime");
+              if (typeof window !== "undefined" && "speechSynthesis" in window) {
+                try {
+                  const text = locale === "bn"
+                    ? `টোকেন নম্বর ${tokenStr}, ${patientName}, অনুগ্রহ করে ভাইটালস ও রক্তচাপ পরিমাপের জন্য আসুন`
+                    : `Token number ${tokenStr}, ${patientName}, please proceed for vitals and blood pressure check`;
+                  const utterance = new SpeechSynthesisUtterance(text);
+                  utterance.rate = 0.95;
+                  utterance.pitch = 1.0;
+                  window.speechSynthesis.speak(utterance);
+                } catch {}
+              }
+
+              toast.success(
+                locale === "bn"
+                  ? `টিভি বোর্ডে কল পাঠানো হয়েছে: ${patientName} - ভাইটালস ও রক্তচাপ মাপুন`
+                  : `Broadcasting Vitals & BP Call on TV Board for ${patientName}`,
+                { icon: "🩺" }
+              );
+            }}
+            className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:border-blue-500 hover:text-blue-700 hover:bg-blue-50/50 transition-all shadow-2xs"
+          >
+            {locale === "bn" ? "ভাইটালস ও বিপি মাপুন" : "Check Vitals & BP"}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleToggleBreak(10)}
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all shadow-2xs ${
+              breakEndsAt && breakEndsAt > Date.now()
+                ? "bg-amber-100 border border-amber-400 text-amber-900 font-bold animate-pulse hover:bg-amber-200"
+                : "bg-white border border-slate-200 text-slate-700 hover:border-amber-500 hover:text-amber-700 hover:bg-amber-50/50"
+            }`}
+          >
+            {breakEndsAt && breakEndsAt > Date.now()
+              ? `${locale === "bn" ? "বিরতি চলছে" : "On Break"} (${Math.floor(breakSecondsLeft / 60)}:${String(breakSecondsLeft % 60).padStart(2, "0")}) • ${locale === "bn" ? "শেষ করুন" : "End"}`
+              : locale === "bn" ? "১০ মিনিট বিরতি" : "10m Break"}
+          </button>
+        </div>
+
+        {/* Clinical Suite Tools */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setCertificatesOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-white text-slate-800 border border-slate-200 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all shadow-2xs"
+          >
+            <FileBadge className="h-3.5 w-3.5 text-slate-700" />
+            {locale === "bn" ? "সার্টিফিকেট ও রেফারেল" : "Medical Certificates"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setHandoutsOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-white text-slate-800 border border-slate-200 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all shadow-2xs"
+          >
+            <BookOpen className="h-3.5 w-3.5 text-slate-700" />
+            {locale === "bn" ? "রোগীর নির্দেশিকা (বাংলা)" : "Patient Handouts"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setTelemedOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-white text-slate-800 border border-slate-200 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all shadow-2xs"
+          >
+            <Video className="h-3.5 w-3.5 text-slate-700" />
+            {locale === "bn" ? "ভিডিও কনসালটেশন" : "Video Consult"}
+          </button>
+        </div>
+      </div>
+
+      {/* Prescription Pad */}
+      <div className="rounded-3xl bg-card shadow-soft p-8">
       {/* Header */}
       <div className="flex items-start justify-between border-b border-border/60 pb-6">
         {canSwapPlace ? (
@@ -1384,6 +1702,14 @@ type SidebarQueueEntry = {
             onAdd={addTo(setComplaints)}
             onUpdate={updateIn(setComplaints)}
             onRemove={removeFrom(setComplaints)}
+            sectionType="complaints"
+            onApplyPreset={(newItems, mode) => {
+              if (mode === "replace") {
+                setComplaints(newItems);
+              } else {
+                setComplaints((prev) => [...prev, ...newItems]);
+              }
+            }}
           />
           <EditableSection
             icon={ClipboardCheck}
@@ -1397,6 +1723,14 @@ type SidebarQueueEntry = {
             onAdd={addTo(setExamination)}
             onUpdate={updateIn(setExamination)}
             onRemove={removeFrom(setExamination)}
+            sectionType="examination"
+            onApplyPreset={(newItems, mode) => {
+              if (mode === "replace") {
+                setExamination(newItems);
+              } else {
+                setExamination((prev) => [...prev, ...newItems]);
+              }
+            }}
           />
           <EditableSection
             icon={FlaskConical}
@@ -1408,6 +1742,14 @@ type SidebarQueueEntry = {
             onAdd={addTo(setInvestigation)}
             onUpdate={updateIn(setInvestigation)}
             onRemove={removeFrom(setInvestigation)}
+            sectionType="investigation"
+            onApplyPreset={(newItems, mode) => {
+              if (mode === "replace") {
+                setInvestigation(newItems);
+              } else {
+                setInvestigation((prev) => [...prev, ...newItems]);
+              }
+            }}
           />
           <EditableSection
             icon={ClipboardList}
@@ -1419,6 +1761,14 @@ type SidebarQueueEntry = {
             onAdd={addTo(setDiagnosis)}
             onUpdate={updateIn(setDiagnosis)}
             onRemove={removeFrom(setDiagnosis)}
+            sectionType="diagnosis"
+            onApplyPreset={(newItems, mode) => {
+              if (mode === "replace") {
+                setDiagnosis(newItems);
+              } else {
+                setDiagnosis((prev) => Array.from(new Set([...prev, ...newItems])));
+              }
+            }}
           />
         </div>
 
@@ -1426,13 +1776,68 @@ type SidebarQueueEntry = {
         <div className="border-x border-border/40 px-6">
           <div className="flex items-center justify-between">
             <p className="font-display text-7xl text-primary italic">Rx</p>
-            <button
-              onClick={() => setMedOpen(true)}
-              className="flex items-center gap-1 text-xs font-semibold text-primary border border-border rounded-full px-3 py-1.5 hover:bg-chip transition-colors"
-            >
-              <Plus className="h-3 w-3" /> {t("addMedicine")}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPresetsOpen(true)}
+                className="flex items-center gap-1.5 text-xs font-semibold text-primary border border-primary/30 bg-primary/5 rounded-full px-3 py-1.5 hover:bg-primary/10 transition-colors shadow-xs"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-primary" /> {locale === "bn" ? "টেমপ্লেট" : "Rx Presets"}
+              </button>
+              <button
+                onClick={() => setMedOpen(true)}
+                className="flex items-center gap-1 text-xs font-semibold text-primary border border-border rounded-full px-3 py-1.5 hover:bg-chip transition-colors"
+              >
+                <Plus className="h-3 w-3" /> {t("addMedicine")}
+              </button>
+            </div>
           </div>
+
+          {/* Clinical Safety Engine Alert Banner */}
+          {safetyWarnings.length > 0 && (
+            <div className="mt-4 mb-2 rounded-2xl border border-rose-300 bg-rose-50/80 p-3.5 shadow-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-rose-600 text-white shadow-xs">
+                    <ShieldAlert className="h-3.5 w-3.5" />
+                  </span>
+                  <div>
+                    <h4 className="text-xs font-bold text-rose-950 flex items-center gap-1.5">
+                      ক্লিনিক্যাল ড্রাগ ও কন্ট্রা-ইন্ডিকেশন সতর্কতা
+                      <span className="rounded-full bg-rose-200 px-1.5 py-0.2 text-[10px] font-extrabold text-rose-800">
+                        {safetyWarnings.length} Alerts
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-rose-700">
+                      প্রেসক্রিপশনের ড্রাগ ইন্টারঅ্যাকশন ও রোগের সঙ্গে বিপরীত প্রভাব শনাক্ত হয়েছে
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-1.5 pt-1">
+                {safetyWarnings.map((w, idx) => (
+                  <div key={idx} className="flex items-start justify-between gap-2 text-xs bg-white/95 border border-rose-200 rounded-xl p-2.5">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`px-1.5 py-0.2 text-[9px] font-bold rounded uppercase ${
+                          w.severity === "high" ? "bg-red-600 text-white" : w.severity === "moderate" ? "bg-amber-500 text-white" : "bg-blue-600 text-white"
+                        }`}>
+                          {w.severity}
+                        </span>
+                        <span className="font-bold text-slate-900">{w.title}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 leading-tight">{w.description}</p>
+                      {w.recommendation && (
+                        <p className="text-[11px] font-medium text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 inline-block mt-0.5">
+                          পরামর্শ: {w.recommendation}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <Dialog open={medOpen} onOpenChange={(o) => (o ? setMedOpen(true) : closeMedDialog())}>
             <DialogContent className="sm:max-w-[560px]">
@@ -1576,9 +1981,26 @@ type SidebarQueueEntry = {
           <div className="mt-12">
             <div className="flex items-center justify-between">
               <p className="flex items-center gap-2 text-sm font-semibold text-primary"><Lightbulb className="h-4 w-4" /> {t("generalAdvice")}</p>
-              <button onClick={toggleAddAdvice} className="flex items-center gap-1 text-xs font-semibold text-primary border border-border rounded-full px-3 py-1 hover:bg-chip transition-colors">
-                <Plus className={`h-3 w-3 transition-transform ${adviceOpen && editingAdviceIndex === null ? "rotate-45" : ""}`} /> {t("addAdvice")}
-              </button>
+              <div className="flex items-center gap-1.5">
+                <VoiceDictationButton
+                  onTranscript={(text) => {
+                    setAdvice((prev) => [...prev, text]);
+                    toast.success(`পরামর্শ: "${text}"`);
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setAdvicePresetsOpen(true)}
+                  className="flex items-center gap-1 text-xs font-semibold text-primary border border-border/70 rounded-full px-2.5 py-1 hover:bg-chip hover:border-primary/40 transition-colors shadow-2xs cursor-pointer"
+                  title="General Advice Presets"
+                >
+                  <Sparkles className="h-3 w-3 text-primary" />
+                  <span className="text-[11px] font-medium">{locale === "bn" ? "প্রিসেট" : "Presets"}</span>
+                </button>
+                <button onClick={toggleAddAdvice} className="flex items-center gap-1 text-xs font-semibold text-primary border border-border rounded-full px-3 py-1 hover:bg-chip transition-colors">
+                  <Plus className={`h-3 w-3 transition-transform ${adviceOpen && editingAdviceIndex === null ? "rotate-45" : ""}`} /> {t("addAdvice")}
+                </button>
+              </div>
             </div>
             {adviceOpen && (
               <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2 mt-3">
@@ -1655,6 +2077,21 @@ type SidebarQueueEntry = {
                   ? t("followUpOn", { date: formatDate(followUp) })
                   : <span className="text-xs italic text-muted-foreground">{t("followUpNone")}</span>}
               </p>
+              {followUp && (
+                <div className="mt-2.5 flex items-center gap-2 bg-emerald-50/70 border border-emerald-200/80 rounded-xl px-3 py-2">
+                  <input
+                    type="checkbox"
+                    id="auto-book-followup"
+                    checked={autoBookFollowUp}
+                    onChange={(e) => setAutoBookFollowUp(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                  />
+                  <label htmlFor="auto-book-followup" className="text-xs font-medium text-emerald-950 cursor-pointer select-none flex items-center gap-1.5">
+                    <CalendarClock className="h-3.5 w-3.5 text-emerald-700" />
+                    {locale === "bn" ? "আমার চেম্বার শিডিউলে স্বয়ংক্রিয়ভাবে ফলো-আপ স্লট বুক করুন" : "Auto-reserve follow-up slot in my schedule on this date"}
+                  </label>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1682,11 +2119,82 @@ type SidebarQueueEntry = {
                   <div className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full bg-primary-glow" />
                   <p className="text-[10px] tracking-widest font-bold text-muted-foreground">{formatDate(h.scheduled_date).toUpperCase()}</p>
                   <p className="text-sm font-semibold text-primary mt-0.5">{h.department || t("consultation")}</p>
-                  {h.notes && <p className="text-xs text-muted-foreground mt-1">{h.notes}</p>}
+                  {h.diagnosis && h.diagnosis.length > 0 && (
+                    <p className="text-xs font-semibold text-primary-glow mt-1">
+                      Dx: {h.diagnosis.join(", ")}
+                    </p>
+                  )}
+                  {h.notes && <p className="text-xs text-muted-foreground mt-0.5">{h.notes}</p>}
+                  {h.medicines && h.medicines.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      <div className="flex flex-wrap gap-1">
+                        {h.medicines.slice(0, 3).map((m, idx) => (
+                          <span key={idx} className="px-1.5 py-0.5 rounded bg-chip text-[10px] text-foreground/80 font-medium truncate max-w-[150px]">
+                            {m.dosage_form ? `${m.dosage_form} ` : ""}{m.name}
+                          </span>
+                        ))}
+                        {h.medicines.length > 3 && (
+                          <span className="px-1 py-0.5 text-[9px] text-muted-foreground">+{h.medicines.length - 3} more</span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (h.medicines?.length) {
+                            setMedicines(prev => [...prev, ...h.medicines!]);
+                            toast.success(locale === "bn" ? `${h.medicines.length}টি ঔষধ যুক্ত করা হয়েছে` : `Copied ${h.medicines.length} past medicines to prescription`);
+                          }
+                        }}
+                        className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline pt-1"
+                      >
+                        <Copy className="h-3 w-3" /> {locale === "bn" ? "পূর্ববর্তী ঔষধ কপি করুন" : "Copy Past Medicines"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           </div>
+
+          {/* Patient Diagnostic Lab Reports */}
+          {ctx?.lab_reports && ctx.lab_reports.length > 0 && (
+            <div className="rounded-2xl bg-muted/40 p-5">
+              <div className="flex items-center justify-between">
+                <p className="flex items-center gap-2 text-sm font-semibold text-primary">
+                  <FlaskConical className="h-4 w-4" /> {locale === "bn" ? "ল্যাব টেস্ট ও রিপোর্ট" : "Diagnostic Lab Reports"}
+                </p>
+                <span className="text-[10px] font-bold tracking-widest text-primary-glow">
+                  {ctx.lab_reports.length} {locale === "bn" ? "টি" : "Tests"}
+                </span>
+              </div>
+              <div className="mt-4 space-y-3">
+                {ctx.lab_reports.map((lr) => {
+                  const isDone = lr.status === "reported";
+                  return (
+                    <div key={lr.id} className="rounded-xl border border-border/50 bg-background/60 p-3 text-xs space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-semibold text-primary truncate">{lr.test_name}</p>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                          isDone ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20" : "bg-amber-500/10 text-amber-600 border border-amber-500/20"
+                        }`}>
+                          {lr.status}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
+                        <span className="font-mono">#{lr.reference}</span>
+                        <span>{lr.reported_at ? formatDate(lr.reported_at.slice(0, 10)) : formatDate(lr.requested_at.slice(0, 10))}</span>
+                      </div>
+                      {Boolean(lr.result) && (
+                        <div className="mt-1.5 p-2 rounded-lg bg-chip/50 text-[11px] font-mono border border-border/30 max-h-24 overflow-y-auto whitespace-pre-wrap">
+                          {typeof lr.result === "string" ? lr.result : JSON.stringify(lr.result, null, 2)}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="rounded-2xl bg-gradient-dark text-surface-dark-foreground p-5">
             <div className="flex items-center justify-between">
@@ -1787,6 +2295,7 @@ type SidebarQueueEntry = {
             <Printer className="h-4 w-4" /> {submitting ? t("submitting") : submittedVisit ? t("saveChanges") : t("printSubmit")}
           </button>
         )}
+      </div>
       </div>
 
       <Dialog open={alreadyClosedOpen} onOpenChange={setAlreadyClosedOpen}>
@@ -1934,6 +2443,82 @@ type SidebarQueueEntry = {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ClinicalPresetsDialog
+        open={presetsOpen}
+        onOpenChange={setPresetsOpen}
+        onApplyPreset={handleApplyPreset}
+        currentDraft={{
+          complaints,
+          examination,
+          investigation,
+          diagnosis,
+          medicines,
+          advice,
+        }}
+      />
+
+      <SectionPresetsDialog
+        open={advicePresetsOpen}
+        onOpenChange={setAdvicePresetsOpen}
+        sectionType="advice"
+        currentItems={advice}
+        onApplyItems={(newItems, mode) => {
+          if (mode === "replace") {
+            setAdvice(newItems);
+          } else {
+            setAdvice((prev) => [...prev, ...newItems]);
+          }
+        }}
+      />
+
+      <MedicalCertificatesDialog
+        open={certificatesOpen}
+        onOpenChange={setCertificatesOpen}
+        doctor={{
+          name: doctor.name,
+          specialty: doctor.specialty,
+          education: doctor.education,
+          bmdc_number: doctor.bmdc_number,
+        }}
+        hospital={{
+          name: hospital.name,
+          address: hospital.address,
+          contact_phone: hospital.contact_phone,
+        }}
+        patient={{
+          full_name: patient.full_name,
+          mrn: patient.mrn,
+          gender: patient.gender,
+          ageString: patient.age ? `${patient.age.value} ${patient.age.unit}` : undefined,
+        }}
+        vitals={{
+          bp: bpLabel(appointment.bp_systolic, appointment.bp_diastolic),
+          weight: patient.weight_kg != null ? `${patient.weight_kg} kg` : undefined,
+        }}
+        diagnosis={diagnosis}
+      />
+
+      <PatientHandoutsDialog
+        open={handoutsOpen}
+        onOpenChange={setHandoutsOpen}
+        hospitalName={hospital.name}
+        doctorName={doctor.name}
+        doctorSpecialty={doctor.specialty}
+        bmdcNumber={doctor.bmdc_number}
+        patientName={patient.full_name}
+        onInsertAdvice={(text) => {
+          setAdvice((prev) => [...prev, text]);
+        }}
+      />
+
+      <TelemedicineRoomModal
+        open={telemedOpen}
+        onOpenChange={setTelemedOpen}
+        appointmentId={appointmentId || "demo-consult"}
+        patientName={patient.full_name}
+        doctorName={doctor.name}
+      />
     </motion.div>
   </PortalLayout>
   );

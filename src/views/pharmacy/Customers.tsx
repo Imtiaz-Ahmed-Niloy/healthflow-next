@@ -1,356 +1,291 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Award, Eye, Gift, History, Settings, Users, Wallet } from "lucide-react";
-import { toast } from "sonner";
-import { useTranslations } from "next-intl";
-import { PharmacyLayout } from "@/components/pharmacy/PharmacyLayout";
-import { PagedResource } from "@/components/pharmacy/PagedResource";
-import { Pager, StateBlock, TierPill, Tile, usePharmacyCan, usePharmacyError } from "@/components/pharmacy/ui";
-import { Btn, Pill } from "@/components/admin/ui";
-import { Chips, Field, Input, Modal, type Column } from "@/components/admin/crud";
-import type { FieldDef } from "@/components/admin/ResourcePage";
-import { useFormatters } from "@/lib/appSettings";
-import { LOYALTY_TIERS, type LedgerKind, type LoyaltyTier, type PharmacyCustomer, type PharmacySettings } from "@/lib/pharmacy";
+import React, { useState } from "react";
 import {
-  pharmacyCustomersApi, pharmacyLedgerApi, useAdjustPointsMutation, useLoyaltySummaryQuery, usePharmacySettingsQuery,
-} from "@/redux/api/pharmacy";
+  Users,
+  Search,
+  Plus,
+  Phone,
+  Mail,
+  DollarSign,
+  Calendar,
+  Award,
+  Coins,
+  Gift,
+  Settings as SettingsIcon,
+  Sparkles,
+  TrendingUp,
+  ShieldCheck,
+} from "lucide-react";
+import { usePharmacy } from "@/context/PharmacyContext";
+import { Customer } from "@/types/pharmacy";
+import { formatCurrency } from "@/lib/utils";
+import { CustomerPhoneSearch } from "@/components/Customers/CustomerPhoneSearch";
+import { CustomerDatabaseTable } from "@/components/Customers/CustomerDatabaseTable";
+import { AwardPointsModal } from "@/components/Customers/AwardPointsModal";
+import { RedeemPointsModal } from "@/components/Customers/RedeemPointsModal";
+import { CustomerDetailModal } from "@/components/Customers/CustomerDetailModal";
+import { AddEditCustomerModal } from "@/components/Customers/AddEditCustomerModal";
+import { LoyaltySettingsModal } from "@/components/Customers/LoyaltySettingsModal";
 
-const KIND_TONE: Record<LedgerKind, "ok" | "warn" | "bad" | "info"> = {
-  earned: "ok", bonus: "ok", restored: "ok", credit_added: "info",
-  redeemed: "warn", credit_used: "warn", adjusted: "bad", reversed: "bad",
-};
+export default function CustomersPage() {
+  const { customers, loyaltySettings, currencySymbol } = usePharmacy();
 
-/** Where the next tier starts, or null at the top. */
-const nextTier = (settings: PharmacySettings, tier: LoyaltyTier) =>
-  tier === "bronze" ? { tier: "silver" as const, at: settings.loyalty_silver_at }
-  : tier === "silver" ? { tier: "gold" as const, at: settings.loyalty_gold_at }
-  : tier === "gold" ? { tier: "platinum" as const, at: settings.loyalty_platinum_at }
-  : null;
+  // Modals state
+  const [awardModalOpen, setAwardModalOpen] = useState(false);
+  const [redeemModalOpen, setRedeemModalOpen] = useState(false);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [addEditModalOpen, setAddEditModalOpen] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
-/** One customer: where they stand, and every point and taka of credit that has moved. */
-const CustomerDetail = ({ id, onClose }: { id: string; onClose: () => void }) => {
-  const t = useTranslations("pharmacy.customers");
-  const tc = useTranslations("pharmacy.common");
-  const tt = useTranslations("pharmacy.tiers");
-  const describe = usePharmacyError();
-  const can = usePharmacyCan();
-  const { formatCurrency, formatDateTime } = useFormatters();
-  const [page, setPage] = useState(1);
-  const [adjusting, setAdjusting] = useState(false);
-  const { data: settingsData } = usePharmacySettingsQuery();
-  // Read fresh rather than from the list: points change with every sale.
-  const { data: found, refetch: reload } = pharmacyCustomersApi.useGet(id);
-  const { data: ledger, isLoading, error, refetch } = pharmacyLedgerApi.useList({ page, limit: 10, filters: { customer_id: id } });
-  const [adjust, { isLoading: saving }] = useAdjustPointsMutation();
+  // Active target customer for modals
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [prefillPhone, setPrefillPhone] = useState<string>("");
 
-  // A copy from an earlier look may still be in the cache; what is shown must be now.
-  useEffect(() => { reload(); }, [reload]);
-
-  const customer = found?.data;
-  const settings = settingsData?.data;
-  if (!customer || !settings) return null;
-
-  const close = () => { setPage(1); setAdjusting(false); onClose(); };
-  const next = nextTier(settings, customer.tier);
-  const lines = ledger?.data ?? [];
-
-  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    try {
-      await adjust({ customer_id: customer.id, points: Number(form.get("points")), reason: String(form.get("reason") ?? "") }).unwrap();
-      toast.success(t("pointsSaved"));
-      setAdjusting(false);
-      reload();
-    } catch (cause) {
-      toast.error(describe(cause));
-    }
+  // Handlers
+  const handleOpenAward = (customer?: Customer) => {
+    setSelectedCustomer(customer || null);
+    setAwardModalOpen(true);
   };
 
-  return (
-    <Modal open onClose={close} title={customer.name} size="lg"
-      footer={<>
-        <Link href={`/pharmacy/sales?customer=${customer.id}`}><Btn variant="outline"><History className="h-4 w-4" /> {t("viewSales")}</Btn></Link>
-        {can("administer") && settings.loyalty_enabled && !adjusting && (
-          <Btn variant="outline" onClick={() => setAdjusting(true)}><Award className="h-4 w-4" /> {t("adjustPoints")}</Btn>
-        )}
-      </>}>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mb-4">
-        {settings.loyalty_enabled && <TierPill tier={customer.tier} />}
-        {customer.phone && <span>{customer.phone}</span>}
-        {customer.email && <span>{customer.email}</span>}
-        {!customer.is_active && <Pill>{tc("inactive")}</Pill>}
-      </div>
+  const handleOpenRedeem = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setRedeemModalOpen(true);
+  };
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Tile label={t("points")} value={customer.points} hint={t("lifetime", { count: customer.lifetime_points })} />
-        <Tile label={t("storeCredit")} value={formatCurrency(Number(customer.store_credit))} tone={Number(customer.store_credit) > 0 ? "good" : "default"} />
-        <Tile label={t("spent")} value={formatCurrency(Number(customer.total_spent))} hint={t("ordersCount", { count: customer.orders_count })} />
-        <Tile label={t("columns.balance")} value={formatCurrency(Number(customer.balance_due))} tone={Number(customer.balance_due) > 0 ? "bad" : "default"} />
-      </div>
+  const handleOpenDetail = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setDetailModalOpen(true);
+  };
 
-      {settings.loyalty_enabled && (
-        <p className="mt-3 text-xs text-muted-foreground">
-          {next
-            ? t("toNextTier", { count: Math.max(next.at - customer.lifetime_points, 0), tier: tt(next.tier) })
-            : t("topTier")}
-        </p>
-      )}
-      {customer.allergies && <p className="mt-2 text-sm font-semibold text-destructive">{t("allergiesLine", { list: customer.allergies })}</p>}
+  const handleOpenAddCustomer = (phone?: string) => {
+    setSelectedCustomer(null);
+    setPrefillPhone(phone || "");
+    setAddEditModalOpen(true);
+  };
 
-      {adjusting && (
-        <form onSubmit={submit} className="mt-4 rounded-xl bg-muted/40 p-4">
-          <div className="grid sm:grid-cols-[140px_1fr] gap-x-4">
-            <Field label={t("pointsChange")} required hint={t("pointsChangeHint")}>
-              <Input name="points" type="number" step={1} required autoFocus placeholder="+50" />
-            </Field>
-            <Field label={t("pointsReason")} required><Input name="reason" required maxLength={300} /></Field>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Btn variant="outline" onClick={() => setAdjusting(false)}>{tc("cancel")}</Btn>
-            <Btn type="submit" disabled={saving}>{saving ? tc("saving") : tc("save")}</Btn>
-          </div>
-        </form>
-      )}
+  const handleOpenEditCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setPrefillPhone("");
+    setAddEditModalOpen(true);
+  };
 
-      <h4 className="mt-5 mb-2 text-sm font-semibold text-primary">{t("ledgerTitle")}</h4>
-      {isLoading || error || lines.length === 0 ? (
-        <StateBlock loading={isLoading} error={error} onRetry={refetch} empty={t("noLedger")} rows={3} />
-      ) : (
-        <ul className="space-y-1.5 text-sm">
-          {lines.map(line => (
-            <li key={line.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/40 px-3 py-2">
-              <div className="min-w-0">
-                <span className="inline-flex items-center gap-2">
-                  <Pill tone={KIND_TONE[line.kind]}>{t(`kinds.${line.kind}`)}</Pill>
-                  {line.reference && <span className="font-mono text-xs text-primary">{line.reference}</span>}
-                </span>
-                <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                  {formatDateTime(line.created_at)} · {line.created_by_name ?? "—"}{line.reason ? ` · ${line.reason}` : ""}
-                </p>
-              </div>
-              <span className={`tabular-nums font-semibold ${(line.points || Number(line.amount)) < 0 ? "text-destructive" : "text-emerald-700"}`}>
-                {line.points !== 0
-                  ? t("pointsDelta", { count: `${line.points > 0 ? "+" : ""}${line.points}` })
-                  : `${Number(line.amount) > 0 ? "+" : ""}${formatCurrency(Number(line.amount))}`}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-      {ledger?.meta && <Pager page={ledger.meta.page} totalPages={ledger.meta.totalPages} total={ledger.meta.total} onPage={setPage} />}
-    </Modal>
+  // Top Statistics Calculations
+  const totalPoints = customers.reduce((sum, c) => sum + (c.points || 0), 0);
+  const totalRevenue = customers.reduce((sum, c) => sum + (c.totalSpent || 0), 0);
+  const totalOrders = customers.reduce((sum, c) => sum + (c.totalOrders || 0), 0);
+  const pointsLiability = Number(
+    (totalPoints / (loyaltySettings.redemptionRate || 100)).toFixed(2)
   );
-};
 
-/**
- * Points by hand, outside a sale: a bonus given, or points taken for a reward
- * handed over at the counter. Both are the same correction underneath
- * (pharmacy_adjust_points) with a reason on the customer's history.
- */
-const PointsDialog = ({ target, onClose }: { target: { customer: PharmacyCustomer; mode: "award" | "redeem" } | null; onClose: () => void }) => {
-  const t = useTranslations("pharmacy.customers");
-  const tc = useTranslations("pharmacy.common");
-  const describe = usePharmacyError();
-  const { formatCurrency } = useFormatters();
-  const { data: settingsData } = usePharmacySettingsQuery();
-  const [adjust, { isLoading }] = useAdjustPointsMutation();
-  const [points, setPoints] = useState("");
-  const [spent, setSpent] = useState("");
-  const [reason, setReason] = useState("");
-
-  if (!target) return null;
-  const { customer, mode } = target;
-  const settings = settingsData?.data;
-  const count = Math.max(Math.floor(Number(points)) || 0, 0);
-  const worth = count * Number(settings?.loyalty_point_value ?? 1);
-  const tooMany = mode === "redeem" && count > customer.points;
-
-  const close = () => { setPoints(""); setSpent(""); setReason(""); onClose(); };
-
-  // What a purchase of this size would have earned, for a sale that was rung up without the customer on it.
-  const fromSpend = (value: string) => {
-    setSpent(value);
-    const per = Number(settings?.loyalty_spend_per_point ?? 100);
-    if (Number(value) > 0 && per > 0) setPoints(String(Math.floor(Number(value) / per)));
-  };
-
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    try {
-      await adjust({
-        customer_id: customer.id,
-        points: mode === "award" ? count : -count,
-        reason: reason.trim() || (mode === "award" ? t("awardReason") : t("redeemReason")),
-      }).unwrap();
-      toast.success(t("pointsSaved"));
-      close();
-    } catch (cause) {
-      toast.error(describe(cause));
-    }
-  };
+  const platinumCount = customers.filter((c) => c.loyaltyTier === "Platinum").length;
+  const goldCount = customers.filter((c) => c.loyaltyTier === "Gold").length;
+  const silverCount = customers.filter((c) => c.loyaltyTier === "Silver").length;
+  const bronzeCount = customers.filter((c) => c.loyaltyTier === "Bronze").length;
 
   return (
-    <Modal open onClose={close} title={mode === "award" ? t("awardTitle", { name: customer.name }) : t("redeemTitle", { name: customer.name })} size="sm">
-      <form onSubmit={submit}>
-        <p className="text-sm text-muted-foreground -mt-1 mb-4">{t("pointsNow", { count: customer.points })}</p>
-        {mode === "award" && (
-          <Field label={t("purchaseAmount")} hint={t("purchaseAmountHint")}>
-            <Input value={spent} onChange={e => fromSpend(e.target.value)} type="number" min={0} step="any" placeholder="0.00" />
-          </Field>
-        )}
-        <Field label={t("pointsChange")} required>
-          <Input value={points} onChange={e => setPoints(e.target.value.replace(/\D/g, ""))} inputMode="numeric" required autoFocus placeholder="0" />
-        </Field>
-        {mode === "redeem" && count > 0 && (
-          <p className={`-mt-2 mb-4 text-sm font-semibold ${tooMany ? "text-destructive" : "text-primary"}`}>
-            {tooMany ? describe({ data: { error: { code: "redeem_too_many" } } }) : t("redeemWorth", { amount: formatCurrency(worth) })}
+    <div className="w-full space-y-6 max-w-7xl mx-auto pb-12">
+      {/* Top Page Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
+            <span>Dashboard</span>
+            <span>/</span>
+            <span className="text-emerald-700 font-semibold">Customers</span>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <span>Customer Loyalty & Rewards</span>
+            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+              Rewards Ledger
+            </span>
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Search customer records by phone, manage loyalty tiers, and award points on pharmacy purchases
           </p>
-        )}
-        <Field label={t("pointsReason")}><Input value={reason} onChange={e => setReason(e.target.value)} maxLength={300} /></Field>
-        <div className="flex justify-end gap-2">
-          <Btn variant="outline" onClick={close}>{tc("cancel")}</Btn>
-          <Btn type="submit" disabled={isLoading || count <= 0 || tooMany}>{isLoading ? tc("saving") : tc("save")}</Btn>
         </div>
-      </form>
-    </Modal>
-  );
-};
 
-const Page = () => {
-  const t = useTranslations("pharmacy.customers");
-  const tc = useTranslations("pharmacy.common");
-  const tt = useTranslations("pharmacy.tiers");
-  const can = usePharmacyCan();
-  const [pointsFor, setPointsFor] = useState<{ customer: PharmacyCustomer; mode: "award" | "redeem" } | null>(null);
-  const { formatCurrency, formatDate } = useFormatters();
-  const [tier, setTier] = useState<"all" | LoyaltyTier>("all");
-  const [viewing, setViewing] = useState<string | null>(null);
-  const { data: settingsData } = usePharmacySettingsQuery();
-  const { data: summaryData } = useLoyaltySummaryQuery();
-  const loyaltyOn = Boolean(settingsData?.data.loyalty_enabled);
-  const summary = summaryData?.data;
+        {/* Header Action Buttons */}
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => handleOpenAward()}
+            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition-colors shadow-sm cursor-pointer"
+          >
+            <Award className="w-3.5 h-3.5" />
+            <span>Award Purchase Points</span>
+          </button>
 
-  const columns: Column<PharmacyCustomer>[] = [
-    { key: "customer", label: t("columns.customer"), render: r => (
-      <div>
-        <p className="font-semibold text-primary flex items-center gap-2">
-          {r.name}
-          {loyaltyOn && <TierPill tier={r.tier} />}
-          {!r.is_active && <Pill>{tc("inactive")}</Pill>}
-        </p>
-        {r.address && <p className="text-xs text-muted-foreground truncate max-w-xs">{r.address}</p>}
+          <button
+            onClick={() => handleOpenAddCustomer()}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5 text-emerald-700" />
+            <span>Add Member</span>
+          </button>
+
+          <button
+            onClick={() => setSettingsModalOpen(true)}
+            className="p-2 text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
+            title="Configure Loyalty Program Rules"
+          >
+            <SettingsIcon className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
-    ) },
-    { key: "contact", label: t("columns.contact"), render: r => (
-      <div className="text-sm">
-        <p>{r.phone ?? "—"}</p>
-        {r.email && <p className="text-xs text-muted-foreground">{r.email}</p>}
-      </div>
-    ) },
-    { key: "orders", label: t("columns.orders"), render: r => (
-      <div className="tabular-nums">
-        {r.orders_count}
-        <p className="text-[11px] text-muted-foreground">{formatCurrency(Number(r.total_spent))}</p>
-      </div>
-    ) },
-    ...(loyaltyOn ? [{ key: "points", label: t("columns.points"), render: (r: PharmacyCustomer) => <span className="tabular-nums font-semibold">{r.points}</span> }] : []),
-    { key: "credit", label: t("columns.credit"), render: r => (
-      <span className={`tabular-nums ${Number(r.store_credit) > 0 ? "font-semibold text-emerald-700" : "text-muted-foreground"}`}>
-        {formatCurrency(Number(r.store_credit))}
-      </span>
-    ) },
-    { key: "balance", label: t("columns.balance"), render: r => (
-      <span className={`tabular-nums font-semibold ${Number(r.balance_due) > 0 ? "text-destructive" : "text-muted-foreground"}`}>
-        {formatCurrency(Number(r.balance_due))}
-      </span>
-    ) },
-    { key: "lastVisit", label: t("columns.lastVisit"), render: r => (r.last_visit ? formatDate(r.last_visit) : t("never")) },
-  ];
 
-  const fields: FieldDef[] = [
-    { name: "name", label: tc("name"), type: "text", required: true, fullWidth: true },
-    { name: "phone", label: tc("phone"), type: "tel" },
-    { name: "email", label: tc("email"), type: "email" },
-    { name: "address", label: tc("address"), type: "textarea" },
-    { name: "allergies", label: t("fields.allergies"), type: "text", fullWidth: true },
-    { name: "notes", label: tc("notes"), type: "textarea" },
-    { name: "is_active", label: tc("status"), type: "select", options: [{ value: "true", label: tc("active") }, { value: "false", label: tc("inactive") }] },
-  ];
-
-  return (
-    <PharmacyLayout title={t("title")} subtitle={t("subtitle")}>
-      <PagedResource<PharmacyCustomer>
-        resource="pharmacy-customers"
-        columns={columns}
-        fields={fields}
-        searchPlaceholder={t("searchPlaceholder")}
-        addLabel={t("add")}
-        newTitle={t("newTitle")}
-        editTitle={t("editTitle")}
-        empty={t("noCustomers")}
-        formNote={t("hint")}
-        exportName="pharmacy-customers"
-        defaults={{ is_active: true }}
-        filters={{ tier: tier === "all" ? undefined : tier }}
-        above={
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <Tile icon={Users} label={t("stats.customers")} value={summary?.customers ?? 0}
-              hint={loyaltyOn ? t("stats.members", { count: summary?.members ?? 0 }) : undefined} />
-            {loyaltyOn && <Tile icon={Award} label={t("stats.points")} value={Number(summary?.points ?? 0)} />}
-            <Tile icon={Wallet} label={t("stats.credit")} value={formatCurrency(Number(summary?.store_credit ?? 0))} />
-            {loyaltyOn && (
-              <div className="rounded-2xl bg-card border border-border/60 p-4 shadow-soft">
-                <p className="text-xs font-semibold text-muted-foreground">{t("stats.tiers")}</p>
-                <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                  {LOYALTY_TIERS.map(name => (
-                    <div key={name} className="flex justify-between"><dt className="text-muted-foreground">{tt(name)}</dt><dd className="tabular-nums font-semibold">{summary?.[name] ?? 0}</dd></div>
-                  ))}
-                </dl>
-              </div>
-            )}
+      {/* 4 Stat KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Enrolled Customers */}
+        <div className="rounded-lg relative overflow-hidden p-5 bg-gradient-to-br from-emerald-600 to-emerald-700 text-white border-0 shadow-lg shadow-emerald-900/25">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-bl-full pointer-events-none"></div>
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-1">
+              <Users className="w-4 h-4 text-emerald-200" />
+              <p className="text-sm font-medium text-emerald-100">Enrolled Customers</p>
+            </div>
+            <p className="text-2xl font-bold tabular-nums text-white">
+              {customers.length}
+            </p>
+            <div className="flex items-center gap-1.5 mt-2 text-xs text-emerald-200">
+              <span className="inline-flex items-center font-semibold text-white">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 mr-1.5" />
+                Active Profiles
+              </span>
+              <span>• Registered loyalty members</span>
+            </div>
           </div>
-        }
-        toolbar={loyaltyOn ? (
-          <Chips value={tier} onChange={setTier}
-            options={[{ value: "all" as const, label: tc("all") }, ...LOYALTY_TIERS.map(name => ({ value: name, label: tt(name) }))]} />
-        ) : undefined}
-        beside={can("administer") ? (
-          <Link href="/pharmacy/settings#loyalty"><Btn variant="outline"><Settings className="h-4 w-4" /> {t("loyaltyRules")}</Btn></Link>
-        ) : undefined}
-        sorts={[
-          { value: "created_at:desc", label: t("sorts.newest") },
-          { value: "name:asc", label: t("sorts.name") },
-          { value: "points:desc", label: t("sorts.points") },
-          { value: "total_spent:desc", label: t("sorts.spent") },
-          { value: "balance_due:desc", label: t("sorts.owes") },
-        ]}
-        rowActions={row => (
-          <>
-            <button type="button" onClick={() => setViewing(row.id)} title={t("view")} aria-label={t("view")}
-              className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 inline-flex">
-              <Eye className="h-4 w-4" />
-            </button>
-            {loyaltyOn && can("administer") && <>
-              <button type="button" onClick={() => setPointsFor({ customer: row, mode: "award" })} title={t("award")} aria-label={t("award")}
-                className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 inline-flex"><Award className="h-4 w-4" /></button>
-              <button type="button" onClick={() => setPointsFor({ customer: row, mode: "redeem" })} title={t("redeem")} aria-label={t("redeem")}
-                disabled={row.points <= 0} className="p-1.5 rounded-lg hover:bg-muted text-foreground/70 inline-flex disabled:opacity-40"><Gift className="h-4 w-4" /></button>
-            </>}
-          </>
-        )}
-      />
-      <PointsDialog key={pointsFor ? `${pointsFor.customer.id}-${pointsFor.mode}` : "none"} target={pointsFor} onClose={() => setPointsFor(null)} />
-      {!loyaltyOn && can("administer") && (
-        <p className="mt-4 text-sm text-muted-foreground">
-          {t("loyaltyOff")} <Link href="/pharmacy/settings#loyalty" className="font-semibold text-primary underline">{t("loyaltyRules")}</Link>
-        </p>
-      )}
-      {viewing && <CustomerDetail key={viewing} id={viewing} onClose={() => setViewing(null)} />}
-    </PharmacyLayout>
-  );
-};
+        </div>
 
-export default Page;
+        {/* Card 2: Outstanding Reward Points */}
+        <div className="rounded-lg relative overflow-hidden p-5 bg-gradient-to-br from-green-600 to-emerald-700 text-white border-0 shadow-lg shadow-emerald-900/25">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-bl-full pointer-events-none"></div>
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-1">
+              <Coins className="w-4 h-4 text-emerald-200" />
+              <p className="text-sm font-medium text-emerald-100">Reward Points Pool</p>
+            </div>
+            <p className="text-2xl font-bold tabular-nums text-white">
+              {totalPoints.toLocaleString()}{" "}
+              <span className="text-sm font-normal text-emerald-200">pts</span>
+            </p>
+            <div className="flex items-center gap-1.5 mt-2 text-xs text-emerald-200">
+              <span>≈ {formatCurrency(pointsLiability, currencySymbol)} redemption liability</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 3: Loyalty Member Revenue */}
+        <div className="rounded-lg relative overflow-hidden p-5 bg-gradient-to-br from-teal-600 to-emerald-700 text-white border-0 shadow-lg shadow-emerald-900/25">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-bl-full pointer-events-none"></div>
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingUp className="w-4 h-4 text-teal-200" />
+              <p className="text-sm font-medium text-emerald-100">Member Sales Revenue</p>
+            </div>
+            <p className="text-2xl font-bold tabular-nums text-white">
+              {formatCurrency(totalRevenue, currencySymbol)}
+            </p>
+            <div className="flex items-center gap-1.5 mt-2 text-xs text-emerald-200">
+              <span className="font-semibold text-white">{totalOrders} purchases</span>
+              <span>• Lifetime member orders</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 4: Tier Distribution */}
+        <div className="rounded-lg relative overflow-hidden p-5 bg-gradient-to-br from-emerald-800 to-emerald-950 text-white border-0 shadow-lg shadow-emerald-950/30 flex flex-col justify-between">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-bl-full pointer-events-none"></div>
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-1">
+              <Sparkles className="w-4 h-4 text-emerald-300" />
+              <p className="text-sm font-medium text-emerald-200">Tiers Breakdown</p>
+            </div>
+            <div className="grid grid-cols-4 gap-1.5 mt-2 text-center">
+              <div className="bg-white/10 border border-white/15 py-1.5 rounded-lg">
+                <div className="text-[10px] font-bold text-emerald-200">Platinum</div>
+                <div className="text-xs font-bold text-white mt-0.5">{platinumCount}</div>
+              </div>
+              <div className="bg-white/10 border border-white/15 py-1.5 rounded-lg">
+                <div className="text-[10px] font-bold text-emerald-200">Gold</div>
+                <div className="text-xs font-bold text-white mt-0.5">{goldCount}</div>
+              </div>
+              <div className="bg-white/10 border border-white/15 py-1.5 rounded-lg">
+                <div className="text-[10px] font-bold text-emerald-200">Silver</div>
+                <div className="text-xs font-bold text-white mt-0.5">{silverCount}</div>
+              </div>
+              <div className="bg-white/10 border border-white/15 py-1.5 rounded-lg">
+                <div className="text-[10px] font-bold text-emerald-200">Bronze</div>
+                <div className="text-xs font-bold text-white mt-0.5">{bronzeCount}</div>
+              </div>
+            </div>
+            <div className="text-[10px] text-emerald-300/80 mt-2 text-center">
+              Bronze (1x) • Silver (1.25x) • Gold (1.5x) • VIP (2x)
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Feature 1: Customer Phone Search Feature */}
+      <CustomerPhoneSearch
+        onAwardPoints={(c) => handleOpenAward(c)}
+        onRedeemPoints={(c) => handleOpenRedeem(c)}
+        onViewDetails={(c) => handleOpenDetail(c)}
+        onAddCustomerWithPhone={(phone) => handleOpenAddCustomer(phone)}
+      />
+
+      {/* Feature 2: Customer Database Table */}
+      <CustomerDatabaseTable
+        onAwardPoints={(c) => handleOpenAward(c)}
+        onRedeemPoints={(c) => handleOpenRedeem(c)}
+        onViewDetails={(c) => handleOpenDetail(c)}
+        onEditCustomer={(c) => handleOpenEditCustomer(c)}
+      />
+
+      {/* Modals */}
+      <AwardPointsModal
+        isOpen={awardModalOpen}
+        onClose={() => setAwardModalOpen(false)}
+        targetCustomer={selectedCustomer}
+      />
+
+      <RedeemPointsModal
+        isOpen={redeemModalOpen}
+        onClose={() => setRedeemModalOpen(false)}
+        customer={selectedCustomer}
+      />
+
+      <CustomerDetailModal
+        isOpen={detailModalOpen}
+        onClose={() => setDetailModalOpen(false)}
+        customer={selectedCustomer}
+        onAwardPoints={(c) => {
+          setDetailModalOpen(false);
+          handleOpenAward(c);
+        }}
+        onRedeemPoints={(c) => {
+          setDetailModalOpen(false);
+          handleOpenRedeem(c);
+        }}
+        onEditCustomer={(c) => {
+          setDetailModalOpen(false);
+          handleOpenEditCustomer(c);
+        }}
+      />
+
+      <AddEditCustomerModal
+        isOpen={addEditModalOpen}
+        onClose={() => setAddEditModalOpen(false)}
+        customerToEdit={selectedCustomer}
+        prefillPhone={prefillPhone}
+        onSaved={(c) => {
+          setSelectedCustomer(c);
+        }}
+      />
+
+      <LoyaltySettingsModal
+        isOpen={settingsModalOpen}
+        onClose={() => setSettingsModalOpen(false)}
+      />
+    </div>
+  );
+}
+

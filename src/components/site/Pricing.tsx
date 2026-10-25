@@ -64,7 +64,7 @@ const Pricing = ({ plans }: { plans: PricingPlan[] }) => {
               <div className="mt-4 flex items-baseline gap-2">
                 {/* nowrap: squeezed by the unit beside it, "BDT 10" broke in two on a phone. */}
                 <span className={`font-display text-4xl sm:text-5xl whitespace-nowrap shrink-0 ${p.featured ? "text-primary" : ""}`}>{t("pricing.price", { amount: p.price })}</span>
-                <span className={`text-sm ${p.featured ? "text-muted-foreground" : "opacity-60"}`}>{t("pricing.perPrescription")}</span>
+                <span className={`text-sm ${p.featured ? "text-muted-foreground" : "opacity-60"}`}>{p.unit || t("pricing.perPrescription")}</span>
               </div>
 
               {/* A rule between the price and what you get for it. */}

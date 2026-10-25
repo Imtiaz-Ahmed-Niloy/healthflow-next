@@ -15,14 +15,16 @@ export const SectionTitle = ({ title, action }: { title: string; action?: ReactN
   </div>
 );
 
-export const Kpi = ({ icon: Icon, label, value, trend, tone = "primary" }: {
-  icon: LucideIcon; label: string; value: string; trend?: string; tone?: "primary" | "accent" | "destructive" | "chip";
+export const Kpi = ({ icon: Icon, label, value, trend, tone = "primary", hint }: {
+  icon: LucideIcon; label: string; value: string | number; trend?: string; hint?: string; tone?: "primary" | "accent" | "destructive" | "chip" | "default" | "ok";
 }) => {
   const tones: Record<string, string> = {
     primary: "bg-primary/10 text-primary",
     accent: "bg-accent/40 text-accent-foreground",
     destructive: "bg-destructive/10 text-destructive",
     chip: "bg-chip text-chip-foreground",
+    default: "bg-muted text-muted-foreground",
+    ok: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
   };
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}

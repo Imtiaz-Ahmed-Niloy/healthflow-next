@@ -161,20 +161,30 @@ export const GET = async (_request: Request, context: RouteContext) => {
   if (apptError) return fail(apptError.message, 500);
   if (!appointment) return fail("Consultation not found, or it isn't yours.", 404);
 
-  const [{ data: patient, error: patientError }, { data: hospital, error: hospitalError }, { data: historyRows, error: historyError }] =
-    await Promise.all([
-      supabase.from("patients").select("id, full_name, gender, date_of_birth, mrn, weight_kg, height_feet, height_inches").eq("id", appointment.patient_id).maybeSingle(),
-      supabase.from("tenants").select("name, address, contact_phone, has_name").eq("id", appointment.tenant_id).maybeSingle(),
-      // Only completed visits count as history, which already leaves out this
-      // one while it's still open. Once it's submitted it belongs there too.
-      supabase
-        .from("appointments")
-        .select("id, scheduled_date, department, notes")
-        .eq("patient_id", appointment.patient_id)
-        .eq("status", "completed")
-        .order("scheduled_date", { ascending: false })
-        .limit(5),
-    ]);
+  const [
+    { data: patient, error: patientError },
+    { data: hospital, error: hospitalError },
+    { data: historyRows, error: historyError },
+    { data: labOrders },
+  ] = await Promise.all([
+    supabase.from("patients").select("id, full_name, gender, date_of_birth, mrn, weight_kg, height_feet, height_inches").eq("id", appointment.patient_id).maybeSingle(),
+    supabase.from("tenants").select("name, address, contact_phone, has_name").eq("id", appointment.tenant_id).maybeSingle(),
+    // Only completed visits count as history, which already leaves out this
+    // one while it's still open. Once it's submitted it belongs there too.
+    supabase
+      .from("appointments")
+      .select("id, scheduled_date, department, notes, diagnosis, medicines")
+      .eq("patient_id", appointment.patient_id)
+      .eq("status", "completed")
+      .order("scheduled_date", { ascending: false })
+      .limit(5),
+    supabase
+      .from("lab_orders")
+      .select("id, reference, test_name, status, requested_at, result, reported_at")
+      .eq("patient_id", appointment.patient_id)
+      .order("requested_at", { ascending: false })
+      .limit(8),
+  ]);
   if (patientError) return fail(patientError.message, 500);
   if (hospitalError) return fail(hospitalError.message, 500);
   if (historyError) return fail(historyError.message, 500);
@@ -227,6 +237,17 @@ export const GET = async (_request: Request, context: RouteContext) => {
         scheduled_date: h.scheduled_date,
         department: h.department,
         notes: h.notes,
+        diagnosis: Array.isArray(h.diagnosis) ? (h.diagnosis as string[]) : [],
+        medicines: Array.isArray(h.medicines) ? (h.medicines as Partial<PrescribedMedicine>[]).map(normalizeMedicine) : [],
+      })),
+      lab_reports: (labOrders ?? []).map((l) => ({
+        id: l.id,
+        reference: l.reference,
+        test_name: l.test_name,
+        status: l.status,
+        requested_at: l.requested_at,
+        result: l.result,
+        reported_at: l.reported_at,
       })),
     },
   });
@@ -247,6 +268,7 @@ const patchSchema = z.discriminatedUnion("action", [
     advice: z.array(z.string()).optional(),
     // YYYY-MM-DD, or null for no follow-up (0103).
     follow_up_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a valid follow-up date").nullable().optional(),
+    auto_book_follow_up: z.boolean().optional(),
   }),
   z.object({
     action: z.literal("update_vitals"),
@@ -308,7 +330,7 @@ export const PATCH = async (request: Request, context: RouteContext) => {
   // load it once up front.
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
-    .select("id, patient_id, status, completed_at")
+    .select("id, patient_id, doctor_id, tenant_id, department, status, completed_at")
     .eq("id", id)
     .in("doctor_id", doctor.ids)
     .maybeSingle();
@@ -358,11 +380,32 @@ export const PATCH = async (request: Request, context: RouteContext) => {
     // explain that properly instead of reading like a missing record.
     if (!data) return fail("This visit can no longer be submitted.", 409);
 
-    // Usage counts (0029_doctor_medicine_usage.sql, for the picker's "most
-    // used" list) are NOT recorded here -- that happens the moment a
-    // medicine is added to the Rx (POST /api/v1/portal/medicines, called
-    // from saveMedicine), not on final submit. Doing it again here would
-    // double-count every medicine already on this chart.
+    // Auto-schedule follow-up visit if requested
+    if (parsed.data.auto_book_follow_up && parsed.data.follow_up_date && !resubmit && appointment.doctor_id) {
+      try {
+        const { data: existingAppt } = await supabase
+          .from("appointments")
+          .select("id")
+          .eq("patient_id", appointment.patient_id)
+          .eq("doctor_id", appointment.doctor_id)
+          .eq("scheduled_date", parsed.data.follow_up_date)
+          .maybeSingle();
+
+        if (!existingAppt) {
+          await supabase.from("appointments").insert({
+            tenant_id: appointment.tenant_id,
+            patient_id: appointment.patient_id,
+            doctor_id: appointment.doctor_id,
+            department: appointment.department || "General",
+            scheduled_date: parsed.data.follow_up_date,
+            status: "scheduled",
+            notes: "Follow-up visit (Auto-scheduled from previous consultation)",
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to auto-schedule follow-up appointment:", err);
+      }
+    }
 
     return json({
       data: { id: data.id, status: data.status, corrected: resubmit, editable_until: editableUntil(data.completed_at) },

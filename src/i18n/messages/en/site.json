@@ -92,7 +92,7 @@
     "subheading": "You pay only for the prescriptions your doctors write.\nA month with none costs nothing.",
     "recommended": "RECOMMENDED",
     "price": "BDT {amount}",
-    "perPrescription": "Per Prescription"
+    "perPrescription": "Per Invoice"
   },
   "directory": {
     "backHome": "Back to Home",
@@ -352,7 +352,7 @@
   "pricingPage": {
     "mostPopular": "MOST POPULAR",
     "price": "BDT {amount}",
-    "perPrescription": "Per Prescription",
+    "perPrescription": "Per Invoice",
     "compareTitle": "Compare the <g>plans</g>",
     "compareSub": "What each plan includes, side by side.",
     "included": "Included",

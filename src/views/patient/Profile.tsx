@@ -15,13 +15,25 @@ import type { Tables } from "@/lib/supabase/types";
 import { phoneOfLoginEmail } from "@/lib/phone";
 import { DateInput } from "@/components/ui/date-input";
 
+type FamilyMember = {
+  id: string;
+  name: string;
+  relation: string;
+  dob?: string | null;
+  gender?: string | null;
+  blood_group?: string | null;
+  phone?: string | null;
+  notes?: string | null;
+};
+
 /**
  * What the page edits: the name and contact from `profiles`, plus everything
  * else from `patient_profiles`. One flat object, assembled by the route —
  * see /api/v1/patient/profile.
  */
 type Patient = Pick<Tables<"profiles">, "full_name" | "email" | "phone" | "avatar_url">
-  & Partial<Omit<Tables<"patient_profiles">, "profile_id" | "created_at" | "updated_at">>;
+  & Partial<Omit<Tables<"patient_profiles">, "profile_id" | "created_at" | "updated_at">>
+  & { family_members?: FamilyMember[] };
 
 /** A hospital that holds a record of this person, and its own ID for them. */
 type HospitalLink = {
@@ -139,6 +151,21 @@ const Profile = () => {
   const [newLabel, setNewLabel] = useState("");
   const [newDetail, setNewDetail] = useState("");
 
+  // Family members state
+  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+  const [isAddingMember, setIsAddingMember] = useState(false);
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+  const [memberForm, setMemberForm] = useState<Omit<FamilyMember, "id">>({
+    name: "",
+    relation: "child",
+    dob: "",
+    gender: "male",
+    blood_group: "",
+    phone: "",
+    notes: "",
+  });
+  const [savingMember, setSavingMember] = useState(false);
+
   const loadIdDocs = async () => {
     try {
       const res = await fetch("/api/v1/identity-documents?limit=10");
@@ -162,6 +189,9 @@ const Profile = () => {
       setHospitals(body.data.hospitals ?? []);
       void loadIdDocs();
       setHistory(body.data.history ?? []);
+      if (Array.isArray(body.data.profile?.family_members)) {
+        setFamilyMembers(body.data.profile.family_members);
+      }
     } catch {
       setFailed(true);
       toast.error(tc("networkError"));
@@ -650,12 +680,296 @@ const Profile = () => {
             note={t("notAvailable")}
           />
         ) : (
-          <NotYet
-            icon={Users}
-            title={t("family.title")}
-            reason={t("family.reason")}
-            note={t("notAvailable")}
-          />
+          <div className="space-y-6">
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              className="rounded-3xl bg-card border border-border/60 p-7 shadow-soft">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                  <SectionHead icon={Users} title={t("family.title")} />
+                  <p className="text-xs text-muted-foreground mt-2 max-w-xl">{t("family.subtitle")}</p>
+                </div>
+                {!isAddingMember && !editingMemberId && (
+                  <button
+                    onClick={() => {
+                      setMemberForm({
+                        name: "",
+                        relation: "child",
+                        dob: "",
+                        gender: "male",
+                        blood_group: "",
+                        phone: "",
+                        notes: "",
+                      });
+                      setIsAddingMember(true);
+                    }}
+                    className="rounded-full bg-gradient-dark text-surface-dark-foreground px-5 py-2.5 text-xs font-semibold shadow-glow flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" /> {t("family.addMember")}
+                  </button>
+                )}
+              </div>
+
+              {/* Add / Edit Family Member Form */}
+              {(isAddingMember || editingMemberId) && (
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!memberForm.name.trim()) {
+                      toast.error("Name is required");
+                      return;
+                    }
+                    setSavingMember(true);
+                    const memberId = editingMemberId ?? crypto.randomUUID();
+                    const newEntry: FamilyMember = { id: memberId, ...memberForm };
+                    const updated = editingMemberId
+                      ? familyMembers.map(m => (m.id === editingMemberId ? newEntry : m))
+                      : [...familyMembers, newEntry];
+
+                    try {
+                      const res = await fetch("/api/v1/patient/profile", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ family_members: updated }),
+                      });
+                      if (!res.ok) {
+                        toast.error(t("saveFailed"));
+                        return;
+                      }
+                      setFamilyMembers(updated);
+                      toast.success(editingMemberId ? t("family.memberUpdated") : t("family.memberAdded"));
+                      setIsAddingMember(false);
+                      setEditingMemberId(null);
+                    } catch {
+                      toast.error(tc("networkError"));
+                    } finally {
+                      setSavingMember(false);
+                    }
+                  }}
+                  className="mt-6 p-6 rounded-2xl bg-chip/40 border border-border/60 space-y-4"
+                >
+                  <p className="font-semibold text-primary text-sm">
+                    {editingMemberId ? "Edit Family Member" : t("family.addMember")}
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-[10px] tracking-widest font-bold text-muted-foreground block mb-1">
+                        {t("family.fields.name")}
+                      </label>
+                      <input
+                        required
+                        value={memberForm.name}
+                        onChange={e => setMemberForm(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="e.g. Ayesha Niloy"
+                        className={inputClass}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] tracking-widest font-bold text-muted-foreground block mb-1">
+                        {t("family.fields.relation")}
+                      </label>
+                      <select
+                        value={memberForm.relation}
+                        onChange={e => setMemberForm(prev => ({ ...prev, relation: e.target.value }))}
+                        className={inputClass}
+                      >
+                        <option value="spouse">{t("family.relations.spouse")}</option>
+                        <option value="child">{t("family.relations.child")}</option>
+                        <option value="parent">{t("family.relations.parent")}</option>
+                        <option value="sibling">{t("family.relations.sibling")}</option>
+                        <option value="other">{t("family.relations.other")}</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] tracking-widest font-bold text-muted-foreground block mb-1">
+                        {t("family.fields.dob")}
+                      </label>
+                      <DateInput
+                        value={memberForm.dob ?? ""}
+                        onChange={d => setMemberForm(prev => ({ ...prev, dob: d }))}
+                        className={inputClass}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] tracking-widest font-bold text-muted-foreground block mb-1">
+                        {t("family.fields.gender")}
+                      </label>
+                      <select
+                        value={memberForm.gender ?? "male"}
+                        onChange={e => setMemberForm(prev => ({ ...prev, gender: e.target.value }))}
+                        className={inputClass}
+                      >
+                        <option value="female">{t("genders.female")}</option>
+                        <option value="male">{t("genders.male")}</option>
+                        <option value="other">{t("genders.other")}</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] tracking-widest font-bold text-muted-foreground block mb-1">
+                        {t("family.fields.bloodGroup")}
+                      </label>
+                      <select
+                        value={memberForm.blood_group ?? ""}
+                        onChange={e => setMemberForm(prev => ({ ...prev, blood_group: e.target.value || null }))}
+                        className={inputClass}
+                      >
+                        <option value="">— Select —</option>
+                        {BLOOD_GROUPS.map(bg => (
+                          <option key={bg.value} value={bg.value}>{bg.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] tracking-widest font-bold text-muted-foreground block mb-1">
+                        {t("family.fields.phone")}
+                      </label>
+                      <input
+                        value={memberForm.phone ?? ""}
+                        onChange={e => setMemberForm(prev => ({ ...prev, phone: e.target.value }))}
+                        placeholder="017XXXXXXXX"
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] tracking-widest font-bold text-muted-foreground block mb-1">
+                      {t("family.fields.notes")}
+                    </label>
+                    <input
+                      value={memberForm.notes ?? ""}
+                      onChange={e => setMemberForm(prev => ({ ...prev, notes: e.target.value }))}
+                      placeholder="e.g. Penicillin allergy, Asthma"
+                      className={inputClass}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-end gap-3 pt-2">
+                    <button
+                      type="button"
+                      disabled={savingMember}
+                      onClick={() => { setIsAddingMember(false); setEditingMemberId(null); }}
+                      className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground/70 hover:bg-chip"
+                    >
+                      {tc("cancel")}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={savingMember}
+                      className="rounded-full bg-gradient-dark text-surface-dark-foreground px-6 py-2 text-xs font-semibold shadow-glow"
+                    >
+                      {savingMember ? tc("saving") : tc("save")}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Members List */}
+              {familyMembers.length === 0 ? (
+                <div className="py-12 text-center">
+                  <Users className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
+                  <p className="text-sm font-semibold text-primary">{t("family.noMembers")}</p>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">{t("family.noMembersSub")}</p>
+                </div>
+              ) : (
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {familyMembers.map((m) => (
+                    <div key={m.id} className="rounded-2xl border border-border/60 bg-chip/20 p-5 flex flex-col justify-between hover:border-primary/40 transition-colors">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="h-11 w-11 rounded-full bg-primary/10 text-primary font-bold text-sm grid place-items-center">
+                            {m.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-primary text-base">{m.name}</p>
+                            <span className="inline-block rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider mt-0.5">
+                              {m.relation === "spouse" || m.relation === "child" || m.relation === "parent" || m.relation === "sibling" || m.relation === "other"
+                                ? t(`family.relations.${m.relation}`)
+                                : m.relation}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => {
+                              setMemberForm({
+                                name: m.name,
+                                relation: m.relation,
+                                dob: m.dob ?? "",
+                                gender: m.gender ?? "male",
+                                blood_group: m.blood_group ?? "",
+                                phone: m.phone ?? "",
+                                notes: m.notes ?? "",
+                              });
+                              setEditingMemberId(m.id);
+                              setIsAddingMember(false);
+                            }}
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-chip transition-colors"
+                            aria-label="Edit member"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!window.confirm(t("family.confirmDelete", { name: m.name }))) return;
+                              const updated = familyMembers.filter(f => f.id !== m.id);
+                              try {
+                                const res = await fetch("/api/v1/patient/profile", {
+                                  method: "PATCH",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ family_members: updated }),
+                                });
+                                if (!res.ok) {
+                                  toast.error(t("removeFailed"));
+                                  return;
+                                }
+                                setFamilyMembers(updated);
+                                toast.success(t("family.memberRemoved"));
+                              } catch {
+                                toast.error(tc("networkError"));
+                              }
+                            }}
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            aria-label="Delete member"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 pt-3 border-t border-border/40 grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-[10px] text-muted-foreground font-bold tracking-widest block">DOB</span>
+                          <span className="font-medium text-foreground/80">{dateLabel(m.dob, locale)}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-muted-foreground font-bold tracking-widest block">BLOOD GROUP</span>
+                          <span className="font-semibold text-primary">{bloodLabel(m.blood_group)}</span>
+                        </div>
+                        {m.phone && (
+                          <div className="col-span-2 mt-1">
+                            <span className="text-[10px] text-muted-foreground font-bold tracking-widest block">PHONE</span>
+                            <span className="font-mono text-foreground/80">{m.phone}</span>
+                          </div>
+                        )}
+                        {m.notes && (
+                          <div className="col-span-2 mt-1 p-2 rounded-xl bg-chip/40 text-[11px] text-foreground/75">
+                            <span className="font-semibold text-primary">Notes: </span>{m.notes}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          </div>
         )}
       </div>
     </PatientPortalLayout>

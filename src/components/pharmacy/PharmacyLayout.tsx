@@ -107,7 +107,7 @@ const PharmacySidebar = ({ onNavigate, isAdmin, me }: { onNavigate?: () => void;
       </nav>
       {/* The hospital admin came here from their own panel, and goes back to it. */}
       {isAdmin && (
-        <Link href="/admin/pharmacy" onClick={onNavigate}
+        <Link href="/admin/dashboard" onClick={onNavigate}
           className="mx-3 mt-3 flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold text-foreground/70 hover:bg-card/60">
           <ArrowLeft className="h-4 w-4" /> {t("backToAdmin")}
         </Link>

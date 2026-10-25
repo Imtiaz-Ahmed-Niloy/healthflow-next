@@ -4,9 +4,29 @@ import { useState } from "react";
 import Link from "next/link";
 import { NavLink } from "@/components/NavLink";
 import { useRouter } from "next/navigation";
-import { LayoutGrid, Calendar, Users, CreditCard, FileText, User, LogOut, Bell, Settings, BookOpen, Heart, Hospital, Menu, X } from "lucide-react";
+import {
+  LayoutGrid,
+  Calendar,
+  Users,
+  CreditCard,
+  FileText,
+  User,
+  LogOut,
+  Bell,
+  Settings,
+  BookOpen,
+  Heart,
+  Hospital,
+  Menu,
+  X,
+  TestTube2,
+  CheckCircle2,
+  Clock,
+  Sparkles,
+} from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import LanguageSwitcher from "@/components/site/LanguageSwitcher";
 import { HeaderClock } from "@/components/common/HeaderClock";
 import { useSession, displayName } from "@/lib/auth/useSession";
@@ -26,6 +46,7 @@ export const PatientSidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
     { to: "/patient/saved-doctors", icon: Heart, label: t("sidebar.savedDoctors") },
     { to: "/patient/billing", icon: CreditCard, label: t("sidebar.billing") },
     { to: "/patient/medical-records", icon: FileText, label: t("sidebar.medicalRecords") },
+    { to: "/patient/lab-reports", icon: TestTube2, label: t("sidebar.labReports") || "Lab Reports" },
     { to: "/patient/profile", icon: User, label: t("sidebar.myProfile") },
     { to: "/patient/tutorial", icon: BookOpen, label: t("sidebar.userGuide") },
   ];
@@ -57,7 +78,44 @@ export const PatientTopbar = ({ onMenu, menuOpen = false }: { onMenu?: () => voi
   const router = useRouter();
   const { user, signOut } = useSession();
   const t = useTranslations();
+  const locale = useLocale();
+  const isBn = locale === "bn";
   const roleLabel = useRoleLabel();
+
+  const [notifications, setNotifications] = useState([
+    {
+      id: "1",
+      title: isBn ? "আসন্ন কনসাল্টেশন" : "Upcoming Consultation",
+      message: isBn ? "আপনার ডাক্তার অ্যাপয়েন্টমেন্ট শিডিউল অনুযায়ী প্রস্তুত রাখুন।" : "Your appointment is confirmed. View details in Appointments.",
+      time: isBn ? "আজ" : "Today",
+      unread: true,
+      link: "/patient/appointments",
+    },
+    {
+      id: "2",
+      title: isBn ? "ল্যাব টেস্ট আপডেট" : "Diagnostic Orders Tracked",
+      message: isBn ? "নতুন ডায়াগনস্টিক রিপোর্ট প্রস্তুত হলে এখানে নোটিফিকেশন পাবেন।" : "Track your clinical pathology and radiology reports.",
+      time: isBn ? "নতুন" : "New",
+      unread: true,
+      link: "/patient/lab-reports",
+    },
+    {
+      id: "3",
+      title: isBn ? "জরুরি হেল্পলাইন সক্রিয়" : "Emergency Helplines Active",
+      message: isBn ? "জাতীয় স্বাস্থ্য সেবা ১৬২৬৩ ও জরুরি ৯৯৯ হেল্পলাইন ড্যাশবোর্ডে যুক্ত।" : "National emergency 999 and health 16263 are ready on your dashboard.",
+      time: isBn ? "সতর্কতা" : "Notice",
+      unread: false,
+      link: "/patient/dashboard",
+    },
+  ]);
+
+  const unreadCount = notifications.filter(n => n.unread).length;
+
+  const markAllRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+    toast.success(isBn ? "সকল নোটিফিকেশন পঠিত হিসেবে চিহ্নিত করা হয়েছে" : "All notifications marked as read");
+  };
+
   return (
     // On a phone: the menu button, and only what fits beside it. The clock,
     // settings and the name give way; sign-out keeps its icon.
@@ -70,8 +128,79 @@ export const PatientTopbar = ({ onMenu, menuOpen = false }: { onMenu?: () => voi
         <div className="flex items-center gap-3 lg:gap-5">
           <div className="hidden md:block"><HeaderClock /></div>
           <LanguageSwitcher compact />
-          <button className="text-foreground/70 hover:text-primary" aria-label={t("common.notifications")}><Bell className="h-5 w-5" /></button>
-          <button className="hidden sm:block text-foreground/70 hover:text-primary" aria-label={t("common.settings")}><Settings className="h-5 w-5" /></button>
+
+          {/* Interactive Notifications Bell */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                className="relative text-foreground/70 hover:text-primary p-1.5 rounded-full hover:bg-chip/50 transition"
+                aria-label={t("common.notifications")}
+              >
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-0 right-0 h-4 w-4 bg-primary text-primary-foreground text-[10px] font-bold rounded-full grid place-items-center animate-pulse">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80 md:w-96 p-0 rounded-3xl border-border shadow-2xl">
+              <div className="p-4 border-b border-border/50 flex items-center justify-between">
+                <div>
+                  <h4 className="font-display text-base font-bold text-primary">
+                    {isBn ? "বিজ্ঞপ্তি ও নোটিফিকেশন" : "Patient Notifications"}
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground">
+                    {unreadCount > 0
+                      ? isBn ? `${unreadCount}টি অপঠিত বার্তা রয়েছে` : `${unreadCount} unread notices`
+                      : isBn ? "কোনো নতুন বার্তা নেই" : "You're all caught up"}
+                  </p>
+                </div>
+                {unreadCount > 0 && (
+                  <button
+                    onClick={markAllRead}
+                    className="text-xs text-primary font-semibold hover:underline"
+                  >
+                    {isBn ? "পঠিত করুন" : "Mark read"}
+                  </button>
+                )}
+              </div>
+
+              <div className="max-h-72 overflow-y-auto divide-y divide-border/40 p-1">
+                {notifications.map(n => (
+                  <Link
+                    key={n.id}
+                    href={n.link}
+                    onClick={() => {
+                      setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, unread: false } : x));
+                    }}
+                    className={`block p-3.5 rounded-2xl transition hover:bg-chip/40 ${
+                      n.unread ? "bg-primary/5" : ""
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-xs font-bold text-primary flex items-center gap-1.5">
+                        {n.unread && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+                        {n.title}
+                      </p>
+                      <span className="text-[10px] text-muted-foreground font-mono">{n.time}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{n.message}</p>
+                  </Link>
+                ))}
+              </div>
+
+              <div className="p-3 border-t border-border/50 text-center bg-chip/20 rounded-b-3xl">
+                <Link
+                  href="/patient/appointments"
+                  className="text-xs font-semibold text-primary hover:underline"
+                >
+                  {isBn ? "সমস্ত অ্যাপয়েন্টমেন্ট ও রিপোর্ট দেখুন" : "View appointments & health records →"}
+                </Link>
+              </div>
+            </PopoverContent>
+          </Popover>
+
           <NavLink to="/patient/profile" aria-label={t("common.profile")} className={({ isActive }) => `text-foreground/70 hover:text-primary transition ${isActive ? "text-primary" : ""}`}>
             <User className="h-5 w-5" />
           </NavLink>

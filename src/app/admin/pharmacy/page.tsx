@@ -1,6 +1,8 @@
-import { pageTitle } from "@/lib/pageTitle";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
-export const generateMetadata = pageTitle("pharmacy");
 
-export { default } from "@/views/admin/Pharmacy";
+export default function AdminPharmacyPage() {
+  redirect("/admin/dashboard");
+}
+

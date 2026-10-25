@@ -170,10 +170,14 @@ const PricingEditorBody = ({ lang }: { lang: Locale }) => {
                 <Label>{t("name")}</Label>
                 <Input value={p.name} onChange={e => updatePlan(pi, { name: e.target.value })} />
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <div>
                   <Label>{tp("price")}</Label>
                   <Input value={p.price} onChange={e => updatePlan(pi, { price: e.target.value })} disabled={wordsOnly} />
+                </div>
+                <div>
+                  <Label>Unit</Label>
+                  <Input value={p.unit ?? ""} placeholder="Per Invoice" onChange={e => updatePlan(pi, { unit: e.target.value })} />
                 </div>
                 <div>
                   <Label>{tp("cta")}</Label>

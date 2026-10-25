@@ -94,8 +94,9 @@ export const homePathForRole = (role: AppRole | null | undefined): string => {
     case "hospital_admin":
     case "hr_admin":
     case "finance_admin":
-    case "lab_admin":
       return "/admin/dashboard";
+    case "lab_admin":
+      return "/lab/dashboard";
     case "pharmacy_admin":
       return "/pharmacy/dashboard";
     case "doctor":

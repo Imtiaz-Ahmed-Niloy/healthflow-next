@@ -18,7 +18,23 @@
       "details": "Your Details",
       "name": "NAME",
       "email": "EMAIL",
-      "completeProfile": "<link>Complete your profile</link> to speed up booking."
+      "completeProfile": "<link>Complete your profile</link> to speed up booking.",
+      "healthCard": "Digital Health Card",
+      "flipCard": "Flip Card",
+      "bloodGroup": "Blood Group",
+      "emergencyContact": "Emergency Contact",
+      "sosHelplines": "Emergency Helplines (24/7)",
+      "nationalEmergency": "National Emergency",
+      "healthHelpline": "Health Helpline",
+      "ambulance": "Ambulance",
+      "healthVitals": "Health Vitals & BMI",
+      "viewAllRecords": "View All Records",
+      "quickStats": {
+        "appointments": "Appointments",
+        "prescriptions": "Prescriptions",
+        "labReports": "Lab Reports",
+        "pendingBills": "Pending Bills"
+      }
     },
     "savedDoctors": {
       "title": "Saved Doctors",
@@ -74,7 +90,19 @@
       "rescheduleTitle": "Reschedule Appointment",
       "rescheduleBody": "Pick a new date and time with {doctor}.",
       "isAvailable": "{doctor} is available {hours}.",
-      "saveNewTime": "Save New Time"
+      "saveNewTime": "Save New Time",
+      "liveSerial": "Live Chamber Serial",
+      "doctorSeeing": "Doctor is consulting",
+      "yourSerial": "Your Serial",
+      "patientsAhead": "{count} patients ahead of you",
+      "estimatedWait": "Est. Wait: ~{mins} mins",
+      "digitalPass": "Digital Pass",
+      "passTitle": "Appointment Pass & Serial Slip",
+      "passSubtitle": "Official clinic entry pass and reception desk check-in token",
+      "reportingTime": "Reporting Time",
+      "serialNo": "SERIAL NO",
+      "printPass": "Print Pass",
+      "passInstructions": "Please arrive at the chamber 15 minutes before your slot and show this QR code at the reception desk."
     },
     "billing": {
       "title": "Billing",
@@ -115,7 +143,23 @@
         "total": "Total"
       },
       "payingTitle": "PAYING A BILL",
-      "payingBody": "Online payment and insurance claims aren't available yet. To settle an invoice, contact your hospital's billing desk — they can mark it paid, and it will show as settled here."
+      "payingBody": "You can pay bills instantly using bKash, Nagad, Rocket, or Visa/MasterCard. Invoices are settled in real time and an official receipt is issued instantly.",
+      "payNow": "Pay Now",
+      "viewReceipt": "Receipt",
+      "paymentModalTitle": "Instant Online Bill Settlement",
+      "paymentModalSubtitle": "Pay securely with bKash, Nagad, Rocket, or Card",
+      "selectMethod": "Select Payment Method",
+      "mobileNumber": "Mobile / Account Number",
+      "confirmAndPay": "Confirm & Pay {amount}",
+      "processing": "Processing Payment...",
+      "paySuccess": "Payment successful! Invoice has been settled.",
+      "receiptTitle": "Official Payment Receipt",
+      "receiptSubtitle": "Issued by Hospital Billing & Accounts Registry",
+      "paidSeal": "PAID IN FULL",
+      "paymentMethod": "Payment Method",
+      "transactionId": "Transaction Ref",
+      "receiptNo": "Receipt No",
+      "printReceipt": "Print Receipt"
     },
     "identityDoc": {
       "wrongType": "Upload a photo or a PDF of the document.",
@@ -252,8 +296,31 @@
         "reason": "This tab showed a plan that did not exist. Recording a real one needs a decision first: whether a patient has one insurer or a history of them, since people change provider. Until that is settled, nothing here would be true."
       },
       "family": {
-        "title": "Family Management",
-        "reason": "Linking family members needs more than a list: a rule about who may see whose medical record, and a way to consent to it. That is being designed separately rather than guessed at here."
+        "title": "Family & Dependents",
+        "subtitle": "Manage profiles for your spouse, children, or elderly parents for appointments and emergency care.",
+        "addMember": "Add Family Member",
+        "noMembers": "No family members added yet.",
+        "noMembersSub": "Add your children, spouse or parents to manage their healthcare together.",
+        "memberAdded": "Family member added",
+        "memberUpdated": "Family member updated",
+        "memberRemoved": "Family member removed",
+        "confirmDelete": "Are you sure you want to remove {name}?",
+        "fields": {
+          "name": "FULL NAME",
+          "relation": "RELATIONSHIP",
+          "dob": "DATE OF BIRTH",
+          "gender": "GENDER",
+          "bloodGroup": "BLOOD GROUP",
+          "phone": "PHONE (OPTIONAL)",
+          "notes": "MEDICAL NOTES / ALLERGIES"
+        },
+        "relations": {
+          "spouse": "Spouse",
+          "child": "Child",
+          "parent": "Parent",
+          "sibling": "Sibling",
+          "other": "Other Dependent"
+        }
       }
     },
     "records": {
@@ -300,7 +367,19 @@
         "prescription": "PRESCRIPTION",
         "notes": "NOTES"
       },
-      "noNotes": "The doctor did not record any notes for this visit."
+      "noNotes": "The doctor did not record any notes for this visit.",
+      "pillTrackerTitle": "Daily Medicine Schedule & Pill Tracker",
+      "pillTrackerSubtitle": "Active prescription dosage broken down by time of day. Track your daily adherence.",
+      "morning": "Morning",
+      "noon": "Noon / Afternoon",
+      "night": "Night",
+      "morningTime": "8:00 AM (Breakfast)",
+      "noonTime": "1:30 PM (Lunch)",
+      "nightTime": "9:00 PM (Dinner)",
+      "taken": "Taken",
+      "notTaken": "Pending",
+      "adherence": "{taken} of {total} doses taken today ({pct}%)",
+      "noActiveMeds": "No active daily medicines recorded from recent visits."
     },
     "documents": {
       "kinds": {

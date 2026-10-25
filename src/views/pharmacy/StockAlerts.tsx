@@ -1,114 +1,408 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import Link from "next/link";
-import { AlertTriangle, CalendarClock, CalendarX, CheckCircle2, PackageX } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { PharmacyLayout } from "@/components/pharmacy/PharmacyLayout";
-import { Pager, PerPage, SearchBox, StateBlock, Tile } from "@/components/pharmacy/ui";
-import { Btn, Card, Pill } from "@/components/admin/ui";
-import { Chips, DataTable, type Column } from "@/components/admin/crud";
-import { useFormatters } from "@/lib/appSettings";
-import { useStockAlertsQuery } from "@/redux/api/pharmacy";
+import React, { useState, useMemo } from "react";
+import { usePharmacy } from "@/context/PharmacyContext";
+import { StockAlertsSummaryCards } from "@/components/StockAlerts/StockAlertsSummaryCards";
+import {
+  Search,
+  ArrowUp,
+  ArrowDown,
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
+  AlertTriangle,
+  Clock,
+  XCircle,
+} from "lucide-react";
 
-const KINDS = ["all", "out_of_stock", "low_stock", "expiring_soon", "expired"] as const;
-type Kind = Exclude<(typeof KINDS)[number], "all">;
+export type AlertSortOption =
+  | "alertType"
+  | "productName"
+  | "sku"
+  | "quantity"
+  | "expiryDate";
 
-const KIND_TONE: Record<Kind, "bad" | "warn"> = { out_of_stock: "bad", low_stock: "warn", expiring_soon: "warn", expired: "bad" };
+export default function StockAlertsPage() {
+  const { inventory: rawInventory } = usePharmacy();
+  const inventory = rawInventory || [];
 
-/** One row of either list — a product short of stock, or a batch near or past its date. */
-type AlertRow = {
-  id: string; kind: Kind; name: string; generic_name: string | null; sku: string; quantity: number;
-  reorder: number | null; batch_number: string | null; expiry_date: string | null; location: string | null;
-};
+  const [activeTab, setActiveTab] = useState<"low-stock" | "expiring" | "out-of-stock">("out-of-stock");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortField, setSortField] = useState<AlertSortOption>("productName");
+  const [sortAscending, setSortAscending] = useState<boolean>(true);
+  const [filterDropdown, setFilterDropdown] = useState<string>("ALL");
+  const [pageSize, setPageSize] = useState<number>(20);
+  const [currentPage, setCurrentPage] = useState<number>(1);
 
-const Page = () => {
-  const t = useTranslations("pharmacy.alerts");
-  const { formatDate } = useFormatters();
-  const [kind, setKind] = useState<(typeof KINDS)[number]>("all");
-  const [q, setQ] = useState("");
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(20);
-  const { data, isLoading, error, refetch } = useStockAlertsQuery();
+  // Reference date: October 7, 2026
+  const now = 1791350400000; // 07/10/2026
+  const ninetyDaysFromNow = now + 90 * 24 * 60 * 60 * 1000;
 
-  const rows = useMemo<AlertRow[]>(() => {
-    const alerts = data?.data;
-    if (!alerts) return [];
-    return [
-      ...alerts.stock.map(row => ({
-        id: `item-${row.id}`, kind: row.kind, name: row.name, generic_name: row.generic_name, sku: row.sku,
-        quantity: row.quantity, reorder: row.reorder, batch_number: null, expiry_date: null, location: null,
-      })),
-      ...alerts.batches.map(row => ({
-        id: `batch-${row.id}`, kind: row.kind, name: row.name, generic_name: row.generic_name, sku: row.sku,
-        quantity: row.quantity, reorder: null, batch_number: row.batch_number, expiry_date: row.expiry_date, location: row.location,
-      })),
-    ];
-  }, [data]);
+  // Counts
+  const outOfStockItems = useMemo(() => {
+    return (inventory || []).filter((i) => i.quantity === 0);
+  }, [inventory]);
 
-  const count = (wanted: Kind) => rows.filter(row => row.kind === wanted).length;
-  const needle = q.trim().toLowerCase();
-  const matching = rows.filter(row =>
-    (kind === "all" || row.kind === kind)
-    && (!needle || [row.name, row.generic_name, row.sku, row.batch_number, row.location].some(value => value?.toLowerCase().includes(needle))));
-  const totalPages = Math.max(Math.ceil(matching.length / perPage), 1);
-  const current = Math.min(page, totalPages);
-  // The alerts arrive whole, so the page is cut here. Sorting by a column header sorts what is on the page.
-  const shown = matching.slice((current - 1) * perPage, current * perPage);
+  const lowStockItems = useMemo(() => {
+    return (inventory || []).filter((i) => i.quantity > 0 && i.quantity <= i.reorderLevel);
+  }, [inventory]);
 
-  const columns: Column<AlertRow>[] = [
-    { key: "product", label: t("columns.product"), accessor: r => r.name.toLowerCase(), sortable: true, render: r => (
-      <div className="min-w-0">
-        <p className="font-semibold text-primary truncate">{r.name}</p>
-        {r.generic_name && <p className="text-xs text-muted-foreground truncate">{r.generic_name}</p>}
-      </div>
-    ) },
-    { key: "sku", label: t("columns.sku"), render: r => <span className="font-mono text-xs">{r.sku}</span> },
-    { key: "quantity", label: t("columns.quantity"), accessor: r => r.quantity, sortable: true, render: r => <span className="tabular-nums font-semibold">{r.quantity}</span> },
-    { key: "reorder", label: t("columns.reorder"), render: r => r.reorder === null ? "—" : <span className="tabular-nums">{r.reorder}</span> },
-    { key: "batch", label: t("columns.batch"), render: r => r.batch_number ? <span className="font-mono text-xs">{r.batch_number}</span> : "—" },
-    { key: "expiry", label: t("columns.expiry"), accessor: r => r.expiry_date ?? "9999", sortable: true, render: r => r.expiry_date ? <span className="whitespace-nowrap">{formatDate(r.expiry_date)}</span> : "—" },
-    { key: "shelf", label: t("columns.shelf"), accessor: r => r.location ?? "", sortable: true, render: r => r.location ?? "—" },
-    { key: "alert", label: t("columns.alert"), render: r => <Pill tone={KIND_TONE[r.kind]}>{t(`kinds.${r.kind}`)}</Pill> },
-  ];
+  const expiringSoonItems = useMemo(() => {
+    return (inventory || []).filter(
+      (i) =>
+        i.quantity > 0 &&
+        (i.status === "EXPIRING_SOON" ||
+          i.status === "EXPIRED" ||
+          (i.expiryTimestamp && i.expiryTimestamp <= ninetyDaysFromNow))
+    );
+  }, [inventory, ninetyDaysFromNow]);
+
+  // Active items based on Tab or Filter dropdown
+  const baseItems = useMemo(() => {
+    if (filterDropdown === "LOW_STOCK") return lowStockItems;
+    if (filterDropdown === "EXPIRING") return expiringSoonItems;
+    if (filterDropdown === "OUT_OF_STOCK") return outOfStockItems;
+
+    // By tab:
+    if (activeTab === "low-stock") return lowStockItems;
+    if (activeTab === "expiring") return expiringSoonItems;
+    return outOfStockItems;
+  }, [activeTab, filterDropdown, lowStockItems, expiringSoonItems, outOfStockItems]);
+
+  // Filter by search & sort
+  const filteredAndSorted = useMemo(() => {
+    return baseItems
+      .filter((item) => {
+        if (!searchTerm.trim()) return true;
+        const q = searchTerm.toLowerCase().trim();
+        return (
+          item.productName.toLowerCase().includes(q) ||
+          item.sku.toLowerCase().includes(q) ||
+          item.batchNumber.toLowerCase().includes(q) ||
+          item.location.toLowerCase().includes(q)
+        );
+      })
+      .sort((a, b) => {
+        let aVal: string | number | undefined = a[sortField as keyof typeof a];
+        let bVal: string | number | undefined = b[sortField as keyof typeof b];
+
+        if (sortField === "expiryDate") {
+          aVal = a.expiryTimestamp || 0;
+          bVal = b.expiryTimestamp || 0;
+        }
+
+        if (typeof aVal === "string") {
+          return sortAscending
+            ? (aVal as string).localeCompare((bVal as string) || "")
+            : ((bVal as string) || "").localeCompare(aVal as string);
+        }
+
+        if (typeof aVal === "number") {
+          return sortAscending
+            ? (aVal as number) - ((bVal as number) || 0)
+            : ((bVal as number) || 0) - (aVal as number);
+        }
+
+        return 0;
+      });
+  }, [baseItems, searchTerm, sortField, sortAscending]);
+
+  // Pagination
+  const totalItems = filteredAndSorted.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const validPage = Math.min(currentPage, totalPages);
+  const startIndex = (validPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const currentItems = filteredAndSorted.slice(startIndex, endIndex);
+
+  const renderStatus = (item: typeof inventory[0]) => {
+    if (item.quantity === 0) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
+          Out of Stock
+        </span>
+      );
+    }
+    if (item.status === "EXPIRED" || item.expiryTimestamp <= now) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
+          Expired
+        </span>
+      );
+    }
+    if (item.status === "EXPIRING_SOON" || item.expiryTimestamp <= ninetyDaysFromNow) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-orange-50 text-orange-700 border border-orange-200">
+          Expiring Soon
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">
+        Low Stock
+      </span>
+    );
+  };
 
   return (
-    <PharmacyLayout title={t("title")} subtitle={t("subtitle")}>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <Tile icon={PackageX} label={t("kinds.out_of_stock")} value={count("out_of_stock")} tone={count("out_of_stock") ? "bad" : "default"} />
-        <Tile icon={AlertTriangle} label={t("kinds.low_stock")} value={count("low_stock")} tone={count("low_stock") ? "warn" : "default"} />
-        <Tile icon={CalendarClock} label={t("kinds.expiring_soon")} value={count("expiring_soon")} tone={count("expiring_soon") ? "warn" : "default"} />
-        <Tile icon={CalendarX} label={t("kinds.expired")} value={count("expired")} tone={count("expired") ? "bad" : "default"} />
+    <div className="w-full space-y-5 max-w-7xl mx-auto pb-12">
+      {/* Top Header */}
+      <div>
+        <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
+          <span>Dashboard</span>
+          <span>/</span>
+          <span>Inventory</span>
+          <span>/</span>
+          <span className="text-blue-600 font-semibold">Stock Alerts</span>
+        </div>
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          Stock Alerts
+        </h1>
+        <p className="text-xs text-slate-500 mt-0.5">
+          Monitor inventory status and take action
+        </p>
       </div>
 
-      <Card className="p-4 lg:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <SearchBox value={q} onChange={value => { setQ(value); setPage(1); }} placeholder={t("searchPlaceholder")} className="flex-1" />
-          <Chips value={kind} onChange={value => { setKind(value); setPage(1); }} options={KINDS.map(value => ({ value, label: t(`kinds.${value}`) }))} />
-          <PerPage value={perPage} onChange={value => { setPerPage(value); setPage(1); }} />
-          <div className="flex flex-wrap gap-2">
-            <Link href="/pharmacy/stock"><Btn variant="outline">{t("goToStock")}</Btn></Link>
-            <Link href="/pharmacy/purchases"><Btn variant="outline">{t("orderMore")}</Btn></Link>
-          </div>
+      {/* 3 Summary Cards */}
+      <StockAlertsSummaryCards
+        lowStockCount={lowStockItems.length}
+        expiringSoonCount={expiringSoonItems.length}
+        outOfStockCount={outOfStockItems.length}
+        activeTab={activeTab}
+        onSelectTab={(tab) => {
+          setActiveTab(tab);
+          setFilterDropdown("ALL");
+          setCurrentPage(1);
+        }}
+      />
+
+      {/* Control & Filter Bar */}
+      <div className="bg-white rounded-xl border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.02)] p-4 space-y-3">
+        {/* Search */}
+        <div className="relative">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search alerts..."
+            className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-800 placeholder-slate-400 transition-all"
+          />
         </div>
 
-        {isLoading || error ? (
-          <StateBlock loading={isLoading} error={error} onRetry={refetch} />
-        ) : rows.length === 0 ? (
-          <div className="text-center py-12">
-            <CheckCircle2 className="h-10 w-10 text-emerald-600 mx-auto" />
-            <p className="font-display text-xl text-primary mt-3">{t("allGood")}</p>
-            <p className="text-sm text-muted-foreground mt-1">{t("allGoodHint")}</p>
+        {/* Sub-controls: Sort by, sort toggle, filter dropdown, per page, summary */}
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs pt-1 border-t border-slate-100">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-slate-500 font-medium">Sort by:</span>
+            <select
+              value={sortField}
+              onChange={(e) => setSortField(e.target.value as AlertSortOption)}
+              className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="productName">Product Name</option>
+              <option value="sku">SKU</option>
+              <option value="quantity">Quantity</option>
+              <option value="expiryDate">Expiry Date</option>
+              <option value="location">Location</option>
+            </select>
+
+            <button
+              onClick={() => setSortAscending(!sortAscending)}
+              className="p-1 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors"
+              title={sortAscending ? "Sort Ascending" : "Sort Descending"}
+            >
+              {sortAscending ? (
+                <ArrowUp className="w-3.5 h-3.5" />
+              ) : (
+                <ArrowDown className="w-3.5 h-3.5" />
+              )}
+            </button>
+
+            <span className="text-slate-400 ml-1">|</span>
+
+            <span className="text-slate-500 font-medium">Filter:</span>
+            <select
+              value={filterDropdown}
+              onChange={(e) => {
+                setFilterDropdown(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="ALL">All Alerts</option>
+              <option value="OUT_OF_STOCK">Out of Stock</option>
+              <option value="LOW_STOCK">Low Stock</option>
+              <option value="EXPIRING">Expiring Soon</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-3 ml-auto text-slate-500">
+            <div className="flex items-center gap-1.5">
+              <span>Per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+
+            <span className="text-slate-400">|</span>
+
+            <span>
+              Showing <strong className="text-slate-700">{totalItems > 0 ? startIndex + 1 : 0}</strong> to{" "}
+              <strong className="text-slate-700">{endIndex}</strong> of{" "}
+              <strong className="text-slate-700">{totalItems}</strong> results
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="flex items-center gap-2 border-b border-slate-200">
+        <button
+          onClick={() => {
+            setActiveTab("low-stock");
+            setFilterDropdown("ALL");
+            setCurrentPage(1);
+          }}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all ${
+            activeTab === "low-stock" && filterDropdown === "ALL"
+              ? "border-amber-600 text-amber-700"
+              : "border-transparent text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <span>Low Stock</span>
+          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-amber-100 text-amber-800">
+            {lowStockItems.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab("expiring");
+            setFilterDropdown("ALL");
+            setCurrentPage(1);
+          }}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all ${
+            activeTab === "expiring" && filterDropdown === "ALL"
+              ? "border-orange-600 text-orange-700"
+              : "border-transparent text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <span>Expiring Soon</span>
+          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-orange-100 text-orange-800">
+            {expiringSoonItems.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab("out-of-stock");
+            setFilterDropdown("ALL");
+            setCurrentPage(1);
+          }}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all ${
+            activeTab === "out-of-stock" && filterDropdown === "ALL"
+              ? "border-rose-600 text-rose-700"
+              : "border-transparent text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <span>Out of Stock</span>
+          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-rose-100 text-rose-800">
+            {outOfStockItems.length}
+          </span>
+        </button>
+      </div>
+
+      {/* Alerts Table */}
+      <div className="bg-white rounded-xl border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.02)] overflow-hidden flex flex-col">
+        {currentItems.length === 0 ? (
+          <div className="py-16 text-center space-y-2">
+            <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-500" />
+            <h3 className="text-sm font-bold text-slate-800">No alerts found</h3>
+            <p className="text-xs text-slate-500">Everything looks good!</p>
           </div>
         ) : (
-          <DataTable<AlertRow> rows={shown} columns={columns} empty={t("noMatch")} />
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                <tr>
+                  <th className="py-3 px-4">SKU</th>
+                  <th className="py-3 px-4">Name</th>
+                  <th className="py-3 px-4 text-center">Quantity</th>
+                  <th className="py-3 px-4 text-center">Reorder Level</th>
+                  <th className="py-3 px-4">Expiry Date</th>
+                  <th className="py-3 px-4">Location</th>
+                  <th className="py-3 px-4">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {currentItems.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="py-3 px-4 font-mono font-medium text-slate-600 text-[11px] whitespace-nowrap">
+                      {item.sku}
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="font-bold text-slate-900">{item.productName}</div>
+                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                        Batch: {item.batchNumber}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-center font-mono font-bold text-slate-800">
+                      {item.quantity}
+                    </td>
+                    <td className="py-3 px-4 text-center font-mono text-slate-500">
+                      {item.reorderLevel}
+                    </td>
+                    <td className="py-3 px-4 font-mono text-slate-600 text-[11px] whitespace-nowrap">
+                      {item.expiryDate}
+                    </td>
+                    <td className="py-3 px-4 text-slate-600 font-medium whitespace-nowrap">
+                      {item.location}
+                    </td>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      {renderStatus(item)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-        {rows.length > 0 && <Pager page={current} totalPages={totalPages} total={matching.length} onPage={setPage} />}
 
-        {data?.data && <p className="text-[11px] text-muted-foreground mt-4">{t("windowHint", { days: data.data.expiring_soon_days })}</p>}
-      </Card>
-    </PharmacyLayout>
+        {/* Pagination Footer */}
+        <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50/50 text-xs">
+          <span className="text-slate-500">
+            Page <strong className="text-slate-800">{validPage}</strong> of{" "}
+            <strong className="text-slate-800">{totalPages}</strong>
+          </span>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={validPage <= 1}
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-white disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={validPage >= totalPages}
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-white disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
-};
+}
 
-export default Page;

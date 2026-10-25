@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { NavLink } from "@/components/NavLink";
 import { useRouter } from "next/navigation";
-import { LayoutGrid, Users, BookUser, Calendar, LogOut, Bell, Settings, BookOpen, MessagesSquare, UserRound, Store, UsersRound, Menu, X } from "lucide-react";
+import { LayoutGrid, Users, BookUser, Calendar, LogOut, Bell, Settings, BookOpen, MessagesSquare, UserRound, Store, UsersRound, Menu, X, Wallet, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import LanguageSwitcher from "@/components/site/LanguageSwitcher";
@@ -14,6 +14,7 @@ import { useRoleLabel } from "@/i18n/useRoleLabel";
 import { BRAND_INFO } from "@/constants/brand";
 import { Avatar } from "@/components/common/Avatar";
 import { useSidebarScroll } from "@/hooks/useSidebarScroll";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 /**
  * Medical Dictionary is deliberately absent.
@@ -26,6 +27,8 @@ import { useSidebarScroll } from "@/hooks/useSidebarScroll";
 const links = [
   { to: "/portal/prescription", icon: LayoutGrid, key: "prescription" },
   { to: "/portal/queue", icon: Users, key: "queue" },
+  { to: "/portal/invoices", icon: Receipt, key: "invoices" },
+  { to: "/portal/earnings", icon: Wallet, key: "earnings" },
   { to: "/portal/directory", icon: BookUser, key: "directory" },
   { to: "/portal/schedule", icon: Calendar, key: "schedule" },
   { to: "/portal/chambers", icon: Store, key: "chambers" },
@@ -98,8 +101,34 @@ export const PortalTopbar = ({ onMenu, menuOpen = false }: { onMenu?: () => void
         <div className="flex items-center gap-3 lg:gap-5">
           <div className="hidden md:block"><HeaderClock /></div>
           <LanguageSwitcher compact />
-          <button className="text-foreground/70 hover:text-primary" aria-label={tc("notifications")}><Bell className="h-5 w-5" /></button>
-          <button className="hidden sm:block text-foreground/70 hover:text-primary" aria-label={tc("settings")}><Settings className="h-5 w-5" /></button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className="relative text-foreground/70 hover:text-primary p-1.5 rounded-full hover:bg-chip/50 transition" aria-label={tc("notifications")}>
+                <Bell className="h-5 w-5" />
+                <span className="absolute top-1 right-1 h-2 w-2 bg-primary rounded-full animate-pulse" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80 p-0 rounded-2xl border-border shadow-soft">
+              <div className="p-4 border-b border-border/50 flex items-center justify-between">
+                <p className="font-display text-sm font-bold text-primary">{tc("notifications")}</p>
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Doctor Desk</span>
+              </div>
+              <div className="p-3 divide-y divide-border/40 text-xs">
+                <Link href="/portal/queue" className="block p-2 rounded-xl hover:bg-chip/50 transition">
+                  <p className="font-semibold text-primary">Patient Queue Active</p>
+                  <p className="text-muted-foreground mt-0.5">Check today&apos;s OPD queue and pending consultations.</p>
+                </Link>
+                <Link href="/portal/community" className="block p-2 rounded-xl hover:bg-chip/50 transition">
+                  <p className="font-semibold text-primary">Doctor Community</p>
+                  <p className="text-muted-foreground mt-0.5">Clinical cases and peer discussions are active.</p>
+                </Link>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          <Link href="/portal/profile" className="hidden sm:flex text-foreground/70 hover:text-primary p-1.5 rounded-full hover:bg-chip/50 transition" aria-label={tc("settings")}>
+            <Settings className="h-5 w-5" />
+          </Link>
           <div className="flex items-center gap-3 sm:border-l border-border/60 sm:pl-5">
             <div className="hidden sm:block text-right">
               <p className="font-semibold text-sm text-primary leading-tight">{displayName(user)}</p>

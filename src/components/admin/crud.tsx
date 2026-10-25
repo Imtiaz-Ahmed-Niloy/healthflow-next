@@ -67,10 +67,11 @@ const DRAWER_SIZES = {
   "3xl": "max-w-3xl",
 } as const;
 
-export const Drawer = ({ open, onClose, title, children, size = "md", className }: {
+export const Drawer = ({ open, onClose, title, description, children, size = "md", className }: {
   open: boolean;
   onClose: () => void;
   title: string;
+  description?: string;
   children: ReactNode;
   size?: keyof typeof DRAWER_SIZES;
   className?: string;
@@ -81,7 +82,10 @@ export const Drawer = ({ open, onClose, title, children, size = "md", className 
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className={`absolute right-0 top-0 h-full w-full ${DRAWER_SIZES[size] || "max-w-md"} bg-card border-l border-border/60 shadow-2xl flex flex-col ${className || ""}`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-border/40">
-          <h3 className="font-display text-xl text-primary">{title}</h3>
+          <div>
+            <h3 className="font-display text-xl text-primary">{title}</h3>
+            {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
+          </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted" aria-label="Close"><X className="h-4 w-4" /></button>
         </div>
         <div className="px-6 py-5 overflow-y-auto flex-1">{children}</div>

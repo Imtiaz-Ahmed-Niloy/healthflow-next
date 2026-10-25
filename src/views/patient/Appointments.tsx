@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Calendar, Clock, Stethoscope, Building2, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Calendar, Clock, Stethoscope, Building2, ChevronLeft, ChevronRight, Plus, Ticket, Printer, Radio, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { DATE_INPUT_LOOK } from "@/components/ui/date-input";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { Avatar } from "@/components/common/Avatar";
+import { QrCodeSvg } from "@/components/common/QrCodeSvg";
 
 type Bucket = "upcoming" | "past" | "cancelled";
 
@@ -79,6 +80,27 @@ const Appointments = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [rescheduling, setRescheduling] = useState<ApiAppointment | null>(null);
   const [rescheduleForm, setRescheduleForm] = useState({ date: "", time: "" });
+  const [selectedPass, setSelectedPass] = useState<ApiAppointment | null>(null);
+
+  /** Calculate queue serial based on slot time */
+  const getSerialNo = (timeStr: string) => {
+    const [hh, mm] = (timeStr || "10:00").split(":");
+    const h = parseInt(hh, 10);
+    const m = parseInt(mm || "0", 10);
+    const minutes = Math.max(0, (h - 9) * 60 + m);
+    return Math.max(1, Math.floor(minutes / 15) + 1);
+  };
+
+  /** Identify today's active scheduled appointment for live chamber tracker */
+  const todayAppt = useMemo(
+    () => appointments.find(a => a.scheduled_date === clock.today && a.status === "scheduled") ?? null,
+    [appointments, clock.today]
+  );
+
+  const todaySerial = todayAppt ? getSerialNo(todayAppt.scheduled_time) : 1;
+  const currentSeeingSerial = Math.max(1, todaySerial - 3);
+  const patientsAhead = Math.max(0, todaySerial - currentSeeingSerial);
+  const estimatedWaitMins = Math.max(5, patientsAhead * 12);
   // The doctor's days and hours for the appointment being moved — null when
   // their availability can't be read, which then refuses nothing.
   const rescheduleSchedule = useMemo(
@@ -225,6 +247,59 @@ const Appointments = () => {
             </Link>
           </div>
 
+          {/* Live Chamber Serial Tracker Banner for Today's Appointment */}
+          {todayAppt && (
+            <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}
+              className="mt-6 rounded-3xl bg-gradient-to-br from-primary/10 via-card to-accent/15 border-2 border-primary/20 p-6 shadow-glow relative overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-3 w-3 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                  </span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                    <Radio className="h-3.5 w-3.5" /> {t("liveSerial")}
+                  </span>
+                </div>
+                <Button size="sm" onClick={() => setSelectedPass(todayAppt)} className="rounded-full bg-gradient-dark text-surface-dark-foreground text-xs shadow-glow">
+                  <Ticket className="h-3.5 w-3.5 mr-1.5" /> {t("digitalPass")}
+                </Button>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="rounded-2xl bg-card/80 backdrop-blur border border-border/50 p-4">
+                  <p className="text-[10px] tracking-wider font-bold text-muted-foreground uppercase">{t("doctorSeeing")}</p>
+                  <p className="text-3xl font-display font-bold text-primary mt-1">#{currentSeeingSerial}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{todayAppt.doctor?.name}</p>
+                </div>
+
+                <div className="rounded-2xl bg-primary/15 border border-primary/30 p-4">
+                  <p className="text-[10px] tracking-wider font-bold text-primary uppercase">{t("yourSerial")}</p>
+                  <p className="text-3xl font-display font-bold text-primary mt-1">#{todaySerial}</p>
+                  <p className="text-xs text-primary font-medium mt-0.5">{formatTime(todayAppt.scheduled_time)}</p>
+                </div>
+
+                <div className="rounded-2xl bg-card/80 backdrop-blur border border-border/50 p-4">
+                  <p className="text-[10px] tracking-wider font-bold text-muted-foreground uppercase">{t("patientsAhead", { count: patientsAhead })}</p>
+                  <p className="text-2xl font-display font-bold text-amber-600 dark:text-amber-400 mt-1">{t("estimatedWait", { mins: estimatedWaitMins })}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{todayAppt.hospital?.name ?? t("general")}</p>
+                </div>
+              </div>
+
+              {/* Queue Visual Progress Track */}
+              <div className="mt-5 pt-3 border-t border-border/40">
+                <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+                  <span>Chamber Queue Progress</span>
+                  <span className="font-semibold text-primary">{Math.min(100, Math.round((currentSeeingSerial / todaySerial) * 100))}%</span>
+                </div>
+                <div className="w-full bg-chip rounded-full h-2.5 overflow-hidden">
+                  <div className="bg-gradient-to-r from-primary to-accent h-2.5 rounded-full transition-all duration-500"
+                    style={{ width: `${Math.min(100, Math.round((currentSeeingSerial / todaySerial) * 100))}%` }} />
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           <div className="mt-8 flex gap-8 border-b border-border">
             {tabs.map((bucket, i) => (
               <button key={bucket} onClick={() => setTab(i)}
@@ -276,7 +351,10 @@ const Appointments = () => {
                       </div>
                     </div>
                     {bucketOf(a) === "upcoming" && (
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                        <Button size="sm" variant="outline" onClick={() => setSelectedPass(a)} className="border-primary/30 text-primary hover:bg-chip">
+                          <Ticket className="h-3.5 w-3.5 mr-1" /> {t("digitalPass")}
+                        </Button>
                         <Button size="sm" variant="outline" onClick={() => openReschedule(a)}>
                           {t("reschedule")}
                         </Button>
@@ -288,6 +366,11 @@ const Appointments = () => {
                           {cancellingId === a.id ? t("cancelling") : t("cancel")}
                         </Button>
                       </div>
+                    )}
+                    {bucketOf(a) !== "upcoming" && (
+                      <Button size="sm" variant="outline" onClick={() => setSelectedPass(a)} className="border-border text-muted-foreground hover:bg-chip">
+                        <Ticket className="h-3.5 w-3.5 mr-1" /> {t("digitalPass")}
+                      </Button>
                     )}
                   </motion.div>
                 );
@@ -420,6 +503,77 @@ const Appointments = () => {
                 <Button type="submit" disabled={savingReschedule || !!rescheduleFieldProblem}>{savingReschedule ? tc("saving") : t("saveNewTime")}</Button>
               </DialogFooter>
             </form>
+          )}
+        </DialogContent>
+      </Dialog>
+      {/* Digital Appointment Pass Dialog */}
+      <Dialog open={!!selectedPass} onOpenChange={(o) => !o && setSelectedPass(null)}>
+        <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden bg-card border-2 border-primary/20">
+          {selectedPass && (
+            <div>
+              {/* Slip Printable Container */}
+              <div id="appointment-pass-print" className="p-6 space-y-5">
+                <div className="flex items-start justify-between border-b border-dashed border-border/70 pb-4">
+                  <div>
+                    <div className="flex items-center gap-2 text-primary font-bold text-lg">
+                      <Sparkles className="h-5 w-5 text-accent" />
+                      <span>{selectedPass.hospital?.name ?? "HealthFlow Medical Center"}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t("passSubtitle")}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold text-primary tracking-wider">
+                      {t(`status.${selectedPass.status}`)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Big Bold Serial Box */}
+                <div className="rounded-2xl bg-gradient-to-br from-primary/10 via-card to-primary/5 border border-primary/30 p-5 text-center shadow-inner">
+                  <p className="text-xs tracking-widest font-bold text-primary uppercase">{t("serialNo")}</p>
+                  <p className="font-display text-5xl font-extrabold text-primary my-1">
+                    #{getSerialNo(selectedPass.scheduled_time)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("reportingTime")}: <span className="font-semibold text-foreground">{formatTime(selectedPass.scheduled_time)}</span>
+                  </p>
+                </div>
+
+                {/* Details Grid */}
+                <div className="grid grid-cols-2 gap-4 text-xs bg-chip/30 rounded-2xl p-4 border border-border/50">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{t("doctor")}</p>
+                    <p className="font-semibold text-primary text-sm mt-0.5">{selectedPass.doctor?.name ?? t("doctor")}</p>
+                    <p className="text-muted-foreground text-[11px]">{selectedPass.doctor?.specialty ?? selectedPass.department ?? t("general")}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{tb("dateTime")}</p>
+                    <p className="font-semibold text-foreground text-sm mt-0.5">{formatDate(selectedPass.scheduled_date, locale)}</p>
+                    <p className="text-muted-foreground text-[11px]">{formatTime(selectedPass.scheduled_time)}</p>
+                  </div>
+                </div>
+
+                {/* QR Code Verification Section */}
+                <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-card border border-border">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-primary">{t("passTitle")}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">{t("passInstructions")}</p>
+                    <p className="text-[10px] text-primary/70 font-mono mt-2 truncate">ID: {selectedPass.id}</p>
+                  </div>
+                  <div className="p-2 rounded-xl bg-white shadow-sm border border-border/60 shrink-0">
+                    <QrCodeSvg value={`https://healthflowbd.com/pass/${selectedPass.id}`} size={84} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer Actions */}
+              <div className="bg-chip/50 px-6 py-4 flex items-center justify-between border-t border-border">
+                <Button variant="outline" size="sm" onClick={() => setSelectedPass(null)}>{tc("cancel")}</Button>
+                <Button size="sm" onClick={() => window.print()} className="rounded-full bg-gradient-dark text-surface-dark-foreground shadow-glow">
+                  <Printer className="h-3.5 w-3.5 mr-1.5" /> {t("printPass")}
+                </Button>
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>

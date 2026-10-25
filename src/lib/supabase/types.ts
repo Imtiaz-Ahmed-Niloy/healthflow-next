@@ -2191,6 +2191,38 @@ export type Database = {
           },
         ]
       }
+      pharmacy_admin_secrets: {
+        Row: {
+          created_at: string
+          email: string
+          password_enc: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          password_enc: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          password_enc?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pharmacy_admin_secrets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hospital_packages: {
         Row: {
           base_price: number
@@ -5441,7 +5473,7 @@ export type Database = {
         | "rejected"
       support_ticket_priority: "low" | "medium" | "high" | "critical"
       support_ticket_status: "pending" | "processing" | "resolved"
-      tenant_kind: "hospital" | "chamber"
+      tenant_kind: "hospital" | "chamber" | "pharmacy"
       tenant_status: "pending" | "approved" | "suspended"
       voucher_type:
         | "payment"
@@ -5685,7 +5717,7 @@ export const Constants = {
       ],
       support_ticket_priority: ["low", "medium", "high", "critical"],
       support_ticket_status: ["pending", "processing", "resolved"],
-      tenant_kind: ["hospital", "chamber"],
+      tenant_kind: ["hospital", "chamber", "pharmacy"],
       tenant_status: ["pending", "approved", "suspended"],
       voucher_type: [
         "payment",

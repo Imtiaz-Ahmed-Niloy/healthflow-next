@@ -87,3 +87,78 @@ export const GET = async () => {
     },
   });
 };
+
+/**
+ * POST /api/v1/patient/billing
+ * Settle an invoice online via bKash / Nagad / Rocket / Card.
+ */
+export const POST = async (request: Request) => {
+  const auth = await getAuthContext();
+  if (!auth) return fail("Not signed in", 401);
+  if (auth.role !== "patient") return fail("Only a patient can settle their own bills", 403);
+
+  const body = await request.json().catch(() => null);
+  const invoiceId = body?.invoice_id;
+  const paymentMethod = body?.payment_method ?? "bkash";
+  const mobileAccount = body?.mobile_account ?? "";
+  const trxId = body?.trx_id || `TXN${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
+
+  if (!invoiceId) return fail("Missing invoice ID", 400);
+
+  // Authenticate patient's ownership
+  const { createAdminSupabase } = await import("@/lib/supabase/server");
+  const admin = createAdminSupabase();
+
+  const { data: patientRows, error: pError } = await admin
+    .from("patients")
+    .select("id")
+    .eq("profile_id", auth.userId);
+
+  if (pError) return fail(pError.message, 500);
+  const patientIds = (patientRows ?? []).map(p => p.id);
+
+  if (patientIds.length === 0) return fail("Patient record not found", 404);
+
+  const { data: invoice, error: invError } = await admin
+    .from("finance_invoices")
+    .select("id, reference, description, amount, due_date, paid_at, line_items, tenant_id")
+    .eq("id", invoiceId)
+    .in("patient_id", patientIds)
+    .maybeSingle();
+
+  if (invError) return fail(invError.message, 500);
+  if (!invoice) return fail("Invoice not found or not belonging to you", 404);
+
+  if (invoice.paid_at) {
+    return fail("This invoice is already settled.", 409);
+  }
+
+  const paidAt = new Date().toISOString();
+
+  // Update invoice with payment timestamp
+  const { error: updateError } = await admin
+    .from("finance_invoices")
+    .update({ paid_at: paidAt })
+    .eq("id", invoiceId);
+
+  if (updateError) return fail(updateError.message, 500);
+
+  const receiptNo = `RCP-${new Date().getFullYear()}-${invoice.reference || invoice.id.slice(0, 8).toUpperCase()}`;
+
+  return json({
+    data: {
+      success: true,
+      receipt_no: receiptNo,
+      trx_id: trxId,
+      payment_method: paymentMethod,
+      mobile_account: mobileAccount,
+      paid_at: paidAt,
+      invoice: {
+        ...invoice,
+        amount: amountOf(invoice.amount),
+        paid_at: paidAt,
+      },
+    },
+  });
+};
+

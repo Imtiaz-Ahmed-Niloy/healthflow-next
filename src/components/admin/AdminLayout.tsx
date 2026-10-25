@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import {
   LayoutDashboard, Stethoscope, UserCog, HeartPulse, Wrench, BedDouble, FlaskConical,
   Building2, FileBarChart, Users2, Wallet, FolderLock, CalendarCheck2, Boxes,
-  ClipboardList, ShieldCheck, Pill, Settings, LogOut, Bell, Menu, X,
+  ClipboardList, ShieldCheck, Settings, LogOut, Bell, Menu, X,
   Truck, UserPlus, CalendarDays, BellRing, BookOpen, Calculator,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -37,7 +37,6 @@ export const adminNav = [
   { to: "/admin/wards", icon: BedDouble, key: "wards", group: "operations" },
   { to: "/admin/admissions", icon: UserPlus, key: "admissions", group: "operations" },
   { to: "/admin/lab", icon: FlaskConical, key: "lab", group: "operations" },
-  { to: "/admin/pharmacy", icon: Pill, key: "pharmacy", group: "operations" },
   { to: "/admin/doctors", icon: Stethoscope, key: "doctors", group: "clinical" },
   { to: "/admin/doctor-assistants", icon: UserCog, key: "doctorAssistants", group: "clinical" },
   { to: "/admin/nurses", icon: HeartPulse, key: "nurses", group: "clinical" },

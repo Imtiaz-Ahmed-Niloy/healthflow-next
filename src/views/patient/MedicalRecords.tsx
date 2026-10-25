@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Activity, Share2, FileText, Stethoscope, Pill, ClipboardList } from "lucide-react";
+import {
+  Activity, Share2, FileText, Stethoscope, Pill, ClipboardList,
+  Sun, Sunrise, Moon, CheckCircle2, Clock, Check
+} from "lucide-react";
 import { toast } from "sonner";
 import { useLocale, useTranslations } from "next-intl";
 import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
@@ -131,6 +134,30 @@ const MedicalRecords = () => {
   const [rxVisit, setRxVisit] = useState<Visit | null>(null);
   const { formatDate } = useFormatters();
 
+  // Daily Pill Dosage Tracker State
+  const todayKey = useMemo(() => {
+    const now = new Date();
+    return `hf_pill_tracker_${now.getFullYear()}_${now.getMonth() + 1}_${now.getDate()}`;
+  }, []);
+  const [takenDoses, setTakenDoses] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(todayKey);
+      if (saved) setTakenDoses(JSON.parse(saved));
+    } catch {}
+  }, [todayKey]);
+
+  const toggleDose = (doseId: string) => {
+    setTakenDoses(prev => {
+      const next = { ...prev, [doseId]: !prev[doseId] };
+      try {
+        localStorage.setItem(todayKey, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
   const openPrescription = (v: Visit) => { setOpenVisit(null); setRxVisit(v); };
 
   useEffect(() => {
@@ -157,6 +184,50 @@ const MedicalRecords = () => {
   }, []);
 
   const latest = visits[0] ?? null;
+
+  // Active medicines schedule parser (Morning, Noon, Night)
+  const activeSchedule = useMemo(() => {
+    const morningList: { id: string; name: string; dose: string; form: string; meal: string }[] = [];
+    const noonList: { id: string; name: string; dose: string; form: string; meal: string }[] = [];
+    const nightList: { id: string; name: string; dose: string; form: string; meal: string }[] = [];
+
+    const recentVisits = visits.slice(0, 3);
+    const seenMeds = new Set<string>();
+
+    for (const v of recentVisits) {
+      for (const m of v.medicines) {
+        const name = m.name?.trim();
+        if (!name || seenMeds.has(name.toLowerCase())) continue;
+        seenMeds.add(name.toLowerCase());
+
+        const dose = m.dose?.trim() || m.frequency?.trim() || "1+0+1";
+        const form = m.dosage_form || "Tab";
+        const meal = m.meal || "After meal";
+
+        const parts = dose.split("+").map(s => s.trim());
+        if (parts.length === 3) {
+          if (parts[0] !== "0") {
+            morningList.push({ id: `${name}-morning`, name, dose: `${parts[0]} ${form}`, form, meal });
+          }
+          if (parts[1] !== "0") {
+            noonList.push({ id: `${name}-noon`, name, dose: `${parts[1]} ${form}`, form, meal });
+          }
+          if (parts[2] !== "0") {
+            nightList.push({ id: `${name}-night`, name, dose: `${parts[2]} ${form}`, form, meal });
+          }
+        } else {
+          morningList.push({ id: `${name}-morning`, name, dose, form, meal });
+          nightList.push({ id: `${name}-night`, name, dose, form, meal });
+        }
+      }
+    }
+
+    return { morningList, noonList, nightList };
+  }, [visits]);
+
+  const totalDoses = activeSchedule.morningList.length + activeSchedule.noonList.length + activeSchedule.nightList.length;
+  const takenCount = Object.values(takenDoses).filter(Boolean).length;
+  const adherencePct = totalDoses > 0 ? Math.min(100, Math.round((takenCount / totalDoses) * 100)) : 0;
 
   const filtered = useMemo(() => {
     if (filter === "prescriptions") return visits.filter(v => v.medicines.length > 0);
@@ -271,6 +342,182 @@ const MedicalRecords = () => {
               </div>
             </motion.div>
           </div>
+
+          {/* Daily Medicine Schedule & Pill Tracker Card */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            className="mt-8 rounded-3xl bg-gradient-to-br from-card via-chip/30 to-card border border-border/60 p-7 shadow-soft">
+            <div className="flex items-center justify-between flex-wrap gap-4 pb-4 border-b border-border/50">
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <div className="h-8 w-8 rounded-xl bg-primary/10 text-primary grid place-items-center">
+                    <Pill className="h-4 w-4" />
+                  </div>
+                  <h3 className="font-display text-2xl text-primary">{t("pillTrackerTitle")}</h3>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1 max-w-xl">{t("pillTrackerSubtitle")}</p>
+              </div>
+
+              {totalDoses > 0 && (
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <p className="text-xs font-semibold text-primary">
+                      {t("adherence", { taken: takenCount, total: totalDoses, pct: adherencePct })}
+                    </p>
+                    <div className="w-36 bg-chip rounded-full h-2 mt-1.5 overflow-hidden">
+                      <div className="bg-emerald-500 h-2 rounded-full transition-all duration-300" style={{ width: `${adherencePct}%` }} />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {totalDoses === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">{t("noActiveMeds")}</p>
+            ) : (
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Morning Slot */}
+                <div className="rounded-2xl bg-amber-500/5 dark:bg-amber-950/20 border border-amber-500/20 p-5 space-y-3">
+                  <div className="flex items-center justify-between border-b border-amber-500/20 pb-2">
+                    <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold text-sm">
+                      <Sunrise className="h-4 w-4" />
+                      <span>{t("morning")}</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground font-mono">{t("morningTime")}</span>
+                  </div>
+
+                  {activeSchedule.morningList.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-4 text-center">No morning medicines</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {activeSchedule.morningList.map(dose => {
+                        const taken = !!takenDoses[dose.id];
+                        return (
+                          <div key={dose.id}
+                            onClick={() => toggleDose(dose.id)}
+                            className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
+                              taken
+                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-100"
+                                : "bg-card border-border/60 hover:border-amber-400/40"
+                            }`}
+                          >
+                            <div className={`mt-0.5 h-5 w-5 rounded-md grid place-items-center shrink-0 border ${
+                              taken ? "bg-emerald-600 border-emerald-600 text-white" : "border-border bg-chip"
+                            }`}>
+                              {taken && <Check className="h-3 w-3" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm font-semibold truncate ${taken ? "line-through opacity-70" : "text-primary"}`}>
+                                {dose.name}
+                              </p>
+                              <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
+                                <span>{dose.dose}</span>
+                                <span>·</span>
+                                <span className="font-medium text-amber-600 dark:text-amber-400">{dose.meal}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Noon Slot */}
+                <div className="rounded-2xl bg-orange-500/5 dark:bg-orange-950/20 border border-orange-500/20 p-5 space-y-3">
+                  <div className="flex items-center justify-between border-b border-orange-500/20 pb-2">
+                    <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 font-bold text-sm">
+                      <Sun className="h-4 w-4" />
+                      <span>{t("noon")}</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground font-mono">{t("noonTime")}</span>
+                  </div>
+
+                  {activeSchedule.noonList.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-4 text-center">No afternoon medicines</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {activeSchedule.noonList.map(dose => {
+                        const taken = !!takenDoses[dose.id];
+                        return (
+                          <div key={dose.id}
+                            onClick={() => toggleDose(dose.id)}
+                            className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
+                              taken
+                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-100"
+                                : "bg-card border-border/60 hover:border-orange-400/40"
+                            }`}
+                          >
+                            <div className={`mt-0.5 h-5 w-5 rounded-md grid place-items-center shrink-0 border ${
+                              taken ? "bg-emerald-600 border-emerald-600 text-white" : "border-border bg-chip"
+                            }`}>
+                              {taken && <Check className="h-3 w-3" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm font-semibold truncate ${taken ? "line-through opacity-70" : "text-primary"}`}>
+                                {dose.name}
+                              </p>
+                              <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
+                                <span>{dose.dose}</span>
+                                <span>·</span>
+                                <span className="font-medium text-orange-600 dark:text-orange-400">{dose.meal}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Night Slot */}
+                <div className="rounded-2xl bg-indigo-500/5 dark:bg-indigo-950/20 border border-indigo-500/20 p-5 space-y-3">
+                  <div className="flex items-center justify-between border-b border-indigo-500/20 pb-2">
+                    <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold text-sm">
+                      <Moon className="h-4 w-4" />
+                      <span>{t("night")}</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground font-mono">{t("nightTime")}</span>
+                  </div>
+
+                  {activeSchedule.nightList.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-4 text-center">No night medicines</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {activeSchedule.nightList.map(dose => {
+                        const taken = !!takenDoses[dose.id];
+                        return (
+                          <div key={dose.id}
+                            onClick={() => toggleDose(dose.id)}
+                            className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
+                              taken
+                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-100"
+                                : "bg-card border-border/60 hover:border-indigo-400/40"
+                            }`}
+                          >
+                            <div className={`mt-0.5 h-5 w-5 rounded-md grid place-items-center shrink-0 border ${
+                              taken ? "bg-emerald-600 border-emerald-600 text-white" : "border-border bg-chip"
+                            }`}>
+                              {taken && <Check className="h-3 w-3" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm font-semibold truncate ${taken ? "line-through opacity-70" : "text-primary"}`}>
+                                {dose.name}
+                              </p>
+                              <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
+                                <span>{dose.dose}</span>
+                                <span>·</span>
+                                <span className="font-medium text-indigo-600 dark:text-indigo-400">{dose.meal}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </motion.div>
 
           {/* Medicine history */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}

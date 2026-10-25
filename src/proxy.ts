@@ -31,6 +31,7 @@ const ROUTE_ROLES: { prefix: string; roles: AppRole[] }[] = [
   // it too. No super_admin: the panel works one hospital's pharmacy, and a
   // super admin has no hospital to work it for.
   { prefix: "/pharmacy", roles: ["hospital_admin", "pharmacy_admin"] },
+  { prefix: "/lab", roles: ["super_admin", "hospital_admin", "lab_admin"] },
   { prefix: "/portal", roles: ["super_admin", "doctor"] },
   { prefix: "/patient", roles: ["super_admin", "patient"] },
 ];
@@ -78,11 +79,11 @@ export const proxy = async (request: NextRequest) => {
 export const config = {
   matcher: [
     /*
-     * Everything except static assets and image files. The session still has
-     * to be refreshed on public pages, so this cannot be narrowed to just the
-     * guarded prefixes — skipping them would let the refresh token expire
-     * while someone reads the marketing site.
+     * Everything except static assets, fonts, metadata files and images.
+     * The session still has to be refreshed on public pages, so this cannot
+     * be narrowed to just the guarded prefixes — skipping them would let the
+     * refresh token expire while someone reads the marketing site.
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|robots\\.txt|sitemap\\.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|ttf|woff|woff2|webmanifest)$).*)",
   ],
 };

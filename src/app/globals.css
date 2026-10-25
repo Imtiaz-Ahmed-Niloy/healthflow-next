@@ -192,11 +192,14 @@
      reason. The modal is already the document — printing it directly is what
      makes what you see the thing that comes out of the printer. */
   #invoice-print-area,
-  #invoice-print-area * {
+  #invoice-print-area *,
+  #patient-handout-print-area,
+  #patient-handout-print-area * {
     visibility: visible;
   }
   #rx-print-area,
-  #invoice-print-area {
+  #invoice-print-area,
+  #patient-handout-print-area {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -212,7 +215,8 @@
   /* Margin 0 leaves Chrome no room for its own header and footer (date, page
      title, URL), the same as picking "Margins: None" in the dialog. The white
      border comes from each print area's own padding instead. */
-  #invoice-print-area {
+  #invoice-print-area,
+  #patient-handout-print-area {
     padding: 14mm;
   }
   @page {
@@ -243,3 +247,214 @@
   size: A4;
   margin: 12mm;
 }
+
+/* ==========================================================================
+   Pharma Panel Theme & Glassmorphism Utilities
+   ========================================================================== */
+
+/* Scrollable White & Light-Green Gradient */
+.scroll-gradient-bg {
+  background: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #f8fcf9 120px,
+    #edf8f2 350px,
+    #dcf3e4 750px,
+    #cbead6 1300px,
+    #b8e2c6 2000px
+  );
+  background-attachment: scroll;
+  background-repeat: no-repeat;
+}
+
+/* Crisp Frosted Glass Card Utilities */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(16, 185, 129, 0.16);
+  box-shadow: 0 2px 12px -2px rgba(15, 118, 110, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.glass-panel-hover {
+  transition: all 0.2s ease-in-out;
+}
+
+.glass-panel-hover:hover {
+  background: #ffffff;
+  border-color: rgba(16, 185, 129, 0.35);
+  box-shadow: 0 8px 24px -4px rgba(15, 118, 110, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+  transform: translateY(-1px);
+}
+
+/* Premium Glassmorphism Cart Effect */
+.glass-cart {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.62) 100%);
+  backdrop-filter: blur(20px) saturate(190%);
+  -webkit-backdrop-filter: blur(20px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 
+    0 24px 48px -12px rgba(6, 78, 59, 0.12),
+    0 4px 16px -2px rgba(16, 185, 129, 0.08),
+    inset 0 1px 2px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 2px 0 rgba(16, 185, 129, 0.08);
+}
+
+.glass-cart-inner {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.65) 0%, rgba(255, 255, 255, 0.48) 100%);
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 
+    0 2px 8px -2px rgba(15, 118, 110, 0.05),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.glass-cart-chip {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03), inset 0 1px 1px rgba(255, 255, 255, 0.9);
+}
+
+/* Subtle Card top-highlight sheen */
+.card-sheen {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-sheen::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(16, 185, 129, 0.35) 50%, transparent 100%);
+  pointer-events: none;
+}
+
+/* Tactile Micro-Interactions & Animation Utilities */
+@keyframes cartBounce {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.22); }
+  60% { transform: scale(0.96); }
+  100% { transform: scale(1); }
+}
+
+@keyframes livePulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1.05); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+@keyframes softPulseGlow {
+  0%, 100% {
+    box-shadow: 0 4px 14px 0 rgba(139, 144, 244, 0.35);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 6px 22px 0 rgba(139, 144, 244, 0.65);
+    transform: scale(1.012);
+  }
+}
+
+@keyframes rowFlash {
+  0% { background-color: rgba(16, 185, 129, 0.25); }
+  100% { background-color: transparent; }
+}
+
+@keyframes floatGentle {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-3px); }
+}
+
+.animate-cart-bounce {
+  animation: cartBounce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.live-pulse-dot {
+  animation: livePulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+.animate-soft-pulse-glow {
+  animation: softPulseGlow 2.5s ease-in-out infinite;
+}
+
+.animate-row-flash {
+  animation: rowFlash 0.9s ease-out;
+}
+
+.animate-float-gentle {
+  animation: floatGentle 3s ease-in-out infinite;
+}
+
+.interactive-btn {
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.interactive-btn:active {
+  transform: scale(0.96);
+}
+
+.interactive-chip {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.interactive-chip:hover {
+  transform: translateY(-1px);
+}
+.interactive-chip:active {
+  transform: scale(0.95);
+}
+
+.interactive-card {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.interactive-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(15, 118, 110, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+}
+.interactive-card:active {
+  transform: scale(0.99);
+}
+
+/* Print Styles for POS thermal slip and sales invoice */
+@media print {
+  #printable-slip,
+  #printable-slip *,
+  #printable-sale-invoice,
+  #printable-sale-invoice * {
+    visibility: visible;
+  }
+
+  .sale-modal-backdrop,
+  .sale-modal-backdrop * {
+    overflow: visible !important;
+  }
+
+  #printable-slip {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    margin: 0;
+    padding: 10px;
+    border: none !important;
+    background: white !important;
+    box-shadow: none !important;
+  }
+
+  #printable-sale-invoice {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    border: none !important;
+    background: white !important;
+    box-shadow: none !important;
+  }
+}
+

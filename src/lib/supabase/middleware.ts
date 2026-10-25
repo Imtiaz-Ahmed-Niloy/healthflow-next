@@ -16,6 +16,22 @@ import type { AppRole } from "@/lib/auth/permissions";
 export const updateSession = async (request: NextRequest) => {
   let response = NextResponse.next({ request });
 
+  // If there are no Supabase auth cookies, return immediately without the overhead
+  // of creating a client and verifying JWT claims.
+  const allCookies = request.cookies.getAll();
+  const hasAuthCookie = allCookies.some(
+    (c) => c.name.startsWith("sb-") && c.name.includes("-auth-token"),
+  );
+
+  if (!hasAuthCookie) {
+    return {
+      response,
+      userId: null,
+      role: null,
+      tenantId: null,
+    };
+  }
+
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,

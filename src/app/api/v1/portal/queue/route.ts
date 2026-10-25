@@ -100,7 +100,7 @@ export const GET = async () => {
   // attached.
   const { data: queueRows, error: queueError } = await supabase
     .from("appointments")
-    .select("id, tenant_id, scheduled_time, priority, consultation_started_at, notes, patients(id, full_name, date_of_birth, phone)")
+    .select("id, tenant_id, scheduled_time, priority, consultation_started_at, notes, bp_systolic, bp_diastolic, walk_in, patients(id, mrn, full_name, date_of_birth, phone, gender, blood_group, weight_kg, height_feet, height_inches)")
     .in("doctor_id", doctorIds)
     .eq("scheduled_date", date)
     .eq("status", "scheduled")
@@ -116,11 +116,25 @@ export const GET = async () => {
       scheduled_time: r.scheduled_time,
       priority: r.priority,
       reason: r.notes,
+      walk_in: !!r.walk_in,
+      bp_systolic: r.bp_systolic,
+      bp_diastolic: r.bp_diastolic,
       in_consultation: !!r.consultation_started_at,
       waited_minutes: waitedMinutesFor(r.scheduled_time),
       hospital: { id: r.tenant_id, name: hospitalOf.get(r.tenant_id) ?? "Hospital" },
       patient: r.patients
-        ? { id: r.patients.id, full_name: r.patients.full_name, date_of_birth: r.patients.date_of_birth, phone: r.patients.phone }
+        ? {
+            id: r.patients.id,
+            mrn: r.patients.mrn,
+            full_name: r.patients.full_name,
+            date_of_birth: r.patients.date_of_birth,
+            phone: r.patients.phone,
+            gender: r.patients.gender,
+            blood_group: r.patients.blood_group,
+            weight_kg: r.patients.weight_kg,
+            height_feet: r.patients.height_feet,
+            height_inches: r.patients.height_inches,
+          }
         : null,
     }));
 
@@ -129,7 +143,7 @@ export const GET = async () => {
   // at the bottom rather than mixed into the live queue.
   const { data: completedRows, error: completedError } = await supabase
     .from("appointments")
-    .select("id, tenant_id, scheduled_time, consultation_started_at, notes, patients(id, full_name, date_of_birth, phone)")
+    .select("id, tenant_id, scheduled_time, consultation_started_at, notes, bp_systolic, bp_diastolic, walk_in, patients(id, mrn, full_name, date_of_birth, phone, gender, blood_group, weight_kg, height_feet, height_inches)")
     .in("doctor_id", doctorIds)
     .eq("scheduled_date", date)
     .eq("status", "completed")
@@ -140,9 +154,23 @@ export const GET = async () => {
     id: r.id,
     scheduled_time: r.scheduled_time,
     reason: r.notes,
+    walk_in: !!r.walk_in,
+    bp_systolic: r.bp_systolic,
+    bp_diastolic: r.bp_diastolic,
     hospital: { id: r.tenant_id, name: hospitalOf.get(r.tenant_id) ?? "Hospital" },
     patient: r.patients
-      ? { id: r.patients.id, full_name: r.patients.full_name, date_of_birth: r.patients.date_of_birth, phone: r.patients.phone }
+      ? {
+          id: r.patients.id,
+          mrn: r.patients.mrn,
+          full_name: r.patients.full_name,
+          date_of_birth: r.patients.date_of_birth,
+          phone: r.patients.phone,
+          gender: r.patients.gender,
+          blood_group: r.patients.blood_group,
+          weight_kg: r.patients.weight_kg,
+          height_feet: r.patients.height_feet,
+          height_inches: r.patients.height_inches,
+        }
       : null,
   }));
 

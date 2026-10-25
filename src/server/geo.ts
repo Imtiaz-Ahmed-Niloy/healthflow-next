@@ -121,9 +121,7 @@ export const nearbyArea = async (ip: string): Promise<NearbyArea | null> => {
   if (kept && Date.now() - kept.at < DAY) return kept.area;
 
   const found = await ask(ip);
-  // No reply is not an answer, and is not kept: the next visit asks again.
-  if (!found) return null;
-  const area = found.bogon || found.country !== "BD" ? null : matchArea(found, await loadPlaces());
+  const area = !found || found.bogon || found.country !== "BD" ? null : matchArea(found, await loadPlaces());
 
   // One answer per address per day, so a busy day stays inside IPinfo's limit.
   if (answers.size >= 5000) answers.clear();
