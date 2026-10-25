@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { Sale } from "@/types/pharmacy";
 import { formatCurrency } from "@/lib/utils";
+import { usePharmacy } from "@/context/PharmacyContext";
+import { usePharmacySettingsQuery } from "@/redux/api/pharmacy";
 
 interface SaleReceiptModalProps {
   sale: Sale | null;
@@ -37,7 +39,21 @@ export const SaleReceiptModal: React.FC<SaleReceiptModalProps> = ({
   currencySymbol,
   initialMode = "invoice",
 }) => {
+  const { branches } = usePharmacy();
+  const { data: settingsData } = usePharmacySettingsQuery();
+  const activeBranch = branches?.[0];
+  const settings = settingsData?.data;
+
+  const pharmacyName = settings?.pharmacy_name || activeBranch?.name || "HealthFlow Hospital Pharmacy";
+  const pharmacyAddress = settings?.address || activeBranch?.address || "Medical College Road, Dhaka, Bangladesh";
+  const pharmacyPhone = settings?.phone || activeBranch?.phone || "+880 1700-000000";
+  const pharmacyLicense = settings?.license_no || activeBranch?.drugLicenseNo || "Govt. Pharmacy Reg: PH-2026-991";
+  const pharmacyTaxId = settings?.tax_id || activeBranch?.vatRegistrationNo || "TRN-88492019-VAT";
+  const receiptFooter = settings?.receipt_footer || "Thank you for choosing HealthFlow Pharmacy!";
+  const returnPolicy = settings?.return_policy || "Returns accepted within 7 days with valid receipt & unsealed packaging.";
+
   const [viewMode, setViewMode] = useState<"thermal" | "invoice">(initialMode);
+  const [thermalWidth, setThermalWidth] = useState<"80mm" | "58mm">("80mm");
   const [copied, setCopied] = useState(false);
 
   React.useEffect(() => {
@@ -133,6 +149,33 @@ export const SaleReceiptModal: React.FC<SaleReceiptModalProps> = ({
               </button>
             </div>
 
+            {viewMode === "thermal" && (
+              <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-[11px] font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setThermalWidth("80mm")}
+                  className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
+                    thermalWidth === "80mm"
+                      ? "bg-emerald-700 text-white font-bold shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  80mm
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setThermalWidth("58mm")}
+                  className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
+                    thermalWidth === "58mm"
+                      ? "bg-emerald-700 text-white font-bold shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  58mm
+                </button>
+              </div>
+            )}
+
             <button
               onClick={handlePrint}
               className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition-colors shadow-2xs cursor-pointer"
@@ -154,24 +197,26 @@ export const SaleReceiptModal: React.FC<SaleReceiptModalProps> = ({
         {/* Modal Body / Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-6 bg-slate-100/60 print:bg-white print:p-0 print:overflow-visible">
           {viewMode === "thermal" ? (
-            /* =================== THERMAL RECEIPT (80mm) =================== */
+            /* =================== THERMAL RECEIPT (80mm / 58mm) =================== */
             <div
               id="printable-slip"
-              className="max-w-sm mx-auto bg-white p-6 rounded-xl border border-slate-200 shadow-sm font-mono text-[11px] text-slate-800 leading-relaxed print:border-none print:shadow-none print:p-0"
+              className={`${
+                thermalWidth === "80mm" ? "max-w-sm" : "max-w-[270px] text-[10px]"
+              } mx-auto bg-white p-6 rounded-xl border border-slate-200 shadow-sm font-mono text-[11px] text-slate-800 leading-relaxed print:border-none print:shadow-none print:p-0`}
             >
               {/* Receipt Header */}
               <div className="text-center space-y-1 mb-4">
                 <div className="font-bold text-sm text-slate-900 uppercase tracking-wider">
-                  PHARMACYNEXT HEALTHCARE
+                  {pharmacyName}
                 </div>
                 <div className="text-[10px] text-slate-500">
-                  123 Medical Center Way, Suite 400
+                  {pharmacyAddress}
                 </div>
                 <div className="text-[10px] text-slate-500">
-                  Tel: (555) 234-5678 • TRN: 88492019
+                  Tel: {pharmacyPhone} • TRN: {pharmacyTaxId}
                 </div>
                 <div className="text-[10px] text-slate-500">
-                  Govt. Pharmacy Reg: PH-2026-991
+                  Govt. Pharmacy Reg: {pharmacyLicense}
                 </div>
               </div>
 
@@ -353,8 +398,8 @@ export const SaleReceiptModal: React.FC<SaleReceiptModalProps> = ({
 
               {/* Receipt Footer */}
               <div className="text-center text-[10px] text-slate-500 mt-4 space-y-1">
-                <div>Thank you for choosing PharmacyNext!</div>
-                <div>Returns accepted within 7 days with valid receipt.</div>
+                <div>{receiptFooter}</div>
+                <div>{returnPolicy}</div>
                 <div>Store medications below 25°C in a dry place.</div>
               </div>
             </div>
@@ -369,17 +414,17 @@ export const SaleReceiptModal: React.FC<SaleReceiptModalProps> = ({
                 <div>
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-emerald-700 text-white flex items-center justify-center font-bold text-sm">
-                      P+
+                      HF
                     </div>
                     <span className="text-lg font-bold text-slate-900">
-                      PharmacyNext Healthcare Ltd.
+                      {pharmacyName}
                     </span>
                   </div>
                   <div className="mt-2 text-slate-500 space-y-0.5">
-                    <p>123 Medical Center Way, Suite 400</p>
-                    <p>Healthcare District, Metro City 10001</p>
-                    <p>Tax Registration No: TRN-88492019-VAT</p>
-                    <p>Pharmacy Board License: PH-2026-991</p>
+                    <p>{pharmacyAddress}</p>
+                    <p>Contact: {pharmacyPhone}</p>
+                    <p>Tax Registration No: {pharmacyTaxId}</p>
+                    <p>Pharmacy Board License: {pharmacyLicense}</p>
                   </div>
                 </div>
 

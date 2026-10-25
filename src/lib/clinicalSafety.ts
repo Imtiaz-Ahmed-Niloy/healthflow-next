@@ -113,6 +113,34 @@ const DRUG_INTERACTION_RULES: DrugInteractionRule[] = [
     description: "Clarithromycin strongly inhibits CYP3A4, increasing Simvastatin plasma concentrations up to 10-fold.",
     recommendation: "Temporarily withhold Simvastatin during macrolide therapy or switch to Rosuvastatin / Azithromycin.",
   },
+  {
+    drugs: ["sildenafil", "nitroglycerin"],
+    severity: "high",
+    title: "Fatal Hypotension: PDE5 Inhibitor + Nitrate",
+    description: "Concurrent use causes profound, life-threatening systemic vasodilation and cardiovascular collapse.",
+    recommendation: "Strictly contraindicated. Do not administer nitrates within 24-48 hours of PDE5 inhibitors.",
+  },
+  {
+    drugs: ["tramadol", "sertraline"],
+    severity: "high",
+    title: "Serotonin Syndrome Risk: Tramadol + SSRI",
+    description: "Both agents enhance serotonergic neurotransmission and reduce seizure threshold.",
+    recommendation: "Monitor for tremor, hyperreflexia, agitation, and hyperthermia. Consider non-serotonergic analgesic.",
+  },
+  {
+    drugs: ["ciprofloxacin", "calcium"],
+    severity: "moderate",
+    title: "Chelation & Reduced Absorption: Quinolone + Multivalent Cation",
+    description: "Calcium/antacids bind ciprofloxacin in GI tract reducing bioavailability by up to 80%.",
+    recommendation: "Space administration by at least 2 hours before or 4-6 hours after antacid/calcium.",
+  },
+  {
+    drugs: ["digoxin", "amiodarone"],
+    severity: "high",
+    title: "Digoxin Toxicity: Amiodarone Interaction",
+    description: "Amiodarone reduces renal and non-renal clearance of digoxin, potentially doubling serum digoxin levels.",
+    recommendation: "Reduce digoxin dosage by 30-50% and closely monitor ECG and serum digoxin levels.",
+  },
 ];
 
 type DiseaseContraindicationRule = {

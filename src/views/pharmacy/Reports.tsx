@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useMemo, useEffect } from "react";
 import {
@@ -20,22 +20,35 @@ import {
   Clock,
   ArrowUpRight,
   Tag,
+  ShieldAlert,
 } from "lucide-react";
 import { usePharmacy } from "@/context/PharmacyContext";
+import { DgdaNarcoticsRegister } from "@/components/pharmacy/DgdaNarcoticsRegister";
 
 export default function ReportsPage() {
   const { sales, expenses, inventory, products } = usePharmacy();
+  const [reportTab, setReportTab] = useState<"overview" | "narcotics">("overview");
 
-  // Range selection states (defaults matching target screenshot 09/06/2026 to 10/08/2026)
+  // Dynamic date range calculation
+  const defaultDates = useMemo(() => {
+    const end = new Date();
+    const start = new Date(end);
+    start.setDate(end.getDate() - 30);
+    return {
+      start: start.toISOString().split("T")[0],
+      end: end.toISOString().split("T")[0],
+    };
+  }, []);
+
   const [quickRange, setQuickRange] = useState<"7d" | "30d" | "90d" | "month">("30d");
-  const [startDate, setStartDate] = useState("2026-09-06");
-  const [endDate, setEndDate] = useState("2026-10-08");
+  const [startDate, setStartDate] = useState(defaultDates.start);
+  const [endDate, setEndDate] = useState(defaultDates.end);
 
   // Hover state for interactive daily chart tooltip
   const [hoveredDayIndex, setHoveredDayIndex] = useState<number | null>(null);
 
   // Stable timestamp for SSR hydration safety
-  const [nowTimestamp, setNowTimestamp] = useState<number>(() => new Date("2026-10-07T12:00:00Z").getTime());
+  const [nowTimestamp, setNowTimestamp] = useState<number>(() => Date.now());
   useEffect(() => {
     setNowTimestamp(Date.now());
   }, []);
@@ -43,7 +56,7 @@ export default function ReportsPage() {
   // Quick range button handler
   const handleSelectQuickRange = (range: "7d" | "30d" | "90d" | "month") => {
     setQuickRange(range);
-    const end = new Date("2026-10-08");
+    const end = new Date();
     const start = new Date(end);
 
     if (range === "7d") {
@@ -53,7 +66,7 @@ export default function ReportsPage() {
     } else if (range === "90d") {
       start.setDate(end.getDate() - 90);
     } else if (range === "month") {
-      start.setDate(1); // 1st of October
+      start.setDate(1);
     }
 
     setStartDate(start.toISOString().split("T")[0]);
@@ -444,6 +457,38 @@ export default function ReportsPage() {
         </div>
       </div>
 
+      {/* Module Sub-Tabs (Overview vs DGDA Register) */}
+      <div className="flex items-center gap-2 mb-6">
+        <button
+          type="button"
+          onClick={() => setReportTab("overview")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            reportTab === "overview"
+              ? "bg-emerald-700 text-white shadow-xs"
+              : "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200"
+          }`}
+        >
+          <BarChart3 className="w-4 h-4" />
+          <span>Overview & Sales Analytics</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setReportTab("narcotics")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            reportTab === "narcotics"
+              ? "bg-purple-800 text-white shadow-xs"
+              : "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200"
+          }`}
+        >
+          <ShieldAlert className={`w-4 h-4 ${reportTab === "narcotics" ? "text-purple-200" : "text-purple-600"}`} />
+          <span>DGDA Narcotics & Controlled Register</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${reportTab === "narcotics" ? "bg-purple-900 text-purple-200 border border-purple-700" : "bg-purple-100 text-purple-800"}`}>
+            Form 7 (Rule 23)
+          </span>
+        </button>
+      </div>
+
       {/* Date Quick Range Bar Card (Exact replica of reports_full_page.png) */}
       <div className="bg-white rounded-xl border border-gray-200/90 shadow-sm p-3.5 sm:p-4 mb-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -501,7 +546,17 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* 6 Primary Metrics KPI Cards (Exact replica of reports_full_page.png) */}
+      {reportTab === "narcotics" ? (
+        <DgdaNarcoticsRegister
+          sales={filteredSales}
+          inventory={inventory}
+          products={products}
+          startDate={startDate}
+          endDate={endDate}
+        />
+      ) : (
+        <>
+          {/* 6 Primary Metrics KPI Cards (Exact replica of reports_full_page.png) */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5 mb-4">
         {/* TRANSACTIONS */}
         <div className="rounded-lg relative overflow-hidden p-4 text-white border-0 shadow-lg shadow-emerald-900/25 bg-gradient-to-br from-emerald-600 to-emerald-700">
@@ -1144,6 +1199,8 @@ export default function ReportsPage() {
           </table>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, ChevronDown, ChevronUp, Minus, TrendingDown, TrendingUp } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { PharmacyLayout } from "@/components/pharmacy/PharmacyLayout";
 import { StateBlock } from "@/components/pharmacy/ui";
 import { Btn, Card, Pill, SectionTitle } from "@/components/admin/ui";
 import { Chips, DataTable, type Column } from "@/components/admin/crud";
@@ -109,7 +108,19 @@ const Page = () => {
   ];
 
   return (
-    <PharmacyLayout title={t("title")} subtitle={t("subtitle")} needs="see_reports">
+    <div className="w-full space-y-6 max-w-7xl mx-auto pb-12">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
+            <Link href="/pharmacy/dashboard" className="hover:underline">Dashboard</Link>
+            <span>/</span>
+            <span className="text-primary font-semibold">{t("title")}</span>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{t("title")}</h1>
+          <p className="text-sm text-slate-500 mt-1">{t("subtitle")}</p>
+        </div>
+      </div>
+
       {!data?.data ? <StateBlock loading={isLoading} error={error} onRetry={refetch} rows={6} /> : (
         <div className="space-y-6">
           <div>
@@ -137,7 +148,7 @@ const Page = () => {
           </Card>
         </div>
       )}
-    </PharmacyLayout>
+    </div>
   );
 };
 

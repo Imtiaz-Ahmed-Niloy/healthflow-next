@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Bot,
   Key,
@@ -9,47 +9,70 @@ import {
   AlertTriangle,
   Save,
   CheckCircle2,
+  ShieldCheck,
+  Sparkles,
+  SlidersHorizontal,
 } from "lucide-react";
+import { toast } from "sonner";
+import { usePharmacySettingsQuery, useSavePharmacySettingsMutation } from "@/redux/api/pharmacy";
 
 export default function AiSettingsPage() {
-  const [apiKey, setApiKey] = useState("");
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<string | null>(null);
+  const { data: settingsData, isLoading } = usePharmacySettingsQuery();
+  const [saveSettings, { isLoading: isSaving }] = useSavePharmacySettingsMutation();
+
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   // Toggles state
   const [features, setFeatures] = useState({
-    drugInteractions: true,
-    inventoryPredictions: true,
-    productSearch: true,
-    smartExpiry: true,
+    ai_assistant: true,
+    ai_interactions: true,
+    ai_predictions: true,
+    ai_expiry: true,
     prescriptionProcessing: true,
     medicationSubstitution: true,
   });
 
-  const [severityThreshold, setSeverityThreshold] = useState("minor");
+  const [severityThreshold, setSeverityThreshold] = useState<"minor" | "moderate" | "major" | "severe">("moderate");
+
+  useEffect(() => {
+    if (settingsData?.data) {
+      const s = settingsData.data;
+      setFeatures({
+        ai_assistant: s.ai_assistant ?? true,
+        ai_interactions: s.ai_interactions ?? true,
+        ai_predictions: s.ai_predictions ?? true,
+        ai_expiry: s.ai_expiry ?? true,
+        prescriptionProcessing: true,
+        medicationSubstitution: true,
+      });
+      if (s.ai_interaction_level) {
+        setSeverityThreshold(s.ai_interaction_level as "minor" | "moderate" | "major" | "severe");
+      }
+    }
+  }, [settingsData]);
 
   const toggleFeature = (key: keyof typeof features) => {
     setFeatures((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleTestKey = () => {
-    setTesting(true);
-    setTestResult(null);
-    setTimeout(() => {
-      setTesting(false);
-      if (apiKey.startsWith("sk-") && apiKey.length > 15) {
-        setTestResult("valid");
-      } else {
-        setTestResult("invalid");
-      }
-    }, 700);
+  const handleSave = async () => {
+    try {
+      await saveSettings({
+        ai_assistant: features.ai_assistant,
+        ai_interactions: features.ai_interactions,
+        ai_predictions: features.ai_predictions,
+        ai_expiry: features.ai_expiry,
+        ai_interaction_level: severityThreshold,
+      }).unwrap();
+      setSavedSuccess(true);
+      toast.success("AI Configuration saved successfully!");
+      setTimeout(() => setSavedSuccess(false), 3000);
+    } catch {
+      toast.error("Failed to save settings. Please try again.");
+    }
   };
 
-  const handleSave = () => {
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
-  };
+  const aiConfigured = settingsData?.ai_configured ?? true;
 
   return (
     <div className="min-h-full pb-16 max-w-5xl mx-auto">
@@ -61,63 +84,39 @@ export default function AiSettingsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">AI Configuration</h1>
           <p className="text-xs text-gray-500 mt-0.5">
-            Configure AI features and OpenAI API integration
+            Configure clinical AI assistance and drug interaction safety controls
           </p>
         </div>
       </div>
 
       <div className="space-y-6">
-        {/* OpenAI API Configuration Card */}
+        {/* Cloud AI Engine Integration Status Card */}
         <div className="bg-white rounded-xl border border-gray-200/90 shadow-sm p-6">
-          <div className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-4">
-            <Key className="w-4 h-4 text-blue-600" />
-            <h2>OpenAI API Configuration</h2>
+          <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
+            <div className="flex items-center gap-2 text-sm font-bold text-gray-900">
+              <Key className="w-4 h-4 text-blue-600" />
+              <h2>Server-Side Clinical AI Engine</h2>
+            </div>
+            <span
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                aiConfigured
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                  : "bg-amber-50 text-amber-700 border border-amber-200/60"
+              }`}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              {aiConfigured ? "Engine Active (Anthropic Claude)" : "Running in Local Heuristic Mode"}
+            </span>
           </div>
 
-          <div className="mb-4">
-            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-              OpenAI API Key
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="sk-..."
-                className="flex-1 px-3.5 py-2 text-xs border border-gray-200 rounded-lg shadow-2xs focus:outline-hidden focus:border-blue-500 bg-white"
-              />
-              <button
-                onClick={handleTestKey}
-                disabled={testing || !apiKey}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
-              >
-                <Check className="w-3.5 h-3.5" />
-                <span>{testing ? "Testing..." : "Test"}</span>
-              </button>
+          <div className="bg-slate-50/80 border border-slate-200/70 rounded-xl p-4 text-xs text-slate-700 space-y-2">
+            <div className="flex items-center gap-2 font-semibold text-slate-900">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <span>Enterprise Zero-Data-Leak Architecture</span>
             </div>
-
-            {testResult === "valid" && (
-              <p className="text-xs text-emerald-600 font-medium mt-1.5 flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5" /> API key verified and active.
-              </p>
-            )}
-            {testResult === "invalid" && (
-              <p className="text-xs text-red-600 font-medium mt-1.5">
-                Invalid API key format. Ensure key begins with &apos;sk-&apos;.
-              </p>
-            )}
-          </div>
-
-          {/* Info Box */}
-          <div className="bg-blue-50/50 border border-blue-200/70 rounded-xl p-4 text-xs text-blue-800 space-y-1.5">
-            <div className="flex items-center gap-1.5 font-bold text-blue-900 mb-1">
-              <Info className="w-4 h-4 text-blue-600" />
-              <span>How to get your OpenAI API key:</span>
-            </div>
-            <p>1. Visit platform.openai.com/api-keys</p>
-            <p>2. Sign in to your OpenAI account</p>
-            <p>3. Click &quot;Create new secret key&quot;</p>
-            <p>4. Copy the key and paste it above</p>
+            <p className="text-slate-600 leading-relaxed">
+              HealthFlow executes AI queries server-side via protected API tokens (<code>ANTHROPIC_API_KEY</code>). API keys are never stored on client devices or exposed in web bundles. Patient identities and phone numbers are scrubbed before interaction checks.
+            </p>
           </div>
         </div>
 
@@ -125,7 +124,7 @@ export default function AiSettingsPage() {
         <div className="bg-white rounded-xl border border-gray-200/90 shadow-sm p-6">
           <div className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-5">
             <Bot className="w-4 h-4 text-purple-600" />
-            <h2>AI Features</h2>
+            <h2>Clinical &amp; Inventory AI Features</h2>
           </div>
 
           <div className="space-y-3">
@@ -134,71 +133,71 @@ export default function AiSettingsPage() {
               <div className="flex items-start gap-3">
                 <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5" />
                 <div>
-                  <div className="text-xs font-bold text-gray-900">Drug Interaction Checker</div>
+                  <div className="text-xs font-bold text-gray-900">Drug Interaction Safety Checker</div>
                   <div className="text-[11px] text-gray-500 mt-0.5">
-                    Automatically check for dangerous drug interactions during sales
+                    Live checking for dangerous cross-reactions between medicines in the POS cart
                   </div>
                 </div>
               </div>
               <button
-                onClick={() => toggleFeature("drugInteractions")}
+                onClick={() => toggleFeature("ai_interactions")}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                  features.drugInteractions ? "bg-blue-600" : "bg-gray-300"
+                  features.ai_interactions ? "bg-blue-600" : "bg-gray-300"
                 }`}
               >
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    features.drugInteractions ? "translate-x-6" : "translate-x-1"
+                    features.ai_interactions ? "translate-x-6" : "translate-x-1"
                   }`}
                 />
               </button>
             </div>
 
-            {/* 2. Inventory Predictions */}
+            {/* 2. Pharmacy AI Assistant */}
+            <div className="flex items-center justify-between p-3.5 rounded-xl border border-gray-200/80 hover:bg-gray-50/50 transition-colors">
+              <div className="flex items-start gap-3">
+                <Sparkles className="w-4 h-4 text-blue-600 mt-0.5" />
+                <div>
+                  <div className="text-xs font-bold text-gray-900">Natural Language Pharmacy Assistant</div>
+                  <div className="text-[11px] text-gray-500 mt-0.5">
+                    Conversational business answers on sales velocity, revenue, and stock on /pharmacy/ai-assistant
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => toggleFeature("ai_assistant")}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                  features.ai_assistant ? "bg-blue-600" : "bg-gray-300"
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    features.ai_assistant ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* 3. Inventory Predictions */}
             <div className="flex items-center justify-between p-3.5 rounded-xl border border-gray-200/80 hover:bg-gray-50/50 transition-colors">
               <div className="flex items-start gap-3">
                 <Check className="w-4 h-4 text-emerald-600 mt-0.5" />
                 <div>
-                  <div className="text-xs font-bold text-gray-900">Inventory Predictions</div>
+                  <div className="text-xs font-bold text-gray-900">Demand Forecasting &amp; Smart Reorders</div>
                   <div className="text-[11px] text-gray-500 mt-0.5">
-                    AI-powered demand forecasting and reorder recommendations
+                    Calculates stockout velocity and suggests quantities on Purchase Orders
                   </div>
                 </div>
               </div>
               <button
-                onClick={() => toggleFeature("inventoryPredictions")}
+                onClick={() => toggleFeature("ai_predictions")}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                  features.inventoryPredictions ? "bg-blue-600" : "bg-gray-300"
+                  features.ai_predictions ? "bg-blue-600" : "bg-gray-300"
                 }`}
               >
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    features.inventoryPredictions ? "translate-x-6" : "translate-x-1"
-                  }`}
-                />
-              </button>
-            </div>
-
-            {/* 3. AI Product Search */}
-            <div className="flex items-center justify-between p-3.5 rounded-xl border border-gray-200/80 hover:bg-gray-50/50 transition-colors">
-              <div className="flex items-start gap-3">
-                <Check className="w-4 h-4 text-blue-600 mt-0.5" />
-                <div>
-                  <div className="text-xs font-bold text-gray-900">AI Product Search</div>
-                  <div className="text-[11px] text-gray-500 mt-0.5">
-                    Natural language search for products using symptoms and conditions
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => toggleFeature("productSearch")}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                  features.productSearch ? "bg-blue-600" : "bg-gray-300"
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    features.productSearch ? "translate-x-6" : "translate-x-1"
+                    features.ai_predictions ? "translate-x-6" : "translate-x-1"
                   }`}
                 />
               </button>
@@ -209,71 +208,21 @@ export default function AiSettingsPage() {
               <div className="flex items-start gap-3">
                 <Check className="w-4 h-4 text-orange-500 mt-0.5" />
                 <div>
-                  <div className="text-xs font-bold text-gray-900">Smart Expiry Management</div>
+                  <div className="text-xs font-bold text-gray-900">Smart FEFO Expiry Tracking</div>
                   <div className="text-[11px] text-gray-500 mt-0.5">
-                    AI-powered expiry alerts and disposal recommendations
+                    Proactive alerts for batches expiring within 90 days with return-to-supplier guidance
                   </div>
                 </div>
               </div>
               <button
-                onClick={() => toggleFeature("smartExpiry")}
+                onClick={() => toggleFeature("ai_expiry")}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                  features.smartExpiry ? "bg-blue-600" : "bg-gray-300"
+                  features.ai_expiry ? "bg-blue-600" : "bg-gray-300"
                 }`}
               >
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    features.smartExpiry ? "translate-x-6" : "translate-x-1"
-                  }`}
-                />
-              </button>
-            </div>
-
-            {/* 5. Prescription Processing */}
-            <div className="flex items-center justify-between p-3.5 rounded-xl border border-gray-200/80 hover:bg-gray-50/50 transition-colors">
-              <div className="flex items-start gap-3">
-                <Check className="w-4 h-4 text-purple-600 mt-0.5" />
-                <div>
-                  <div className="text-xs font-bold text-gray-900">Prescription Processing</div>
-                  <div className="text-[11px] text-gray-500 mt-0.5">
-                    OCR and AI to extract prescription details from images
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => toggleFeature("prescriptionProcessing")}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                  features.prescriptionProcessing ? "bg-blue-600" : "bg-gray-300"
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    features.prescriptionProcessing ? "translate-x-6" : "translate-x-1"
-                  }`}
-                />
-              </button>
-            </div>
-
-            {/* 6. Medication Substitution */}
-            <div className="flex items-center justify-between p-3.5 rounded-xl border border-gray-200/80 hover:bg-gray-50/50 transition-colors">
-              <div className="flex items-start gap-3">
-                <Check className="w-4 h-4 text-emerald-600 mt-0.5" />
-                <div>
-                  <div className="text-xs font-bold text-gray-900">Medication Substitution</div>
-                  <div className="text-[11px] text-gray-500 mt-0.5">
-                    AI-powered generic alternatives and cost savings recommendations
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => toggleFeature("medicationSubstitution")}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                  features.medicationSubstitution ? "bg-blue-600" : "bg-gray-300"
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    features.medicationSubstitution ? "translate-x-6" : "translate-x-1"
+                    features.ai_expiry ? "translate-x-6" : "translate-x-1"
                   }`}
                 />
               </button>
@@ -283,7 +232,10 @@ export default function AiSettingsPage() {
 
         {/* Advanced Settings Card */}
         <div className="bg-white rounded-xl border border-gray-200/90 shadow-sm p-6">
-          <h2 className="text-sm font-bold text-gray-900 mb-4">Advanced Settings</h2>
+          <div className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-4">
+            <SlidersHorizontal className="w-4 h-4 text-slate-700" />
+            <h2>Clinical Alert Thresholds</h2>
+          </div>
 
           <div className="max-w-md">
             <label className="block text-xs font-semibold text-gray-700 mb-1.5">
@@ -291,16 +243,16 @@ export default function AiSettingsPage() {
             </label>
             <select
               value={severityThreshold}
-              onChange={(e) => setSeverityThreshold(e.target.value)}
+              onChange={(e) => setSeverityThreshold(e.target.value as "minor" | "moderate" | "major" | "severe")}
               className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg shadow-2xs focus:outline-hidden focus:border-blue-500 bg-white cursor-pointer"
             >
-              <option value="minor">Minor - Show all interactions</option>
-              <option value="moderate">Moderate - Show moderate and above</option>
-              <option value="major">Major - Show major and severe only</option>
-              <option value="severe">Severe - Show severe only</option>
+              <option value="minor">Minor - Flag all interactions (comprehensive)</option>
+              <option value="moderate">Moderate - Flag moderate, major, and severe (recommended)</option>
+              <option value="major">Major - Flag major and severe only (critical)</option>
+              <option value="severe">Severe - Flag life-threatening interactions only</option>
             </select>
             <p className="text-[11px] text-gray-400 mt-1.5">
-              Only show interactions at or above this severity level
+              Determines when the cashier POS should display a safety warning modal during checkout
             </p>
           </div>
         </div>
@@ -314,14 +266,14 @@ export default function AiSettingsPage() {
           )}
           <button
             onClick={handleSave}
-            className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm cursor-pointer"
+            disabled={isSaving || isLoading}
+            className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm cursor-pointer disabled:opacity-50"
           >
             <Save className="w-3.5 h-3.5" />
-            <span>Save Settings</span>
+            <span>{isSaving ? "Saving..." : "Save Settings"}</span>
           </button>
         </div>
       </div>
     </div>
   );
 }
-

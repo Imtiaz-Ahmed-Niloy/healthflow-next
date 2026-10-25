@@ -47,6 +47,9 @@ import Link from "next/link";
 import { SaleReceiptModal } from "@/components/Sales/SaleReceiptModal";
 import { ProcessReturnModal } from "@/components/Sales/ProcessReturnModal";
 import { ReturnLookupModal } from "@/components/Sales/ReturnLookupModal";
+import { FetchPrescriptionModal } from "./FetchPrescriptionModal";
+import { ClinicalInteractionModal } from "./ClinicalInteractionModal";
+import { checkPrescriptionSafety, type ClinicalAlert } from "@/lib/clinicalSafety";
 import { Customer, Sale } from "@/types/pharmacy";
 import {
   PosProductSearch,
@@ -389,6 +392,65 @@ export function PosView() {
   const [isReturnLookupOpen, setIsReturnLookupOpen] = useState<boolean>(false);
   const [returnSaleTarget, setReturnSaleTarget] = useState<Sale | null>(null);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState<boolean>(false);
+
+  // Doctor Prescription Fetching Modal State
+  const [isFetchPrescriptionOpen, setIsFetchPrescriptionOpen] = useState<boolean>(false);
+
+  // Clinical Drug-Drug Interaction Safety State
+  const [isClinicalInteractionModalOpen, setIsClinicalInteractionModalOpen] = useState<boolean>(false);
+  const [clinicalOverrideApproved, setClinicalOverrideApproved] = useState<boolean>(false);
+
+  // Compute live clinical safety alerts across current cart medications
+  const clinicalAlerts: ClinicalAlert[] = useMemo(() => {
+    if (cart.length < 2) return [];
+    const items = cart.map((c) => ({
+      name: `${c.name} ${c.genericName || ""}`,
+    }));
+    return checkPrescriptionSafety(items);
+  }, [cart]);
+
+  // Reset clinical override whenever cart contents change
+  useEffect(() => {
+    setClinicalOverrideApproved(false);
+  }, [cart]);
+
+  const handleLoadPrescription = (
+    itemsToLoad: { product: PosProduct; quantity: number; unit: DispenseUnit }[],
+    customer: { name: string; phone: string; type?: "Walk-in" | "Registered" | "Insurance" }
+  ) => {
+    // Set customer profile in POS
+    const matchedCustomer = (customers || []).find(
+      (c) => (customer.phone && c.phone === customer.phone) || c.name.toLowerCase() === customer.name.toLowerCase()
+    );
+    if (matchedCustomer) {
+      setSelectedLoyaltyCustomer(matchedCustomer);
+      setCustomerSearchInput(matchedCustomer.name);
+    } else {
+      setSelectedLoyaltyCustomer({
+        id: `rx-cust-${Date.now()}`,
+        name: customer.name,
+        phone: customer.phone,
+        email: "",
+        points: 0,
+        loyaltyTier: "Bronze",
+        lifetimePointsEarned: 0,
+        lifetimePointsRedeemed: 0,
+        totalSpent: 0,
+        totalOrders: 1,
+        balance: 0,
+        joinedDate: new Date().toISOString().split("T")[0],
+        lastVisit: new Date().toISOString().split("T")[0],
+        status: "ACTIVE",
+        pointsHistory: [],
+      });
+      setCustomerSearchInput(customer.name);
+    }
+
+    // Add items into cart
+    itemsToLoad.forEach(({ product, quantity, unit }) => {
+      addToCart(product, quantity, unit);
+    });
+  };
 
   // Load parked carts from localStorage
   useEffect(() => {
@@ -771,6 +833,12 @@ export function PosView() {
       return;
     }
 
+    // Clinical Drug-Drug Interaction Safety Gate
+    if (clinicalAlerts.length > 0 && !clinicalOverrideApproved) {
+      setIsClinicalInteractionModalOpen(true);
+      return;
+    }
+
     if ((paymentMethod === "Cash" || paymentMethod === "Split") && drawerStatus !== "OPEN") {
       alert("Please open the Cash Drawer first before processing cash transactions!");
       return;
@@ -910,6 +978,15 @@ export function PosView() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsFetchPrescriptionOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-all shadow-2xs cursor-pointer interactive-btn active:scale-95"
+            >
+              <FileCheck className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Fetch Prescription</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setIsReturnLookupOpen(true)}
@@ -1910,6 +1987,35 @@ export function PosView() {
             </div>
           )}
 
+          {/* Clinical Drug-Drug Interaction Warning Badge */}
+          {clinicalAlerts.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setIsClinicalInteractionModalOpen(true)}
+              className={`w-full p-2.5 rounded-xl border flex items-center justify-between text-xs transition-all cursor-pointer ${
+                clinicalAlerts.some((a) => a.severity === "high")
+                  ? "bg-rose-50 border-rose-300 text-rose-950 hover:bg-rose-100 ring-1 ring-rose-200"
+                  : "bg-amber-50 border-amber-300 text-amber-950 hover:bg-amber-100 ring-1 ring-amber-200"
+              }`}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <AlertTriangle
+                  className={`w-4 h-4 shrink-0 ${
+                    clinicalAlerts.some((a) => a.severity === "high")
+                      ? "text-rose-600 animate-pulse"
+                      : "text-amber-600"
+                  }`}
+                />
+                <span className="font-bold text-left truncate">
+                  ⚠️ {clinicalAlerts.length} Clinical Drug {clinicalAlerts.length === 1 ? "Interaction" : "Interactions"}
+                </span>
+              </div>
+              <span className="text-[11px] underline font-bold shrink-0 ml-1">
+                Review Guidance
+              </span>
+            </button>
+          )}
+
           {/* TOTAL Box */}
           <div className="bg-gradient-to-r from-emerald-100/70 via-teal-100/60 to-emerald-100/70 backdrop-blur-md border border-emerald-300/60 rounded-2xl px-4 py-3.5 flex items-center justify-between shadow-xs">
             <div>
@@ -2206,6 +2312,27 @@ export function PosView() {
           currencySymbol={currencySymbol || "$"}
         />
       )}
+
+      {/* Fetch Doctor Prescription Modal */}
+      <FetchPrescriptionModal
+        isOpen={isFetchPrescriptionOpen}
+        onClose={() => setIsFetchPrescriptionOpen(false)}
+        allProducts={allProducts}
+        onLoadPrescription={handleLoadPrescription}
+      />
+
+      {/* Clinical Drug-Drug Interaction Safety Review Modal */}
+      <ClinicalInteractionModal
+        isOpen={isClinicalInteractionModalOpen}
+        onClose={() => setIsClinicalInteractionModalOpen(false)}
+        alerts={clinicalAlerts}
+        onConfirmOverride={() => {
+          setClinicalOverrideApproved(true);
+          setTimeout(() => {
+            handleCompleteSale();
+          }, 60);
+        }}
+      />
     </div>
   );
 }

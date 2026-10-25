@@ -50,7 +50,7 @@ export default function DashboardPage() {
   } = usePharmacy();
 
   // Hydration-safe live date/time state
-  const [currentDateTime, setCurrentDateTime] = useState<string>("07/10/2026 10:16:34");
+  const [currentDateTime, setCurrentDateTime] = useState<string>("");
   const [hoveredTrendIdx, setHoveredTrendIdx] = useState<number | null>(null);
   const [hoveredHourIdx, setHoveredHourIdx] = useState<number | null>(null);
 
@@ -1146,80 +1146,42 @@ export default function DashboardPage() {
           </div>
 
           <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-            {/* Sale 1 */}
-            <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-              <div className="flex justify-between items-start gap-2">
-                <div className="min-w-0">
-                  <div className="font-semibold text-gray-900 tabular-nums">$536.50</div>
-                  <div className="text-sm text-gray-600 line-clamp-2">
-                    1× ATROPINE SULFATE, 2× ACETAMINOPHEN, 1× ACTIDOM DMX
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    Pharmacy Admin · 07/10/2026 03:53:55
+            {sales.length === 0 ? (
+              <div className="p-8 text-center text-sm text-gray-500 bg-gray-50 rounded-xl border border-gray-100">
+                No recent sales recorded yet.
+              </div>
+            ) : (
+              sales.slice(0, 6).map((sale) => (
+                <div key={sale.id} className="p-4 rounded-xl bg-gray-50 border border-gray-100 hover:bg-gray-100/70 transition-colors">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-gray-900 tabular-nums">
+                          {currencySymbol}{sale.totalAmount.toFixed(2)}
+                        </span>
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-sm bg-emerald-100 text-emerald-800">
+                          {sale.paymentMethod}
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-600 line-clamp-2 mt-0.5">
+                        {sale.items.map((i) => `${i.quantity}× ${i.name}`).join(", ") || "General sale items"}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                        <span>{sale.cashier || "Pharmacy Staff"}</span>
+                        <span>·</span>
+                        <span>{sale.date}</span>
+                        {sale.customer?.name && (
+                          <>
+                            <span>·</span>
+                            <span className="text-emerald-700 font-medium truncate">{sale.customer.name}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Sale 2 */}
-            <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-              <div className="flex justify-between items-start gap-2">
-                <div className="min-w-0">
-                  <div className="font-semibold text-gray-900 tabular-nums">$391.50</div>
-                  <div className="text-sm text-gray-600 line-clamp-2">
-                    1× ATROPINE SULFATE, 1× ACETAMINOPHEN, 1× AVLAYAH
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    Pharmacy Admin · 06/10/2026 21:10:32
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Sale 3 */}
-            <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-              <div className="flex justify-between items-start gap-2">
-                <div className="min-w-0">
-                  <div className="font-semibold text-gray-900 tabular-nums">$4608.10</div>
-                  <div className="text-sm text-gray-600 line-clamp-2">
-                    6× ATROPINE SULFATE, 9× ACETAMINOPHEN, 5× ANTACID, 7× ACTIDOM DMX, 7× AVLAYAH
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    Pharmacy Admin · 06/10/2026 18:28:06
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Sale 4 */}
-            <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-              <div className="flex justify-between items-start gap-2">
-                <div className="min-w-0">
-                  <div className="font-semibold text-gray-900 tabular-nums">$246.50</div>
-                  <div className="text-sm text-gray-600 line-clamp-2">
-                    1× ATROPINE SULFATE, 1× ACETAMINOPHEN
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    Pharmacy Admin · 03/10/2026 09:01:25
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Sale 5 */}
-            <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-              <div className="flex justify-between items-start gap-2">
-                <div className="min-w-0">
-                  <div className="font-semibold text-gray-900 tabular-nums">$145.00</div>
-                  <div className="text-sm text-gray-600 line-clamp-2">
-                    1× ACETAMINOPHEN
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    Pharmacy Admin · 02/10/2026 20:39:34
-                  </div>
-                </div>
-              </div>
-            </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -1236,95 +1198,55 @@ export default function DashboardPage() {
           </div>
 
           <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-            {/* Item 1 */}
-            <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-              <div className="flex justify-between items-start gap-2">
-                <div className="min-w-0">
-                  <h3 className="font-medium text-gray-900 truncate">
-                    ACETAMINOPHEN<span className="text-gray-500 font-normal"> (ACETAMINOPHEN)</span>
-                  </h3>
-                  <p className="text-sm text-gray-600">Stock 0 · reorder 3</p>
-                  <p className="text-sm text-orange-600 mt-0.5">Expires 28/06/2026</p>
-                </div>
-                <div className="flex flex-col gap-1 items-end shrink-0">
-                  <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-red-100 text-red-800">
-                    Low
-                  </span>
-                </div>
-              </div>
-            </div>
+            {(() => {
+              const alertItems = inventory
+                .filter((item) => item.status !== "NORMAL")
+                .slice(0, 6);
 
-            {/* Item 2 */}
-            <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-              <div className="flex justify-between items-start gap-2">
-                <div className="min-w-0">
-                  <h3 className="font-medium text-gray-900 truncate">
-                    ACETAMINOPHEN<span className="text-gray-500 font-normal"> (ACETAMINOPHEN)</span>
-                  </h3>
-                  <p className="text-sm text-gray-600">Stock 0 · reorder 0</p>
-                  <p className="text-sm text-orange-600 mt-0.5">Expires 25/07/2026</p>
-                </div>
-                <div className="flex flex-col gap-1 items-end shrink-0">
-                  <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-red-100 text-red-800">
-                    Low
-                  </span>
-                </div>
-              </div>
-            </div>
+              if (alertItems.length === 0) {
+                return (
+                  <div className="p-8 text-center text-sm text-gray-500 bg-gray-50 rounded-xl border border-gray-100">
+                    All stock levels and expiry dates are optimal.
+                  </div>
+                );
+              }
 
-            {/* Item 3 */}
-            <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-              <div className="flex justify-between items-start gap-2">
-                <div className="min-w-0">
-                  <h3 className="font-medium text-gray-900 truncate">
-                    ACTIDOM DMX<span className="text-gray-500 font-normal"> (DEXTROMETHORPHAN HYDROBROMIDE, GUAIFENESIN, PHENYLEPHRINE HYDROCHLORIDE)</span>
-                  </h3>
-                  <p className="text-sm text-gray-600">Stock 0 · reorder 0</p>
-                  <p className="text-sm text-orange-600 mt-0.5">Expires 25/07/2026</p>
-                </div>
-                <div className="flex flex-col gap-1 items-end shrink-0">
-                  <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-red-100 text-red-800">
-                    Low
-                  </span>
-                </div>
-              </div>
-            </div>
+              return alertItems.map((item) => {
+                const isBad = item.quantity === 0 || item.status === "EXPIRED";
+                const badgeLabel =
+                  item.quantity === 0
+                    ? "Out"
+                    : item.status === "LOW_STOCK"
+                      ? "Low"
+                      : item.status === "EXPIRED"
+                        ? "Expired"
+                        : "Expiring";
 
-            {/* Item 4 */}
-            <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-              <div className="flex justify-between items-start gap-2">
-                <div className="min-w-0">
-                  <h3 className="font-medium text-gray-900 truncate">
-                    ACTIDOM DMX<span className="text-gray-500 font-normal"> (DEXTROMETHORPHAN HYDROBROMIDE, GUAIFENESIN, PHENYLEPHRINE HYDROCHLORIDE)</span>
-                  </h3>
-                  <p className="text-sm text-gray-600">Stock 49 · reorder 5</p>
-                  <p className="text-sm text-orange-600 mt-0.5">Expires 02/12/2026</p>
-                </div>
-                <div className="flex flex-col gap-1 items-end shrink-0">
-                  <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-orange-100 text-orange-800">
-                    Expiring
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Item 5 */}
-            <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-              <div className="flex justify-between items-start gap-2">
-                <div className="min-w-0">
-                  <h3 className="font-medium text-gray-900 truncate">
-                    AVLAYAH<span className="text-gray-500 font-normal"> (TIVIDENOFUSP ALFA-EKNM)</span>
-                  </h3>
-                  <p className="text-sm text-gray-600">Stock 17 · reorder 5</p>
-                  <p className="text-sm text-orange-600 mt-0.5">Expires 22/12/2026</p>
-                </div>
-                <div className="flex flex-col gap-1 items-end shrink-0">
-                  <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-orange-100 text-orange-800">
-                    Expiring
-                  </span>
-                </div>
-              </div>
-            </div>
+                return (
+                  <div key={item.id} className="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0">
+                        <h3 className="font-medium text-gray-900 truncate">
+                          {item.productName}
+                          {item.batchNumber && <span className="text-gray-500 font-normal"> (Batch: {item.batchNumber})</span>}
+                        </h3>
+                        <p className="text-sm text-gray-600">Stock {item.quantity} · reorder {item.reorderLevel}</p>
+                        <p className={`text-sm mt-0.5 ${isBad ? "text-red-600 font-medium" : "text-orange-600"}`}>
+                          Expires {item.expiryDate}
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-1 items-end shrink-0">
+                        <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full ${
+                          isBad ? "bg-red-100 text-red-800" : "bg-orange-100 text-orange-800"
+                        }`}>
+                          {badgeLabel}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              });
+            })()}
           </div>
         </div>
       </div>

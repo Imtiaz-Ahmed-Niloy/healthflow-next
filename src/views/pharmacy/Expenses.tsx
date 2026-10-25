@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useMemo } from "react";
 import {
@@ -33,9 +33,20 @@ export default function ExpensesPage() {
     user,
   } = usePharmacy();
 
-  // Date filters (defaults around target period Sep-Oct 2026)
-  const [filterFrom, setFilterFrom] = useState("2026-09-07");
-  const [filterTo, setFilterTo] = useState("2026-10-07");
+  // Dynamic date filters: default 30 days up to today
+  const defaultDates = useMemo(() => {
+    const end = new Date();
+    const start = new Date(end);
+    start.setDate(end.getDate() - 30);
+    return {
+      from: start.toISOString().split("T")[0],
+      to: end.toISOString().split("T")[0],
+      today: end.toISOString().split("T")[0],
+    };
+  }, []);
+
+  const [filterFrom, setFilterFrom] = useState(defaultDates.from);
+  const [filterTo, setFilterTo] = useState(defaultDates.to);
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
 
   // Modals
@@ -48,7 +59,7 @@ export default function ExpensesPage() {
   // Form states
   const [formCategory, setFormCategory] = useState("Insurance");
   const [formAmount, setFormAmount] = useState("");
-  const [formDate, setFormDate] = useState("2026-10-07");
+  const [formDate, setFormDate] = useState(defaultDates.today);
   const [formDescription, setFormDescription] = useState("");
   const [formError, setFormError] = useState("");
 

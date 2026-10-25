@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useRef, useEffect } from "react";
 import {
@@ -11,6 +11,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { usePharmacy } from "@/context/PharmacyContext";
+import { useAskAssistantMutation } from "@/redux/api/pharmacy";
 
 interface ChatMessage {
   id: string;
@@ -33,6 +34,7 @@ const SUGGESTED_QUESTIONS = [
 
 export default function AiAssistantPage() {
   const { sales, inventory, products, expenses } = usePharmacy();
+  const [askAssistant] = useAskAssistantMutation();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -198,7 +200,7 @@ export default function AiAssistantPage() {
     };
   };
 
-  const handleSendMessage = (textToSend?: string) => {
+  const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend || inputValue).trim();
     if (!text || isTyping) return;
 
@@ -213,7 +215,29 @@ export default function AiAssistantPage() {
     setInputValue("");
     setIsTyping(true);
 
-    // Realistic typing delay
+    try {
+      const history = [...messages, userMsg].map((m) => ({
+        role: (m.sender === "user" ? "user" : "assistant") as "user" | "assistant",
+        content: m.text,
+      }));
+
+      const res = await askAssistant({ messages: history }).unwrap();
+      if (res?.data?.reply) {
+        const botMsg: ChatMessage = {
+          id: `bot-${Date.now()}`,
+          sender: "bot",
+          text: res.data.reply,
+          timestamp: formatCurrentTime(),
+          badge: "Claude AI",
+        };
+        setMessages((prev) => [...prev, botMsg]);
+        setIsTyping(false);
+        return;
+      }
+    } catch {
+      // Fallback gracefully to contextual pharmacy data analyzer
+    }
+
     setTimeout(() => {
       const { text: replyText, badge } = generateResponse(text);
       const botMsg: ChatMessage = {
@@ -221,11 +245,11 @@ export default function AiAssistantPage() {
         sender: "bot",
         text: replyText,
         timestamp: formatCurrentTime(),
-        badge,
+        badge: badge || "Analysis",
       };
       setMessages((prev) => [...prev, botMsg]);
       setIsTyping(false);
-    }, 850);
+    }, 600);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

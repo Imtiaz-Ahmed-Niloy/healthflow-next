@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useMemo } from "react";
 import { usePharmacy } from "@/context/PharmacyContext";
@@ -41,11 +41,18 @@ export default function SalesHistoryPage() {
   const [isReturnOpen, setIsReturnOpen] = useState<boolean>(false);
   const [isLookupOpen, setIsLookupOpen] = useState<boolean>(false);
 
-  // System reference date: October 7, 2026
-  const refDate = useMemo(() => new Date(2026, 9, 7, 23, 59, 59), []);
+  // System reference date
+  const refDate = useMemo(() => new Date(), []);
 
   // Filtered & Sorted Sales calculation
   const filteredSales = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const endOfToday = startOfToday + 86400000 - 1;
+    const startOfYesterday = startOfToday - 86400000;
+    const sevenDaysAgo = startOfToday - 6 * 86400000;
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
     return sales
       .filter((sale) => {
         // 1. Search filter
@@ -79,29 +86,15 @@ export default function SalesHistoryPage() {
 
         // 4. Date Range filter using timestamp
         const saleTime = sale.timestamp || new Date(sale.date).getTime();
-        const saleDateObj = new Date(saleTime);
 
         if (datePreset === "today") {
-          // 07/10/2026
-          const isSameDay =
-            saleDateObj.getFullYear() === 2026 &&
-            saleDateObj.getMonth() === 9 &&
-            saleDateObj.getDate() === 7;
-          if (!isSameDay) return false;
+          if (saleTime < startOfToday || saleTime > endOfToday) return false;
         } else if (datePreset === "yesterday") {
-          // 06/10/2026
-          const isYesterday =
-            saleDateObj.getFullYear() === 2026 &&
-            saleDateObj.getMonth() === 9 &&
-            saleDateObj.getDate() === 6;
-          if (!isYesterday) return false;
+          if (saleTime < startOfYesterday || saleTime >= startOfToday) return false;
         } else if (datePreset === "last7days") {
-          const sevenDaysAgo = new Date(2026, 9, 7 - 7, 0, 0, 0).getTime();
           if (saleTime < sevenDaysAgo) return false;
         } else if (datePreset === "thisMonth") {
-          const isThisMonth =
-            saleDateObj.getFullYear() === 2026 && saleDateObj.getMonth() === 9;
-          if (!isThisMonth) return false;
+          if (saleTime < startOfMonth) return false;
         } else if (datePreset === "custom") {
           if (customStartDate) {
             const startTimestamp = new Date(customStartDate).setHours(0, 0, 0, 0);

@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Bell,
   RefreshCw,
@@ -20,118 +20,88 @@ interface NotificationItem {
   type: "low_stock" | "expiry" | "system";
 }
 
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: "n-1",
-    title: "Low Stock: ACTIDOM DMX",
-    description: "ACTIDOM DMX (Batch: DFHDFH) has only 0 units left. Reorder level is 0.",
-    date: "9/9/2026",
-    unread: false,
-    type: "low_stock",
-  },
-  {
-    id: "n-2",
-    title: "Low Stock: Accucaine",
-    description: "Accucaine (Batch: f fd f) has only 0 units left. Reorder level is 0.",
-    date: "9/9/2026",
-    unread: true,
-    type: "low_stock",
-  },
-  {
-    id: "n-3",
-    title: "Low Stock: AVLAYAH",
-    description: "AVLAYAH (Batch: 4465) has only 0 units left. Reorder level is 2.",
-    date: "9/9/2026",
-    unread: true,
-    type: "low_stock",
-  },
-  {
-    id: "n-4",
-    title: "Low Stock: ACETAMINOPHEN",
-    description: "ACETAMINOPHEN (Batch: 101) has only 0 units left. Reorder level is 3.",
-    date: "9/9/2026",
-    unread: true,
-    type: "low_stock",
-  },
-  {
-    id: "n-5",
-    title: "Low Stock: ACTIDOM DMX",
-    description: "ACTIDOM DMX (Batch: DFHDFH) has only 0 units left. Reorder level is 0.",
-    date: "8/22/2026",
-    unread: false,
-    type: "low_stock",
-  },
-  {
-    id: "n-6",
-    title: "Low Stock: Accucaine",
-    description: "Accucaine (Batch: f fd f) has only 0 units left. Reorder level is 0.",
-    date: "8/22/2026",
-    unread: false,
-    type: "low_stock",
-  },
-  {
-    id: "n-7",
-    title: "Low Stock: AVLAYAH",
-    description: "AVLAYAH (Batch: 4465) has only 0 units left. Reorder level is 2.",
-    date: "8/22/2026",
-    unread: false,
-    type: "low_stock",
-  },
-  {
-    id: "n-8",
-    title: "Low Stock: ACETAMINOPHEN",
-    description: "ACETAMINOPHEN (Batch: 101) has only 0 units left. Reorder level is 3.",
-    date: "8/22/2026",
-    unread: false,
-    type: "low_stock",
-  },
-  {
-    id: "n-9",
-    title: "Low Stock: ACETAMINOPHEN",
-    description: "ACETAMINOPHEN (Batch: 10) has only 1 units left. Reorder level is 1.",
-    date: "5/22/2026",
-    unread: false,
-    type: "low_stock",
-  },
-];
-
 export default function NotificationsPage() {
   const { inventory } = usePharmacy();
-  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [tab, setTab] = useState<"all" | "unread">("all");
   const [isScanning, setIsScanning] = useState(false);
+
+  // Dynamically generate real notifications from current inventory alerts
+  const notifications = useMemo<NotificationItem[]>(() => {
+    const list: NotificationItem[] = [];
+    const todayStr = new Date().toLocaleDateString("en-US");
+
+    inventory.forEach((item, index) => {
+      const isOut = item.quantity <= 0;
+      const isLow = item.status === "LOW_STOCK" || (item.quantity > 0 && item.quantity <= item.reorderLevel);
+
+      if (isOut) {
+        list.push({
+          id: `out-${item.id || index}`,
+          title: `Out of Stock: ${item.productName}`,
+          description: `${item.productName}${item.batchNumber ? ` (Batch: ${item.batchNumber})` : ""} has 0 units remaining. Reorder level is ${item.reorderLevel}.`,
+          date: todayStr,
+          unread: !readIds.has(`out-${item.id || index}`),
+          type: "low_stock",
+        });
+      } else if (isLow) {
+        list.push({
+          id: `low-${item.id || index}`,
+          title: `Low Stock: ${item.productName}`,
+          description: `${item.productName}${item.batchNumber ? ` (Batch: ${item.batchNumber})` : ""} has only ${item.quantity} units left. Reorder level is ${item.reorderLevel}.`,
+          date: todayStr,
+          unread: !readIds.has(`low-${item.id || index}`),
+          type: "low_stock",
+        });
+      }
+
+      if (item.status === "EXPIRED") {
+        list.push({
+          id: `exp-${item.id || index}`,
+          title: `Expired Batch: ${item.productName}`,
+          description: `${item.productName}${item.batchNumber ? ` (Batch: ${item.batchNumber})` : ""} expired on ${item.expiryDate}. Quarantine for disposal or return.`,
+          date: todayStr,
+          unread: !readIds.has(`exp-${item.id || index}`),
+          type: "expiry",
+        });
+      } else if (item.status === "EXPIRING_SOON") {
+        list.push({
+          id: `soon-${item.id || index}`,
+          title: `Expiring Soon: ${item.productName}`,
+          description: `${item.productName}${item.batchNumber ? ` (Batch: ${item.batchNumber})` : ""} expires on ${item.expiryDate}. Prioritize under FEFO dispensing.`,
+          date: todayStr,
+          unread: !readIds.has(`soon-${item.id || index}`),
+          type: "expiry",
+        });
+      }
+    });
+
+    return list;
+  }, [inventory, readIds]);
 
   const unreadCount = notifications.filter((n) => n.unread).length;
 
   const handleMarkAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+    setReadIds(new Set(notifications.map((n) => n.id)));
   };
 
   const handleToggleRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, unread: !n.unread } : n))
-    );
+    setReadIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
   };
 
   const handleScanNow = () => {
     setIsScanning(true);
     setTimeout(() => {
-      // Find low stock items
-      const lowStockItems = inventory.filter((i) => i.quantity <= i.reorderLevel);
-      if (lowStockItems.length > 0) {
-        const topLow = lowStockItems[0];
-        const newNotif: NotificationItem = {
-          id: `scan-${Date.now()}`,
-          title: `Low Stock: ${topLow.productName}`,
-          description: `${topLow.productName} (Batch: ${topLow.batchNumber}) has only ${topLow.quantity} units left. Reorder level is ${topLow.reorderLevel}.`,
-          date: new Date().toLocaleDateString("en-US"),
-          unread: true,
-          type: "low_stock",
-        };
-        setNotifications((prev) => [newNotif, ...prev]);
-      }
       setIsScanning(false);
-    }, 700);
+    }, 600);
   };
 
   const displayedNotifications =
