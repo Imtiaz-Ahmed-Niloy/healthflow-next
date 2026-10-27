@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
   const cleanQuery = rawQuery.replace(/^RX-?/i, "").trim();
 
   try {
-    let queryBuilder = supabase
+    const queryBuilder = supabase
       .from("appointments")
       .select(`
         id,

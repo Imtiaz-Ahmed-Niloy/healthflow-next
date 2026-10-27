@@ -21,6 +21,8 @@ const eslintConfig = defineConfig([
       "react-hooks/immutability": "warn",
       "react-hooks/preserve-manual-memoization": "warn",
       "react-hooks/purity": "warn",
+      "@typescript-eslint/no-explicit-any": "warn",
+      "react/no-unescaped-entities": "warn",
     },
   },
   // Override default ignores of eslint-config-next.
