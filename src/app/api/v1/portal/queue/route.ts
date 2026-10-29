@@ -200,6 +200,11 @@ const walkInSchema = z.object({
    * they work at more than one.
    */
   hospital_id: z.string().uuid().optional(),
+  /**
+   * The patient the dialog found on this number, when it found one. Checked
+   * against the hospital below like hospital_id, and never trusted as sent.
+   */
+  patient_id: z.string().uuid().optional(),
 });
 
 export const POST = async (request: Request) => {
@@ -238,18 +243,30 @@ export const POST = async (request: Request) => {
     return fail(doctors.length > 1 ? "Pick the hospital this patient is at." : "That isn't one of your hospitals.", 400);
   }
 
-  // A returning walk-in with a phone already on file at this hospital reuses
-  // that record rather than forking a second one with a new MRN.
+  // A returning walk-in reuses their record rather than forking a second one
+  // with a new MRN: the one the dialog found on their number, or — sent
+  // without one — the patient here with that number and that name. A family
+  // often shares one number, so the number alone is not who they are.
   let patientId: string | null = null;
-  if (phoneValue) {
+  if (parsed.data.patient_id) {
     const { data, error } = await supabase
       .from("patients")
       .select("id")
       .eq("tenant_id", doctor.tenant_id)
-      .eq("phone", phoneValue)
+      .eq("id", parsed.data.patient_id)
       .maybeSingle();
     if (error) return fail(error.message, 500);
-    patientId = data?.id ?? null;
+    if (!data) return fail("That patient isn't on file at this hospital.", 404);
+    patientId = data.id;
+  } else if (phoneValue) {
+    const { data, error } = await supabase
+      .from("patients")
+      .select("id, full_name")
+      .eq("tenant_id", doctor.tenant_id)
+      .eq("phone", phoneValue);
+    if (error) return fail(error.message, 500);
+    const sameName = (data ?? []).find(p => p.full_name.trim().toLowerCase() === full_name.toLowerCase());
+    patientId = sameName?.id ?? null;
   }
 
   if (!patientId) {

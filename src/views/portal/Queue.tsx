@@ -20,6 +20,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { rememberedPlace, rememberPlace } from "@/lib/rxPlace";
 import { DateInput, DATE_INPUT_LOOK } from "@/components/ui/date-input";
+import { PhoneInput } from "@/components/common/PhoneInput";
+import { useListResourceQuery } from "@/redux/api/createResourceApi";
+import type { PatientRow } from "@/redux/api/resources";
 import { playSound } from "@/lib/audio";
 import { useFormatters } from "@/lib/appSettings";
 import { DoctorQueueTvDisplay } from "@/components/portal/DoctorQueueTvDisplay";
@@ -31,6 +34,12 @@ import { OpdInvoiceReceiptModal } from "@/components/portal/OpdInvoiceReceiptMod
 type Priority = "high" | "standard" | "routine";
 
 type Hospital = { id: string; name: string };
+
+/** The walk-in's patient_id when it is someone not yet on file under their number. */
+const SOMEONE_ELSE = "new";
+
+/** The phone box, styled like the shadcn inputs around it in the walk-in dialog. */
+const WALK_IN_PHONE_LOOK = "h-10 rounded-md border border-input bg-background";
 
 type ApiQueueEntry = {
   id: string;
@@ -137,9 +146,24 @@ const Queue = () => {
   const [walkInOpen, setWalkInOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [startingId, setStartingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", dob: "", phone: "", reason: "", priority: "standard" as Priority, hospital_id: "" });
+  const [form, setForm] = useState({ name: "", dob: "", phone: "", reason: "", priority: "standard" as Priority, hospital_id: "", patient_id: "" });
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const multiHospital = hospitals.length > 1;
+
+  // A full number is looked up at the walk-in's hospital: a returning patient
+  // fills in by themselves, and a family sharing one number is a choice
+  // between them. currentData, so a number's matches never show under the next.
+  const walkInHospital = form.hospital_id || hospitals[0]?.id;
+  const { currentData: phoneData, isFetching: lookingUp } = useListResourceQuery(
+    { resource: "patients", limit: 20, filters: { phone: form.phone } },
+    { skip: !walkInOpen || !form.phone },
+  );
+  const phoneMatches = form.phone
+    ? ((phoneData?.data ?? []) as PatientRow[]).filter(p => p.tenant_id === walkInHospital)
+    : [];
+  const knownPatient = form.patient_id === SOMEONE_ELSE ? null
+    : phoneMatches.find(p => p.id === form.patient_id) ?? (phoneMatches.length === 1 ? phoneMatches[0] : null);
+  const pickingPatient = !knownPatient && phoneMatches.length > 1 && form.patient_id !== SOMEONE_ELSE;
 
   // TV mode state & Calling Token state
   const [tvDisplayMode, setTvDisplayMode] = useState(false);
@@ -474,8 +498,9 @@ const Queue = () => {
   };
 
   const handleAddWalkIn = async () => {
-    if (!form.name.trim()) {
-      toast.error(t("nameRequired"));
+    const name = knownPatient?.full_name ?? form.name.trim();
+    if (!name) {
+      toast.error(pickingPatient ? t("pickPatient") : t("nameRequired"));
       return;
     }
     const hospitalId = form.hospital_id || hospitals[0]?.id;
@@ -485,9 +510,10 @@ const Queue = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          full_name: form.name.trim(),
-          date_of_birth: form.dob || undefined,
-          phone: form.phone.trim() || undefined,
+          full_name: name,
+          date_of_birth: (knownPatient ? knownPatient.date_of_birth : form.dob) || undefined,
+          phone: form.phone || undefined,
+          patient_id: knownPatient?.id,
           reason: form.reason.trim() || undefined,
           priority: form.priority,
           hospital_id: hospitalId || undefined,
@@ -498,8 +524,8 @@ const Queue = () => {
         toast.error(body?.error?.message || t("walkInFailed"));
         return;
       }
-      toast.success(t("walkInAdded", { name: form.name.trim() }));
-      setForm({ name: "", dob: "", phone: "", reason: "", priority: "standard", hospital_id: form.hospital_id });
+      toast.success(t("walkInAdded", { name }));
+      setForm({ name: "", dob: "", phone: "", reason: "", priority: "standard", hospital_id: form.hospital_id, patient_id: "" });
       setWalkInOpen(false);
       void load();
     } catch {
@@ -724,7 +750,7 @@ const Queue = () => {
                 {multiHospital && (
                   <div className="space-y-1.5">
                     <Label>{t("where")}</Label>
-                    <Select value={form.hospital_id || hospitals[0]?.id} onValueChange={(v) => { rememberPlace(v); setForm({ ...form, hospital_id: v }); }}>
+                    <Select value={form.hospital_id || hospitals[0]?.id} onValueChange={(v) => { rememberPlace(v); setForm({ ...form, hospital_id: v, patient_id: "" }); }}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {hospitals.map((h) => (
@@ -735,16 +761,41 @@ const Queue = () => {
                   </div>
                 )}
                 <div className="space-y-1.5">
-                  <Label htmlFor="phone">{t("phone")}</Label>
-                  <Input id="phone" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="01…" />
+                  <Label>{t("phone")}</Label>
+                  {/* Hands back "" until the number is complete, so only a full one is looked up. */}
+                  <PhoneInput defaultValue={form.phone} onChange={phone => setForm({ ...form, phone, patient_id: "" })} className={WALK_IN_PHONE_LOOK} />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="name">{t("patientName")}</Label>
-                  <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t("namePlaceholder")} />
+                  {knownPatient ? (
+                    <Input id="name" value={knownPatient.full_name} readOnly tabIndex={-1} className="opacity-70 cursor-not-allowed" />
+                  ) : pickingPatient ? (
+                    <Select value="" onValueChange={(v) => setForm({ ...form, patient_id: v })}>
+                      <SelectTrigger id="name"><SelectValue placeholder={t("pickPatient")} /></SelectTrigger>
+                      <SelectContent>
+                        {phoneMatches.map((p) => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}
+                        <SelectItem value={SOMEONE_ELSE}>{t("someoneElse")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      placeholder={lookingUp ? t("lookingUp") : t("namePlaceholder")} />
+                  )}
+                  {knownPatient && (
+                    <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                      {t("onFile")}
+                      <button type="button" onClick={() => setForm({ ...form, patient_id: SOMEONE_ELSE })}
+                        className="font-semibold text-primary underline-offset-4 hover:underline">
+                        {t("someoneElse")}
+                      </button>
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="dob">{t("dob")}</Label>
-                  <DateInput id="dob" value={form.dob} onChange={dob => setForm({ ...form, dob })}
+                  {/* A returning patient's own, as on file; the server keeps their record as it is. */}
+                  <DateInput key={knownPatient?.id ?? "typed"} id="dob" value={knownPatient ? knownPatient.date_of_birth ?? "" : form.dob}
+                    onChange={dob => setForm({ ...form, dob })} disabled={!!knownPatient}
                     max={new Date().toISOString().split("T")[0]} className={DATE_INPUT_LOOK} />
                 </div>
                 <div className="space-y-1.5">

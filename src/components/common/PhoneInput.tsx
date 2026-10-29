@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { PHONE_COUNTRIES, bdLocalPart, bdStoredPhone, isBdMobile, type PhoneCountry } from "@/lib/phone";
+import { cn } from "@/lib/utils";
 
 /**
  * Drawn, not the emoji: Windows shows flag emoji as the letters "BD". One
@@ -26,8 +27,11 @@ const inputCls = "flex-1 min-w-0 bg-muted/40 rounded-lg px-3 py-2 outline-none f
  * What it hands back is the stored spelling, 01712345678 — the box is for the
  * eye only. With `name` it posts that in a form by itself; `onChange` is for a
  * caller that acts on the number, and gets "" until the number is complete.
+ *
+ * `className` restyles both boxes, for a form whose other inputs look
+ * different — the shadcn ones are white with a border.
  */
-export const PhoneInput = ({ name, defaultValue, onChange, required, invalid, autoFocus, disabled }: {
+export const PhoneInput = ({ name, defaultValue, onChange, required, invalid, autoFocus, disabled, className }: {
   name?: string;
   defaultValue?: unknown;
   onChange?: (phone: string) => void;
@@ -35,6 +39,7 @@ export const PhoneInput = ({ name, defaultValue, onChange, required, invalid, au
   invalid?: boolean;
   autoFocus?: boolean;
   disabled?: boolean;
+  className?: string;
 }) => {
   const country = PHONE_COUNTRIES[0];
   const [local, setLocal] = useState(() => bdLocalPart(typeof defaultValue === "string" ? defaultValue : ""));
@@ -48,13 +53,13 @@ export const PhoneInput = ({ name, defaultValue, onChange, required, invalid, au
   return (
     <div className="flex items-stretch gap-2">
       {name && <input type="hidden" name={name} value={local ? bdStoredPhone(local) : ""} />}
-      <span className="flex items-center gap-2 bg-muted/40 rounded-lg px-3 text-sm font-mono text-muted-foreground select-none">
+      <span className={cn("flex items-center gap-2 bg-muted/40 rounded-lg px-3 text-sm font-mono text-muted-foreground select-none", className)}>
         <svg viewBox="0 0 20 12" className="h-3 w-5 rounded-[2px] shrink-0" aria-hidden="true">{FLAGS[country.iso]}</svg>
         {country.dial}
       </span>
       <input type="tel" inputMode="numeric" value={local} onChange={e => type(e.target.value)}
         required={required} aria-invalid={invalid} autoFocus={autoFocus} disabled={disabled}
-        pattern={country.pattern} maxLength={country.maxLength + 4} placeholder={country.placeholder} className={inputCls} />
+        pattern={country.pattern} maxLength={country.maxLength + 4} placeholder={country.placeholder} className={cn(inputCls, className)} />
     </div>
   );
 };
