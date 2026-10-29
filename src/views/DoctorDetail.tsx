@@ -10,21 +10,42 @@ import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
+import { PatientPortalLayout } from "@/components/portal/PatientPortalLayout";
 import { Avatar } from "@/components/common/Avatar";
 import { FitText, pxRange } from "@/components/common/FitText";
 import { useDoctor, useDoctorSearch, type DBDoctor, type DoctorPlace } from "@/hooks/useDoctors";
 import { useHospitalsBySlugs } from "@/hooks/useHospitals";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useFormatters } from "@/lib/appSettings";
+import { cn } from "@/lib/utils";
 import type { Hospital } from "@/data/hospitals";
+
+/** The public site's navbar and footer around the profile, or a patient's panel. */
+const Frame = ({ inPanel, className, children }: { inPanel: boolean; className?: string; children: ReactNode }) =>
+  inPanel ? (
+    <PatientPortalLayout>
+      <div className={className}>{children}</div>
+    </PatientPortalLayout>
+  ) : (
+    <div className="min-h-screen bg-gradient-hero">
+      <Navbar />
+      <main className={cn("container mx-auto py-12", className)}>{children}</main>
+      <Footer />
+    </div>
+  );
 
 /**
  * `initialRows` is the doctor as the server read them (app/doctors/[slug]), so
  * the profile is in the page's HTML rather than behind a spinner. Left out,
  * the page fetches for itself.
+ *
+ * `inPanel` is the same profile opened from a patient's Find Doctors or Saved
+ * Doctors (app/patient/find-doctors/[slug]): inside their panel, and every
+ * doctor link on it stays there.
  */
-const DoctorDetail = ({ initialRows }: { initialRows?: DBDoctor[] }) => {
+const DoctorDetail = ({ initialRows, inPanel = false }: { initialRows?: DBDoctor[]; inPanel?: boolean }) => {
   const t = useTranslations("doctorDetail");
+  const base = inPanel ? "/patient/find-doctors" : "/doctors";
   const slug = useParams<{ slug: string }>()?.slug;
   const router = useRouter();
   const { formatCurrency } = useFormatters();
@@ -43,8 +64,8 @@ const DoctorDetail = ({ initialRows }: { initialRows?: DBDoctor[] }) => {
 
   // ...and then the address bar shows the doctor's one URL, not the listing's.
   useEffect(() => {
-    if (found && slug && found.d.slug !== slug) router.replace(`/doctors/${found.d.slug}`);
-  }, [found, slug, router]);
+    if (found && slug && found.d.slug !== slug) router.replace(`${base}/${found.d.slug}`);
+  }, [found, slug, router, base]);
 
   // The booking form opens here, on the profile (BookAppointmentDialog).
   // `?book=1` opens it on arrival — where sign-in sends someone who pressed
@@ -56,35 +77,27 @@ const DoctorDetail = ({ initialRows }: { initialRows?: DBDoctor[] }) => {
   }, [found, searchParams]);
   const closeBooking = () => {
     setBooking(false);
-    if (searchParams?.get("book") && found) router.replace(`/doctors/${found.d.slug}`);
+    if (searchParams?.get("book") && found) router.replace(`${base}/${found.d.slug}`);
   };
 
   const hospitalOf = (p: DoctorPlace): Hospital | undefined => hospitals.find((h) => h.slug === p.hospitalSlug);
 
   if (loadingDocs) {
     return (
-      <div className="min-h-screen bg-gradient-hero">
-        <Navbar />
-        <main className="container mx-auto py-32 text-center">
-          <div className="flex justify-center items-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          </div>
-        </main>
-        <Footer />
-      </div>
+      <Frame inPanel={inPanel} className="py-32 text-center">
+        <div className="flex justify-center items-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      </Frame>
     );
   }
 
   if (!found) {
     return (
-      <div className="min-h-screen bg-gradient-hero">
-        <Navbar />
-        <main className="container mx-auto py-32 text-center">
-          <h1 className="font-display text-4xl text-primary">{t("notFound")}</h1>
-          <Link href="/doctors" className="mt-6 inline-flex items-center gap-2 text-primary"><ArrowLeft className="h-4 w-4" /> {t("back")}</Link>
-        </main>
-        <Footer />
-      </div>
+      <Frame inPanel={inPanel} className="py-32 text-center">
+        <h1 className="font-display text-4xl text-primary">{t("notFound")}</h1>
+        <Link href={base} className="mt-6 inline-flex items-center gap-2 text-primary"><ArrowLeft className="h-4 w-4" /> {t("back")}</Link>
+      </Frame>
     );
   }
 
@@ -95,16 +108,14 @@ const DoctorDetail = ({ initialRows }: { initialRows?: DBDoctor[] }) => {
     .map((p) => ({ d: p }));
 
   return (
-    <div className="min-h-screen bg-gradient-hero">
-      <Navbar />
-      <main className="container mx-auto py-12">
+    <Frame inPanel={inPanel}>
         {/* Back to wherever they came from — a doctor is reached from the
             home page, Find Doctors, a search, a hospital's own page. Opened
             from a shared link there is nowhere to go back to, so it goes to
             the doctor list. */}
         <button
           type="button"
-          onClick={() => (window.history.length > 1 ? router.back() : router.push("/doctors"))}
+          onClick={() => (window.history.length > 1 ? router.back() : router.push(base))}
           className="inline-flex items-center gap-1.5 text-sm text-primary hover:gap-2 transition-all mb-6"
         >
           <ArrowLeft className="h-4 w-4" /> {t("back")}
@@ -195,7 +206,7 @@ const DoctorDetail = ({ initialRows }: { initialRows?: DBDoctor[] }) => {
                 onClick={() => {
                   if (savedDoctors.sessionLoading) return;
                   if (!savedDoctors.signedIn) {
-                    router.push(`/signin?next=${encodeURIComponent(`/doctors/${d.slug}`)}`);
+                    router.push(`/signin?next=${encodeURIComponent(`${base}/${d.slug}`)}`);
                     return;
                   }
                   if (!savedDoctors.canSave) {
@@ -329,7 +340,7 @@ const DoctorDetail = ({ initialRows }: { initialRows?: DBDoctor[] }) => {
                 <h2 className="font-display text-2xl text-primary mb-4">{t("otherSpecialists", { specialty: d.specialty })}</h2>
                 <div className="grid sm:grid-cols-3 gap-4">
                   {peers.map(({ d: p }) => (
-                    <Link key={p.slug} href={`/doctors/${p.slug}`} className="group rounded-2xl bg-card border border-border/60 p-4 hover:shadow-soft transition-all">
+                    <Link key={p.slug} href={`${base}/${p.slug}`} className="group rounded-2xl bg-card border border-border/60 p-4 hover:shadow-soft transition-all">
                       {p.photo ? (
                         <img src={p.photo} alt={p.name} className="w-full h-32 rounded-xl object-cover" />
                       ) : (
@@ -346,10 +357,8 @@ const DoctorDetail = ({ initialRows }: { initialRows?: DBDoctor[] }) => {
             )}
           </div>
         </motion.div>
-      </main>
-      <Footer />
       <BookAppointmentDialog doctor={booking ? d : null} onClose={closeBooking} />
-    </div>
+    </Frame>
   );
 };
 

@@ -63,6 +63,7 @@ const SavedDoctors = () => {
                 key={d.id}
                 d={d}
                 i={i}
+                href={`/patient/find-doctors/${d.slug}`}
                 action={
                   <div className="mt-5 flex items-center gap-2">
                     {d.independent ? (

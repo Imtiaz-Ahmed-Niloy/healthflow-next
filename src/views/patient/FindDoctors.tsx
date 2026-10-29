@@ -38,6 +38,8 @@ const FindDoctors = () => {
             district: searchParams?.get("zilla"),
             upazila: searchParams?.get("upazila"),
           }}
+          // The profile opens here in the panel, not on the public site.
+          profileHref={d => `/patient/find-doctors/${d.slug}`}
           action={d => d.independent ? (
             // An appointment belongs to a hospital; this doctor has none yet.
             <DoctorCardNotBookable />

@@ -29,8 +29,11 @@ const NAME_SIZES = pxRange(18, 13);
  * form in place, and says Book Appointment because it does. Left out, the
  * button is View Profile: it goes to the doctor's profile, which is where a
  * visitor books from.
+ *
+ * `href` is where the profile is: the public /doctors/<slug>, or the one
+ * inside a patient's panel.
  */
-export const DoctorCard = ({ d, i = 0, action }: { d: UIDoctor; i?: number; action?: ReactNode }) => {
+export const DoctorCard = ({ d, i = 0, action, href = `/doctors/${d.slug}` }: { d: UIDoctor; i?: number; action?: ReactNode; href?: string }) => {
   const t = useTranslations("doctorCard");
   return (
   <TiltCard
@@ -41,7 +44,7 @@ export const DoctorCard = ({ d, i = 0, action }: { d: UIDoctor; i?: number; acti
         inset so it colours the card without touching the text on it. */}
     <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 rounded-3xl bg-gradient-to-br from-accent/25 via-transparent to-chip/25 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
-    <Link href={`/doctors/${d.slug}`} className="block flex-1">
+    <Link href={href} className="block flex-1">
       <div className="flex items-start gap-3">
         {/* The photo pushes in slightly and picks up a ring: enough to say the
             card is live, not enough to jump. */}
@@ -106,7 +109,7 @@ export const DoctorCard = ({ d, i = 0, action }: { d: UIDoctor; i?: number; acti
     {/* It goes to their profile — so it says so. Booking is on the profile,
         where every place they practise, and its hours, is listed. */}
     {action ?? (
-      <Link href={`/doctors/${d.slug}`} className={DOCTOR_CARD_BUTTON}>
+      <Link href={href} className={DOCTOR_CARD_BUTTON}>
         {t("viewProfile")}
         {/* Slides out of nothing as the card is hovered. */}
         <ArrowRight className="h-4 w-0 opacity-0 transition-all duration-300 group-hover:w-4 group-hover:opacity-100" />

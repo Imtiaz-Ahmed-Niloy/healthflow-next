@@ -20,8 +20,9 @@ import { cn } from "@/lib/utils";
  * patient's /patient/find-doctors, so the two stay the same.
  *
  * `action` is each card's button — a patient's opens the booking form; left
- * out, the card keeps its own (the doctor's profile). `initial` carries what
- * the homepage search bar sent along.
+ * out, the card keeps its own (the doctor's profile). `profileHref` is where
+ * a card opens the profile — the patient's stays inside their panel.
+ * `initial` carries what the homepage search bar sent along.
  */
 
 const ANY = "any";
@@ -47,10 +48,12 @@ export type DoctorFinderInitial = {
 export const DoctorFinder = ({
   initial = {},
   action,
+  profileHref,
   gridClassName = "grid gap-5 md:grid-cols-3",
 }: {
   initial?: DoctorFinderInitial;
   action?: (d: UIDoctor) => ReactNode;
+  profileHref?: (d: UIDoctor) => string;
   gridClassName?: string;
 }) => {
   const t = useTranslations("patient.findDoctors");
@@ -207,7 +210,7 @@ export const DoctorFinder = ({
           <>
             <div className={gridClassName}>
               {visible.map((d, i) => (
-                <DoctorCard key={d.id} d={d} i={i % 24} action={action?.(d)} />
+                <DoctorCard key={d.id} d={d} i={i % 24} action={action?.(d)} href={profileHref?.(d)} />
               ))}
             </div>
             {hasMore && (
