@@ -2074,6 +2074,7 @@ export type Database = {
           singleton: boolean
           support_email: string | null
           support_phone: string | null
+          support_phone_2: string | null
           time_format: string
           timezone: string
           updated_at: string
@@ -2089,6 +2090,7 @@ export type Database = {
           singleton?: boolean
           support_email?: string | null
           support_phone?: string | null
+          support_phone_2?: string | null
           time_format?: string
           timezone?: string
           updated_at?: string
@@ -2104,6 +2106,7 @@ export type Database = {
           singleton?: boolean
           support_email?: string | null
           support_phone?: string | null
+          support_phone_2?: string | null
           time_format?: string
           timezone?: string
           updated_at?: string

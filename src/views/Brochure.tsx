@@ -1515,12 +1515,20 @@ const Page8BackCover = () => {
           <p className="text-[13.5px] sm:text-[14.5px] font-bold text-white/95">
             বিস্তারিত জানতে যোগাযোগ করুন:
           </p>
-          <a
-            href="tel:+8809612901901"
-            className="inline-block text-[18px] sm:text-[20px] font-black text-white hover:text-emerald-300 tracking-wider transition-all hover:scale-105 drop-shadow-sm"
-          >
-            +880 9612-901901
-          </a>
+          <div className="flex flex-col items-center">
+            {[
+              { tel: "+8809612901901", label: "+880 9612-901901" },
+              { tel: "+8809612567890", label: "+880 9612-567890" },
+            ].map(({ tel, label }) => (
+              <a
+                key={tel}
+                href={`tel:${tel}`}
+                className="inline-block text-[18px] sm:text-[20px] font-black text-white hover:text-emerald-300 tracking-wider transition-all hover:scale-105 drop-shadow-sm"
+              >
+                {label}
+              </a>
+            ))}
+          </div>
         </div>
 
         {/* Circular Action Icons (Mail & Phone/WhatsApp) with enhanced hover states */}

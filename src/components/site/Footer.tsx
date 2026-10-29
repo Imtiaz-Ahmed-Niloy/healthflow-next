@@ -37,6 +37,7 @@ const Footer = () => {
   // Neither app is out yet: both buttons open the same "coming soon".
   const [appSoon, setAppSoon] = useState(false);
   const phone = globalSettings?.data.support_phone?.trim() || null;
+  const phone2 = globalSettings?.data.support_phone_2?.trim() || null;
 
   /**
    * Text still at its shipped default is translated; text someone changed is
@@ -113,10 +114,11 @@ const Footer = () => {
               {[
                 ...(email ? [{ href: `mailto:${email}`, label: t("email"), value: email, Icon: Mail }] : []),
                 // tel: wants only the digits and the leading +.
-                ...(phone ? [{ href: `tel:${phone.replace(/[^\d+]/g, "")}`, label: t("phone"), value: phone, Icon: Phone }] : []),
+                ...[phone, phone2].filter((p): p is string => !!p)
+                  .map(p => ({ href: `tel:${p.replace(/[^\d+]/g, "")}`, label: t("phone"), value: p, Icon: Phone })),
               ].map(({ href, label, value, Icon }) => (
                 <a
-                  key={label}
+                  key={href}
                   href={href}
                   className="group inline-flex items-center gap-3 rounded-full border border-surface-dark-foreground/15 bg-surface-dark-foreground/5 py-2 pl-2 pr-5 transition-all hover:border-accent/50 hover:bg-surface-dark-foreground/10"
                 >

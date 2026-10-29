@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Command as CommandPrimitive } from "cmdk";
 import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { AutoGrowTextarea } from "@/components/portal/AutoGrowTextarea";
 
 /**
  * A text box that suggests from a list as you type, and still takes free
@@ -57,18 +58,23 @@ export const SuggestInput = ({ value, onChange, onPick, suggestions, placeholder
     <CommandPrimitive
       shouldFilter={false}
       loop
-      className="relative flex-1"
+      className="relative min-w-0 flex-1"
       onKeyDown={e => { if (e.key === "Escape") setOpen(false); }}
     >
+      {/* A textarea that grows with the text. Enter is still the list's: cmdk's root handles it and stops the newline. */}
       <CommandPrimitive.Input
-        autoFocus
+        asChild
         value={value}
         onValueChange={v => { onChange(v); setOpen(true); }}
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
-        placeholder={placeholder}
-        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-      />
+      >
+        <AutoGrowTextarea
+          autoFocus
+          placeholder={placeholder}
+          className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+        />
+      </CommandPrimitive.Input>
       {showList && (
         <CommandPrimitive.List
           // Keep focus in the box, so a click lands before blur closes the list.

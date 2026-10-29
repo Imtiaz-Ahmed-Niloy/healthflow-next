@@ -38,6 +38,7 @@ type Draft = Required<Pick<
 >> & {
   support_email: string;
   support_phone: string;
+  support_phone_2: string;
   maintenance_message: string;
 };
 
@@ -49,6 +50,7 @@ const toDraft = (row: GlobalSettingsRow): Draft => ({
   time_format: row.time_format,
   support_email: row.support_email ?? "",
   support_phone: row.support_phone ?? "",
+  support_phone_2: row.support_phone_2 ?? "",
   maintenance_mode: row.maintenance_mode,
   maintenance_message: row.maintenance_message ?? "",
 });
@@ -133,6 +135,7 @@ const GlobalSettings = () => {
       // "" is a cleared field, and the column takes null for that.
       support_email: draft.support_email.trim() || null,
       support_phone: draft.support_phone.trim() || null,
+      support_phone_2: draft.support_phone_2.trim() || null,
       maintenance_mode: draft.maintenance_mode,
       maintenance_message: draft.maintenance_message.trim() || null,
     };
@@ -245,6 +248,19 @@ const GlobalSettings = () => {
                     className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">{t("fields.supportPhoneHint")}</p>
+                </div>
+
+                <div>
+                  <Label htmlFor="gs-phone-2">{t("fields.supportPhone2")}</Label>
+                  <input
+                    id="gs-phone-2"
+                    type="tel"
+                    value={draft.support_phone_2}
+                    onChange={(e) => setDraft({ ...draft, support_phone_2: e.target.value })}
+                    placeholder="+880 1700 000000"
+                    className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">{t("fields.supportPhone2Hint")}</p>
                 </div>
               </div>
 

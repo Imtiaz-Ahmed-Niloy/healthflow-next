@@ -27,6 +27,7 @@ import { SectionPresetsDialog, type SectionType } from "@/components/portal/Sect
 import { MedicalCertificatesDialog } from "@/components/portal/MedicalCertificatesDialog";
 import { PatientHandoutsDialog } from "@/components/portal/PatientHandoutsDialog";
 import { VoiceDictationButton } from "@/components/portal/VoiceDictationButton";
+import { AutoGrowTextarea } from "@/components/portal/AutoGrowTextarea";
 import { TelemedicineRoomModal } from "@/components/portal/TelemedicineRoomModal";
 import { playSound } from "@/lib/audio";
 import { checkPrescriptionSafety, type ClinicalSafetyWarning } from "@/lib/clinicalSafety";
@@ -239,6 +240,8 @@ const EditableSection = ({
   // With detailsFor: the picked name, while its detail is being typed.
   const [picked, setPicked] = useState<string | null>(null);
   const [detail, setDetail] = useState("");
+  // What voice dictation has heard so far, shown as the list's last line until it ends.
+  const [dictating, setDictating] = useState("");
 
   // Chips for the part of the detail being typed (after the last comma),
   // leaving out the ones already in it. Some options have a comma of their
@@ -316,11 +319,12 @@ const EditableSection = ({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="min-w-0 space-y-3">
       <div>
         <h3 className="flex items-center gap-2 font-semibold text-primary text-sm"><Icon className="h-4 w-4" /> {title}</h3>
         <div className="flex flex-wrap items-center gap-1.5 mt-2">
           <VoiceDictationButton
+            onPreview={setDictating}
             onTranscript={(text) => {
               onAdd(text);
               toast.success(`${title}: "${text}"`);
@@ -350,19 +354,19 @@ const EditableSection = ({
         <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
           <div className="flex gap-2">
             {picked !== null ? (
-              <div className="flex flex-1 min-w-0 items-center rounded-lg border border-border bg-background focus-within:ring-2 focus-within:ring-primary/30">
-                <span className="ml-1.5 flex max-w-[50%] shrink-0 items-center gap-1 rounded-md bg-chip px-2 py-1 text-xs font-semibold text-primary">
+              <div className="flex flex-1 min-w-0 items-start rounded-lg border border-border bg-background focus-within:ring-2 focus-within:ring-primary/30">
+                <span className="ml-1.5 mt-1.5 flex max-w-[50%] shrink-0 items-center gap-1 rounded-md bg-chip px-2 py-1 text-xs font-semibold text-primary">
                   <span className="truncate">{picked}</span>
                   <button type="button" onClick={unpick} aria-label={t("changePicked")} className="hover:text-destructive">
                     <X className="h-3 w-3" />
                   </button>
                 </span>
-                <input
+                <AutoGrowTextarea
                   autoFocus
                   value={detail}
                   onChange={(e) => setDetail(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") submit();
+                    if (e.key === "Enter") { e.preventDefault(); submit(); }
                     if (e.key === "Backspace" && !detail) unpick();
                   }}
                   placeholder={detailPlaceholder}
@@ -376,18 +380,20 @@ const EditableSection = ({
                 onChange={(e) => setValue(e.target.value)}
                 placeholder={placeholder}
                 rows={3}
-                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             ) : suggestions ? (
               <SuggestInput value={value} onChange={setValue} onPick={detailsFor ? pickName : submit} suggestions={suggestions} placeholder={placeholder} />
             ) : (
-              <input
+              <AutoGrowTextarea
                 autoFocus
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && submit()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); submit(); }
+                }}
                 placeholder={placeholder}
-                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             )}
             <button
@@ -415,7 +421,7 @@ const EditableSection = ({
       )}
 
       <div className="rounded-xl bg-muted/40 border border-border/40 p-4 min-h-[110px] text-sm text-foreground/80 space-y-1.5">
-        {items.length === 0 ? (
+        {items.length === 0 && !dictating ? (
           <p className="text-muted-foreground text-xs italic">{t("noEntries", { action })}</p>
         ) : (
           items.map((it, i) => (
@@ -423,7 +429,7 @@ const EditableSection = ({
               <button
                 type="button"
                 onClick={() => startEdit(i)}
-                className="flex-1 text-left whitespace-pre-line hover:text-primary transition-colors"
+                className="min-w-0 flex-1 text-left whitespace-pre-line break-words hover:text-primary transition-colors"
               >
                 – {it}
               </button>
@@ -436,6 +442,9 @@ const EditableSection = ({
               </button>
             </div>
           ))
+        )}
+        {dictating && (
+          <p className="min-w-0 whitespace-pre-line break-words italic text-muted-foreground">– {dictating}</p>
         )}
       </div>
 
@@ -784,6 +793,7 @@ type SidebarQueueEntry = {
   const [advice, setAdvice] = useState<string[]>([]);
   const [adviceOpen, setAdviceOpen] = useState(false);
   const [newAdvice, setNewAdvice] = useState("");
+  const [adviceDictating, setAdviceDictating] = useState("");
   // null = adding a new advice line; an index = editing that entry in place --
   // same click-to-edit pattern as the Rx list and the four EditableSections.
   const [editingAdviceIndex, setEditingAdviceIndex] = useState<number | null>(null);
@@ -1687,9 +1697,10 @@ type SidebarQueueEntry = {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr_1fr] gap-8 mt-6">
+      {/* minmax(0, …): a long entry wraps instead of widening its column. */}
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)] gap-8 mt-6">
         {/* Left clinical inputs */}
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <EditableSection
             icon={ClipboardList}
             title={t("sections.complaints")}
@@ -1773,7 +1784,7 @@ type SidebarQueueEntry = {
         </div>
 
         {/* Center Rx */}
-        <div className="border-x border-border/40 px-6">
+        <div className="min-w-0 border-x border-border/40 px-6">
           <div className="flex items-center justify-between">
             <p className="font-display text-7xl text-primary italic">Rx</p>
             <div className="flex items-center gap-2">
@@ -1983,6 +1994,7 @@ type SidebarQueueEntry = {
               <p className="flex items-center gap-2 text-sm font-semibold text-primary"><Lightbulb className="h-4 w-4" /> {t("generalAdvice")}</p>
               <div className="flex items-center gap-1.5">
                 <VoiceDictationButton
+                  onPreview={setAdviceDictating}
                   onTranscript={(text) => {
                     setAdvice((prev) => [...prev, text]);
                     toast.success(`পরামর্শ: "${text}"`);
@@ -2011,16 +2023,19 @@ type SidebarQueueEntry = {
               </motion.div>
             )}
             <div className="rounded-xl bg-muted/40 border border-border/40 p-5 mt-3 space-y-2 text-sm text-foreground/80">
-              {advice.length === 0 ? (
+              {advice.length === 0 && !adviceDictating ? (
                 <p className="text-xs italic text-muted-foreground">{t("noAdvice")}</p>
               ) : advice.map((a, i) => (
                 <div key={i} className="group flex items-start justify-between gap-2">
-                  <button type="button" onClick={() => startEditAdvice(i)} className="flex-1 text-left hover:text-primary transition-colors">{a}</button>
+                  <button type="button" onClick={() => startEditAdvice(i)} className="min-w-0 flex-1 text-left break-words hover:text-primary transition-colors">{a}</button>
                   <button onClick={(e) => { e.stopPropagation(); setAdvice((arr) => arr.filter((_, idx) => idx !== i)); toast.message(t("removed")); }} className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive" aria-label={tc("remove")}>
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
               ))}
+              {adviceDictating && (
+                <p className="min-w-0 break-words italic text-muted-foreground">{adviceDictating}</p>
+              )}
             </div>
 
             {/* Follow-up: a preset from the day of the visit, or a date of their own. */}
@@ -2105,7 +2120,7 @@ type SidebarQueueEntry = {
         </div>
 
         {/* Right sidebar */}
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           <div className="rounded-2xl bg-muted/40 p-5">
             <div className="flex items-center justify-between">
               <p className="flex items-center gap-2 text-sm font-semibold text-primary"><History className="h-4 w-4" /> {t("patientHistory")}</p>

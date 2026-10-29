@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Mic } from "lucide-react";
 import { toast } from "sonner";
 
 interface VoiceDictationButtonProps {
   onTranscript: (text: string) => void;
+  /** The words heard so far, while dictating; "" once the session ends. */
+  onPreview?: (text: string) => void;
   defaultLang?: "bn-BD" | "en-US";
   size?: "default" | "sm" | "icon";
   className?: string;
@@ -15,8 +17,87 @@ interface VoiceDictationButtonProps {
 const STORAGE_KEY = "healthflow_voice_dictation_lang";
 const LANG_EVENT = "healthflow_voice_lang_changed";
 
+/**
+ * The Web Speech API is not in TypeScript's DOM lib and is still vendor
+ * prefixed in Chrome. Only the members this component touches are declared.
+ */
+type SpeechResultEvent = {
+  results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }>;
+};
+
+type SpeechRecognition = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+  onstart: (() => void) | null;
+  onresult: ((e: SpeechResultEvent) => void) | null;
+  onend: (() => void) | null;
+  onerror: ((e: { error: string }) => void) | null;
+};
+
+type SpeechWindow = Window & {
+  SpeechRecognition?: new () => SpeechRecognition;
+  webkitSpeechRecognition?: new () => SpeechRecognition;
+};
+
+const getRecognitionCtor = () => {
+  if (typeof window === "undefined") return undefined;
+  const w = window as SpeechWindow;
+  return w.SpeechRecognition || w.webkitSpeechRecognition;
+};
+
+/** How long without new words before what was said is added as an item; the mic keeps listening. */
+const SILENCE_MS = 1500;
+
+// Mobile Chrome and Safari break continuous mode: each pause re-sends the
+// whole utterance so far as a new final result. One phrase per engine run there.
+const isMobile = () =>
+  typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+const normalize = (s: string) =>
+  s.toLowerCase().replace(/[^\p{L}\p{M}\p{N}\s]/gu, "").replace(/\s+/g, " ").trim();
+
+/**
+ * Joins result segments into one sentence. A segment that repeats the one
+ * before it and carries on ("drink", "drink more", "drink more water")
+ * replaces it instead of being appended, which is how the mobile engines
+ * deliver a growing utterance.
+ */
+const mergeSegments = (segments: string[]) =>
+  segments
+    .reduce<string[]>((out, raw) => {
+      const seg = raw.trim();
+      if (!seg) return out;
+      const prev = out[out.length - 1];
+      if (prev !== undefined) {
+        if (normalize(seg).startsWith(normalize(prev))) {
+          out[out.length - 1] = seg;
+          return out;
+        }
+        if (normalize(prev).startsWith(normalize(seg))) return out;
+      }
+      out.push(seg);
+      return out;
+    }, [])
+    .join(" ");
+
+/** Ends a session without committing what it heard. */
+const discardSession = (rec: SpeechRecognition | null) => {
+  if (!rec) return;
+  rec.onresult = null;
+  rec.onerror = null;
+  rec.onend = null;
+  try {
+    rec.abort();
+  } catch {}
+};
+
 export function VoiceDictationButton({
   onTranscript,
+  onPreview,
   defaultLang = "bn-BD",
   className = "",
   label,
@@ -31,12 +112,17 @@ export function VoiceDictationButton({
   });
   const [isSupported, setIsSupported] = useState(true);
 
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  // Ends the running dictation and adds what it heard.
+  const finishRef = useRef<(() => void) | null>(null);
   const isListeningRef = useRef(false);
   isListeningRef.current = isListening;
 
   const onTranscriptRef = useRef(onTranscript);
   onTranscriptRef.current = onTranscript;
+
+  const onPreviewRef = useRef(onPreview);
+  onPreviewRef.current = onPreview;
 
   const langRef = useRef(lang);
   langRef.current = lang;
@@ -53,98 +139,158 @@ export function VoiceDictationButton({
     return () => window.removeEventListener(LANG_EVENT, handleSync);
   }, []);
 
-  // Initialize SpeechRecognition instance
-  const initRecognition = useCallback((targetLang: "bn-BD" | "en-US") => {
-    if (typeof window === "undefined") return null;
-
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      setIsSupported(false);
-      return null;
-    }
-
-    try {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = false;
-      recognition.lang = targetLang;
-
-      recognition.onstart = () => {
-        setIsListening(true);
-      };
-
-      recognition.onresult = (event: any) => {
-        const current = event.resultIndex;
-        const transcript = event.results[current]?.[0]?.transcript;
-        if (transcript && transcript.trim()) {
-          const text = transcript.trim();
-          onTranscriptRef.current(text);
-          toast.success(
-            langRef.current === "bn-BD" ? `শ্রুত: "${text}"` : `Heard: "${text}"`,
-            { duration: 1600 }
-          );
-        }
-      };
-
-      recognition.onerror = (event: any) => {
-        console.warn("Speech recognition event:", event.error);
-        if (event.error !== "no-speech") {
-          setIsListening(false);
-          toast.error(
-            langRef.current === "bn-BD"
-              ? `ভয়েস রিকগনিশন ত্রুটি: ${event.error}`
-              : `Voice recognition error: ${event.error}`
-          );
-        }
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
-      return recognition;
-    } catch (err) {
-      console.warn("Speech recognition initialization error:", err);
-      setIsSupported(false);
-      return null;
-    }
+  useEffect(() => {
+    if (!getRecognitionCtor()) setIsSupported(false);
+    return () => {
+      discardSession(recognitionRef.current);
+      recognitionRef.current = null;
+      finishRef.current = null;
+    };
   }, []);
 
-  useEffect(() => {
-    recognitionRef.current = initRecognition(lang);
-    return () => {
-      if (recognitionRef.current) {
+  /**
+   * A session listens until the button is tapped (or the mic fails). Each
+   * SILENCE_MS without new words closes the current item: what was said since
+   * the last one goes to onTranscript and the next words start a new one.
+   * Shorter gaps stay in the same item. When the engine stops on its own (on
+   * phones, after every phrase) it is started again. Interim words show
+   * through onPreview meanwhile.
+   */
+  const startListeningWithLang = (targetLang: "bn-BD" | "en-US") => {
+    const Recognition = getRecognitionCtor();
+    if (!Recognition) {
+      setIsSupported(false);
+      return;
+    }
+
+    discardSession(recognitionRef.current);
+    recognitionRef.current = null;
+    finishRef.current = null;
+    onPreviewRef.current?.("");
+
+    const rec = new Recognition();
+    rec.continuous = !isMobile();
+    rec.interimResults = true;
+    rec.lang = targetLang;
+
+    // The current item's phrases from engine runs that have already ended.
+    const pending: string[] = [];
+    // The current run. Every event carries all of its results, so this is
+    // rebuilt from them each time rather than appended to. Results before
+    // `consumed` already went into an earlier item.
+    let finalText = "";
+    let fullText = "";
+    let consumed = 0;
+    let seen = 0;
+    let stopping = false;
+    let silenceTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const finish = () => {
+      stopping = true;
+      clearTimeout(silenceTimer);
+      try {
+        rec.stop();
+      } catch {}
+    };
+
+    /** Adds what was said since the last item as one item, and starts the next. */
+    const closeItem = () => {
+      // Mid-run the last words may still be interim, so they count too.
+      const text = [...pending, fullText].join(" ").trim();
+      pending.length = 0;
+      consumed = seen;
+      finalText = "";
+      fullText = "";
+      onPreviewRef.current?.("");
+      if (text) onTranscriptRef.current(text);
+    };
+
+    const restartSilenceTimer = () => {
+      clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => {
+        if (recognitionRef.current === rec) closeItem();
+      }, SILENCE_MS);
+    };
+
+    rec.onresult = (event) => {
+      const finals: string[] = [];
+      const all: string[] = [];
+      for (let i = consumed; i < event.results.length; i++) {
+        const result = event.results[i];
+        const transcript = result[0]?.transcript ?? "";
+        all.push(transcript);
+        if (result.isFinal) finals.push(transcript);
+      }
+      seen = event.results.length;
+      finalText = mergeSegments(finals);
+      fullText = mergeSegments(all);
+      // A late update to words already added changes nothing here.
+      if (!fullText && pending.length === 0) return;
+      restartSilenceTimer();
+      onPreviewRef.current?.([...pending, fullText].join(" ").trim());
+    };
+
+    rec.onerror = (event) => {
+      // A run that heard nothing just ends and is started again.
+      if (event.error === "no-speech") return;
+      // Anything else would fail again on restart. "aborted" here means another
+      // dictation on the page took the mic (a discarded session has no handlers).
+      stopping = true;
+      if (event.error === "aborted") return;
+      console.warn("Speech recognition event:", event.error);
+      toast.error(
+        langRef.current === "bn-BD"
+              ? `ভয়েস রিকগনিশন ত্রুটি: ${event.error}`
+          : `Voice recognition error: ${event.error}`
+      );
+    };
+
+    rec.onend = () => {
+      // Stopping can end a run before its last words turn final.
+      const heard = (finalText || fullText).trim();
+      if (heard) pending.push(heard);
+      finalText = "";
+      fullText = "";
+      consumed = 0;
+      seen = 0;
+
+      if (!stopping && recognitionRef.current === rec) {
         try {
-          recognitionRef.current.abort();
-        } catch {}
+          rec.start();
+          return;
+        } catch (err) {
+          console.warn("Failed to restart voice recognition:", err);
+        }
+      }
+
+      // Stopped: whatever is left becomes the last item.
+      clearTimeout(silenceTimer);
+      const text = pending.join(" ").trim();
+      if (text) onTranscriptRef.current(text);
+      if (recognitionRef.current === rec) {
+        recognitionRef.current = null;
+        finishRef.current = null;
+        setIsListening(false);
+        onPreviewRef.current?.("");
       }
     };
-  }, [lang, initRecognition]);
 
-  const startListeningWithLang = (targetLang: "bn-BD" | "en-US") => {
-    try {
-      if (recognitionRef.current) {
-        recognitionRef.current.abort();
-      }
-    } catch {}
-
-    const rec = initRecognition(targetLang);
     recognitionRef.current = rec;
-
-    if (rec) {
-      try {
-        rec.start();
-        setIsListening(true);
-        toast.info(
-          targetLang === "bn-BD"
-            ? "কথা বলুন... বাংলায় ভয়েস টাইপিং চালু রয়েছে"
-            : "Listening... English voice dictation active"
-        );
-      } catch (err) {
-        console.error("Failed to start voice recognition:", err);
-      }
+    finishRef.current = finish;
+    try {
+      rec.start();
+      restartSilenceTimer();
+      setIsListening(true);
+      toast.info(
+        targetLang === "bn-BD"
+          ? "কথা বলুন... বাংলায় ভয়েস টাইপিং চালু রয়েছে"
+          : "Listening... English voice dictation active"
+      );
+    } catch (err) {
+      console.error("Failed to start voice recognition:", err);
+      clearTimeout(silenceTimer);
+      recognitionRef.current = null;
+      finishRef.current = null;
     }
   };
 
@@ -155,10 +301,8 @@ export function VoiceDictationButton({
     }
 
     if (isListening) {
-      try {
-        recognitionRef.current?.stop();
-      } catch {}
-      setIsListening(false);
+      // onend adds the dictation and resets the button.
+      finishRef.current?.();
     } else {
       startListeningWithLang(lang);
     }
@@ -183,7 +327,8 @@ export function VoiceDictationButton({
         : "Voice typing language: English"
     );
 
-    // If currently listening, seamlessly restart with the new language
+    // If currently listening, restart in the new language. What was heard in
+    // the old one is dropped: a switch mid-dictation means it was the wrong one.
     if (isListeningRef.current) {
       setTimeout(() => {
         startListeningWithLang(newLang);
@@ -219,7 +364,7 @@ export function VoiceDictationButton({
               <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
             </span>
             <Mic className="h-3.5 w-3.5" />
-            <span className="text-[11px] font-medium">
+            <span className="w-[4.5rem] truncate text-left text-[11px] font-medium">
               {lang === "bn-BD" ? "রেকর্ড হচ্ছে..." : "Listening..."}
             </span>
           </>

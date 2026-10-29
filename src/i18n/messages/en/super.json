@@ -360,7 +360,9 @@
         "supportEmail": "Support email",
         "supportHint": "Shown in the website footer and on the maintenance notice. Leave it empty rather than wrong.",
         "supportPhone": "Support phone",
-        "supportPhoneHint": "Shown in the website footer. Leave it empty to hide it."
+        "supportPhoneHint": "Shown in the website footer. Leave it empty to hide it.",
+        "supportPhone2": "Second support phone",
+        "supportPhone2Hint": "Shown in the footer after the first. Leave it empty to hide it."
       },
       "currencies": {
         "BDT": "Bangladeshi taka (BDT)",
