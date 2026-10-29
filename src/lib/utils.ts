@@ -5,10 +5,11 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(amount: number, currency = "$"): string {
+export function formatCurrency(amount: number, currency = "Tk"): string {
   const isNegative = amount < 0;
   const absAmount = Math.abs(amount).toFixed(2);
-  return `${isNegative ? "-" : ""}${currency}${absAmount}`;
+  const prefix = currency === "$" ? "$" : currency.endsWith(" ") ? currency : `${currency} `;
+  return `${isNegative ? "-" : ""}${prefix}${absAmount}`;
 }
 
 export function formatDateTime(date: Date = new Date()): string {

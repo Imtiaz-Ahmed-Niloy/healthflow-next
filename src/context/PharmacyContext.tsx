@@ -217,7 +217,7 @@ export function PharmacyProvider({ children }: { children: React.ReactNode }) {
   const [branches, setBranches] = useState<PharmacyBranch[]>(initialBranches);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(initialAuditLogs);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
-  const [currencySymbol, setCurrencySymbol] = useState<string>("$");
+  const [currencySymbol, setCurrencySymbol] = useState<string>("Tk");
   const [activeTab, setActiveTab] = useState<"current" | "history">("current");
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
 
@@ -235,7 +235,7 @@ export function PharmacyProvider({ children }: { children: React.ReactNode }) {
         if (Array.isArray(parsed.transactions)) setTransactions(parsed.transactions);
         if (Array.isArray(parsed.shiftsHistory)) setShiftsHistory(parsed.shiftsHistory);
         if (parsed.soundEnabled !== undefined) setSoundEnabled(parsed.soundEnabled);
-        if (parsed.currencySymbol) setCurrencySymbol(parsed.currencySymbol);
+        if (parsed.currencySymbol) setCurrencySymbol((parsed.currencySymbol === "$" || parsed.currencySymbol === "৳") ? "Tk" : parsed.currencySymbol);
       }
 
       const savedSales = localStorage.getItem(SALES_STORAGE_KEY);

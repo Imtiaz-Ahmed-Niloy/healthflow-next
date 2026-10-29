@@ -460,23 +460,23 @@ export function PosProductSearch({
         <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-2xl shadow-xl border border-slate-200/90 z-50 overflow-hidden backdrop-blur-md animate-in fade-in-50 zoom-in-95 duration-100">
           {/* Active Generic Substitute Banner */}
           {activeGenericFilter && (
-            <div className="px-4 py-2 bg-purple-50 border-b border-purple-100 flex items-center justify-between text-xs text-purple-900">
+            <div className="px-4 py-2 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs text-slate-900">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-purple-600" />
+                <Sparkles className="w-4 h-4 text-slate-700" />
                 <span className="font-semibold">
                   Showing Generic Substitutes for:
                 </span>
-                <span className="font-bold underline decoration-purple-400">
+                <span className="font-bold underline decoration-slate-400">
                   {activeGenericFilter}
                 </span>
-                <span className="text-[10px] bg-purple-200/80 text-purple-800 px-1.5 py-0.5 rounded-full font-bold">
+                <span className="text-[10px] bg-slate-200 text-slate-800 px-1.5 py-0.5 rounded-full font-bold">
                   {suggestions.length} available
                 </span>
               </div>
               <button
                 type="button"
                 onClick={handleClearGenericFilter}
-                className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 hover:text-purple-900 hover:underline cursor-pointer"
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 hover:text-slate-900 hover:underline cursor-pointer"
               >
                 <span>Clear Filter</span>
                 <X className="w-3.5 h-3.5" />
@@ -600,15 +600,11 @@ export function PosProductSearch({
                     {/* Left: Product Info with Recency & Rx Badges */}
                     <div className="flex-1 min-w-0 pr-3">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        {/* Rx vs OTC pill */}
-                        {product.requiresPrescription ? (
+                        {/* Rx Only pill */}
+                        {product.requiresPrescription && (
                           <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-red-50 text-red-700 border border-red-200 flex items-center gap-0.5">
                             <Pill className="w-2.5 h-2.5 text-red-600" />
                             Rx Only
-                          </span>
-                        ) : (
-                          <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            OTC
                           </span>
                         )}
 
@@ -643,7 +639,7 @@ export function PosProductSearch({
                               e.stopPropagation();
                               handleFilterSubstitutes(product.genericName);
                             }}
-                            className="truncate italic hover:text-purple-700 hover:underline cursor-pointer flex items-center gap-1"
+                            className="truncate italic hover:text-slate-900 hover:underline cursor-pointer flex items-center gap-1"
                             title="Click to view all brands sharing this generic molecule"
                           >
                             <span>
@@ -684,9 +680,9 @@ export function PosProductSearch({
                               e.stopPropagation();
                               handleFilterSubstitutes(product.genericName);
                             }}
-                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200/70 px-2 py-0.5 rounded-md transition-colors cursor-pointer"
+                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-300 px-2 py-0.5 rounded-full transition-colors cursor-pointer"
                           >
-                            <Repeat className="w-2.5 h-2.5" />
+                            <Repeat className="w-2.5 h-2.5 text-slate-700" />
                             <span>
                               {substituteCount - 1} Generic Substitute{substituteCount > 2 ? "s" : ""} Available
                             </span>
@@ -705,10 +701,10 @@ export function PosProductSearch({
                               handleAddProduct(product, parsedSearch.multiplier, "Box");
                             }}
                             className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200 hover:border-slate-300 transition-colors cursor-pointer"
-                            title="Dispense Full Box"
+                            title={`Dispense Full Box @ ${formatCurrency(product.price, currencySymbol)}`}
                           >
                             <Package className="w-3 h-3 text-slate-700 shrink-0" />
-                            <span>Box ({formatCurrency(product.price, currencySymbol)})</span>
+                            <span>Box</span>
                           </button>
 
                           {product.stripPrice && (
@@ -719,10 +715,10 @@ export function PosProductSearch({
                                 handleAddProduct(product, parsedSearch.multiplier, "Strip");
                               }}
                               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200 hover:border-slate-300 transition-colors cursor-pointer"
-                              title="Dispense 1 Strip"
+                              title={`Dispense 1 Strip @ ${formatCurrency(product.stripPrice, currencySymbol)}`}
                             >
                               <Layers className="w-3 h-3 text-slate-700 shrink-0" />
-                              <span>Strip ({formatCurrency(product.stripPrice, currencySymbol)})</span>
+                              <span>Strip</span>
                             </button>
                           )}
 
@@ -734,10 +730,10 @@ export function PosProductSearch({
                                 handleAddProduct(product, parsedSearch.multiplier, "Unit");
                               }}
                               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200 hover:border-slate-300 transition-colors cursor-pointer"
-                              title="Dispense Single Tablet"
+                              title={`Dispense Single Tablet @ ${formatCurrency(product.unitPrice, currencySymbol)}`}
                             >
                               <CircleDot className="w-3 h-3 text-slate-700 shrink-0" />
-                              <span>Tab ({formatCurrency(product.unitPrice, currencySymbol)})</span>
+                              <span>Tab</span>
                             </button>
                           )}
                         </div>

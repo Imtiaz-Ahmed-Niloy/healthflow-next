@@ -127,7 +127,7 @@ export default function SystemSettingsPage() {
       if (localization.currency === "USD") setCurrencySymbol("$");
       else if (localization.currency === "EUR") setCurrencySymbol("€");
       else if (localization.currency === "GBP") setCurrencySymbol("£");
-      else if (localization.currency === "BDT") setCurrencySymbol("৳");
+      else if (localization.currency === "BDT") setCurrencySymbol("Tk");
       else if (localization.currency === "INR") setCurrencySymbol("₹");
       else if (localization.currency === "AED") setCurrencySymbol("AED");
       else if (localization.currency === "SAR") setCurrencySymbol("SAR");
@@ -555,7 +555,7 @@ export default function SystemSettingsPage() {
                       className="w-full px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 transition-colors shadow-2xs"
                     >
                       <option value="USD">USD ($) - US Dollar</option>
-                      <option value="BDT">BDT (৳) - Bangladeshi Taka</option>
+                      <option value="BDT">BDT (Tk) - Bangladeshi Taka</option>
                       <option value="EUR">EUR (€) - Euro</option>
                       <option value="GBP">GBP (£) - British Pound</option>
                       <option value="INR">INR (₹) - Indian Rupee</option>

@@ -144,7 +144,7 @@ export default function DashboardPage() {
               3 unread
             </Link>
             <Link
-              href="/pharmacy/sales"
+              href="/pharmacy/pos"
               className="inline-flex items-center gap-2 px-6 py-3 bg-white !text-emerald-800 rounded-xl font-medium shadow-lg shadow-emerald-950/20 no-underline hover:bg-emerald-50 hover:!text-emerald-900 active:bg-emerald-100 active:!text-emerald-900 transition-all interactive-btn active:scale-95"
             >
               <ShoppingCart className="w-4 h-4 shrink-0 !text-emerald-700" />
@@ -981,7 +981,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
             {/* 1. POS */}
             <Link
-              href="/pharmacy/sales"
+              href="/pharmacy/pos"
               className="flex flex-col items-center justify-center p-3 rounded-xl bg-emerald-50/50 border border-emerald-100/60 hover:border-emerald-300:border-gray-600 hover:bg-emerald-50:bg-gray-700/50 transition-colors"
             >
               <ShoppingCart className="text-xl mb-1.5 text-emerald-600 w-5 h-5" />
