@@ -38,6 +38,7 @@ import {
   Building2,
 } from "lucide-react";
 import { usePharmacy } from "@/context/PharmacyContext";
+import { BRAND_INFO } from "@/constants/brand";
 
 interface SidebarProps {
   onOpenSearch: () => void;
@@ -102,21 +103,17 @@ export function Sidebar({ onOpenSearch, onOpenPos }: SidebarProps) {
     >
       {/* Top Brand Header */}
       <div className="flex items-center justify-between px-4 py-4 border-b border-[#e2e8e4]">
-        <div className="flex items-center gap-3 overflow-hidden">
-          <div className="relative flex-shrink-0 w-9 h-9 rounded-xl bg-[#0f766e] text-white flex items-center justify-center shadow-sm">
-            {/* Medical Bag with Cross */}
-            <svg
-              className="w-5 h-5 text-white"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path d="M9 3a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3V5a2 2 0 0 0-2-2H9zm0 2h6v2H9V5zm2 5h2v3h3v2h-3v3h-2v-3H8v-2h3v-3z" />
-            </svg>
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-300 rounded-full border border-[#0f766e]" />
+        <div className="flex items-center gap-2.5 overflow-hidden">
+          <div className="relative flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center">
+            <img
+              src={BRAND_INFO.logoMark}
+              alt={`${BRAND_INFO.name} logo`}
+              className="w-8 h-8 object-contain shrink-0"
+            />
           </div>
           {!collapsed && (
             <div className="truncate font-bold text-slate-900 text-[15px] tracking-tight">
-              {user?.storeName || "Demo Pharmacy"}
+              HealthFlow Pharma
             </div>
           )}
         </div>

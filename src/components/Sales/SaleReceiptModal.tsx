@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   X,
   Printer,
@@ -44,13 +44,85 @@ export const SaleReceiptModal: React.FC<SaleReceiptModalProps> = ({
   const activeBranch = branches?.[0];
   const settings = settingsData?.data;
 
-  const pharmacyName = settings?.pharmacy_name || activeBranch?.name || "HealthFlow Hospital Pharmacy";
-  const pharmacyAddress = settings?.address || activeBranch?.address || "Medical College Road, Dhaka, Bangladesh";
-  const pharmacyPhone = settings?.phone || activeBranch?.phone || "+880 1700-000000";
-  const pharmacyLicense = settings?.license_no || activeBranch?.drugLicenseNo || "Govt. Pharmacy Reg: PH-2026-991";
-  const pharmacyTaxId = settings?.tax_id || activeBranch?.vatRegistrationNo || "TRN-88492019-VAT";
-  const receiptFooter = settings?.receipt_footer || "Thank you for choosing HealthFlow Pharmacy!";
-  const returnPolicy = settings?.return_policy || "Returns accepted within 7 days with valid receipt & unsealed packaging.";
+  // Real-time integration with Settings page (/pharmacy/settings)
+  const [localSettings, setLocalSettings] = useState<{
+    business?: {
+      pharmacyName?: string;
+      email?: string;
+      address?: string;
+      phone?: string;
+      registrationNumber?: string;
+      taxId?: string;
+    };
+    invoice?: {
+      invoicePrefix?: string;
+      invoiceFooter?: string;
+      paymentTerms?: string;
+    };
+  } | null>(null);
+
+  useEffect(() => {
+    const loadSettings = () => {
+      try {
+        const saved = localStorage.getItem("pharmacynext_system_settings_v1");
+        if (saved) {
+          setLocalSettings(JSON.parse(saved));
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    loadSettings();
+    window.addEventListener("pharmacy_settings_updated", loadSettings);
+    window.addEventListener("storage", loadSettings);
+    return () => {
+      window.removeEventListener("pharmacy_settings_updated", loadSettings);
+      window.removeEventListener("storage", loadSettings);
+    };
+  }, [isOpen]);
+
+  const business = localSettings?.business;
+  const invoiceSettings = localSettings?.invoice;
+
+  const pharmacyName =
+    business?.pharmacyName ||
+    settings?.pharmacy_name ||
+    activeBranch?.name ||
+    "HealthFlow Pharma";
+
+  const pharmacyAddress =
+    business?.address ||
+    settings?.address ||
+    activeBranch?.address ||
+    "House 14, Road 5, Dhanmondi, Dhaka-1205";
+
+  const pharmacyPhone =
+    business?.phone ||
+    settings?.phone ||
+    activeBranch?.phone ||
+    "+880 1711-234567";
+
+  const pharmacyLicense =
+    business?.registrationNumber ||
+    settings?.license_no ||
+    activeBranch?.drugLicenseNo ||
+    "DGDA-PH-98421";
+
+  const pharmacyTaxId =
+    business?.taxId ||
+    settings?.tax_id ||
+    activeBranch?.vatRegistrationNo ||
+    "BIN-847291048";
+
+  const receiptFooter =
+    invoiceSettings?.invoiceFooter ||
+    settings?.receipt_footer ||
+    "Thank you for trusting us with your health. Please keep this receipt for returns.";
+
+  const returnPolicy =
+    invoiceSettings?.paymentTerms ||
+    settings?.return_policy ||
+    "Returns accepted within 7 days with valid receipt & unsealed packaging.";
 
   const [viewMode, setViewMode] = useState<"thermal" | "invoice">(initialMode);
   const [thermalWidth, setThermalWidth] = useState<"80mm" | "58mm">("80mm");
@@ -85,9 +157,9 @@ export const SaleReceiptModal: React.FC<SaleReceiptModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50 print:hidden">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+        <div className="flex items-start justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50 print:hidden">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold mt-0.5 shrink-0">
               <Receipt className="w-5 h-5" />
             </div>
             <div>
@@ -106,79 +178,84 @@ export const SaleReceiptModal: React.FC<SaleReceiptModalProps> = ({
                     <Copy className="w-3.5 h-3.5" />
                   )}
                 </button>
-                <span
-                  className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${
-                    sale.status === "COMPLETED"
-                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                      : sale.status === "PARTIAL_RETURN"
-                      ? "bg-amber-50 text-amber-700 border-amber-200"
-                      : "bg-rose-50 text-rose-700 border-rose-200"
-                  }`}
-                >
-                  {sale.status === "PARTIAL_RETURN" ? "Partial Return" : sale.status}
-                </span>
+                {sale.status && sale.status !== "COMPLETED" && (
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${
+                      sale.status === "PARTIAL_RETURN"
+                        ? "bg-amber-50 text-amber-700 border-amber-200"
+                        : "bg-rose-50 text-rose-700 border-rose-200"
+                    }`}
+                  >
+                    {sale.status === "PARTIAL_RETURN" ? "Partial Return" : sale.status}
+                  </span>
+                )}
               </div>
-              <p className="text-xs text-slate-500">{sale.date}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{sale.date}</p>
+
+              {/* View Mode Toggle moved under invoice number */}
+              <div className="flex items-center gap-2 mt-2.5">
+                <div className="inline-flex items-center bg-slate-100 p-0.5 rounded-lg text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("invoice")}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                      viewMode === "invoice"
+                        ? "bg-white text-slate-900 shadow-2xs"
+                        : "text-slate-500 hover:text-slate-900"
+                    }`}
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Sales Invoice</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("thermal")}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                      viewMode === "thermal"
+                        ? "bg-white text-slate-900 shadow-2xs"
+                        : "text-slate-500 hover:text-slate-900"
+                    }`}
+                  >
+                    <Receipt className="w-3.5 h-3.5" />
+                    <span>Thermal Slip</span>
+                  </button>
+                </div>
+
+                {viewMode === "thermal" && (
+                  <div className="inline-flex items-center bg-slate-100 p-0.5 rounded-lg text-[11px] font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setThermalWidth("80mm")}
+                      className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
+                        thermalWidth === "80mm"
+                          ? "bg-emerald-700 text-white font-bold shadow-2xs"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      80mm
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setThermalWidth("58mm")}
+                      className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
+                        thermalWidth === "58mm"
+                          ? "bg-emerald-700 text-white font-bold shadow-2xs"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      58mm
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* View Mode Toggle, Quick Print & Close Button */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-xs font-semibold">
-              <button
-                onClick={() => setViewMode("invoice")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                  viewMode === "invoice"
-                    ? "bg-white text-slate-900 shadow-2xs"
-                    : "text-slate-500 hover:text-slate-900"
-                }`}
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>Sales Invoice</span>
-              </button>
-              <button
-                onClick={() => setViewMode("thermal")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                  viewMode === "thermal"
-                    ? "bg-white text-slate-900 shadow-2xs"
-                    : "text-slate-500 hover:text-slate-900"
-                }`}
-              >
-                <Receipt className="w-3.5 h-3.5" />
-                <span>Thermal Slip</span>
-              </button>
-            </div>
-
-            {viewMode === "thermal" && (
-              <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-[11px] font-semibold">
-                <button
-                  type="button"
-                  onClick={() => setThermalWidth("80mm")}
-                  className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
-                    thermalWidth === "80mm"
-                      ? "bg-emerald-700 text-white font-bold shadow-2xs"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  80mm
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setThermalWidth("58mm")}
-                  className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
-                    thermalWidth === "58mm"
-                      ? "bg-emerald-700 text-white font-bold shadow-2xs"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  58mm
-                </button>
-              </div>
-            )}
-
+          {/* Quick Print & Close Button */}
+          <div className="flex items-center gap-2 self-start mt-0.5">
             <button
               onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition-colors shadow-2xs cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition-colors shadow-2xs cursor-pointer"
               title="Print Now"
             >
               <Printer className="w-3.5 h-3.5" />

@@ -968,7 +968,7 @@ export function PosView() {
     <div className="flex flex-col lg:flex-row gap-6 items-start">
       {/* Product Catalog */}
       <div className="flex-1 space-y-4 min-w-0">
-        <div className="flex items-center justify-between">
+        <div className="space-y-3">
           <div>
             <h2 className="text-xl font-bold text-slate-900 tracking-tight">
               Point of Sale
@@ -977,7 +977,8 @@ export function PosView() {
               Select medications, dispense by Box / Strip / Tablet, and ring up sales
             </p>
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setIsFetchPrescriptionOpen(true)}

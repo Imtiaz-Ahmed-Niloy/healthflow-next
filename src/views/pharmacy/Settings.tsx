@@ -51,7 +51,7 @@ interface TaxForm {
 }
 
 const DEFAULT_BUSINESS: BusinessForm = {
-  pharmacyName: "abc Pharmacy",
+  pharmacyName: "HealthFlow Pharma",
   email: "admin@pharmacy.com",
   address: "House 14, Road 5, Dhanmondi, Dhaka-1205",
   phone: "+880 1711-234567",
@@ -132,6 +132,7 @@ export default function SystemSettingsPage() {
       else if (localization.currency === "AED") setCurrencySymbol("AED");
       else if (localization.currency === "SAR") setCurrencySymbol("SAR");
 
+      window.dispatchEvent(new Event("pharmacy_settings_updated"));
       showToast("System settings saved successfully!");
     } catch (e) {
       console.error("Error saving settings", e);
@@ -210,7 +211,7 @@ export default function SystemSettingsPage() {
               Pharmacy Store
             </div>
             <div className="text-sm font-bold text-slate-900 truncate">
-              {business.pharmacyName || "abc Pharmacy"}
+              {business.pharmacyName || "Pharmacy"}
             </div>
             <div className="text-[11px] text-slate-400 truncate">
               {business.phone || "Active Store"}

@@ -255,11 +255,8 @@ export default function SalesHistoryPage() {
             <span>/</span>
             <span className="text-emerald-700 font-semibold">Sales</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <span>Sales History & Ledger</span>
-            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-              Live Register
-            </span>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Sales History & Ledger
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Audit orders, print thermal receipts, export reports, and process returns

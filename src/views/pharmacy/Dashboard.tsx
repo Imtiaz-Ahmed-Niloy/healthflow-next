@@ -127,8 +127,7 @@ export default function DashboardPage() {
         
         <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-sm font-medium text-emerald-200 uppercase tracking-wide">Dashboard</p>
-            <h1 className="text-2xl md:text-3xl font-bold text-white mt-0.5 drop-shadow-sm">abc Pharmacy</h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-white drop-shadow-sm">Dashboard</h1>
             <p className="text-emerald-100/95 mt-1">
               Welcome back, <span className="font-medium text-white">{user?.name || "Pharmacy Admin"}</span>
               <span className="mx-2 text-emerald-300/90">·</span>
@@ -1253,4 +1252,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

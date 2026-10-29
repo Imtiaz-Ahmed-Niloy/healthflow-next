@@ -193,7 +193,7 @@ export function PharmacyProvider({ children }: { children: React.ReactNode }) {
     name: "Pharmacy Admin",
     email: "admin@pharmacy.com",
     role: "admin",
-    storeName: "Demo Pharmacy",
+    storeName: "HealthFlow Pharma",
   });
 
   const [drawerStatus, setDrawerStatus] = useState<"OPEN" | "CLOSED">("OPEN");
@@ -1479,7 +1479,7 @@ export function PharmacyProvider({ children }: { children: React.ReactNode }) {
       name: isSuper ? "Platform Admin" : "Pharmacy Admin",
       email: email.trim(),
       role: isSuper ? "superadmin" : "admin",
-      storeName: "Demo Pharmacy",
+      storeName: "HealthFlow Pharma",
     });
     if (soundEnabled) playSound("click");
   };

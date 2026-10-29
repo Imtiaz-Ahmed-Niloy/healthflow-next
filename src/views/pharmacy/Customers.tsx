@@ -93,11 +93,8 @@ export default function CustomersPage() {
             <span>/</span>
             <span className="text-emerald-700 font-semibold">Customers</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <span>Customer Loyalty & Rewards</span>
-            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-              Rewards Ledger
-            </span>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Customer Loyalty & Rewards
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Search customer records by phone, manage loyalty tiers, and award points on pharmacy purchases
