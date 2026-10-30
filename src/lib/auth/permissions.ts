@@ -61,6 +61,9 @@ const matrix: Record<AppRole, Record<string, Action[]>> = {
     medical_records: ["view"],
     "*": ["view"],
   },
+
+  // A doctor's own team (0147): their doctor's day list and nothing else.
+  doctor_staff: { appointments: ["view"] },
 };
 
 export const can = (
@@ -103,6 +106,8 @@ export const homePathForRole = (role: AppRole | null | undefined): string => {
       return "/portal/queue";
     case "patient":
       return "/patient/dashboard";
+    case "doctor_staff":
+      return "/staff";
     default:
       return "/";
   }

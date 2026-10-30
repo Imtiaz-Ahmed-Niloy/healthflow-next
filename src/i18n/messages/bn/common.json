@@ -49,6 +49,7 @@
     "pharmacy_admin": "ফার্মেসি অ্যাডমিন",
     "doctor": "ডাক্তার",
     "patient": "রোগী",
+    "doctor_staff": "ডাক্তারের টিম",
     "signedOut": "সাইন আউট অবস্থায়"
   },
   "locationPickers": {

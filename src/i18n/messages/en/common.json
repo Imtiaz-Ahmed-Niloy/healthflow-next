@@ -49,6 +49,7 @@
     "pharmacy_admin": "Pharmacy Admin",
     "doctor": "Doctor",
     "patient": "Patient",
+    "doctor_staff": "Doctor's Team",
     "signedOut": "Signed out"
   },
   "locationPickers": {

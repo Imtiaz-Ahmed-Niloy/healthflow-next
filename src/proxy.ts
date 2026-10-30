@@ -34,6 +34,8 @@ const ROUTE_ROLES: { prefix: string; roles: AppRole[] }[] = [
   { prefix: "/lab", roles: ["super_admin", "hospital_admin", "lab_admin"] },
   { prefix: "/portal", roles: ["super_admin", "doctor"] },
   { prefix: "/patient", roles: ["super_admin", "patient"] },
+  // A member of a doctor's own team (0147).
+  { prefix: "/staff", roles: ["doctor_staff"] },
 ];
 
 /** Signed-in users have no business back on the sign-in screen. */

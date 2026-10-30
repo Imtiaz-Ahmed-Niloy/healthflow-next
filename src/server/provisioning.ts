@@ -32,8 +32,9 @@ type ProvisionInput = {
   email: string;
   role: AppRole;
   /**
-   * Required for every role except super_admin, patient and doctor — see 0006.
-   * A doctor may have none: on HealthFlow at no hospital yet (0081, 0083).
+   * Required for every role except super_admin, patient, doctor and
+   * doctor_staff — see 0006. A doctor may have none: on HealthFlow at no
+   * hospital yet (0081, 0083). A doctor's team member never has one (0147).
    */
   tenantId: string | null;
   fullName?: string | null;
@@ -50,7 +51,7 @@ export const provisionUser = async ({
   phone = null,
   password: chosenPassword,
 }: ProvisionInput): Promise<ProvisionResult> => {
-  if (role !== "super_admin" && role !== "patient" && role !== "doctor" && !tenantId) {
+  if (role !== "super_admin" && role !== "patient" && role !== "doctor" && role !== "doctor_staff" && !tenantId) {
     return {
       ok: false,
       code: "failed",

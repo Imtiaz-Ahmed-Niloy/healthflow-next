@@ -1500,6 +1500,102 @@ export type Database = {
           },
         ]
       }
+      doctor_team_member_secrets: {
+        Row: {
+          created_at: string
+          member_id: string
+          password_enc: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          member_id: string
+          password_enc: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          member_id?: string
+          password_enc?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_team_member_secrets_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
+            referencedRelation: "doctor_team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      doctor_team_members: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          owner_profile_id: string
+          phone: string | null
+          place_tenant_id: string | null
+          profile_id: string | null
+          role: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          owner_profile_id?: string
+          phone?: string | null
+          place_tenant_id?: string | null
+          profile_id?: string | null
+          role?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          owner_profile_id?: string
+          phone?: string | null
+          place_tenant_id?: string | null
+          profile_id?: string | null
+          role?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_team_members_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_team_members_place_tenant_id_fkey"
+            columns: ["place_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_team_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctor_medicine_usage: {
         Row: {
           created_at: string
@@ -5101,6 +5197,31 @@ export type Database = {
         Returns: undefined
       }
       auth_doctor_id: { Args: never; Returns: string }
+      doctor_staff_context: {
+        Args: never
+        Returns: {
+          doctor_name: string
+          member_id: string
+          member_name: string
+          member_role: string
+          place_name: string | null
+          status: string
+        }[]
+      }
+      doctor_staff_queue: {
+        Args: { p_date: string }
+        Returns: {
+          appointment_id: string
+          patient_name: string | null
+          patient_phone: string | null
+          place_name: string
+          priority: string | null
+          scheduled_date: string
+          scheduled_time: string | null
+          status: string
+          walk_in: boolean
+        }[]
+      }
       doctor_blocked: {
         Args: { p_date: string; p_doctor_id: string; p_time?: string }
         Returns: {
@@ -5407,6 +5528,7 @@ export type Database = {
         | "pharmacy_admin"
         | "doctor"
         | "patient"
+        | "doctor_staff"
       appointment_priority: "high" | "standard" | "routine"
       appointment_status: "scheduled" | "completed" | "cancelled"
       attendance_status: "present" | "late" | "absent" | "leave" | "half_day"
@@ -5644,6 +5766,7 @@ export const Constants = {
         "pharmacy_admin",
         "doctor",
         "patient",
+        "doctor_staff",
       ],
       appointment_priority: ["high", "standard", "routine"],
       appointment_status: ["scheduled", "completed", "cancelled"],

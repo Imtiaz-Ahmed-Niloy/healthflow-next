@@ -540,13 +540,66 @@
     },
     "team": {
       "title": "Team Members",
-      "subtitle": "Everyone who works with you, at every hospital and chamber — the assistants your hospitals assign you, all in one place.",
+      "subtitle": "Build your own team and give each member a login. Assistants your hospitals assign you show here too.",
       "loadFailed": "Couldn't load your team.",
       "everyone": "Everyone",
       "roles": {
         "assistant": { "one": "Assistant", "many": "Assistants" },
         "nurse": { "one": "Nurse", "many": "Nurses" },
-        "intern": { "one": "Intern", "many": "Interns" }
+        "intern": { "one": "Intern", "many": "Interns" },
+        "receptionist": { "one": "Receptionist", "many": "Receptionists" }
+      },
+      "access": {
+        "withPhones": "Their login shows your day list, with patients' phone numbers.",
+        "withoutPhones": "Their login shows your day list, without phone numbers."
+      },
+      "add": "Add member",
+      "edit": "Edit",
+      "remove": "Remove",
+      "editTitle": "Edit {name}",
+      "fields": {
+        "role": "Role",
+        "name": "Full name",
+        "phone": "Phone",
+        "email": "Email",
+        "emailHint": "They sign in with this email.",
+        "emailLocked": "They sign in with this email, so it can't change while they have a login.",
+        "place": "Works with you at",
+        "allMyPlaces": "All my hospitals & chambers",
+        "status": "Status",
+        "notes": "Notes"
+      },
+      "needsName": "Enter their name",
+      "saveFailed": "Couldn't save the member",
+      "added": "{name} added to your team",
+      "saved": "Saved",
+      "removeTitle": "Remove {name} from your team?",
+      "removeBody": "They leave your team, and their login stops working.",
+      "removed": "{name} removed",
+      "removeFailed": "Couldn't remove them",
+      "fromHospital": "Assigned by {place}",
+      "login": {
+        "create": "Create login",
+        "view": "View login",
+        "createTitle": "Create a login for {name}?",
+        "createBody": "They will sign in with {email} and a password made for them now. You can view it here any time.",
+        "needsEmail": "Add an email for {name} first. It is what they sign in with.",
+        "createFailed": "Couldn't create the login",
+        "loadFailed": "Couldn't load the login",
+        "resetTitle": "Reset {name}'s password?",
+        "resetBody": "No password was saved for this login. A new one replaces the old, and the old one stops working.",
+        "resetFailed": "Couldn't reset the password",
+        "reset": "Reset password",
+        "resetDone": "Password reset",
+        "created": "Login created",
+        "modalTitle": "Login details",
+        "intro": "Give these to <b>{name}</b>. They sign in at the usual sign-in page.",
+        "email": "Email",
+        "password": "Password",
+        "copy": "Copy {label}",
+        "copied": "{label} copied",
+        "done": "Done",
+        "hasLogin": "Has a login"
       },
       "statuses": {
         "active": "Active",
@@ -555,13 +608,40 @@
       },
       "placeLabel": "Hospital or chamber",
       "allPlaces": "All hospitals & chambers",
-      "emptyTitle": "No one on your team yet",
-      "emptyBody": "When a hospital assigns an assistant to you, they show up here.",
+      "addCardTitle": "Add a team member",
+      "addCardBody": "An assistant, nurse, intern or receptionist, with a login of their own.",
       "noneHere": "No one here",
       "noneHereBody": "Nobody on your team works with you at this place.",
       "shift": "{shift} shift",
       "noPhone": "No phone",
       "emailMember": "Email {name}"
+    },
+    "staff": {
+      "title": "{doctor}'s day",
+      "subtitle": "You're on {doctor}'s team as {role}.",
+      "atPlace": "At {place}.",
+      "loadFailed": "Couldn't load the day list.",
+      "paused": "Your access is paused. Ask {doctor} to set you active again.",
+      "notOnTeam": "You're not on a doctor's team any more.",
+      "date": "Day",
+      "today": "Today",
+      "emptyTitle": "No patients on this day",
+      "emptyBody": "Appointments booked with {doctor} for the day show up here.",
+      "count": "{count, plural, one {# patient} other {# patients}}",
+      "walkIn": "Walk-in",
+      "noTime": "No time",
+      "unnamed": "Patient",
+      "statuses": {
+        "scheduled": "Waiting",
+        "completed": "Seen",
+        "cancelled": "Cancelled"
+      },
+      "priorities": {
+        "high": "Urgent",
+        "standard": "Standard",
+        "routine": "Routine"
+      },
+      "signOut": "Sign out"
     }
   }
 }
