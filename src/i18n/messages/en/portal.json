@@ -26,7 +26,11 @@
       "closeToBookings": "Close to bookings",
       "reopen": "Reopen",
       "confirmCloseTitle": "Close this chamber to bookings?",
-      "confirmCloseBody": "Patients won't be able to book you at {name}. Appointments already booked stay in your queue. You can reopen it any time."
+      "confirmCloseBody": "Patients won't be able to book you at {name}. Appointments already booked stay in your queue. You can reopen it any time.",
+      "hospital": "Hospital",
+      "hospitalManaged": "The hospital sets your fee and hours here. Ask its admin to change them.",
+      "addPersonalTitle": "Add a personal chamber",
+      "addPersonalBody": "Set your address, fee and hours, and patients can book you there too."
     },
     "doctorProfile": {
       "title": "My Profile",
@@ -338,6 +342,9 @@
       "startConsult": "Start Consult",
       "saveDraft": "Save as Draft",
       "savedDraft": "Saved as draft",
+      "createOpdInvoice": "Create OPD invoice",
+      "openOpdInvoice": "View invoice",
+      "opdInvoiceLoading": "Checking invoice…",
       "submitting": "Submitting...",
       "printSubmit": "Print & Submit",
       "updateVitals": "Update Vitals",

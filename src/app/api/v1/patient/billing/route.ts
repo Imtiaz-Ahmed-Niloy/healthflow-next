@@ -23,6 +23,17 @@ const fail = (message: string, status: number) => json({ error: { message } }, s
 
 const amountOf = (value: unknown) => Number(value) || 0;
 
+/**
+ * What raised the bill, from its reference: an OPD invoice the doctor itemised
+ * (0141, 0144), a visit's automatic consultation bill (0075), or a hospital
+ * stay's at discharge (0080). Anything typed in by the finance desk is "other".
+ */
+const sourceOf = (reference: string) =>
+  reference.startsWith("OPD-") ? "opd"
+    : reference.startsWith("CON-") ? "consultation"
+    : reference.startsWith("ADM-") ? "admission"
+    : "other";
+
 export const GET = async () => {
   const auth = await getAuthContext();
   if (!auth) return fail("Not signed in", 401);
@@ -63,12 +74,13 @@ export const GET = async () => {
       invoices: invoices.map(i => ({
         id: i.id,
         reference: i.reference,
+        source: sourceOf(i.reference),
         // What the charge is for — "Consultation with Dr. … on …" for a bill a
         // completed visit raised (0075). Null for one typed in by the desk.
         description: i.description,
-        // What a hospital stay's bill is made of, frozen at discharge (0080).
-        // Null for any other invoice — those are a single amount.
-        lines: Array.isArray(i.line_items) ? i.line_items : null,
+        // What the bill is made of: a hospital stay's days, frozen at discharge
+        // (0080), or an OPD invoice's services (0141). Null for a single amount.
+        lines: Array.isArray(i.line_items) && i.line_items.length ? i.line_items : null,
         amount: amountOf(i.amount),
         due_date: i.due_date,
         paid_at: i.paid_at,

@@ -20,8 +20,10 @@ type Line = { description: string; quantity: number; rate: number; amount: numbe
 type Invoice = {
   id: string;
   reference: string;
+  /** What raised it — see sourceOf in /api/v1/patient/billing. */
+  source: "opd" | "consultation" | "admission" | "other";
   description: string | null;
-  /** A hospital stay's charges, day by day. Null for a single-amount bill. */
+  /** A hospital stay's charges day by day, or an OPD invoice's services. Null for a single-amount bill. */
   lines: Line[] | null;
   amount: number;
   due_date: string;
@@ -50,6 +52,9 @@ const dateLabel = (iso: string, locale: string) => {
     ? iso
     : date.toLocaleDateString(locale === "bn" ? "bn-BD-u-nu-latn" : "en-US", { month: "short", day: "numeric", year: "numeric" });
 };
+
+const discountOf = (invoice: Invoice) =>
+  Math.max(0, (invoice.lines ?? []).reduce((sum, l) => sum + Number(l.amount || 0), 0) - invoice.amount);
 
 type Status = "paid" | "unpaid" | "overdue";
 
@@ -281,7 +286,12 @@ const Billing = () => {
                     className={`rounded-xl ${status === "paid" ? "hover:bg-muted/30" : "bg-chip/40"}`}>
                     <div className="grid grid-cols-[1.2fr_1fr_1fr_1fr_160px] gap-4 items-center px-3 py-3">
                       <div className="min-w-0">
-                        <p className="font-semibold text-primary text-sm">{inv.reference}</p>
+                        <p className="font-semibold text-primary text-sm">
+                          {inv.reference}
+                          {inv.source === "opd" && (
+                            <span className="ml-2 rounded-md bg-chip px-1.5 py-0.5 text-[10px] font-bold text-primary align-middle">{t("opdTag")}</span>
+                          )}
+                        </p>
                         {inv.description && <p className="text-xs text-muted-foreground truncate">{inv.description}</p>}
                       </div>
                       <p className="text-sm text-foreground/70">{dateLabel(inv.due_date, locale)}</p>
@@ -331,7 +341,7 @@ const Billing = () => {
                             <thead className="text-xs text-muted-foreground">
                               <tr>
                                 <th className="text-left font-semibold px-3 py-2">{t("lines.charge")}</th>
-                                <th className="text-right font-semibold px-3 py-2">{t("lines.days")}</th>
+                                <th className="text-right font-semibold px-3 py-2">{inv.source === "admission" ? t("lines.days") : t("lines.qty")}</th>
                                 <th className="text-right font-semibold px-3 py-2">{t("lines.rate")}</th>
                                 <th className="text-right font-semibold px-3 py-2">{t("lines.amount")}</th>
                               </tr>
@@ -345,6 +355,13 @@ const Billing = () => {
                                   <td className="px-3 py-2 text-right font-medium">{fmt(Number(l.amount))}</td>
                                 </tr>
                               ))}
+                              {/* An OPD invoice's discount lives only in the gap between its lines and its total. */}
+                              {discountOf(inv) > 0 && (
+                                <tr className="border-t border-border/50 text-muted-foreground">
+                                  <td className="px-3 py-2" colSpan={3}>{t("lines.discount")}</td>
+                                  <td className="px-3 py-2 text-right">−{fmt(discountOf(inv))}</td>
+                                </tr>
+                              )}
                               <tr className="border-t border-border/50 font-semibold text-primary">
                                 <td className="px-3 py-2" colSpan={3}>{t("lines.total")}</td>
                                 <td className="px-3 py-2 text-right">{fmt(inv.amount)}</td>

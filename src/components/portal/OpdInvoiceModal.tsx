@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { useBookingClock } from "@/lib/appSettings";
 
 export interface WorkplaceFacility {
   id: string;
@@ -75,6 +76,8 @@ export function OpdInvoiceModal({
   onInvoiceCreated,
   formatTk,
 }: OpdInvoiceModalProps) {
+  // The platform's date, not toISOString's UTC one — a day behind before 06:00 in Dhaka.
+  const { today } = useBookingClock();
   const [selectedTenantId, setSelectedTenantId] = useState<string>("");
   const [patientName, setPatientName] = useState("");
   const [patientPhone, setPatientPhone] = useState("");
@@ -86,7 +89,7 @@ export function OpdInvoiceModal({
   const [discountAmount, setDiscountAmount] = useState<number>(0);
   const [isPaid, setIsPaid] = useState<boolean>(true);
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
-  const [dueDate, setDueDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [dueDate, setDueDate] = useState<string>(today);
 
   // Fee Type Options: Consultation Fee vs Follow up Fee
   const [feeType, setFeeType] = useState<"consultation" | "follow_up">("consultation");
@@ -131,9 +134,9 @@ export function OpdInvoiceModal({
       setDiscountAmount(0);
       setIsPaid(true);
       setPaymentMethod("cash");
-      setDueDate(new Date().toISOString().slice(0, 10));
+      setDueDate(today);
     }
-  }, [open, initialData, workplaces]);
+  }, [open, initialData, workplaces, today]);
 
   if (!open) return null;
 

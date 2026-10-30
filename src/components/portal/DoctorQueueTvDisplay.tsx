@@ -7,6 +7,27 @@ import {
   Sun, Moon, Heart, Coffee
 } from "lucide-react";
 import { playSound } from "@/lib/audio";
+import { BREAK_MINUTES_KEY, breakCopy, DEFAULT_BREAK_MINUTES, validBreakMinutes } from "@/lib/portal/breakTimer";
+
+/** The running break's length as its doctor chose it, for a screen that reloaded mid-break. */
+const storedBreakMinutes = () => {
+  try {
+    return validBreakMinutes(localStorage.getItem(BREAK_MINUTES_KEY)) ?? undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+/** A break restored from its end time: the full length when known, else what is left. */
+const restoredBreak = (endsAt: number): BreakState => {
+  const minutes = storedBreakMinutes();
+  return {
+    active: true,
+    endsAt,
+    totalSeconds: minutes ? minutes * 60 : Math.max(60, Math.round((endsAt - Date.now()) / 1000)),
+    minutes,
+  };
+};
 import { useLocale } from "next-intl";
 import { toast } from "sonner";
 
@@ -44,6 +65,8 @@ type BreakState = {
   active: boolean;
   endsAt: number;
   totalSeconds: number;
+  /** Length the break was started with; unset when restored from storage after a reload. */
+  minutes?: number;
 };
 
 type Props = {
@@ -90,11 +113,7 @@ export const DoctorQueueTvDisplay = ({
   );
   const [breakState, setBreakState] = useState<BreakState | null>(() => {
     if (initialBreakEndsAt && initialBreakEndsAt > Date.now()) {
-      return {
-        active: true,
-        endsAt: initialBreakEndsAt,
-        totalSeconds: Math.max(60, Math.round((initialBreakEndsAt - Date.now()) / 1000)),
-      };
+      return restoredBreak(initialBreakEndsAt);
     }
     if (typeof window !== "undefined") {
       try {
@@ -102,11 +121,7 @@ export const DoctorQueueTvDisplay = ({
         if (stored) {
           const parsed = Number(stored);
           if (parsed > Date.now()) {
-            return {
-              active: true,
-              endsAt: parsed,
-              totalSeconds: Math.max(60, Math.round((parsed - Date.now()) / 1000)),
-            };
+            return restoredBreak(parsed);
           } else {
             localStorage.removeItem("healthflow_queue_break_ends_at");
           }
@@ -183,25 +198,25 @@ export const DoctorQueueTvDisplay = ({
             setActiveCallingToken((curr) => (curr?.token === item.token ? null : curr));
           }, 12000);
         } else if (event.data?.type === "BREAK_START" && event.data?.data) {
-          const { minutes, endsAt } = event.data.data;
-          const targetEnd = endsAt || Date.now() + (minutes || 10) * 60 * 1000;
+          const { endsAt } = event.data.data;
+          // The length the doctor chose at the button, carried on the broadcast.
+          const minutes: number = validBreakMinutes(event.data.data.minutes) ?? DEFAULT_BREAK_MINUTES;
+          const targetEnd = endsAt || Date.now() + minutes * 60 * 1000;
           try {
             localStorage.setItem("healthflow_queue_break_ends_at", String(targetEnd));
           } catch {}
           setBreakState({
             active: true,
             endsAt: targetEnd,
-            totalSeconds: (minutes || 10) * 60,
+            totalSeconds: minutes * 60,
+            minutes,
           });
           setActiveCallingToken(null);
           if (soundEnabled) {
             playSound("chime");
             if (typeof window !== "undefined" && "speechSynthesis" in window) {
               try {
-                const text = isBn
-                  ? "সম্মানিত রোগীগণ, ডাক্তার ১০ মিনিটের সংক্ষিপ্ত বিরতিতে আছেন। অনুগ্রহ করে অপেক্ষা করুন।"
-                  : "Attention patients, the doctor is on a brief 10-minute break. Consultation will resume shortly.";
-                const utterance = new SpeechSynthesisUtterance(text);
+                const utterance = new SpeechSynthesisUtterance(breakCopy(minutes, isBn).announcement);
                 utterance.rate = 0.95;
                 utterance.pitch = 1.0;
                 window.speechSynthesis.speak(utterance);
@@ -322,6 +337,10 @@ export const DoctorQueueTvDisplay = ({
     const s = totalSecs % 60;
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
+
+  // The length the break was started with; 10 only if a reload lost it.
+  const shownBreakMinutes = breakState?.minutes ?? DEFAULT_BREAK_MINUTES;
+  const breakText = breakCopy(shownBreakMinutes, isBn);
 
   const breakResumptionTime = useMemo(() => {
     if (!breakState?.endsAt) return "";
@@ -588,7 +607,7 @@ export const DoctorQueueTvDisplay = ({
                         : "bg-amber-200/80 text-amber-900 border border-amber-300"
                     }`}
                   >
-                    {isBn ? "১০ মিনিটের বিরতি চলমান" : "SHORT BREAK IN PROGRESS"}
+                    {breakText.tvBadge}
                   </span>
                   {breakResumptionTime && (
                     <span className={`text-xs ${isDarkMode ? "text-amber-400/80" : "text-amber-800 font-semibold"}`}>
@@ -602,9 +621,7 @@ export const DoctorQueueTvDisplay = ({
                 </h3>
 
                 <p className={`text-xs sm:text-sm mt-0.5 max-w-xl ${isDarkMode ? "text-slate-300" : "text-slate-600 font-medium"}`}>
-                  {isBn
-                    ? "সম্মানিত রোগীগণ, ডাক্তার ১০ মিনিটের সংক্ষিপ্ত বিরতিতে আছেন। বিরতির পর সিরিয়াল অনুযায়ী রোগী দেখা শুরু হবে।"
-                    : "Dear patients, the doctor is taking a 10-minute intermission. Consultations will resume promptly in token order."}
+                  {breakText.tvNotice}
                 </p>
               </div>
             </div>
@@ -656,7 +673,7 @@ export const DoctorQueueTvDisplay = ({
               <div
                 className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-1000 ease-linear"
                 style={{
-                  width: `${Math.max(0, Math.min(100, (secondsLeft / (breakState.totalSeconds || 600)) * 100))}%`,
+                  width: `${Math.max(0, Math.min(100, (secondsLeft / (breakState.totalSeconds || shownBreakMinutes * 60)) * 100))}%`,
                 }}
               />
             </div>
@@ -804,7 +821,7 @@ export const DoctorQueueTvDisplay = ({
                     isDarkMode ? "text-amber-400" : "text-amber-700"
                   }`}
                 >
-                  {isBn ? "— ১০ মিনিট চা-বিরতি —" : "— 10-MIN BREAK —"}
+                  {breakText.tvHeading}
                 </p>
                 <div className="text-5xl font-black font-mono tracking-tight text-amber-500">
                   {formatCountdown(secondsLeft)}

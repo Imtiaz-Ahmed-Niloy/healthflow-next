@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Plus, ClipboardList, ClipboardCheck, FlaskConical, Stethoscope, Lightbulb, History, AlertTriangle, Users, Printer, X, Search, Check, Store, Building2, CalendarClock, Sparkles, Copy, FileText, ChevronDown, ChevronUp, FileBadge, BookOpen, Coffee, BellRing, HeartPulse, ShieldAlert, Phone, Video } from "lucide-react";
+import { Plus, ClipboardList, ClipboardCheck, FlaskConical, Stethoscope, Lightbulb, History, AlertTriangle, Users, Printer, X, Search, Check, Store, Building2, CalendarClock, Sparkles, Copy, FileText, ChevronDown, ChevronUp, FileBadge, BookOpen, Coffee, BellRing, HeartPulse, ShieldAlert, Phone, Video, ReceiptText } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { PrescriptionPreview } from "@/components/common/PrescriptionPreview";
 import type { LucideIcon } from "lucide-react";
@@ -29,7 +29,11 @@ import { PatientHandoutsDialog } from "@/components/portal/PatientHandoutsDialog
 import { VoiceDictationButton } from "@/components/portal/VoiceDictationButton";
 import { AutoGrowTextarea } from "@/components/portal/AutoGrowTextarea";
 import { TelemedicineRoomModal } from "@/components/portal/TelemedicineRoomModal";
+import { OpdInvoiceModal, type WorkplaceFacility } from "@/components/portal/OpdInvoiceModal";
+import { OpdInvoiceReceiptModal, type OpdInvoiceData } from "@/components/portal/OpdInvoiceReceiptModal";
 import { playSound } from "@/lib/audio";
+import { BREAK_MINUTES_KEY, breakCopy, DEFAULT_BREAK_MINUTES } from "@/lib/portal/breakTimer";
+import { BreakButton } from "@/components/portal/BreakButton";
 import { checkPrescriptionSafety, type ClinicalSafetyWarning } from "@/lib/clinicalSafety";
 import { useInvestigations } from "@/hooks/useInvestigations";
 import { useAdvice } from "@/hooks/useAdvice";
@@ -466,7 +470,7 @@ const Prescription = () => {
   const tc = useTranslations("common");
   const tr = useTranslations("rxSheet");
   const locale = useLocale();
-  const { formatDateTime } = useFormatters();
+  const { formatDateTime, formatCurrency } = useFormatters();
 
   const formatDate = (iso: string) =>
     new Date(`${iso}T00:00:00`).toLocaleDateString(locale === "bn" ? "bn-BD-u-nu-latn" : "en-US", { month: "short", day: "2-digit", year: "numeric" });
@@ -869,7 +873,9 @@ type SidebarQueueEntry = {
     return () => clearInterval(interval);
   }, [breakEndsAt]);
 
-  const handleToggleBreak = (minutes = 10) => {
+  // Ends a running break, or starts one of `minutes` — chosen at BreakButton.
+  const handleToggleBreak = (minutes = DEFAULT_BREAK_MINUTES) => {
+    const copy = breakCopy(minutes, locale === "bn");
     try {
       const channel = new BroadcastChannel("healthflow_queue_broadcast");
       if (breakEndsAt && breakEndsAt > Date.now()) {
@@ -887,6 +893,7 @@ type SidebarQueueEntry = {
         const targetEnd = Date.now() + minutes * 60 * 1000;
         try {
           localStorage.setItem("healthflow_queue_break_ends_at", String(targetEnd));
+          localStorage.setItem(BREAK_MINUTES_KEY, String(minutes));
         } catch {}
         setBreakEndsAt(targetEnd);
         channel.postMessage({
@@ -897,22 +904,19 @@ type SidebarQueueEntry = {
         playSound("chime");
         if (typeof window !== "undefined" && "speechSynthesis" in window) {
           try {
-            const text = locale === "bn"
-              ? "সম্মানিত রোগীগণ, ডাক্তার ১০ মিনিটের সংক্ষিপ্ত বিরতিতে আছেন। অনুগ্রহ করে অপেক্ষা করুন।"
-              : "Attention patients, the doctor is on a brief 10-minute break. Consultation will resume shortly.";
-            const utterance = new SpeechSynthesisUtterance(text);
+            const utterance = new SpeechSynthesisUtterance(copy.announcement);
             utterance.rate = 0.95;
             utterance.pitch = 1.0;
             window.speechSynthesis.speak(utterance);
           } catch {}
         }
         toast.info(
-          locale === "bn" ? "টিভি বোর্ডে ১০ মিনিটের বিরতি কাউন্টডাউন শুরু হয়েছে" : "10-minute break countdown active on TV board",
+          copy.started,
           { icon: "☕" }
         );
       }
     } catch {
-      toast.info("১০ মিনিটের বিরতি সক্রিয় করা হয়েছে", { icon: "☕" });
+      toast.info(copy.startedOffline, { icon: "☕" });
     }
   };
 
@@ -1179,6 +1183,64 @@ type SidebarQueueEntry = {
   const submittedVisit = ctx?.appointment.status === "completed";
   const editableUntil = ctx?.appointment.editable_until ?? null;
   const stillEditable = submittedVisit && !!editableUntil && now < new Date(editableUntil).getTime();
+
+  // The visit's bill, once submitted. Completing the visit raises a CON- bill
+  // for the doctor's fee by itself (0075); the doctor can itemise that as an
+  // OPD invoice (0144), or view it once it is itemised or paid.
+  // Kept with the visit it belongs to, so moving to another patient never shows
+  // the last one's bill. visitInvoice: undefined = not looked up yet.
+  const [visitBill, setVisitBill] = useState<{ appointmentId: string; invoice: OpdInvoiceData | null } | null>(null);
+  const visitInvoice = submittedVisit && visitBill && visitBill.appointmentId === appointmentId ? visitBill.invoice : undefined;
+  const [invoiceWorkplaces, setInvoiceWorkplaces] = useState<WorkplaceFacility[]>([]);
+  const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
+  const [invoiceReceiptOpen, setInvoiceReceiptOpen] = useState(false);
+  const [invoiceReceiptMode, setInvoiceReceiptMode] = useState<"invoice" | "thermal">("invoice");
+
+  useEffect(() => {
+    if (!submittedVisit || !appointmentId) return;
+    let active = true;
+    fetch(`/api/v1/portal/invoices?appointment=${appointmentId}`)
+      .then(res => (res.ok ? res.json() : null))
+      .then(body => {
+        if (!active) return;
+        setInvoiceWorkplaces(body?.data?.workplaces ?? []);
+        setVisitBill({ appointmentId, invoice: body?.data?.invoices?.[0] ?? null });
+      })
+      .catch(() => { if (active) setVisitBill({ appointmentId, invoice: null }); });
+    return () => { active = false; };
+  }, [submittedVisit, appointmentId]);
+
+  // Already itemised, or already paid: nothing left to create, only to view.
+  const invoiceIsFinal = !!visitInvoice && (visitInvoice.reference.startsWith("OPD-") || !!visitInvoice.paid_at);
+
+  // Memoised: the modal resets its form whenever this object changes.
+  const invoiceInitialData = useMemo(
+    () => ctx ? {
+      patient_name: ctx.patient.full_name,
+      patient_id: ctx.patient.id,
+      patient_mrn: ctx.patient.mrn,
+      appointment_id: ctx.appointment.id,
+      tenant_id: ctx.appointment.tenant_id,
+    } : null,
+    [ctx],
+  );
+
+  const openVisitInvoice = () => {
+    if (invoiceIsFinal) {
+      setInvoiceReceiptMode("invoice");
+      setInvoiceReceiptOpen(true);
+      return;
+    }
+    setInvoiceModalOpen(true);
+  };
+
+  const handleVisitInvoiceCreated = (inv: OpdInvoiceData, shouldPrint?: boolean, mode: "invoice" | "thermal" = "invoice") => {
+    if (appointmentId) setVisitBill({ appointmentId, invoice: inv });
+    if (shouldPrint) {
+      setInvoiceReceiptMode(mode);
+      setInvoiceReceiptOpen(true);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!appointmentId) {
@@ -1569,19 +1631,13 @@ type SidebarQueueEntry = {
           >
             {locale === "bn" ? "ভাইটালস ও বিপি মাপুন" : "Check Vitals & BP"}
           </button>
-          <button
-            type="button"
-            onClick={() => handleToggleBreak(10)}
-            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all shadow-2xs ${
-              breakEndsAt && breakEndsAt > Date.now()
-                ? "bg-amber-100 border border-amber-400 text-amber-900 font-bold animate-pulse hover:bg-amber-200"
-                : "bg-white border border-slate-200 text-slate-700 hover:border-amber-500 hover:text-amber-700 hover:bg-amber-50/50"
-            }`}
-          >
-            {breakEndsAt && breakEndsAt > Date.now()
-              ? `${locale === "bn" ? "বিরতি চলছে" : "On Break"} (${Math.floor(breakSecondsLeft / 60)}:${String(breakSecondsLeft % 60).padStart(2, "0")}) • ${locale === "bn" ? "শেষ করুন" : "End"}`
-              : locale === "bn" ? "১০ মিনিট বিরতি" : "10m Break"}
-          </button>
+          <BreakButton
+            onBreak={!!breakEndsAt && breakEndsAt > Date.now()}
+            secondsLeft={breakSecondsLeft}
+            bn={locale === "bn"}
+            onStart={handleToggleBreak}
+            onEnd={() => handleToggleBreak()}
+          />
         </div>
 
         {/* Clinical Suite Tools */}
@@ -2300,6 +2356,14 @@ type SidebarQueueEntry = {
       )}
       <div className={`${submittedVisit ? "mt-4" : "mt-10"} flex items-center justify-between border-t border-border/60 pt-6`}>
         <button onClick={() => toast.success(t("savedDraft"))} className="rounded-full border border-border px-6 py-3 text-sm font-semibold text-primary hover:bg-chip transition-colors">{t("saveDraft")}</button>
+        <div className="flex flex-wrap items-center justify-end gap-3">
+        {submittedVisit && appointmentId && (
+          <button onClick={openVisitInvoice} disabled={visitInvoice === undefined}
+            className="flex items-center gap-2 rounded-full border border-primary/30 bg-primary/5 px-6 py-3 text-sm font-semibold text-primary hover:bg-chip transition-colors disabled:opacity-60">
+            <ReceiptText className="h-4 w-4" />
+            {visitInvoice === undefined ? t("opdInvoiceLoading") : invoiceIsFinal ? t("openOpdInvoice") : t("createOpdInvoice")}
+          </button>
+        )}
         {submittedVisit && !stillEditable ? (
           // Final: the only thing left to do is print what was submitted.
           <button onClick={() => { setPreviewSaved(true); setPreviewOpen(true); }} className="flex items-center gap-2 rounded-full bg-gradient-dark text-surface-dark-foreground px-7 py-3 text-sm font-semibold hover:opacity-90 shadow-glow">
@@ -2310,8 +2374,26 @@ type SidebarQueueEntry = {
             <Printer className="h-4 w-4" /> {submitting ? t("submitting") : submittedVisit ? t("saveChanges") : t("printSubmit")}
           </button>
         )}
+        </div>
       </div>
       </div>
+
+      <OpdInvoiceModal
+        open={invoiceModalOpen}
+        onClose={() => setInvoiceModalOpen(false)}
+        workplaces={invoiceWorkplaces}
+        initialData={invoiceInitialData}
+        onInvoiceCreated={handleVisitInvoiceCreated}
+        formatTk={formatCurrency}
+      />
+      <OpdInvoiceReceiptModal
+        open={invoiceReceiptOpen}
+        onClose={() => setInvoiceReceiptOpen(false)}
+        invoice={visitInvoice ?? null}
+        doctorName={ctx?.doctor.name}
+        initialMode={invoiceReceiptMode}
+        formatTk={formatCurrency}
+      />
 
       <Dialog open={alreadyClosedOpen} onOpenChange={setAlreadyClosedOpen}>
         <DialogContent className="sm:max-w-[440px]">

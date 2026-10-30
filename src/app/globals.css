@@ -109,13 +109,19 @@
   }
   /* Words filled with the brand gradient — prescriply.bd's .lp-gradient-text
      ("found by patients"): deep teal through teal and cyan to emerald, drawn
-     at twice the text's width so the teal-to-cyan half shows. */
+     at twice the text's width so the teal-to-cyan half shows.
+     The padding is for Bangla. A clipped background only paints the span's
+     own box, which is sized by Inter, the first font in the stack (0.24em
+     below the baseline); Li Ador Noirrit's ু and conjuncts reach 0.33em, so
+     their feet came out transparent. Block padding on an inline span grows
+     that box on every line without moving the lines. */
   .lp-gradient-text {
     background-image: linear-gradient(105deg, #0f766e, #0d9488 22%, #0891b2 52%, #0e9f6e 78%, #059669);
     background-size: 200% auto;
     -webkit-background-clip: text;
             background-clip: text;
     color: transparent;
+    padding-block: 0.15em;
   }
   /* The same gradient a few shades lighter, for a title on a dark band —
      the deep teal would sink into the dark green. */
@@ -125,6 +131,7 @@
     -webkit-background-clip: text;
             background-clip: text;
     color: transparent;
+    padding-block: 0.15em;
   }
   .lp-wash-teal { background-image: radial-gradient(60rem 32rem at 12% -6%, rgba(20, 184, 166, 0.14), transparent 60%); }
   .lp-wash-cyan { background-image: radial-gradient(60rem 32rem at 88% -6%, rgba(6, 182, 212, 0.14), transparent 60%); }

@@ -138,10 +138,13 @@
       "lines": {
         "charge": "Charge",
         "days": "Days",
+        "qty": "Qty",
         "rate": "Rate",
         "amount": "Amount",
+        "discount": "Discount",
         "total": "Total"
       },
+      "opdTag": "OPD",
       "payingTitle": "PAYING A BILL",
       "payingBody": "You can pay bills instantly using bKash, Nagad, Rocket, or Visa/MasterCard. Invoices are settled in real time and an official receipt is issued instantly.",
       "payNow": "Pay Now",

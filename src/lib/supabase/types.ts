@@ -1791,6 +1791,7 @@ export type Database = {
           source_ref: string | null
           designation: string | null
           summary: string | null
+          break_minutes: number
         }
         Insert: {
           availability?: string | null
@@ -1818,6 +1819,7 @@ export type Database = {
           tenant_id?: string | null
           updated_at?: string
           summary?: string | null
+          break_minutes?: number
         }
         Update: {
           availability?: string | null
@@ -1845,6 +1847,7 @@ export type Database = {
           tenant_id?: string | null
           updated_at?: string
           summary?: string | null
+          break_minutes?: number
         }
         Relationships: [
           {

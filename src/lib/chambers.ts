@@ -60,6 +60,26 @@ export const toChamber = (
   has_name: t.has_name,
 });
 
+/**
+ * A hospital the doctor works at, beside their chambers on /portal/chambers.
+ * The place is the hospital's and the fee and hours are set by its admin on
+ * the doctor's row there, so the doctor only sees it.
+ */
+export type HospitalPractice = {
+  /** The hospital's tenant id. */
+  id: string;
+  /** The doctor's row at the hospital. */
+  doctor_id: string;
+  name: string;
+  address: string | null;
+  location: string | null;
+  district: string | null;
+  subdistrict: string | null;
+  phone: string | null;
+  consultation_fee: number | null;
+  availability: string | null;
+};
+
 /** One line for where it is: "House 12, Road 5, Dhanmondi, Dhaka". */
 export const chamberPlace = (c: Pick<Chamber, "address" | "location" | "subdistrict" | "district">) =>
   [c.address, c.location, c.subdistrict, c.district].filter(Boolean)

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerSupabase, getAuthContext, isSuperAdmin } from "@/lib/supabase/server";
 import { parseWeek } from "@/lib/hours";
-import { toChamber, type ChamberTenant } from "@/lib/chambers";
+import { toChamber, type ChamberTenant, type HospitalPractice } from "@/lib/chambers";
 
 /**
  * /api/v1/chambers — a doctor's own chambers (0088).
@@ -13,7 +13,7 @@ import { toChamber, type ChamberTenant } from "@/lib/chambers";
  * and no one else can write to one directly.
  *
  * GET lists the caller's chambers, or `?profile_id=` a doctor's for the super
- * admin. POST opens one, PATCH changes one, or closes or reopens it with
+ * admin, with the hospitals they work at as `hospitals`. POST opens one, PATCH changes one, or closes or reopens it with
  * `{ id, open }`.
  */
 
@@ -50,7 +50,30 @@ export const GET = async (request: Request) => {
     : { data: [], error: null };
   if (doctorsError) return fail(doctorsError.message, 500);
 
-  return json({ data: rows.map(t => toChamber(t, (doctors ?? []).find(x => x.tenant_id === t.id))) });
+  // The hospitals they work at ride along, to be shown and not managed: the
+  // fee and hours there are the hospital admin's to set.
+  const { data: hospitalRows, error: hospitalsError } = await supabase
+    .from("doctors")
+    .select("id, consultation_fee, availability, tenants!inner ( id, name, address, location, district, subdistrict, contact_phone, kind )")
+    .eq("profile_id", owner)
+    .eq("tenants.kind", "hospital")
+    .order("created_at", { ascending: true });
+  if (hospitalsError) return fail(hospitalsError.message, 500);
+
+  const hospitals: HospitalPractice[] = (hospitalRows ?? []).map(r => ({
+    id: r.tenants.id,
+    doctor_id: r.id,
+    name: r.tenants.name,
+    address: r.tenants.address,
+    location: r.tenants.location,
+    district: r.tenants.district,
+    subdistrict: r.tenants.subdistrict,
+    phone: r.tenants.contact_phone,
+    consultation_fee: r.consultation_fee,
+    availability: r.availability,
+  }));
+
+  return json({ data: rows.map(t => toChamber(t, (doctors ?? []).find(x => x.tenant_id === t.id))), hospitals });
 };
 
 const text = (max = 500) => z.string().trim().max(max).optional().transform(v => v || null);

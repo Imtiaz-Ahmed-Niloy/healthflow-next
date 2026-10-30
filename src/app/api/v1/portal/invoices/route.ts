@@ -6,7 +6,20 @@ import { myDoctorRows } from "@/server/portal/myDoctors";
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status });
 const fail = (message: string, status: number) => json({ error: { message } }, status);
 
-export const GET = async () => {
+/**
+ * GET /api/v1/portal/invoices[?appointment=<id>]
+ *
+ * With `appointment`, only that visit's bill — at most one (0075's
+ * one-visit-one-bill index): the auto-raised CON- bill, or the OPD invoice
+ * that replaced it (0144). A submitted prescription asks this to decide
+ * whether its button opens an invoice or creates one.
+ */
+export const GET = async (request: Request) => {
+  const appointmentId = new URL(request.url).searchParams.get("appointment");
+  if (appointmentId && !z.string().uuid().safeParse(appointmentId).success) {
+    return fail("Invalid appointment id", 422);
+  }
+
   const auth = await getAuthContext();
   if (!auth) return fail("Not signed in", 401);
   if (auth.role !== "doctor") return fail("Only doctors can access their OPD invoices", 403);
@@ -56,7 +69,7 @@ export const GET = async () => {
   });
 
   // Fetch invoices for these tenants (OPD invoices & consultation receivables)
-  const { data: invoices, error: invError } = await supabase
+  let invoiceQuery = supabase
     .from("finance_invoices")
     .select(`
       id,
@@ -82,7 +95,10 @@ export const GET = async () => {
       )
     `)
     .in("tenant_id", tenantIds)
-    .eq("kind", "receivable")
+    .eq("kind", "receivable");
+  if (appointmentId) invoiceQuery = invoiceQuery.eq("appointment_id", appointmentId);
+
+  const { data: invoices, error: invError } = await invoiceQuery
     .order("created_at", { ascending: false })
     .limit(150);
 
@@ -190,17 +206,20 @@ export const POST = async (request: Request) => {
 
   // Verify that the doctor actually works at this facility
   const doctorProfiles = await myDoctorRows(supabase, auth.userId);
-  const hasAccess = doctorProfiles.some((p) => p.tenant_id === tenant_id);
-  if (!hasAccess) {
+  const doctorHere = doctorProfiles.find((p) => p.tenant_id === tenant_id);
+  if (!doctorHere) {
     return fail("You are not authorized to issue invoices for this facility", 403);
   }
 
   // Construct descriptive summary
-  const summaryText =
+  const items =
     description?.trim() ||
     (line_items.length > 0
       ? line_items.map((li) => `${li.description} (x${li.quantity})`).join(", ")
       : `OPD Service for ${party}`);
+  // The patient reads this on their billing page with no other context, so it
+  // says who and where — as a CON- bill's "Consultation with Dr. … on …" does.
+  const summaryText = `${items} · ${doctorHere.name}, ${doctorHere.hospital_name}`;
 
   // Create invoice via the security-definer function
   const { data: invoiceData, error: rpcError } = await (supabase as any).rpc("create_opd_invoice", {
@@ -212,11 +231,15 @@ export const POST = async (request: Request) => {
     p_line_items: line_items,
     p_paid: paid,
     p_appointment_id: appointment_id ?? undefined,
-    p_due_date: due_date || new Date().toISOString().slice(0, 10),
+    // Null, not the server's UTC date: the function takes it as the
+    // platform's today (0145), which before 06:00 in Dhaka is a day later.
+    p_due_date: due_date || null,
   });
 
   if (rpcError) {
-    return fail(rpcError.message, 500);
+    // P0001: the function refused it (already invoiced, already paid, wrong
+    // facility's patient or visit) — the message says which.
+    return fail(rpcError.message, rpcError.code === "42501" ? 403 : rpcError.code === "P0001" ? 409 : 500);
   }
 
   return json({ data: invoiceData }, 201);

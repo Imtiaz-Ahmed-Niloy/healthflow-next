@@ -24,6 +24,8 @@ import { PhoneInput } from "@/components/common/PhoneInput";
 import { useListResourceQuery } from "@/redux/api/createResourceApi";
 import type { PatientRow } from "@/redux/api/resources";
 import { playSound } from "@/lib/audio";
+import { BREAK_MINUTES_KEY, breakCopy, DEFAULT_BREAK_MINUTES } from "@/lib/portal/breakTimer";
+import { BreakButton } from "@/components/portal/BreakButton";
 import { useFormatters } from "@/lib/appSettings";
 import { DoctorQueueTvDisplay } from "@/components/portal/DoctorQueueTvDisplay";
 import { PatientQuickModal, type QuickPatientData } from "@/components/portal/PatientQuickModal";
@@ -450,7 +452,9 @@ const Queue = () => {
     }, 12000);
   };
 
-  const handleToggleBreak = (minutes = 10) => {
+  // Ends a running break, or starts one of `minutes` — chosen at BreakButton.
+  const handleToggleBreak = (minutes = DEFAULT_BREAK_MINUTES) => {
+    const copy = breakCopy(minutes, isBn);
     try {
       const channel = new BroadcastChannel("healthflow_queue_broadcast");
       if (breakEndsAt && breakEndsAt > Date.now()) {
@@ -468,6 +472,7 @@ const Queue = () => {
         const targetEnd = Date.now() + minutes * 60 * 1000;
         try {
           localStorage.setItem("healthflow_queue_break_ends_at", String(targetEnd));
+          localStorage.setItem(BREAK_MINUTES_KEY, String(minutes));
         } catch {}
         setBreakEndsAt(targetEnd);
         channel.postMessage({
@@ -478,22 +483,19 @@ const Queue = () => {
         playSound("chime");
         if (typeof window !== "undefined" && "speechSynthesis" in window) {
           try {
-            const text = isBn
-              ? "সম্মানিত রোগীগণ, ডাক্তার ১০ মিনিটের সংক্ষিপ্ত বিরতিতে আছেন। অনুগ্রহ করে অপেক্ষা করুন।"
-              : "Attention patients, the doctor is on a brief 10-minute break. Consultation will resume shortly.";
-            const utterance = new SpeechSynthesisUtterance(text);
+            const utterance = new SpeechSynthesisUtterance(copy.announcement);
             utterance.rate = 0.95;
             utterance.pitch = 1.0;
             window.speechSynthesis.speak(utterance);
           } catch {}
         }
         toast.info(
-          isBn ? "টিভি বোর্ডে ১০ মিনিটের বিরতি কাউন্টডাউন শুরু হয়েছে" : "10-minute break countdown active on TV board",
+          copy.started,
           { icon: "☕" }
         );
       }
     } catch {
-      toast.info("১০ মিনিটের বিরতি সক্রিয় করা হয়েছে", { icon: "☕" });
+      toast.info(copy.startedOffline, { icon: "☕" });
     }
   };
 
@@ -875,19 +877,13 @@ const Queue = () => {
           >
             {isBn ? "ভাইটালস ও বিপি মাপুন" : "Check Vitals & BP"}
           </button>
-          <button
-            type="button"
-            onClick={() => handleToggleBreak(10)}
-            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all shadow-2xs ${
-              breakEndsAt && breakEndsAt > Date.now()
-                ? "bg-amber-100 border border-amber-400 text-amber-900 font-bold animate-pulse hover:bg-amber-200"
-                : "bg-white border border-slate-200 text-slate-700 hover:border-amber-500 hover:text-amber-700 hover:bg-amber-50/50"
-            }`}
-          >
-            {breakEndsAt && breakEndsAt > Date.now()
-              ? `${isBn ? "বিরতি চলছে" : "On Break"} (${Math.floor(breakSecondsLeft / 60)}:${String(breakSecondsLeft % 60).padStart(2, "0")}) • ${isBn ? "শেষ করুন" : "End"}`
-              : isBn ? "১০ মিনিট বিরতি" : "10m Break"}
-          </button>
+          <BreakButton
+            onBreak={!!breakEndsAt && breakEndsAt > Date.now()}
+            secondsLeft={breakSecondsLeft}
+            bn={isBn}
+            onStart={handleToggleBreak}
+            onEnd={() => handleToggleBreak()}
+          />
         </div>
 
         <div className="flex items-center gap-2">
