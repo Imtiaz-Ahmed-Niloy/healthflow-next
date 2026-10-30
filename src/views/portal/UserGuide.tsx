@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BookOpen, FileText, Users, BookUser, Calendar, ChevronDown, Lightbulb,
-  ShieldCheck, Printer, MessagesSquare, Pill, CircleDashed, Store,
+  ShieldCheck, Printer, MessagesSquare, Pill, CircleDashed, Store, UsersRound, KeyRound,
 } from "lucide-react";
 import { useLocale } from "next-intl";
 import { PortalLayout } from "@/components/portal/PortalLayout";
@@ -39,6 +39,8 @@ const SECTION_ICONS: Record<string, typeof Users> = {
   directory: BookUser,
   schedule: Calendar,
   chambers: Store,
+  team: UsersRound,
+  teamLogin: KeyRound,
   community: MessagesSquare,
   account: ShieldCheck,
 };

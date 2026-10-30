@@ -44,7 +44,7 @@ export type PortalGuideText = {
 const EN: PortalGuideText = {
   kicker: "DOCTOR PANEL · USER GUIDE",
   title: "How your panel works",
-  intro: "Every screen you have — queue, prescriptions, your patients, your schedule and the doctors' community — and what each one actually does. If it is written here, it works; what is not built yet is listed at the end rather than described as though it were.",
+  intro: "Every screen you have — queue, prescriptions, your patients, your schedule, your chambers, your team and the doctors' community — and what each one actually does. If it is written here, it works; what is not built yet is listed at the end rather than described as though it were.",
   startReading: "Start reading",
   walkthroughsKicker: "FEATURE WALK-THROUGHS",
   walkthroughsTitle: "Panel features",
@@ -125,16 +125,50 @@ const EN: PortalGuideText = {
     {
       id: "chambers",
       title: "My Chambers",
-      summary: "Your own practice: where patients book you outside any hospital.",
+      summary: "Every place you practise, in one grid: your own chambers and the hospitals you work at.",
       steps: [
-        "Open My Chambers and press Add chamber. Give it a name, the address, the phone patients should call, your fee and your hours.",
+        "Open My Chambers. Your own chambers and the hospitals you work at sit side by side as cards. A hospital's card is labelled Hospital and shows its address and phone, with your fee and hours there.",
+        "To open a chamber of your own, press Add chamber at the top, or the Add a personal chamber card when you have none yet. Give it a name, the address, the phone patients should call, your fee and your hours.",
         "It is taking bookings as soon as you save. Patients find you on HealthFlow and book you there, inside the hours you set.",
         "Those patients come into your Queue, Schedule and Directory with everyone else's, labelled with the chamber. Consult and prescribe exactly as at a hospital — the prescription prints the chamber's name, address and phone.",
-        "Edit changes the details, fee or hours at any time. Close to bookings takes it off the list; appointments already booked stay, and Reopen puts it back.",
+        "Edit changes a chamber's details, fee or hours at any time. Close to bookings takes it off the list; appointments already booked stay, and Reopen puts it back.",
       ],
       tips: [
         "You can have more than one chamber, each with its own fee and hours.",
-        "A hospital's fee and hours for you are the hospital's to set. Your chamber's are yours.",
+        "A hospital's card has no Edit button on purpose: your fee and hours there are the hospital's to set. Ask its admin to change them. Your chamber's are yours.",
+      ],
+    },
+    {
+      id: "team",
+      title: "Team Members",
+      summary: "Your own team — assistants, nurses, interns and receptionists — each with a login if you give them one.",
+      steps: [
+        "Open Team Members and press Add member, or the Add a team member card. Pick the role — Assistant, Nurse, Intern or Receptionist — and enter their name, phone and email.",
+        "Works with you at is optional. Leave it on All my hospitals & chambers, or pick the one place they work with you; their login then shows only that place's patients.",
+        "Add as many people as you need, a second assistant included. The tabs above the cards filter by role, and the place menu by hospital or chamber.",
+        "The pencil edits a member: their role, details, place or status. Setting them On leave or Suspended pauses their login without removing them.",
+        "The key gives them a login. Confirm, and their email and a new password are shown to copy and pass on. Press the key again any time to see the password; if none was saved, you are offered a reset, which replaces it.",
+        "The bin removes a member. They leave your team and their login stops working straight away.",
+      ],
+      tips: [
+        "The team is yours, not a hospital's. Members follow you to every hospital and chamber where you practise.",
+        "A member's email is their login, so it can't be changed while they have one.",
+        "Assistants a hospital assigns you also show here, marked Assigned by and the hospital's name. They are the hospital's staff: only the hospital can change them, and they have no login from here.",
+      ],
+    },
+    {
+      id: "teamLogin",
+      title: "What your team sees",
+      summary: "A member's login opens one page: your patient list for the day, and nothing else.",
+      steps: [
+        "They sign in on the usual sign-in page with the email and password you gave them, and land on your day list.",
+        "It shows your appointments for the day — each patient's name, time, place and status — at every place you practise, or only the one you picked for them.",
+        "They can pick another day to see what is booked ahead.",
+        "Assistants and receptionists also see each patient's phone number, to call them. Nurses and interns do not.",
+      ],
+      tips: [
+        "No member sees prescriptions, medical records, vitals or billing, whatever their role. Their login cannot open your queue, your directory or a hospital's data.",
+        "If a member is set On leave or Suspended, they still sign in but see a note that their access is paused.",
       ],
     },
     {
@@ -173,10 +207,11 @@ const EN: PortalGuideText = {
     { id: "printing", t: "Printing", d: "Print from the prescription itself. The page you are looking at is the page that prints — there is no separate export step." },
     { id: "medicines", t: "Medicines you use", d: "The picker's default list is your own most-prescribed, counted as you prescribe. It gets better without you maintaining it." },
     { id: "walkins", t: "Walk-ins", d: "Add Walk-in Patient in the Queue registers the patient and books today's visit in one step." },
-    { id: "privacy", t: "What others can see", d: "Your patients, charts and queue are your hospital's alone. Only the Community feed reaches beyond it." },
+    { id: "privacy", t: "What others can see", d: "Your patients, charts and queue are your hospital's alone. Your own team sees only your day list, and only the Community feed reaches beyond the hospital." },
   ],
   notYet: [
     "Setting your hours at a hospital — the hospital sets them. (Your own chamber's hours are yours, on My Chambers.)",
+    "Letting your team check patients in, record vitals or write prescriptions. Their login only reads your day list.",
     "Requesting leave. Ask your hospital's admin; HR keeps leave in the admin panel, not here.",
     "Video consultation. The telehealth page is not connected to anything yet.",
     "Sending a prescription to a patient by SMS or email. It prints; the patient portal shows their own records separately.",
@@ -207,13 +242,21 @@ const EN: PortalGuideText = {
       q: "The panel is showing the wrong time or date format.",
       a: "Those come from the platform's defaults, which a super admin sets, and from your own choice under Settings if you have made one. Yours wins over the platform's.",
     },
+    {
+      q: "My assistant forgot their password. What do I do?",
+      a: "Team Members → press the key on their card. It shows the password you gave them. If no password was saved, you are offered a reset: it makes a new one, and the old one stops working.",
+    },
+    {
+      q: "Can my nurse see my patients' records?",
+      a: "No. Every member, whatever the role, sees only your day list: names, times, places and status. Assistants and receptionists also see phone numbers. Prescriptions, records, vitals and billing stay with you.",
+    },
   ],
 };
 
 const BN: PortalGuideText = {
   kicker: "ডাক্তার প্যানেল · ব্যবহারবিধি",
   title: "আপনার প্যানেল যেভাবে কাজ করে",
-  intro: "আপনার প্রতিটি স্ক্রিন — সারি, প্রেসক্রিপশন, আপনার রোগী, আপনার সময়সূচি আর ডাক্তারদের কমিউনিটি — এবং কোনটি আসলে কী করে। এখানে যা লেখা আছে তা কাজ করে; যা এখনো তৈরি হয়নি তা শেষে আলাদা করে লেখা আছে, আছে বলে দেখানো হয়নি।",
+  intro: "আপনার প্রতিটি স্ক্রিন — সারি, প্রেসক্রিপশন, আপনার রোগী, আপনার সময়সূচি, আপনার চেম্বার, আপনার টিম আর ডাক্তারদের কমিউনিটি — এবং কোনটি আসলে কী করে। এখানে যা লেখা আছে তা কাজ করে; যা এখনো তৈরি হয়নি তা শেষে আলাদা করে লেখা আছে, আছে বলে দেখানো হয়নি।",
   startReading: "পড়া শুরু করুন",
   walkthroughsKicker: "ফিচারের ধাপে ধাপে বর্ণনা",
   walkthroughsTitle: "প্যানেলের ফিচার",
@@ -294,16 +337,50 @@ const BN: PortalGuideText = {
     {
       id: "chambers",
       title: "আমার চেম্বার",
-      summary: "আপনার নিজের প্র্যাকটিস: হাসপাতালের বাইরে রোগীরা যেখানে আপনাকে বুক করেন।",
+      summary: "আপনি যেখানে যেখানে রোগী দেখেন, সব এক গ্রিডে: আপনার নিজের চেম্বার আর যেসব হাসপাতালে আপনি কাজ করেন।",
       steps: [
-        "আমার চেম্বার খুলে চেম্বার যোগ করুন চাপুন। নাম, ঠিকানা, রোগীরা যে নম্বরে ফোন করবেন, আপনার ফি ও সময় দিন।",
+        "আমার চেম্বার খুলুন। আপনার নিজের চেম্বার আর যেসব হাসপাতালে আপনি কাজ করেন, সেগুলো পাশাপাশি কার্ড হিসেবে থাকে। হাসপাতালের কার্ডে হাসপাতাল লেখা থাকে, সাথে তার ঠিকানা ও ফোন, আর সেখানে আপনার ফি ও সময়।",
+        "নিজের চেম্বার খুলতে উপরের চেম্বার যোগ করুন চাপুন, অথবা কোনো চেম্বার না থাকলে নিজের চেম্বার যোগ করুন কার্ডটি চাপুন। নাম, ঠিকানা, রোগীরা যে নম্বরে ফোন করবেন, আপনার ফি ও সময় দিন।",
         "সংরক্ষণ করার সাথে সাথেই এটি বুকিং নিতে শুরু করে। রোগীরা হেলথফ্লোতে আপনাকে খুঁজে আপনার দেওয়া সময়ের মধ্যে বুক করেন।",
         "সেই রোগীরা বাকিদের সাথেই আপনার সারি, সময়সূচি ও রোগী তালিকায় আসেন, চেম্বারের নামসহ। হাসপাতালের মতোই পরামর্শ ও প্রেসক্রিপশন দিন — প্রেসক্রিপশনে চেম্বারের নাম, ঠিকানা ও ফোন ছাপা হয়।",
         "সম্পাদনা দিয়ে যেকোনো সময় তথ্য, ফি বা সময় বদলান। বুকিং বন্ধ করুন দিলে এটি তালিকা থেকে সরে যায়; আগে বুক করা অ্যাপয়েন্টমেন্ট থাকে, আর আবার চালু করুন দিলে ফিরে আসে।",
       ],
       tips: [
         "আপনার একাধিক চেম্বার থাকতে পারে, প্রতিটির নিজের ফি ও সময়সহ।",
-        "হাসপাতালে আপনার ফি ও সময় হাসপাতালের ঠিক করার বিষয়। চেম্বারেরটি আপনার।",
+        "হাসপাতালের কার্ডে ইচ্ছা করেই এডিট বোতাম নেই: সেখানে আপনার ফি ও সময় হাসপাতাল ঠিক করে। বদলাতে হলে হাসপাতালের অ্যাডমিনকে বলুন। চেম্বারেরটি আপনার।",
+      ],
+    },
+    {
+      id: "team",
+      title: "টিম সদস্য",
+      summary: "আপনার নিজের টিম — সহকারী, নার্স, ইন্টার্ন ও রিসেপশনিস্ট — চাইলে প্রত্যেককে আলাদা লগইন দিন।",
+      steps: [
+        "টিম সদস্য খুলে সদস্য যোগ করুন চাপুন, অথবা টিম সদস্য যোগ করুন কার্ডটি চাপুন। ভূমিকা বেছে নিন — সহকারী, নার্স, ইন্টার্ন বা রিসেপশনিস্ট — তারপর নাম, ফোন ও ইমেইল দিন।",
+        "আপনার সাথে কোথায় কাজ করেন ঐচ্ছিক। আমার সব হাসপাতাল ও চেম্বার রেখে দিন, অথবা যে একটি জায়গায় তিনি আপনার সাথে কাজ করেন সেটি বেছে নিন; তখন তাঁর লগইনে শুধু সেই জায়গার রোগী দেখা যাবে।",
+        "যত জন দরকার যোগ করুন, দ্বিতীয় সহকারীও। কার্ডের উপরের ট্যাব দিয়ে ভূমিকা অনুযায়ী, আর জায়গার মেনু দিয়ে হাসপাতাল বা চেম্বার অনুযায়ী ফিল্টার করুন।",
+        "পেনসিল চাপলে সদস্যকে এডিট করা যায়: ভূমিকা, তথ্য, জায়গা বা স্ট্যাটাস। ছুটিতে বা স্থগিত করলে তাঁকে না সরিয়েই তাঁর লগইন বন্ধ থাকে।",
+        "চাবি চাপলে তাঁর লগইন তৈরি হয়। নিশ্চিত করলে তাঁর ইমেইল আর একটি নতুন পাসওয়ার্ড দেখাবে, কপি করে তাঁকে দিন। পরে যেকোনো সময় আবার চাবি চাপলে পাসওয়ার্ড দেখা যাবে; কোনো পাসওয়ার্ড সেভ করা না থাকলে রিসেটের সুযোগ আসবে, যা পুরোনোটা বদলে দেয়।",
+        "ডাস্টবিন চাপলে সদস্য সরে যান। তিনি আপনার টিম থেকে বাদ যান, আর তাঁর লগইন সাথে সাথেই কাজ করা বন্ধ করে।",
+      ],
+      tips: [
+        "টিমটি আপনার, কোনো হাসপাতালের নয়। আপনি যেসব হাসপাতাল ও চেম্বারে রোগী দেখেন, সদস্যরা সবখানেই আপনার সাথে থাকেন।",
+        "সদস্যের ইমেইলই তাঁর লগইন, তাই লগইন থাকা অবস্থায় এটা বদলানো যায় না।",
+        "হাসপাতাল আপনাকে যেসব সহকারী দিয়েছে, তাঁরাও এখানে দেখা যান, কার্ডে লেখা থাকে কোন হাসপাতাল থেকে দেওয়া। তাঁরা হাসপাতালের কর্মী: শুধু হাসপাতালই তাঁদের বদলাতে পারে, আর এখান থেকে তাঁদের লগইন হয় না।",
+      ],
+    },
+    {
+      id: "teamLogin",
+      title: "আপনার টিম কী দেখে",
+      summary: "সদস্যের লগইনে একটিই পেজ খোলে: দিনের আপনার রোগীর তালিকা, আর কিছু নয়।",
+      steps: [
+        "আপনার দেওয়া ইমেইল ও পাসওয়ার্ড দিয়ে তিনি সাধারণ সাইন ইন পেজ থেকে সাইন ইন করেন, আর সরাসরি আপনার দিনের তালিকায় যান।",
+        "সেখানে দিনের আপনার অ্যাপয়েন্টমেন্ট থাকে — প্রত্যেক রোগীর নাম, সময়, জায়গা ও স্ট্যাটাস — আপনার সব জায়গার, অথবা শুধু আপনি যেটি বেছে দিয়েছেন সেটির।",
+        "অন্য দিন বেছে নিয়ে সামনে কী বুক আছে তা-ও দেখতে পারেন।",
+        "সহকারী ও রিসেপশনিস্টরা ফোন করার জন্য প্রত্যেক রোগীর ফোন নম্বরও দেখেন। নার্স ও ইন্টার্নরা দেখেন না।",
+      ],
+      tips: [
+        "ভূমিকা যা-ই হোক, কোনো সদস্য প্রেসক্রিপশন, মেডিকেল রেকর্ড, ভাইটালস বা বিলিং দেখেন না। তাঁদের লগইনে আপনার সারি, রোগী তালিকা বা হাসপাতালের কোনো তথ্য খোলে না।",
+        "কোনো সদস্যকে ছুটিতে বা স্থগিত করলে তিনি সাইন ইন করতে পারেন, কিন্তু দেখবেন তাঁর অ্যাক্সেস বন্ধ আছে।",
       ],
     },
     {
@@ -342,10 +419,11 @@ const BN: PortalGuideText = {
     { id: "printing", t: "প্রিন্ট", d: "প্রেসক্রিপশন থেকেই প্রিন্ট করুন। আপনি যে পেজটি দেখছেন সেটিই প্রিন্ট হয় — আলাদা কোনো এক্সপোর্ট ধাপ নেই।" },
     { id: "medicines", t: "আপনার ওষুধ", d: "পিকারের ডিফল্ট তালিকা আপনার নিজের সবচেয়ে বেশি দেওয়া ওষুধ, আপনি দেওয়ার সাথে সাথেই গোনা হয়। আপনাকে কিছু করতে হয় না, তালিকাটি নিজেই ভালো হয়।" },
     { id: "walkins", t: "ওয়াক-ইন", d: "সারিতে ওয়াক-ইন রোগী যোগ করুন এক ধাপেই রোগীকে নিবন্ধন করে আজকের ভিজিট বুক করে দেয়।" },
-    { id: "privacy", t: "অন্যরা কী দেখতে পায়", d: "আপনার রোগী, চার্ট ও সারি কেবল আপনার হাসপাতালের। শুধু কমিউনিটি ফিডই এর বাইরে যায়।" },
+    { id: "privacy", t: "অন্যরা কী দেখতে পায়", d: "আপনার রোগী, চার্ট ও সারি কেবল আপনার হাসপাতালের। আপনার নিজের টিম শুধু আপনার দিনের তালিকা দেখে, আর শুধু কমিউনিটি ফিডই হাসপাতালের বাইরে যায়।" },
   ],
   notYet: [
     "হাসপাতালে নিজের সময় ঠিক করা — সেটি হাসপাতাল ঠিক করে। (নিজের চেম্বারের সময় আপনারই, আমার চেম্বার পেজে।)",
+    "টিমকে দিয়ে রোগী চেক-ইন, ভাইটালস লেখা বা প্রেসক্রিপশন লেখানো। তাঁদের লগইনে শুধু আপনার দিনের তালিকা দেখা যায়।",
     "ছুটির আবেদন। হাসপাতালের অ্যাডমিনকে বলুন; ছুটি এইচআর অ্যাডমিন প্যানেলে রাখে, এখানে নয়।",
     "ভিডিও পরামর্শ। টেলিহেলথ পেজটি এখনো কিছুর সাথে যুক্ত নয়।",
     "রোগীকে এসএমএস বা ইমেইলে প্রেসক্রিপশন পাঠানো। এটি প্রিন্ট হয়; রোগী তাঁর নিজের প্যানেলে আলাদাভাবে রেকর্ড দেখেন।",
@@ -375,6 +453,14 @@ const BN: PortalGuideText = {
     {
       q: "প্যানেলে সময় বা তারিখের ফরম্যাট ভুল দেখাচ্ছে।",
       a: "এগুলো আসে প্ল্যাটফর্মের ডিফল্ট থেকে, যা সুপার অ্যাডমিন ঠিক করেন, আর সেটিংসে আপনি নিজে কিছু বেছে নিলে সেটি থেকে। আপনারটি প্ল্যাটফর্মেরটির উপরে থাকে।",
+    },
+    {
+      q: "আমার সহকারী পাসওয়ার্ড ভুলে গেছেন। কী করব?",
+      a: "টিম সদস্য → তাঁর কার্ডে চাবি চাপুন। আপনি তাঁকে যে পাসওয়ার্ড দিয়েছিলেন সেটি দেখাবে। কোনো পাসওয়ার্ড সেভ করা না থাকলে রিসেটের সুযোগ আসবে: এটি নতুন পাসওয়ার্ড তৈরি করে, আর পুরোনোটা আর কাজ করে না।",
+    },
+    {
+      q: "আমার নার্স কি আমার রোগীদের রেকর্ড দেখতে পান?",
+      a: "না। ভূমিকা যা-ই হোক, প্রত্যেক সদস্য শুধু আপনার দিনের তালিকা দেখেন: নাম, সময়, জায়গা ও স্ট্যাটাস। সহকারী ও রিসেপশনিস্টরা ফোন নম্বরও দেখেন। প্রেসক্রিপশন, রেকর্ড, ভাইটালস ও বিলিং আপনার কাছেই থাকে।",
     },
   ],
 };
