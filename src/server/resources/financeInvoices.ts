@@ -26,6 +26,12 @@ export const financeInvoiceCreateSchema = z.object({
    * visible on that patient's /patient/billing page.
    */
   patient_id: z.preprocess(blankToUndefined, z.string().uuid().nullable().optional()),
+  /**
+   * The admission this invoice bills, when it bills an inpatient stay.
+   */
+  admission_id: z.preprocess(blankToUndefined, z.string().uuid().nullable().optional()),
+  description: z.preprocess(blankToUndefined, z.string().nullable().optional()),
+  line_items: z.any().optional(),
   // tenant_id is deliberately absent: the route stamps it from the JWT.
 });
 
@@ -44,7 +50,7 @@ export const financeInvoicesResource: ResourceDefinition<
   createSchema: financeInvoiceCreateSchema,
   updateSchema: financeInvoiceUpdateSchema,
   searchFields: ["reference", "party"],
-  filterFields: ["kind", "patient_id"],
+  filterFields: ["kind", "patient_id", "admission_id"],
   // Soonest due first: the page is a worklist, and what is nearly late matters
   // more than what was entered last.
   defaultSort: { column: "due_date", ascending: true },

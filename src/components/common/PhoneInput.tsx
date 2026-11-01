@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PHONE_COUNTRIES, bdLocalPart, bdStoredPhone, isBdMobile, type PhoneCountry } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
@@ -31,10 +31,12 @@ const inputCls = "flex-1 min-w-0 bg-muted/40 rounded-lg px-3 py-2 outline-none f
  * `className` restyles both boxes, for a form whose other inputs look
  * different — the shadcn ones are white with a border.
  */
-export const PhoneInput = ({ name, defaultValue, onChange, required, invalid, autoFocus, disabled, className }: {
+export const PhoneInput = ({ name, defaultValue, value, onChange, onRawChange, required, invalid, autoFocus, disabled, className }: {
   name?: string;
   defaultValue?: unknown;
+  value?: string;
   onChange?: (phone: string) => void;
+  onRawChange?: (raw: string) => void;
   required?: boolean;
   invalid?: boolean;
   autoFocus?: boolean;
@@ -42,11 +44,18 @@ export const PhoneInput = ({ name, defaultValue, onChange, required, invalid, au
   className?: string;
 }) => {
   const country = PHONE_COUNTRIES[0];
-  const [local, setLocal] = useState(() => bdLocalPart(typeof defaultValue === "string" ? defaultValue : ""));
+  const [local, setLocal] = useState(() => bdLocalPart(typeof (value ?? defaultValue) === "string" ? (value ?? defaultValue) as string : ""));
+
+  useEffect(() => {
+    if (value !== undefined) {
+      setLocal(bdLocalPart(value));
+    }
+  }, [value]);
 
   const type = (typed: string) => {
     const next = bdLocalPart(typed).slice(0, country.maxLength);
     setLocal(next);
+    onRawChange?.(next);
     onChange?.(isBdMobile(next) ? bdStoredPhone(next) : "");
   };
 

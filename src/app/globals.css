@@ -200,6 +200,8 @@
      makes what you see the thing that comes out of the printer. */
   #invoice-print-area,
   #invoice-print-area *,
+  #printable-ipd-invoice,
+  #printable-ipd-invoice *,
   #patient-handout-print-area,
   #patient-handout-print-area * {
     visibility: visible;
@@ -430,7 +432,9 @@
   #printable-slip,
   #printable-slip *,
   #printable-sale-invoice,
-  #printable-sale-invoice * {
+  #printable-sale-invoice *,
+  #printable-ipd-invoice,
+  #printable-ipd-invoice * {
     visibility: visible;
   }
 
@@ -451,7 +455,8 @@
     box-shadow: none !important;
   }
 
-  #printable-sale-invoice {
+  #printable-sale-invoice,
+  #printable-ipd-invoice {
     position: absolute;
     left: 0;
     top: 0;

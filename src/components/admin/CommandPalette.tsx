@@ -15,8 +15,17 @@ export const CommandPalette = ({ open, onClose, scope }: { open: boolean; onClos
   const router = useRouter();
   // Search what the reader sees, not the English key underneath.
   const labelled = scope === "admin"
-    ? adminNav.map(i => ({ to: i.to, icon: i.icon, label: t(`links.${i.key}`) }))
-    : superNav.map(i => ({ to: i.to, icon: i.icon, label: ts(`links.${i.key}`) }));
+    ? adminNav.flatMap(i => {
+        if ("children" in i && Array.isArray((i as any).children)) {
+          return ((i as any).children as readonly { to: string; icon: any; key: string }[]).map(c => ({
+            to: c.to,
+            icon: c.icon,
+            label: `${t(`links.${i.key}` as never)} → ${t(`links.${c.key}` as never)}`,
+          }));
+        }
+        return [{ to: (i as any).to as string, icon: i.icon, label: t(`links.${i.key}` as never) }];
+      })
+    : superNav.map(i => ({ to: i.to, icon: i.icon, label: ts(`links.${i.key}` as never) }));
   const items = labelled.filter(i => i.label.toLowerCase().includes(q.toLowerCase()));
   useEffect(() => { if (!open) setQ(""); }, [open]);
   return (
@@ -39,4 +48,3 @@ export const CommandPalette = ({ open, onClose, scope }: { open: boolean; onClos
     </Modal>
   );
 };
-

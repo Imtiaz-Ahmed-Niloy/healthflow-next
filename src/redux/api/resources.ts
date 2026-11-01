@@ -112,11 +112,13 @@ export type PersonalFileRow = Tables["personal_files"]["Row"];
 export type PatientRow = Tables["patients"]["Row"];
 
 /** Patient summary embedded on appointments. */
-type PatientSummary = Pick<PatientRow, "id" | "full_name" | "mrn" | "phone">;
+type PatientSummary = Pick<PatientRow, "id" | "full_name" | "mrn" | "phone" | "profile_id">;
 
 export type AppointmentRow = Tables["appointments"]["Row"] & {
   patients: PatientSummary | null;
   doctors: DoctorSummary | null;
+  walk_in?: boolean | null;
+  booking_source?: "patient_portal" | "doctor_walk_in" | "hospital_admin" | string | null;
 };
 
 /* ------------------------------------------- wards / beds / cabins --- */
@@ -138,7 +140,7 @@ export type CabinRow = Tables["cabins"]["Row"];
 /** Patient summary embedded on admissions — more than appointments' PatientSummary needs (gender/DOB for the bedside view). */
 type AdmissionPatientSummary = Pick<
   PatientRow,
-  "id" | "full_name" | "mrn" | "gender" | "date_of_birth" | "phone"
+  "id" | "full_name" | "mrn" | "gender" | "date_of_birth" | "phone" | "blood_group"
 >;
 
 /**
@@ -150,8 +152,10 @@ export type AdmissionBedStay = Pick<
   Tables["bed_stays"]["Row"],
   "id" | "bed_id" | "cabin_id" | "started_at" | "ended_at"
 > & {
-  beds: Pick<BedRow, "number"> | null;
-  cabins: Pick<CabinRow, "number"> | null;
+  beds: (Pick<BedRow, "number"> & {
+    wards?: Pick<WardRow, "name" | "daily_rate" | "nursing_charge"> | null;
+  }) | null;
+  cabins: Pick<CabinRow, "number" | "category" | "daily_rate"> | null;
 };
 
 /** One charge on a stay's bill, as admission_bill() (0080) prices it. */
@@ -454,3 +458,106 @@ export const nursePerformanceApi = createResourceApi<
 >("nurse-performance");
 
 export const supportTicketsApi = createResourceApi<SupportTicketRow>("support-tickets");
+
+
+/* -------------------------------------------------- hospital hrms suite --- */
+
+export type DutyRosterRow = {
+  id: string;
+  tenant_id: string;
+  employee_id: string;
+  department: string | null;
+  shift_name: "Morning" | "Evening" | "Night" | "General" | "On-Call" | "Emergency";
+  shift_date: string;
+  start_time: string;
+  end_time: string;
+  ward_or_unit: string | null;
+  is_on_call: boolean;
+  status: "scheduled" | "confirmed" | "completed" | "swapped" | "absent";
+  notes: string | null;
+  created_at?: string;
+  updated_at?: string;
+  employees?: { id: string; name: string; emp_id: string; department: string | null; designation: string | null; phone: string | null } | null;
+};
+
+export type StaffCredentialRow = {
+  id: string;
+  tenant_id: string;
+  employee_id: string;
+  title: string;
+  credential_type: "medical_license" | "nursing_license" | "clinical_certification" | "life_support" | "fellowship" | "other";
+  registration_number: string;
+  issuing_authority: string;
+  issue_date: string | null;
+  expiry_date: string | null;
+  verification_status: "pending" | "verified" | "expired" | "rejected";
+  document_url: string | null;
+  notes: string | null;
+  created_at?: string;
+  updated_at?: string;
+  employees?: { id: string; name: string; emp_id: string; department: string | null; designation: string | null } | null;
+};
+
+export type HospitalCircularRow = {
+  id: string;
+  tenant_id: string;
+  circular_number: string;
+  title: string;
+  category: "administrative" | "clinical_protocol" | "emergency" | "holiday_policy" | "infection_control" | "general";
+  priority: "normal" | "urgent" | "critical";
+  target_audience: "all_staff" | "doctors_only" | "nurses_only" | "administrative" | "clinical_staff";
+  published_date: string;
+  valid_until: string | null;
+  content: string;
+  status: "draft" | "published" | "archived";
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type ExitClearanceRow = {
+  id: string;
+  tenant_id: string;
+  employee_id: string;
+  resignation_date: string;
+  last_working_day: string;
+  reason_for_leaving: string | null;
+  pharmacy_cleared: boolean;
+  pharmacy_notes: string | null;
+  it_assets_cleared: boolean;
+  it_notes: string | null;
+  library_records_cleared: boolean;
+  accounts_finance_cleared: boolean;
+  accounts_notes: string | null;
+  hr_admin_cleared: boolean;
+  final_settlement_status: "pending" | "calculated" | "disbursed" | "on_hold";
+  service_certificate_issued: boolean;
+  notes: string | null;
+  created_at?: string;
+  updated_at?: string;
+  employees?: { id: string; name: string; emp_id: string; department: string | null; designation: string | null; phone: string | null; email: string | null } | null;
+};
+
+export type JobOpeningRow = {
+  id: string;
+  tenant_id: string;
+  job_title: string;
+  department: string;
+  employment_type: "full_time" | "part_time" | "contract" | "locum" | "intern";
+  experience_required: string | null;
+  vacancies: number;
+  closing_date: string | null;
+  job_description: string | null;
+  requirements: string | null;
+  status: "draft" | "active" | "interviewing" | "closed" | "cancelled";
+  created_at?: string;
+  updated_at?: string;
+};
+
+export const dutyRostersApi = createResourceApi<DutyRosterRow>("duty-rosters");
+export const staffCredentialsApi = createResourceApi<StaffCredentialRow>("staff-credentials");
+export const hospitalCircularsApi = createResourceApi<HospitalCircularRow>("hospital-circulars");
+export const exitClearancesApi = createResourceApi<ExitClearanceRow>("exit-clearances");
+export const jobOpeningsApi = createResourceApi<JobOpeningRow>("job-openings");
+
+export type FinanceInvoiceRow = Tables["finance_invoices"]["Row"];
+export const financeInvoicesApi = createResourceApi<FinanceInvoiceRow>("finance-invoices");

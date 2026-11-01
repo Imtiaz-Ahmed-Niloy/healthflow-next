@@ -37,6 +37,8 @@ export interface OpdInvoiceData {
   line_items?: LineItem[];
   facility_name?: string;
   facility_kind?: string;
+  doctor_name?: string | null;
+  doctor_specialty?: string | null;
   payment_method?: string;
   patient?: {
     id?: string;

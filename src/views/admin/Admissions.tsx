@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, Btn, Pill, SectionTitle, Kpi } from "@/components/admin/ui";
@@ -13,10 +15,21 @@ import { useResourceCrud } from "@/components/admin/useResourceCrud";
 import { useAdmitPatient } from "@/components/admin/useAdmitPatient";
 import { useNotifications } from "@/components/admin/NotificationProvider";
 import { useTransferBedMutation } from "@/redux/api/bedTransfers";
-import { doctorsApi, patientsApi, bedsApi, cabinsApi, type AdmissionRow } from "@/redux/api/resources";
+import { doctorsApi, patientsApi, bedsApi, cabinsApi, type AdmissionRow, type BillLine } from "@/redux/api/resources";
 import { useFormatters } from "@/lib/appSettings";
-import { BedDouble, UserPlus, LogOut, Activity, Stethoscope, FileText, Printer, ArrowRightLeft } from "lucide-react";
+import { BedDouble, UserPlus, LogOut, Activity, Stethoscope, FileText, Printer, ArrowRightLeft, Copy, Check, X } from "lucide-react";
+import { BRAND_INFO } from "@/constants/brand";
+import { mediaUrl } from "@/lib/media";
+import { toast } from "sonner";
 import { DateTimeLocalInput } from "@/components/ui/date-input";
+import { DischargeSummaryModal } from "@/components/admin/DischargeSummaryModal";
+import { printIpdInvoice } from "@/lib/ipdInvoicePrint";
+import {
+  PatientByPhoneField,
+  type PatientSelectedDetails,
+} from "@/components/admin/PatientByPhoneField";
+import { usePatientLogin } from "@/components/admin/usePatientLogin";
+import type { PatientRow } from "@/redux/api/resources";
 
 /**
  * HF-37 frontend wiring. Real tables now: admissions, bed_stays (via embed),
@@ -91,10 +104,161 @@ const placeOf = (stay: AdmissionRow["bed_stays"][number] | null | undefined): Pl
 /** The invoice the discharge raised — absent before discharge, and for roles that can't read invoices. */
 const invoiceOf = (a: AdmissionRow) => a.finance_invoices?.[0] ?? null;
 
-/** What the stay costs: the invoice once there is one, the running bill until then. */
+export type LiveBillDetails = {
+  lines: BillLine[];
+  total: number;
+  days: number;
+  startDateStr: string;
+  endDateStr: string;
+  isDismissed: boolean;
+};
+
+/**
+ * Computes up-to-date admission bill from admission date (admitted_at)
+ * till current date (if not dismissed / still admitted) or till dismissed date (if dismissed).
+ */
+export const computeAdmissionLiveBill = (
+  a: AdmissionRow,
+  nowDate: Date = new Date(),
+): LiveBillDetails => {
+  const isDismissed = a.status === "discharged" || !!a.discharged_at;
+  const start = new Date(a.admitted_at);
+  const end = isDismissed
+    ? new Date(a.discharged_at || a.admitted_at)
+    : nowDate;
+
+  const safeEnd = end.getTime() >= start.getTime() ? end : start;
+  const msElapsed = safeEnd.getTime() - start.getTime();
+  // Minimum 1 day for any admission
+  const totalDays = Math.max(1, Math.ceil(msElapsed / (1000 * 60 * 60 * 24)));
+
+  const stays = [...(a.bed_stays ?? [])].sort(
+    (x, y) => new Date(x.started_at).getTime() - new Date(y.started_at).getTime(),
+  );
+
+  const lines: BillLine[] = [];
+
+  const getStayInfo = (stay: AdmissionRow["bed_stays"][number]) => {
+    const cabin = stay.cabins;
+    const bed = stay.beds;
+    const ward = bed?.wards;
+
+    const desc = cabin
+      ? `Cabin ${cabin.number}${cabin.category ? ` (${cabin.category.charAt(0).toUpperCase() + cabin.category.slice(1)})` : ""}`
+      : `${ward?.name ?? "Ward"} · Bed ${bed?.number ?? "—"}`;
+
+    const rate = cabin ? Number(cabin.daily_rate) : ward ? Number(ward.daily_rate) : 0;
+    const nursing = (!cabin && ward && Number(ward.nursing_charge) > 0) ? Number(ward.nursing_charge) : 0;
+    return { desc, rate, nursing, wardName: ward?.name };
+  };
+
+  if (stays.length === 0) {
+    if (a.admission_bill?.lines && a.admission_bill.lines.length > 0) {
+      for (const line of a.admission_bill.lines) {
+        const rate = Number(line.rate) || 500;
+        lines.push({
+          description: line.description,
+          quantity: totalDays,
+          rate,
+          amount: Number((totalDays * rate).toFixed(2)),
+        });
+      }
+    } else {
+      const rate = 500;
+      lines.push({
+        description: "Inpatient General Care & Bed Charges",
+        quantity: totalDays,
+        rate,
+        amount: Number((totalDays * rate).toFixed(2)),
+      });
+    }
+  } else if (stays.length === 1) {
+    const info = getStayInfo(stays[0]);
+    const rate = info.rate || (Number(a.admission_bill?.lines?.[0]?.rate) || 500);
+    lines.push({
+      description: info.desc,
+      quantity: totalDays,
+      rate,
+      amount: Number((totalDays * rate).toFixed(2)),
+    });
+    if (info.nursing > 0) {
+      lines.push({
+        description: `Nursing care · ${info.wardName ?? "Ward"}`,
+        quantity: totalDays,
+        rate: info.nursing,
+        amount: Number((totalDays * info.nursing).toFixed(2)),
+      });
+    }
+  } else {
+    let allocatedDays = 0;
+    for (let i = 0; i < stays.length; i++) {
+      const stay = stays[i];
+      const info = getStayInfo(stay);
+      const stayStart = i === 0 ? start : new Date(stay.started_at);
+      const isLast = i === stays.length - 1;
+
+      let stayEnd: Date;
+      if (isLast) {
+        stayEnd = safeEnd;
+      } else {
+        const nextStart = new Date(stays[i + 1].started_at);
+        stayEnd = stay.ended_at ? new Date(stay.ended_at) : nextStart;
+        if (stayEnd.getTime() > nextStart.getTime()) {
+          stayEnd = nextStart;
+        }
+      }
+
+      const segmentMs = Math.max(0, stayEnd.getTime() - stayStart.getTime());
+      let segDays = Math.ceil(segmentMs / (1000 * 60 * 60 * 24));
+      if (segDays < 1 && isLast && allocatedDays === 0) {
+        segDays = 1;
+      }
+
+      if (segDays > 0) {
+        allocatedDays += segDays;
+        const rate = info.rate || 500;
+        lines.push({
+          description: info.desc,
+          quantity: segDays,
+          rate,
+          amount: Number((segDays * rate).toFixed(2)),
+        });
+        if (info.nursing > 0) {
+          lines.push({
+            description: `Nursing care · ${info.wardName ?? "Ward"}`,
+            quantity: segDays,
+            rate: info.nursing,
+            amount: Number((segDays * info.nursing).toFixed(2)),
+          });
+        }
+      }
+    }
+
+    if (lines.length > 0 && allocatedDays < totalDays) {
+      const diff = totalDays - allocatedDays;
+      lines[0].quantity += diff;
+      lines[0].amount = Number((lines[0].quantity * lines[0].rate).toFixed(2));
+    }
+  }
+
+  const total = Number(lines.reduce((sum, l) => sum + l.amount, 0).toFixed(2));
+  return {
+    lines,
+    total,
+    days: totalDays,
+    startDateStr: a.admitted_at,
+    endDateStr: isDismissed ? (a.discharged_at ?? a.admitted_at) : safeEnd.toISOString(),
+    isDismissed,
+  };
+};
+
+/** What the stay costs: up-to-date live calculation from admission date to now/discharge date. */
 const billTotal = (a: AdmissionRow) => {
   const invoice = invoiceOf(a);
-  return invoice ? Number(invoice.amount) : Number(a.admission_bill?.total ?? 0);
+  if (invoice?.paid_at) {
+    return Number(invoice.amount);
+  }
+  return computeAdmissionLiveBill(a).total;
 };
 
 type Draft = {
@@ -134,14 +298,22 @@ const Admissions = () => {
   const [transferBed] = useTransferBedMutation();
   const { push, notify } = useNotifications();
   const { formatCurrency, formatDate, formatDateTime } = useFormatters();
+  const [createPatient] = patientsApi.useCreate();
+  const login = usePatientLogin();
+  const [edit, setEdit] = useState<AdmissionRow | null>(null);
+  const [add, setAdd] = useState(false);
+  const [draft, setDraft] = useState<Draft>(emptyDraft);
+  const [patientDetails, setPatientDetails] = useState<PatientSelectedDetails | null>(null);
+
+  const handlePatientChange = useCallback((details: PatientSelectedDetails | null) => {
+    setPatientDetails(details);
+    const nextPatientId = details && !details.isNew ? details.patientId : "";
+    setDraft(d => (d.patient_id === nextPatientId ? d : { ...d, patient_id: nextPatientId }));
+  }, []);
 
   // Small enough lists to load whole — same pattern as Appointments.tsx.
-  const { data: patientsData, isLoading: patientsLoading } = patientsApi.useList({ limit: 100 });
+  const { data: patientsData } = patientsApi.useList({ limit: 100 });
   const patients = useMemo(() => patientsData?.data ?? [], [patientsData]);
-  const patientOptions = useMemo(() => [
-    { value: "", label: patientsLoading ? t("loadingPatients") : t("selectPatient") },
-    ...patients.map(p => ({ value: p.id, label: `${p.full_name} (${p.mrn})` })),
-  ], [patients, patientsLoading, t]);
 
   const { data: doctorsData, isLoading: doctorsLoading } = doctorsApi.useList({ limit: 100 });
   const doctors = useMemo(() => doctorsData?.data ?? [], [doctorsData]);
@@ -161,13 +333,121 @@ const Admissions = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | string>("all");
   const [selected, setSelected] = useState<string[]>([]);
-  const [edit, setEdit] = useState<AdmissionRow | null>(null);
-  const [add, setAdd] = useState(false);
-  const [draft, setDraft] = useState<Draft>(emptyDraft);
+  const [copied, setCopied] = useState(false);
+  const [hospitalProfile, setHospitalProfile] = useState<{
+    name?: string | null;
+    tagline?: string | null;
+    address?: string | null;
+    location?: string | null;
+    contact_phone?: string | null;
+    contact_email?: string | null;
+    logo_url?: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchHospitalProfile = async () => {
+      try {
+        const res = await fetch("/api/v1/hospital/profile");
+        if (!res.ok) return;
+        const body = await res.json().catch(() => null);
+        if (!cancelled && body?.data) {
+          setHospitalProfile(body.data);
+        }
+      } catch {
+        // Fallback values already in place
+      }
+    };
+    void fetchHospitalProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handlePrintModalInvoice = () => {
+    if (!billFor) return;
+    const a = billFor;
+    const inv = invoiceOf(a);
+    const live = computeAdmissionLiveBill(a);
+    const lines = (inv?.paid_at && inv.line_items?.length) ? inv.line_items : live.lines;
+    const total = (inv?.paid_at) ? Number(inv.amount) : live.total;
+    const age = ageFromDob(a.patients?.date_of_birth ?? null);
+    const lastStay = a.bed_stays[a.bed_stays.length - 1];
+    const location = currentStay(a) ? locationLabel(a) : placeLabel(placeOf(lastStay));
+    const reference = inv?.reference || `ADM-${a.id.slice(0, 8).toUpperCase()}`;
+    const isSettled = Boolean(inv?.paid_at);
+
+    const hospitalNameStr = hospitalProfile?.name?.trim() || BRAND_INFO.hospitalName || BRAND_INFO.name;
+    const hospitalTagline = hospitalProfile?.tagline?.trim() || "Inpatient Department (IPD) · Admission & Bed Services";
+    const hospitalAddress = [
+      hospitalProfile?.address?.trim(),
+      hospitalProfile?.location?.trim(),
+    ].filter(Boolean).join(" · ");
+    const hospitalPhone = hospitalProfile?.contact_phone?.trim() || "+880 1700-000000";
+    const hospitalEmail = hospitalProfile?.contact_email?.trim() || "care@healthflowbd.com";
+    const hospitalLogo = (hospitalProfile?.logo_url ? mediaUrl(hospitalProfile.logo_url) : null) || BRAND_INFO.logoMark;
+
+    printIpdInvoice({
+      reference,
+      generatedAt: formatDateTime(new Date().toISOString()),
+      isDismissed: live.isDismissed,
+      isSettled,
+      hospital: {
+        name: hospitalNameStr,
+        tagline: hospitalTagline,
+        address: hospitalAddress,
+        phone: hospitalPhone,
+        email: hospitalEmail,
+        logoUrl: hospitalLogo,
+      },
+      patient: {
+        name: patientName(a),
+        mrn: a.patients?.mrn || undefined,
+        phone: a.patients?.phone || undefined,
+        age,
+        gender: a.patients?.gender || undefined,
+        bloodGroup: a.patients?.blood_group || undefined,
+      },
+      admission: {
+        admissionDate: formatDateTime(a.admitted_at),
+        calculatedThrough: `${formatDateTime(live.endDateStr)}${!live.isDismissed ? " (Current Date)" : ""}`,
+        stayDays: live.days,
+        location,
+        doctorName: a.doctors?.name || "Attending Consultant",
+        doctorSpecialty: a.doctors?.specialty || undefined,
+      },
+      lines: lines.map((l: any) => ({
+        description: l.description,
+        subtext: l.subtext || (live.isDismissed ? "Discharged stay charge" : "Billed from admission date to current date"),
+        quantity: l.quantity,
+        unitLabel: "Days",
+        rate: Number(l.rate),
+        amount: Number(l.amount),
+      })),
+      subtotal: total,
+      grandTotal: total,
+      paymentStatus: isSettled ? "SETTLED & PAID" : live.isDismissed ? "DUE UPON DISCHARGE" : "ACCRUING (LIVE)",
+      formatCurrency,
+    });
+  };
+
+  const handleCopyReference = () => {
+    if (!billFor) return;
+    const inv = invoiceOf(billFor);
+    const ref = inv?.reference || `IPD-${billFor.id.slice(0, 8).toUpperCase()}`;
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(ref).then(() => {
+        setCopied(true);
+        toast.success("Bill reference copied to clipboard");
+        setTimeout(() => setCopied(false), 2000);
+      });
+    }
+  };
   const [del, setDel] = useState<string | null>(null);
   const [discharge, setDischarge] = useState<AdmissionRow | null>(null);
   const [dischargeAt, setDischargeAt] = useState(now());
   const [discharging, setDischarging] = useState(false);
+  const [summaryAdmission, setSummaryAdmission] = useState<AdmissionRow | null>(null);
   const [transferring, setTransferring] = useState<AdmissionRow | null>(null);
   const [transferTarget, setTransferTarget] = useState({ bed_id: "", cabin_id: "" });
   // An id, not the row: the bill should follow the list as it refetches.
@@ -191,9 +471,14 @@ const Admissions = () => {
   const byStatus = (v: string) => active.filter(a => a.status === v).length;
   const todaysAdmits = crud.items.filter(a => toLocalInput(a.admitted_at).slice(0, 10) === now().slice(0, 10)).length;
 
-  const openAdd = () => { setDraft({ ...emptyDraft, admitted_at: now() }); setAdd(true); };
+  const openAdd = () => {
+    setDraft({ ...emptyDraft, admitted_at: now() });
+    setPatientDetails(null);
+    setAdd(true);
+  };
   const openEdit = (a: AdmissionRow) => {
     setEdit(a);
+    setPatientDetails(null);
     setDraft({
       patient_id: a.patient_id, doctor_id: a.doctor_id ?? "",
       diagnosis: a.diagnosis ?? "", priority: a.priority, notes: a.notes ?? "",
@@ -208,8 +493,8 @@ const Admissions = () => {
     !!dischargedAt && !!admittedAt && dischargedAt < admittedAt.slice(0, 16);
 
   const save = async () => {
-    if (!draft.patient_id) return;
     if (edit) {
+      if (!draft.patient_id) return;
       const toDischarged = draft.status === "discharged";
       if (toDischarged && !draft.discharged_at) {
         push({ title: t("toasts.dateNeeded"), body: t("toasts.dateNeededBody"), tone: "warn" });
@@ -245,8 +530,64 @@ const Admissions = () => {
       });
       if (ok) setEdit(null);
     } else {
+      let patientId = draft.patient_id;
+      let patientDisplayName = patientDetails?.patientName || patients.find(p => p.id === patientId)?.full_name;
+
+      // Handle new patient registration if phone was entered but not registered yet
+      if (!patientId && patientDetails?.isNew && patientDetails.newPatient) {
+        const np = patientDetails.newPatient;
+        if (!np.phone.trim()) {
+          push({
+            title: "Phone Number Required",
+            body: "Please enter the patient's phone number.",
+            tone: "warn",
+          });
+          return;
+        }
+        if (!np.full_name.trim()) {
+          push({
+            title: "Patient Name Required",
+            body: "Please enter the patient's full name.",
+            tone: "warn",
+          });
+          return;
+        }
+
+        try {
+          const body: Partial<PatientRow> = {
+            full_name: np.full_name.trim(),
+            phone: np.phone.trim(),
+            ...(np.gender ? { gender: np.gender as PatientRow["gender"] } : {}),
+            ...(np.date_of_birth ? { date_of_birth: np.date_of_birth } : {}),
+            ...(np.blood_group ? { blood_group: np.blood_group as PatientRow["blood_group"] } : {}),
+          };
+          const createdRes = await createPatient(body).unwrap();
+          const newPatientRow = createdRes.data as PatientRow;
+          patientId = newPatientRow.id;
+          patientDisplayName = newPatientRow.full_name;
+          void login.create(newPatientRow);
+        } catch (cause) {
+          const message = (cause as { data?: { error?: { message?: string } } })?.data?.error?.message;
+          push({
+            title: "Failed to create patient",
+            body: message || "Could not save the new patient account.",
+            tone: "bad",
+          });
+          return;
+        }
+      }
+
+      if (!patientId) {
+        push({
+          title: "Patient Required",
+          body: "Please enter patient phone number to select or register a patient.",
+          tone: "warn",
+        });
+        return;
+      }
+
       const ok = await admit({
-        patient_id: draft.patient_id,
+        patient_id: patientId,
         doctor_id: draft.doctor_id || undefined,
         diagnosis: draft.diagnosis || undefined,
         priority: draft.priority as AdmissionRow["priority"],
@@ -256,11 +597,14 @@ const Admissions = () => {
         // default, and the desk had no way to tell.
         admitted_at: draft.admitted_at ? fromLocalInput(draft.admitted_at) : undefined,
         // Name only for the notice-board line — see AdmitInput.patientName.
-        patientName: patients.find(p => p.id === draft.patient_id)?.full_name,
+        patientName: patientDisplayName,
         bed_id: draft.bed_id || undefined,
         cabin_id: draft.cabin_id || undefined,
       });
-      if (ok) setAdd(false);
+      if (ok) {
+        setAdd(false);
+        setPatientDetails(null);
+      }
     }
   };
 
@@ -396,13 +740,21 @@ const Admissions = () => {
     {
       key: "bill", label: t("columns.bill"), sortable: true, accessor: billTotal,
       render: a => {
+        const live = computeAdmissionLiveBill(a);
         const invoice = invoiceOf(a);
-        const note = invoice
-          ? invoice.paid_at ? t("billNote.paid") : t("billNote.invoiced")
-          : a.status === "discharged" ? t("billNote.final") : t("billNote.soFar");
+        const note = invoice?.paid_at
+          ? t("billNote.paid")
+          : a.status === "discharged"
+          ? `${t("billNote.final")} (${live.days}d)`
+          : `Live (${live.days}d so far)`;
         return (
-          <button type="button" onClick={e => { e.stopPropagation(); setBillId(a.id); }} className="text-left">
-            <p className="font-semibold text-primary">{formatCurrency(billTotal(a))}</p>
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); setBillId(a.id); }}
+            className="text-left group cursor-pointer"
+            title="Click to view up-to-date live bill breakdown"
+          >
+            <p className="font-semibold text-primary group-hover:underline">{formatCurrency(billTotal(a))}</p>
             <p className="text-[11px] text-muted-foreground">{note}</p>
           </button>
         );
@@ -509,11 +861,27 @@ const Admissions = () => {
         </>}
       >
         <div className="grid sm:grid-cols-2 gap-x-5">
-          <Field label={t("columns.patient")} required>
-            <Select value={draft.patient_id} onChange={e => setDraft(d => ({ ...d, patient_id: e.target.value }))}>
-              {patientOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </Select>
-          </Field>
+          {!edit ? (
+            <div className="sm:col-span-2 mb-3">
+              <PatientByPhoneField
+                name="patient_id"
+                autoFocus
+                onPatientChange={handlePatientChange}
+              />
+            </div>
+          ) : (
+            <div className="sm:col-span-2 mb-4 p-3 rounded-xl bg-muted/40 border border-border flex items-center justify-between">
+              <div>
+                <div className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Patient</div>
+                <div className="text-sm font-bold text-foreground mt-0.5">{edit.patients?.full_name}</div>
+                <div className="text-xs text-muted-foreground font-mono flex items-center gap-2 mt-0.5">
+                  {edit.patients?.mrn && <span>MRN: {edit.patients.mrn}</span>}
+                  {edit.patients?.phone && <span>• {edit.patients.phone}</span>}
+                </div>
+              </div>
+              <Pill tone="info">{statusLabel(edit.status)}</Pill>
+            </div>
+          )}
           <Field label={t("fields.doctor")}>
             <Select value={draft.doctor_id} onChange={e => setDraft(d => ({ ...d, doctor_id: e.target.value }))}>
               {doctorOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -654,96 +1022,303 @@ const Admissions = () => {
         </Field>
       </Modal>
 
-      {/* Bill / invoice modal. Every figure comes from the database: the
-          running bill from admission_bill(), or — once discharged — the
-          invoice it raised, whose lines were frozen at that moment (0080).
-          This used to be a mock with made-up rates and a 5% VAT line. */}
-      <Modal
-        open={!!billFor}
-        onClose={() => setBillId(null)}
-        title={!billFor ? "" : invoiceOf(billFor)
-          ? t("invoiceTitle", { reference: invoiceOf(billFor)!.reference })
-          : billFor.status === "discharged" ? t("bill") : t("billSoFar")}
-        size="lg"
-        footer={<>
-          <Btn variant="outline" onClick={() => setBillId(null)}>{tc("close")}</Btn>
-          <Btn onClick={() => window.print()}><Printer className="h-4 w-4 mr-1.5" /> {t("print")}</Btn>
-        </>}
-      >
-        {billFor && (() => {
-          const a = billFor;
-          const inv = invoiceOf(a);
-          const lines = inv?.line_items ?? a.admission_bill?.lines ?? [];
-          const total = billTotal(a);
-          const age = ageFromDob(a.patients?.date_of_birth ?? null);
-          const lastStay = a.bed_stays[a.bed_stays.length - 1];
-          const location = currentStay(a) ? locationLabel(a) : placeLabel(placeOf(lastStay));
-          const overdue = !!inv && !inv.paid_at && new Date(`${inv.due_date}T23:59:59`) < new Date();
-          return (
-            <div className="text-sm">
-              <div className="grid sm:grid-cols-2 gap-4 mb-5 pb-4 border-b border-border/60">
+      {/* Official IPD Inpatient Hospital Invoice Modal */}
+      {billFor && typeof document !== "undefined" && createPortal(
+        <div
+          className="sale-modal-backdrop fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150 print:static print:inset-auto print:p-0 print:m-0 print:bg-transparent print:backdrop-blur-none"
+          onClick={() => setBillId(null)}
+        >
+          <div
+            className="bg-card text-foreground rounded-2xl shadow-2xl border border-border/80 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 print:border-none print:shadow-none print:max-h-none print:w-full print:rounded-none print:overflow-visible print:bg-white print:p-0 print:m-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header (Hidden in Print) */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 bg-muted/20 print:hidden">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                  <FileText className="h-4 w-4" />
+                </div>
                 <div>
-                  <p className="font-semibold text-primary text-base">{a.patients?.full_name ?? "—"}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {a.patients?.mrn ? `${a.patients.mrn} · ` : ""}{age !== null ? `${t("age", { age })} · ` : ""}{a.patients?.gender ?? ""}{a.patients?.phone ? ` · ${a.patients.phone}` : ""}
+                  <h3 className="font-display text-lg text-primary leading-tight">
+                    IPD Inpatient Hospital Invoice · {patientName(billFor)}
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground font-mono">
+                    Ref: {invoiceOf(billFor)?.reference || `ADM-${billFor.id.slice(0, 8).toUpperCase()}`}
                   </p>
-                  {a.diagnosis && <p className="text-xs text-muted-foreground mt-1">{t("diagnosisLine", { diagnosis: a.diagnosis })}</p>}
-                </div>
-                <div className="text-xs space-y-0.5 sm:text-right">
-                  <p>{t("admittedOn", { when: formatDateTime(a.admitted_at) })}</p>
-                  <p>{a.discharged_at ? t("dischargedOn", { when: formatDateTime(a.discharged_at) }) : t("stillAdmitted")}</p>
-                  <p className="text-muted-foreground">{location}{a.doctors?.name ? ` · ${a.doctors.name}` : ""}</p>
                 </div>
               </div>
-
-              {lines.length === 0 ? (
-                <p className="py-8 text-center text-muted-foreground">
-                  {t("nothingCharged")}
-                </p>
-              ) : (
-                <div className="rounded-xl border border-border/60 overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/50 text-xs font-semibold text-muted-foreground">
-                      <tr>
-                        <th className="text-left px-3 py-2">{t("billColumns.description")}</th>
-                        <th className="text-right px-3 py-2 w-16">{t("billColumns.days")}</th>
-                        <th className="text-right px-3 py-2 w-28">{t("billColumns.rate")}</th>
-                        <th className="text-right px-3 py-2 w-28">{t("billColumns.amount")}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {lines.map((l, i) => (
-                        <tr key={i} className="border-t border-border/60">
-                          <td className="px-3 py-2">{l.description}</td>
-                          <td className="px-3 py-2 text-right">{l.quantity}</td>
-                          <td className="px-3 py-2 text-right">{formatCurrency(Number(l.rate))}</td>
-                          <td className="px-3 py-2 text-right font-medium">{formatCurrency(Number(l.amount))}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              <div className="flex justify-between items-end gap-4 mt-4">
-                <p className="text-xs text-muted-foreground max-w-sm">
-                  {inv
-                    ? inv.paid_at
-                      ? t("paidOn", { when: formatDateTime(inv.paid_at) })
-                      : t(overdue ? "overdueDue" : "unpaidDue", { due: formatDate(`${inv.due_date}T00:00:00`) })
-                    : a.status === "discharged"
-                      ? t("noInvoiceOnRecord")
-                      : t("chargesRunning")}
-                </p>
-                <div className="flex items-baseline gap-3 font-display text-lg text-primary">
-                  <span>{inv || a.status === "discharged" ? t("total") : t("billNote.soFar")}</span>
-                  <span>{formatCurrency(total)}</span>
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={() => setBillId(null)}
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                aria-label={tc("close")}
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-          );
-        })()}
-      </Modal>
+
+            {/* Modal Scrollable Body */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 print:overflow-visible print:p-0 print:m-0">
+              {(() => {
+                const a = billFor;
+                const inv = invoiceOf(a);
+                const live = computeAdmissionLiveBill(a);
+                const lines = (inv?.paid_at && inv.line_items?.length) ? inv.line_items : live.lines;
+                const total = (inv?.paid_at) ? Number(inv.amount) : live.total;
+                const age = ageFromDob(a.patients?.date_of_birth ?? null);
+                const lastStay = a.bed_stays[a.bed_stays.length - 1];
+                const location = currentStay(a) ? locationLabel(a) : placeLabel(placeOf(lastStay));
+                const reference = inv?.reference || `ADM-${a.id.slice(0, 8).toUpperCase()}`;
+                const isSettled = Boolean(inv?.paid_at);
+
+                const hospitalNameStr = hospitalProfile?.name?.trim() || BRAND_INFO.hospitalName || BRAND_INFO.name;
+                const hospitalTagline = hospitalProfile?.tagline?.trim() || "Inpatient Department (IPD) · Admission & Bed Services";
+                const hospitalAddress = [
+                  hospitalProfile?.address?.trim(),
+                  hospitalProfile?.location?.trim(),
+                ].filter(Boolean).join(" · ");
+                const hospitalPhone = hospitalProfile?.contact_phone?.trim() || "+880 1700-000000";
+                const hospitalEmail = hospitalProfile?.contact_email?.trim() || "care@healthflowbd.com";
+                const hospitalLogo = (hospitalProfile?.logo_url ? mediaUrl(hospitalProfile.logo_url) : null) || BRAND_INFO.logoMark;
+
+                return (
+                  <div id="printable-ipd-invoice" className="bg-card text-foreground p-6 sm:p-7 rounded-2xl border border-border/70 shadow-xs space-y-6 text-xs print:border-none print:shadow-none print:p-0 print:bg-white print:text-black">
+                    {/* Header: Hospital Branding & Invoice Identification */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-5 border-b border-border/70 gap-4">
+                      <div className="flex items-center gap-3">
+                        <Image
+                          src={hospitalLogo}
+                          alt={hospitalNameStr}
+                          width={48}
+                          height={48}
+                          unoptimized
+                          className="h-12 w-auto max-w-[140px] shrink-0 object-contain rounded-lg"
+                        />
+                        <div>
+                          <h2 className="text-lg font-bold text-primary tracking-tight">{hospitalNameStr}</h2>
+                          <p className="text-[11px] text-muted-foreground font-medium">{hospitalTagline}</p>
+                          {hospitalAddress ? (
+                            <p className="text-[11px] text-muted-foreground/90 font-medium mt-0.5">{hospitalAddress}</p>
+                          ) : null}
+                          <p className="text-[11px] text-muted-foreground/80 font-mono mt-0.5">Helpline: {hospitalPhone} · {hospitalEmail}</p>
+                        </div>
+                      </div>
+
+                      <div className="sm:text-right">
+                        <div className="text-lg sm:text-xl font-black text-foreground uppercase tracking-tight">
+                          {live.isDismissed ? "IPD DISCHARGE INVOICE" : "IPD LIVE PATIENT BILL"}
+                        </div>
+                        <div className="mt-1 font-mono font-bold text-primary text-sm tracking-wide">
+                          #{reference}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">
+                          Generated: {formatDateTime(new Date().toISOString())}
+                        </div>
+                        <div className="mt-2">
+                          {live.isDismissed ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                              {isSettled ? "SETTLED & PAID" : "DISCHARGED · FINAL"}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                              <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                              ACTIVE ADMISSION · LIVE RUNNING CHARGES
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Patient & Admission Grid Card */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-4 rounded-xl bg-muted/40 border border-border/70 text-xs">
+                      {/* Left: Patient Details */}
+                      <div className="space-y-1.5">
+                        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                          BILLED PATIENT (INPATIENT):
+                        </div>
+                        <div className="text-base font-bold text-primary">
+                          {a.patients?.full_name ?? "—"}
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-foreground/80 pt-1">
+                          <div>
+                            <span className="text-muted-foreground">MRN: </span>
+                            <span className="font-mono font-bold text-foreground">#{a.patients?.mrn ?? "—"}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Phone: </span>
+                            <span className="font-medium text-foreground">{a.patients?.phone ?? "—"}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Age / Gender: </span>
+                            <span className="font-medium text-foreground">
+                              {age !== null ? `${age} Yrs` : "—"} · {a.patients?.gender ? a.patients.gender.charAt(0).toUpperCase() + a.patients.gender.slice(1) : "—"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Blood Group: </span>
+                            <span className="font-medium text-foreground font-mono">{a.patients?.blood_group ? a.patients.blood_group.toUpperCase().replace("_", "") : "—"}</span>
+                          </div>
+                        </div>
+                        {a.diagnosis && (
+                          <div className="pt-1.5 border-t border-border/50 text-[11px]">
+                            <span className="text-muted-foreground font-semibold">Provisional Diagnosis: </span>
+                            <span className="text-foreground font-medium">{a.diagnosis}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right: Stay Timeline & Placement */}
+                      <div className="space-y-1.5 md:border-l md:border-border/50 md:pl-5">
+                        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                          ADMISSION & STAY DETAILS:
+                        </div>
+                        <div className="space-y-1 pt-1 text-foreground/80">
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Admission Date:</span>
+                            <span className="font-semibold text-foreground font-mono">{formatDateTime(a.admitted_at)}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">{live.isDismissed ? "Dismissed Date:" : "Calculated Through:"}</span>
+                            <span className="font-semibold text-foreground font-mono">
+                              {live.isDismissed ? formatDateTime(a.discharged_at || a.admitted_at) : `${formatDateTime(new Date().toISOString())} (Current Date)`}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Stay Duration:</span>
+                            <span className="font-bold text-primary font-mono text-xs bg-primary/10 px-2 py-0.5 rounded-md">
+                              {live.days} Day{live.days > 1 ? "s" : ""}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Assigned Location:</span>
+                            <span className="font-semibold text-foreground">{location}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Attending Doctor:</span>
+                            <span className="font-semibold text-foreground">{a.doctors?.name ? `${a.doctors.name} (${a.doctors.specialty || "Physician"})` : "Hospital Medical Team"}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Itemized Table of Charges */}
+                    <div className="border border-border/80 rounded-xl overflow-hidden">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-muted/60 border-b border-border/80 font-bold text-muted-foreground uppercase text-[10px] tracking-wider">
+                          <tr>
+                            <th className="py-2.5 px-3.5 w-10 text-center">#</th>
+                            <th className="py-2.5 px-3.5">Particulars / Inpatient Service Description</th>
+                            <th className="py-2.5 px-3.5 text-center w-28">Stay Duration</th>
+                            <th className="py-2.5 px-3.5 text-right w-32">Daily Unit Rate</th>
+                            <th className="py-2.5 px-3.5 text-right w-32">Total (BDT)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/50">
+                          {lines.map((item, idx) => (
+                            <tr key={idx} className="hover:bg-muted/30 transition-colors">
+                              <td className="py-3 px-3.5 text-center text-muted-foreground font-mono">{idx + 1}</td>
+                              <td className="py-3 px-3.5">
+                                <div className="font-semibold text-foreground text-xs">{item.description}</div>
+                                <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                                  {live.isDismissed
+                                    ? `Billed from admission date (${formatDate(a.admitted_at)}) to discharge date (${formatDate(a.discharged_at || a.admitted_at)})`
+                                    : `Billed from admission date (${formatDate(a.admitted_at)}) to current date (${formatDate(new Date().toISOString())})`}
+                                </div>
+                              </td>
+                              <td className="py-3 px-3.5 text-center font-semibold font-mono text-foreground">
+                                {item.quantity} {item.quantity === 1 ? "Day" : "Days"}
+                              </td>
+                              <td className="py-3 px-3.5 text-right font-mono text-muted-foreground">
+                                {formatCurrency(Number(item.rate))} / day
+                              </td>
+                              <td className="py-3 px-3.5 text-right font-mono font-bold text-primary">
+                                {formatCurrency(Number(item.amount))}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Calculation Summary Box (Right-aligned) */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 pt-1">
+                      <div className="text-xs text-muted-foreground space-y-1 max-w-sm">
+                        <div className="font-semibold text-foreground">Billing Duration Notice:</div>
+                        <p>
+                          {live.isDismissed
+                            ? `Final discharge bill calculated for ${live.days} day(s) from admission date (${formatDate(a.admitted_at)}) till dismissed date (${formatDate(a.discharged_at || a.admitted_at)}).`
+                            : `Live ongoing bill calculated for ${live.days} day(s) from admission date (${formatDate(a.admitted_at)}) till current date (${formatDate(new Date().toISOString())}).`}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground/80">
+                          Daily room charges and nursing care charges accrue per calendar day occupied.
+                        </p>
+                      </div>
+
+                      <div className="w-full sm:w-80 p-4 rounded-xl bg-muted/40 border border-border/80 space-y-2 text-xs font-mono">
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Stay & Bed Subtotal:</span>
+                          <span className="font-medium text-foreground">{formatCurrency(total)}</span>
+                        </div>
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Discount / Waiver:</span>
+                          <span className="font-medium text-foreground">{formatCurrency(0)}</span>
+                        </div>
+                        <div className="border-t border-border/70 pt-2 flex justify-between items-baseline font-sans font-bold text-base text-primary">
+                          <span>Grand Total:</span>
+                          <span className="font-mono text-lg">{formatCurrency(total)}</span>
+                        </div>
+                        <div className="border-t border-border/50 pt-2 flex justify-between items-center text-[11px] font-sans">
+                          <span className="text-muted-foreground font-semibold">Payment Status:</span>
+                          <span className={`font-bold uppercase ${isSettled ? "text-emerald-600" : live.isDismissed ? "text-amber-600" : "text-blue-600"}`}>
+                            {isSettled ? "Settled & Paid" : live.isDismissed ? "Due upon discharge" : "Accruing (Live)"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Official Terms & Authorized Signature */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6 border-t border-border/80">
+                      <div className="text-[11px] text-muted-foreground space-y-1">
+                        <p className="font-semibold text-foreground">Terms & Instructions:</p>
+                        <p>1. This is an official computer-generated inpatient bill from {hospitalNameStr}.</p>
+                        <p>2. Final billing settlement and discharge summary clearance are completed at the billing cash counter.</p>
+                        <p>3. Wishing the patient a speedy and complete recovery.</p>
+                      </div>
+
+                      <div className="sm:text-right space-y-6">
+                        <div className="text-[11px] text-muted-foreground">Authorized Hospital Accounts</div>
+                        <div className="border-b border-border/80 w-44 ml-auto" />
+                        <div className="text-xs font-semibold text-foreground">
+                          {hospitalNameStr} Accounts & Billing Desk
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Modal Footer (Hidden in Print) */}
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border/40 bg-muted/20 print:hidden">
+              <Btn variant="outline" onClick={() => setBillId(null)}>{tc("close")}</Btn>
+              <Btn variant="outline" onClick={handleCopyReference}>
+                {copied ? <Check className="h-4 w-4 mr-1.5 text-emerald-600" /> : <Copy className="h-4 w-4 mr-1.5" />}
+                {copied ? "Copied" : "Copy Reference"}
+              </Btn>
+              <Btn onClick={handlePrintModalInvoice}>
+                <Printer className="h-4 w-4 mr-1.5" /> Print Invoice
+              </Btn>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+          {summaryAdmission && (
+        <DischargeSummaryModal
+          admission={summaryAdmission}
+          onClose={() => setSummaryAdmission(null)}
+        />
+      )}
     </AdminLayout>
   );
 };

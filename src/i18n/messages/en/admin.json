@@ -8,6 +8,8 @@
     "none": "No notifications",
     "groups": {
       "overview": "Overview",
+      "patient": "Patient",
+      "billing": "Billing",
       "clinical": "Clinical",
       "operations": "Operations",
       "hr": "HR & Administration",
@@ -21,11 +23,11 @@
       "doctorAssistants": "Doctor Assistants",
       "nurses": "Nurses",
       "supportStaff": "Support Staff",
-      "patients": "Patients",
-      "appointments": "Appointments",
+      "patients": "Patient Registration",
+      "appointments": "OPD Appointments",
       "wards": "Wards & Beds",
-      "admissions": "Admissions",
-      "lab": "Laboratory",
+      "admissions": "IPD Admission",
+      "lab": "Lab & Tests",
       "pharmacy": "Pharmacy",
       "hospitalProfile": "Hospital Profile",
       "hr": "HR Dashboard",
@@ -42,7 +44,19 @@
       "reports": "Reports",
       "notifications": "Notifications",
       "administration": "Administration",
-      "settings": "Settings"
+      "settings": "Settings",
+      "operationTheatre": "Operation Theatre (OT)",
+      "bloodBank": "Blood Bank",
+      "ambulance": "Ambulance",
+      "roster": "Duty Rosters & Shifts",
+      "credentials": "Staff Credentials",
+      "recruitment": "Recruitment & Jobs",
+      "clearance": "Exit Clearances",
+      "circulars": "Circulars & Notices",
+      "ipdBilling": "IPD Billing",
+      "labBilling": "Lab & Test Billing",
+      "opdBilling": "OPD Billing",
+      "employeeOnboarding": "Employee Onboarding"
     }
   },
   "resource": {
@@ -336,7 +350,7 @@
       "upcomingAppointments": "Upcoming Appointments"
     },
     "appointments": {
-      "title": "Appointment Management",
+      "title": "OPD Appointments",
       "subtitle": "Hospital-wide booking queue",
       "add": "Add Appointment",
       "sections": {
@@ -367,7 +381,8 @@
         "department": "Department",
         "date": "Date",
         "time": "Time",
-        "status": "Status"
+        "status": "Status",
+        "source": "Channel / Source"
       },
       "fields": {
         "patient": "Patient",
@@ -378,6 +393,21 @@
         "status": "Status",
         "dateTime": "Date & time",
         "notes": "Reason for visit (optional)"
+      },
+      "filters": {
+        "filterBySource": "Filter by channel",
+        "allSources": "All Channels",
+        "patientPortal": "Patient Panel",
+        "doctorWalkIn": "Doctor Panel (Walk-in)",
+        "hospitalAdmin": "Hospital Management"
+      },
+      "sources": {
+        "patient_portal": "Patient Panel",
+        "doctor_walk_in": "Doctor Panel (Walk-in)",
+        "hospital_admin": "Hospital Management",
+        "patient_portal_desc": "Self-service online booking from Patient Panel",
+        "doctor_walk_in_desc": "Walk-in patient added from Doctor Panel consultation queue",
+        "hospital_admin_desc": "Hospital management / front desk admin booking"
       }
     },
     "assets": {
@@ -794,8 +824,8 @@
       "noHolidays": "Nothing on the calendar."
     },
     "lab": {
-      "title": "Laboratory Management",
-      "subtitle": "Test request lifecycle Pending → Reported",
+      "title": "Lab & Tests",
+      "subtitle": "Test directory, sample specifications and investigation pricing",
       "orderStatuses": {
         "pending": "Pending",
         "sample_collected": "Sample Collected",
@@ -983,7 +1013,7 @@
       "saveMetrics": "Save Metrics"
     },
     "patients": {
-      "title": "Patient Registry",
+      "title": "Patient Registration",
       "subtitle": "Hospital-wide patient records",
       "add": "Add Patient",
       "years": "{count}y",
@@ -1360,7 +1390,7 @@
       }
     },
     "admissions": {
-      "title": "Patient Admissions",
+      "title": "IPD Admission",
       "subtitle": "Admit patients into beds and cabins, transfer or discharge them",
       "admit": {
         "createFailed": "Could not create the admission",
@@ -1632,7 +1662,29 @@
         "facilities": "Facilities",
         "notes": "Notes",
         "notesPlaceholder": "Optional notes"
-      }
+      },
+      "viewMode": "View Mode",
+      "compactView": "Compact Grid",
+      "detailedView": "Bed Board",
+      "searchPlaceholder": "Search patient name, MRN, bed #, doctor, or diagnosis...",
+      "clearSearch": "Clear",
+      "matchingCount": "{count, plural, one {# matching bed found} other {# matching beds found}}",
+      "noSearchMatches": "No beds match your search.",
+      "printCensus": "Print Ward Census",
+      "nurseInCharge": "Nurse Station Active",
+      "staffRatio": "Patient Ratio: {ratio}",
+      "sanitizingActive": "Sanitization in progress",
+      "markSanitizedReady": "Mark Ready",
+      "longStayWarning": "Long Stay ({days}d)",
+      "routine": "Routine",
+      "urgent": "Urgent",
+      "critical": "Critical",
+      "male": "Male",
+      "female": "Female",
+      "other": "Other",
+      "admitPatient": "+ Admit Patient",
+      "details": "Details",
+      "losDays": "Stay: {days}d"
     },
     "doctors": {
       "title": "Doctor Management",
@@ -2246,6 +2298,108 @@
         "mark": "{count, plural, =0 {Mark matched} other {Mark # matched}}",
         "intro": "Tick each entry that appears on the bank statement.",
         "statementDate": "Statement date"
+      }
+    },
+    "ipdBilling": {
+      "title": "IPD Inpatient Billing",
+      "subtitle": "Create, customize, and manage comprehensive inpatient department bills including room, doctor visits, food/diet, diagnostics, medications, and procedures",
+      "generateBill": "Generate IPD Bill",
+      "filterAll": "All Bills & Inpatients",
+      "filterActive": "Active Inpatients",
+      "filterPending": "Pending / Due",
+      "filterSettled": "Settled & Paid",
+      "searchPlaceholder": "Search by patient name, MRN, phone, doctor, or invoice reference...",
+      "kpiTotalBills": "Total IPD Bills",
+      "kpiTotalBilled": "Total Inpatient Billed",
+      "kpiCollected": "Settled & Paid",
+      "kpiOutstanding": "Due & Accruing",
+      "kpiActiveInpatients": "Admitted Inpatients",
+      "thRef": "Invoice Ref",
+      "thPatient": "Patient Details",
+      "thStay": "Stay Timeline & Bed",
+      "thDoctor": "Attending Consultant",
+      "thBreakdown": "IPD Fee Breakdown",
+      "thTotal": "Total Bill (BDT)",
+      "thStatus": "Payment Status",
+      "thActions": "Actions",
+      "viewInvoice": "View / Print",
+      "customizeFees": "Add / Edit Fees",
+      "recordPayment": "Settle Bill",
+      "statusPaid": "Paid & Settled",
+      "statusDue": "Due Upon Discharge",
+      "statusAccruing": "Live Accruing",
+      "categories": {
+        "room": "Room & Bed Stays",
+        "doctor": "Doctor & Specialist Visits",
+        "food": "Food & Dietary Services",
+        "nursing": "Nursing & Patient Care",
+        "pharmacy": "Medicines & Consumables",
+        "lab": "Laboratory & Diagnostics",
+        "ot": "Operation Theatre & Procedures",
+        "equipment": "Medical Equipment & Oxygen",
+        "misc": "Administrative & Miscellaneous"
+      }
+    },
+    "opdBilling": {
+      "title": "OPD Billing & Invoices",
+      "subtitle": "Issue, manage, and print outpatient consultation & medical procedure bills, receipts, and POS thermal slips",
+      "createBill": "Create OPD Bill",
+      "filterAll": "All Invoices",
+      "filterPaid": "Paid Invoices",
+      "filterDue": "Due / Unpaid",
+      "searchPlaceholder": "Search by patient name, MRN, phone, doctor, or reference...",
+      "kpiTotalBilled": "Total OPD Billed",
+      "kpiTotalCollected": "Collected Revenue",
+      "kpiTotalDue": "Outstanding Due",
+      "kpiTotalCount": "Total OPD Invoices",
+      "thRef": "Invoice No",
+      "thPatient": "Patient Details",
+      "thDoctor": "Doctor / Department",
+      "thServices": "Consultation & Services",
+      "thAmount": "Total Amount",
+      "thDate": "Date & Time",
+      "thStatus": "Payment",
+      "thActions": "Actions",
+      "printA4": "Print A4 Invoice",
+      "printThermal": "Print POS Slip",
+      "settleNow": "Mark Paid"
+    },
+    "labBilling": {
+      "title": "Lab & Test Billing",
+      "subtitle": "Issue, manage, and print diagnostic test invoices, test packages, sample collection receipts, and POS thermal slips",
+      "createBill": "Create Lab Bill",
+      "filterAll": "All Lab Invoices",
+      "filterPaid": "Paid Invoices",
+      "filterDue": "Due / Unpaid",
+      "filterToday": "Today's Tests",
+      "searchPlaceholder": "Search by invoice #, patient name, MRN, phone, doctor, or test name...",
+      "kpiTotalBilled": "Total Diagnostic Billed",
+      "kpiTotalCollected": "Collected Revenue",
+      "kpiTotalDue": "Outstanding Due",
+      "kpiTotalCount": "Total Lab Invoices",
+      "kpiCatalogTests": "Catalog Tests",
+      "thRef": "Invoice No",
+      "thPatient": "Patient Details",
+      "thTests": "Diagnostic Tests Billed",
+      "thDoctor": "Referring Doctor",
+      "thAmount": "Total Amount",
+      "thDate": "Date & Time",
+      "thStatus": "Payment",
+      "thActions": "Actions",
+      "printA4": "Print A4 Invoice",
+      "printThermal": "Print POS Slip",
+      "settleNow": "Mark Paid",
+      "selectTestPlaceholder": "Search and select diagnostic tests from catalog...",
+      "noTestsSelected": "No tests selected yet. Search tests or pick quick presets below.",
+      "categories": {
+        "hematology": "Hematology & Blood",
+        "biochemistry": "Biochemistry & Renal/Liver",
+        "radiology": "Radiology & Imaging (X-Ray/USG)",
+        "pathology": "Clinical Pathology",
+        "microbiology": "Microbiology & Serology",
+        "urineStool": "Urine & Stool Routine",
+        "cardiology": "Cardiology & ECG",
+        "other": "Other Diagnostic Investigations"
       }
     }
   }

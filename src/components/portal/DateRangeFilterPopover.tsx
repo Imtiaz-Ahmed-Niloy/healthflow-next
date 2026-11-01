@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { Calendar, CalendarDays, Check, ChevronDown, Clock, RotateCcw, X, ArrowRight } from "lucide-react";
 
-export type DateFilterPreset = "all" | "today" | "yesterday" | "last7days" | "thisMonth" | "custom";
+export type DateFilterPreset = "all" | "today" | "tomorrow" | "upcoming" | "yesterday" | "last7days" | "thisMonth" | "custom";
 
 interface DateRangeFilterPopoverProps {
   value: DateFilterPreset;
@@ -15,6 +15,7 @@ interface DateRangeFilterPopoverProps {
   onRangeChange: (start: string, end: string) => void;
   onReset: () => void;
   className?: string;
+  presets?: { key: DateFilterPreset; label: string; hint: string }[];
 }
 
 const PRESETS: { key: DateFilterPreset; label: string; hint: string }[] = [
@@ -34,6 +35,7 @@ export const DateRangeFilterPopover: React.FC<DateRangeFilterPopoverProps> = ({
   onRangeChange,
   onReset,
   className = "",
+  presets,
 }) => {
   const [open, setOpen] = useState(false);
   const [tempStart, setTempStart] = useState(startDate);
@@ -56,6 +58,8 @@ export const DateRangeFilterPopover: React.FC<DateRangeFilterPopoverProps> = ({
   // Determine button label
   const getDisplayLabel = () => {
     if (value === "today") return "Today";
+    if (value === "tomorrow") return "Tomorrow";
+    if (value === "upcoming") return "Upcoming";
     if (value === "yesterday") return "Yesterday";
     if (value === "last7days") return "Last 7 Days";
     if (value === "thisMonth") return "This Month";
@@ -159,7 +163,7 @@ export const DateRangeFilterPopover: React.FC<DateRangeFilterPopoverProps> = ({
 
         {/* Quick Presets Grid */}
         <div className="grid grid-cols-2 gap-1.5">
-          {PRESETS.map((p) => {
+          {(presets || PRESETS).map((p) => {
             const isSelected = value === p.key;
             return (
               <button

@@ -12,6 +12,7 @@ import { useConfirmAction } from "@/components/common/ConfirmProvider";
 import { Wallet, TrendingUp, AlertCircle, Receipt, Printer } from "lucide-react";
 import { useFormatters } from "@/lib/appSettings";
 import { BRAND_INFO } from "@/constants/brand";
+import { ConsolidatedBillModal } from "@/components/admin/ConsolidatedBillModal";
 import type { BillLine } from "@/redux/api/resources";
 import {
   financeTotals,
@@ -48,6 +49,7 @@ const Finance = () => {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | InvoiceStatus>("all");
   const [add, setAdd] = useState(false);
+  const [consolidatedOpen, setConsolidatedOpen] = useState(false);
 
   const invoices = crud.items;
   const totals = useMemo(() => financeTotals(invoices), [invoices]);
@@ -136,7 +138,7 @@ const Finance = () => {
     <AdminLayout title={t("title")} subtitle={t("subtitle")}>
       <div className="grid sm:grid-cols-4 gap-4 mb-6">
         <Kpi icon={Wallet} label={t("kpi.receivables")} value={fmt(totals.receivables)} />
-        <Kpi icon={Receipt} label={t("kpi.payables")} value={fmt(totals.payables)} tone="chip" />
+        <Kpi icon={Receipt} label={t("kpi.payables")} value={fmt(totals.payables)} tone="accent" />
         <Kpi icon={AlertCircle} label={t("kpi.overdue")} value={fmt(totals.overdue)} tone="destructive" />
         {/* Was the string "$184K", which never moved whatever the hospital did. */}
         <Kpi icon={TrendingUp} label={t("kpi.revenue")} value={fmt(totals.revenueThisMonth)} tone="accent" />
@@ -250,6 +252,18 @@ const Finance = () => {
           </Field>
         </form>
       </Modal>
+          <ConsolidatedBillModal
+        open={consolidatedOpen}
+        onClose={() => setConsolidatedOpen(false)}
+        patients={patients.items}
+        suggestedReference={suggestReference(invoices)}
+        onSaveInvoice={async (invoiceData) => {
+          const ok = await crud.create(invoiceData as never);
+          if (ok) {
+            push({ title: "Consolidated Hospital Bill Generated", tone: "ok" });
+          }
+        }}
+      />
     </AdminLayout>
   );
 };

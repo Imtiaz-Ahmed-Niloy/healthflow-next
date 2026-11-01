@@ -62,9 +62,9 @@ export const admissionsResource: ResourceDefinition<AdmissionCreate, AdmissionUp
   // and cabins it used, so the bill shows on every row, live or discharged.
   // finance_invoices is the invoice the discharge raised from that same bill.
   select:
-    "*, patients(id, full_name, mrn, gender, date_of_birth, phone), " +
+    "*, patients(id, full_name, mrn, gender, date_of_birth, phone, blood_group), " +
     "doctors(id, name, specialty), " +
-    "bed_stays(id, bed_id, cabin_id, started_at, ended_at, beds(number), cabins(number)), " +
+    "bed_stays(id, bed_id, cabin_id, started_at, ended_at, beds(number, wards(name, daily_rate, nursing_charge)), cabins(number, category, daily_rate)), " +
     "admission_bill, " +
     "finance_invoices(id, reference, amount, due_date, paid_at, line_items)",
   createSchema: admissionCreateSchema,

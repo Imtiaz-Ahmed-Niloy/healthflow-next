@@ -3,12 +3,14 @@
 import { ReactNode, useState, useEffect } from "react";
 import Link from "next/link";
 import { NavLink } from "@/components/NavLink";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Stethoscope, UserCog, HeartPulse, Wrench, BedDouble, FlaskConical,
-  Building2, FileBarChart, Users2, Wallet, FolderLock, CalendarCheck2, Boxes,
+  Building2, FileBarChart, Users2, Wallet, CalendarCheck2, Boxes,
   ClipboardList, ShieldCheck, Settings, LogOut, Bell, Menu, X,
   Truck, UserPlus, CalendarDays, BellRing, BookOpen, Calculator,
+  Scissors, Droplet, Ambulance, ChevronDown,
+  CalendarRange, Award, FileText, Briefcase, Receipt, CreditCard,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
@@ -32,41 +34,133 @@ import { useSidebarScroll } from "@/hooks/useSidebarScroll";
  */
 export const adminNav = [
   { to: "/admin/dashboard", icon: LayoutDashboard, key: "dashboard", group: "overview" },
-  { to: "/admin/patients", icon: UserPlus, key: "patients", group: "operations" },
-  { to: "/admin/appointments", icon: CalendarDays, key: "appointments", group: "operations" },
-  { to: "/admin/wards", icon: BedDouble, key: "wards", group: "operations" },
-  { to: "/admin/admissions", icon: UserPlus, key: "admissions", group: "operations" },
-  { to: "/admin/lab", icon: FlaskConical, key: "lab", group: "operations" },
-  { to: "/admin/doctors", icon: Stethoscope, key: "doctors", group: "clinical" },
-  { to: "/admin/doctor-assistants", icon: UserCog, key: "doctorAssistants", group: "clinical" },
-  { to: "/admin/nurses", icon: HeartPulse, key: "nurses", group: "clinical" },
-  { to: "/admin/support-staff", icon: Wrench, key: "supportStaff", group: "clinical" },
+  { to: "/admin/patients", icon: UserPlus, key: "patients", group: "patient" },
+  { to: "/admin/appointments", icon: CalendarDays, key: "appointments", group: "patient" },
+  { to: "/admin/admissions", icon: UserPlus, key: "admissions", group: "patient" },
+  { to: "/admin/wards", icon: BedDouble, key: "wards", group: "patient" },
+  { to: "/admin/lab", icon: FlaskConical, key: "lab", group: "patient" },
+  { to: "/admin/opd-billing", icon: Receipt, key: "opdBilling", group: "billing" },
+  { to: "/admin/ipd-billing", icon: CreditCard, key: "ipdBilling", group: "billing" },
+  { to: "/admin/lab-billing", icon: FlaskConical, key: "labBilling", group: "billing" },
+  { to: "/admin/blood-bank", icon: Droplet, key: "bloodBank", group: "operations" },
+  { to: "/admin/ambulance", icon: Ambulance, key: "ambulance", group: "operations" },
+  { to: "/admin/operation-theatre", icon: Scissors, key: "operationTheatre", group: "clinical" },
   { to: "/admin/hr", icon: Users2, key: "hr", group: "hr" },
-  { to: "/admin/onboarding", icon: UserPlus, key: "employees", group: "hr" },
-  { to: "/admin/personal-files", icon: FolderLock, key: "personalFiles", group: "hr" },
+  {
+    key: "employeeOnboarding",
+    icon: UserPlus,
+    group: "hr",
+    children: [
+      { to: "/admin/onboarding", icon: Users2, key: "employees" },
+      { to: "/admin/doctors", icon: Stethoscope, key: "doctors" },
+      { to: "/admin/doctor-assistants", icon: UserCog, key: "doctorAssistants" },
+      { to: "/admin/nurses", icon: HeartPulse, key: "nurses" },
+      { to: "/admin/support-staff", icon: Wrench, key: "supportStaff" },
+    ],
+  },
+  { to: "/admin/roster", icon: CalendarRange, key: "roster", group: "hr" },
   { to: "/admin/attendance", icon: CalendarCheck2, key: "attendance", group: "hr" },
+  { to: "/admin/payroll", icon: Wallet, key: "payroll", group: "hr" },
+  { to: "/admin/recruitment", icon: Briefcase, key: "recruitment", group: "hr" },
+  { to: "/admin/credentials", icon: Award, key: "credentials", group: "hr" },
+  { to: "/admin/clearance", icon: LogOut, key: "clearance", group: "hr" },
   { to: "/admin/accounts", icon: BookOpen, key: "accounts", group: "finance" },
   { to: "/admin/finance", icon: Calculator, key: "finance", group: "finance" },
-  { to: "/admin/payroll", icon: Wallet, key: "payroll", group: "hr" },
   { to: "/admin/reports", icon: FileBarChart, key: "financialReports", group: "finance" },
   { to: "/admin/assets", icon: Boxes, key: "assets", group: "business" },
   { to: "/admin/procurement", icon: ClipboardList, key: "procurement", group: "business" },
   { to: "/admin/vendors", icon: Truck, key: "vendors", group: "business" },
   { to: "/admin/reports", icon: FileBarChart, key: "reports", group: "business" },
+  { to: "/admin/circulars", icon: FileText, key: "circulars", group: "system" },
   { to: "/admin/notifications", icon: BellRing, key: "notifications", group: "system" },
   { to: "/admin/hospital-profile", icon: Building2, key: "hospitalProfile", group: "system" },
   { to: "/admin/administration", icon: ShieldCheck, key: "administration", group: "system" },
   { to: "/admin/settings", icon: Settings, key: "settings", group: "system" },
 ] as const;
 
-const groupedNav = adminNav.reduce<Record<string, (typeof adminNav)[number][]>>((acc, item) => {
+type NavItem = (typeof adminNav)[number];
+
+const isSubMenu = (item: NavItem): item is Extract<NavItem, { children: readonly any[] }> =>
+  "children" in item && Array.isArray((item as any).children);
+
+const groupedNav = adminNav.reduce<Record<string, NavItem[]>>((acc, item) => {
   (acc[item.group] ||= []).push(item);
   return acc;
 }, {});
 
+const NavSubMenu = ({
+  item,
+  onNavigate,
+  pathname,
+}: {
+  item: Extract<NavItem, { children: readonly any[] }>;
+  onNavigate?: () => void;
+  pathname: string | null;
+}) => {
+  const t = useTranslations("adminNav");
+  const isChildActive = item.children.some(
+    c => pathname === c.to || (pathname ? pathname.startsWith(c.to + "/") : false)
+  );
+  const [open, setOpen] = useState(isChildActive);
+
+  useEffect(() => {
+    if (isChildActive) {
+      setOpen(true);
+    }
+  }, [isChildActive]);
+
+  return (
+    <div className="flex flex-col">
+      <button
+        type="button"
+        onClick={() => setOpen(prev => !prev)}
+        className={`flex items-center justify-between w-full px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
+          isChildActive
+            ? "bg-card text-primary shadow-soft"
+            : "text-foreground/70 hover:bg-card/60"
+        }`}
+      >
+        <div className="flex items-center gap-3 truncate">
+          <item.icon className="h-4 w-4 shrink-0" />
+          <span className="truncate">{t(`links.${item.key}` as never)}</span>
+        </div>
+        <ChevronDown
+          className={`h-4 w-4 shrink-0 transition-transform duration-200 text-muted-foreground ${
+            open ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {open && (
+        <div className="mt-1 ml-4 pl-3 border-l-2 border-border/60 flex flex-col gap-0.5">
+          {item.children.map(sub => (
+            <NavLink
+              key={sub.to}
+              to={sub.to}
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                `flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12.5px] font-medium transition-all ${
+                  isActive
+                    ? "bg-card text-primary font-semibold shadow-soft"
+                    : "text-foreground/70 hover:bg-card/60"
+                }`
+              }
+            >
+              <sub.icon className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{t(`links.${sub.key}` as never)}</span>
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const AdminSidebar = ({ onNavigate, hospital }: { onNavigate?: () => void; hospital?: string }) => {
   const t = useTranslations("adminNav");
   const navRef = useSidebarScroll<HTMLElement>("admin");
+  const pathname = usePathname();
+
   return (
     <aside className="w-64 bg-chip/40 border-r border-border/50 flex flex-col py-6 sticky top-0 h-screen shrink-0 overflow-hidden">
       <Link href="/" className="px-6 flex items-center gap-2">
@@ -86,16 +180,28 @@ export const AdminSidebar = ({ onNavigate, hospital }: { onNavigate?: () => void
               {t(`groups.${group as (typeof adminNav)[number]["group"]}`).toUpperCase()}
             </p>
             <div className="flex flex-col gap-0.5">
-              {items.map(l => (
-                <NavLink key={l.to} to={l.to} onClick={onNavigate}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
-                      isActive ? "bg-card text-primary shadow-soft" : "text-foreground/70 hover:bg-card/60"
-                    }`
-                  }>
-                  <l.icon className="h-4 w-4 shrink-0" /> <span className="truncate">{t(`links.${l.key}`)}</span>
-                </NavLink>
-              ))}
+              {items.map(l => {
+                if (isSubMenu(l)) {
+                  return (
+                    <NavSubMenu
+                      key={l.key}
+                      item={l}
+                      onNavigate={onNavigate}
+                      pathname={pathname}
+                    />
+                  );
+                }
+                return (
+                  <NavLink key={l.to} to={l.to} onClick={onNavigate}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
+                        isActive ? "bg-card text-primary shadow-soft" : "text-foreground/70 hover:bg-card/60"
+                      }`
+                    }>
+                    <l.icon className="h-4 w-4 shrink-0" /> <span className="truncate">{t(`links.${l.key}` as never)}</span>
+                  </NavLink>
+                );
+              })}
             </div>
           </div>
         ))}
@@ -247,4 +353,3 @@ export const AdminLayout = ({ children, title, subtitle }: { children: ReactNode
 };
 
 export default AdminLayout;
-

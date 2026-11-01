@@ -125,7 +125,7 @@ export const appointmentsResource: ResourceDefinition<
 
   // Embeds patient/doctor identity so the table renders without a second
   // round trip, same as admissions.ts.
-  select: "*, patients(id, full_name, mrn, phone), doctors(id, name, specialty)",
+  select: "*, patients(id, full_name, mrn, phone, profile_id), doctors(id, name, specialty)",
 
   createSchema: appointmentCreateSchema,
   updateSchema: appointmentUpdateSchema,

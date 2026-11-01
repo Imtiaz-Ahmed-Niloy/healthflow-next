@@ -50,7 +50,7 @@ const ENTITY_HREF: Record<string, string> = {
   work_orders: "/admin/procurement",
   finance_invoices: "/admin/invoices",
   certificates: "/admin/administration",
-  lab_orders: "/admin/laboratory",
+  lab_orders: "/admin/lab",
   pharmacy_items: "/pharmacy/products",
 };
 
