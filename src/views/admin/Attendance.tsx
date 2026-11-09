@@ -344,7 +344,7 @@ const Attendance = () => {
     if (status === "approved") {
       const start = new Date(leave.start_date);
       const end = new Date(leave.end_date);
-      let curr = new Date(start);
+      const curr = new Date(start);
       let count = 0;
 
       while (curr <= end) {
