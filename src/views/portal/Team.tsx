@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Building2, Clock, Copy, KeyRound, Loader2, Mail, Pencil, Phone, Plus, Trash2, UsersRound } from "lucide-react";
+import { Building2, Clock, Copy, KeyRound, Loader2, Mail, Pencil, Phone, Plus, Trash2, UsersRound, Wallet } from "lucide-react";
+import { useFormatters } from "@/lib/appSettings";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { PortalLayout } from "@/components/portal/PortalLayout";
@@ -38,10 +39,11 @@ type Draft = {
   place_tenant_id: string;
   status: TeamStatus;
   notes: string;
+  monthly_salary: string;
 };
 
 const emptyDraft = (): Draft => ({
-  role: "assistant", name: "", phone: "", email: "", place_tenant_id: "", status: "active", notes: "",
+  role: "assistant", name: "", phone: "", email: "", place_tenant_id: "", status: "active", notes: "", monthly_salary: "",
 });
 
 const draftOf = (m: TeamMember): Draft => ({
@@ -52,6 +54,7 @@ const draftOf = (m: TeamMember): Draft => ({
   place_tenant_id: m.place?.id ?? "",
   status: (TEAM_STATUSES as readonly string[]).includes(m.status) ? (m.status as TeamStatus) : "active",
   notes: m.notes ?? "",
+  monthly_salary: m.monthly_salary ? String(m.monthly_salary) : "",
 });
 
 const errorOf = async (res: Response) => (await res.json().catch(() => null))?.error as { message?: string; code?: string } | undefined;
@@ -59,6 +62,7 @@ const errorOf = async (res: Response) => (await res.json().catch(() => null))?.e
 const Team = () => {
   const t = useTranslations("portal.team");
   const tc = useTranslations("common");
+  const { formatCurrency } = useFormatters();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
@@ -282,6 +286,9 @@ const Team = () => {
                       </span>
                     </p>
                     {m.shift && <p className="flex items-center gap-2"><Clock className="h-4 w-4 shrink-0" />{t("shift", { shift: m.shift })}</p>}
+                    {own && !!m.monthly_salary && (
+                      <p className="flex items-center gap-2"><Wallet className="h-4 w-4 shrink-0" />{t("salaryShort", { amount: formatCurrency(m.monthly_salary) })}</p>
+                    )}
                     {own && m.has_login && (
                       <p className="text-xs">{ROLE_SEES_PHONES[m.role] ? t("access.withPhones") : t("access.withoutPhones")}</p>
                     )}
@@ -359,6 +366,10 @@ const Team = () => {
             <NativeSelect value={draft.status} onChange={e => setDraft(d => ({ ...d, status: e.target.value as TeamStatus }))}>
               {TEAM_STATUSES.map(s => <option key={s} value={s}>{t(`statuses.${s}`)}</option>)}
             </NativeSelect>
+          </Field>
+          <Field label={t("fields.salary")} hint={t("fields.salaryHint")}>
+            <Input type="number" min={0} step="0.01" inputMode="decimal" placeholder="0" value={draft.monthly_salary}
+              onChange={e => setDraft(d => ({ ...d, monthly_salary: e.target.value }))} />
           </Field>
           <div className="sm:col-span-2">
             <p className="text-xs text-muted-foreground -mt-1 mb-3">

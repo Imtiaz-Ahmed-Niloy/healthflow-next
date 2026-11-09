@@ -276,3 +276,66 @@ export const pharmacyCashShiftsResource: ResourceDefinition = {
   defaultSort: { column: "opened_at", ascending: false },
   roles,
 };
+
+// --------------------------------------------------------------- payroll ---
+// Everyone the pharmacy pays, and each month's payslips (0152). Only a login
+// that may administer the pharmacy reads or writes either: that is in the
+// policies, not here. Making a month's slips and paying one are database
+// functions behind /api/v1/pharmacy/payroll, because paying books an expense.
+
+const money = z.coerce.number().min(0, "Amounts can't be negative").max(99_999_999);
+
+export const pharmacyEmployeeCreateSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(200),
+  phone: optionalText(40),
+  designation: optionalText(100),
+  branch_id: optionalUuid,
+  profile_id: optionalUuid,
+  monthly_salary: money.optional(),
+  joined_on: day.nullable().optional().or(z.literal("").transform(() => null)),
+  status: z.enum(["active", "inactive"]).optional(),
+  notes: optionalText(2000),
+});
+
+export const pharmacyEmployeesResource: ResourceDefinition = {
+  name: "pharmacy-employees",
+  table: "pharmacy_employees",
+  tenantScoped: true,
+  createSchema: pharmacyEmployeeCreateSchema,
+  updateSchema: pharmacyEmployeeCreateSchema.partial(),
+  searchFields: ["name", "phone", "designation"],
+  filterFields: ["status", "branch_id"],
+  defaultSort: { column: "name", ascending: true },
+  roles,
+};
+
+const payslipAmounts = {
+  basic: money.optional(),
+  allowance: money.optional(),
+  bonus: money.optional(),
+  deduction: money.optional(),
+  advance: money.optional(),
+  notes: optionalText(2000),
+};
+
+/** One slip by hand, for someone the month's run missed. The name is copied on so the slip reads the same later. */
+export const pharmacyPayslipCreateSchema = z.object({
+  employee_id: z.string().uuid(),
+  period: z.string().regex(/^\d{4}-\d{2}-01$/, "Pick a month"),
+  employee_name: z.string().trim().min(1).max(200),
+  designation: optionalText(100),
+  ...payslipAmounts,
+});
+
+export const pharmacyPayslipsResource: ResourceDefinition = {
+  name: "pharmacy-payslips",
+  table: "pharmacy_payslips",
+  tenantScoped: true,
+  createSchema: pharmacyPayslipCreateSchema,
+  // Status, the day paid and the method change only through pharmacy_pay_payslip.
+  updateSchema: z.object(payslipAmounts),
+  searchFields: ["employee_name", "designation"],
+  filterFields: ["period", "status", "employee_id"],
+  defaultSort: { column: "employee_name", ascending: true },
+  roles,
+};

@@ -43,6 +43,8 @@ const fieldsSchema = z.object({
   place_tenant_id: z.preprocess(blankToNull, z.string().uuid().nullable().optional()),
   status: z.enum(TEAM_STATUSES).optional(),
   notes: nullableText(2000),
+  // What the doctor pays them a month (0152). Payroll starts each month's slip from it.
+  monthly_salary: z.preprocess(v => (v === "" || v === null ? 0 : v), z.coerce.number().min(0, "Salary can't be negative").max(99_999_999)).optional(),
 });
 
 export const GET = async () => {
@@ -61,7 +63,7 @@ export const GET = async () => {
 
   const { data: own, error: ownError } = await supabase
     .from("doctor_team_members")
-    .select("id, role, name, phone, email, status, notes, place_tenant_id, profile_id")
+    .select("id, role, name, phone, email, status, notes, place_tenant_id, profile_id, monthly_salary")
     .eq("owner_profile_id", auth.userId)
     .order("created_at", { ascending: true });
   if (ownError) return fail(ownError.message, 500);
@@ -90,6 +92,7 @@ export const GET = async () => {
       notes: m.notes,
       has_login: m.profile_id !== null,
       place: place(m.place_tenant_id),
+      monthly_salary: Number(m.monthly_salary ?? 0),
     })),
     ...(assigned ?? []).map(a => ({
       id: a.id,
@@ -103,6 +106,7 @@ export const GET = async () => {
       notes: a.notes,
       has_login: false,
       place: place(a.tenant_id),
+      monthly_salary: null,
     })),
   ];
 

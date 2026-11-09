@@ -1534,6 +1534,7 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          monthly_salary: number
           name: string
           notes: string | null
           owner_profile_id: string
@@ -1548,6 +1549,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          monthly_salary?: number
           name: string
           notes?: string | null
           owner_profile_id?: string
@@ -1562,6 +1564,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          monthly_salary?: number
           name?: string
           notes?: string | null
           owner_profile_id?: string
@@ -1591,6 +1594,82 @@ export type Database = {
             foreignKeyName: "doctor_team_members_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      doctor_team_payslips: {
+        Row: {
+          advance: number
+          allowance: number
+          basic: number
+          bonus: number
+          created_at: string
+          deduction: number
+          id: string
+          member_id: string
+          member_name: string
+          member_role: string
+          net: number
+          notes: string | null
+          owner_profile_id: string
+          paid_on: string | null
+          payment_method: string | null
+          period: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          advance?: number
+          allowance?: number
+          basic?: number
+          bonus?: number
+          created_at?: string
+          deduction?: number
+          id?: string
+          member_id: string
+          member_name: string
+          member_role: string
+          notes?: string | null
+          owner_profile_id?: string
+          paid_on?: string | null
+          payment_method?: string | null
+          period: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          advance?: number
+          allowance?: number
+          basic?: number
+          bonus?: number
+          created_at?: string
+          deduction?: number
+          id?: string
+          member_id?: string
+          member_name?: string
+          member_role?: string
+          notes?: string | null
+          owner_profile_id?: string
+          paid_on?: string | null
+          payment_method?: string | null
+          period?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_team_payslips_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "doctor_team_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_team_payslips_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },

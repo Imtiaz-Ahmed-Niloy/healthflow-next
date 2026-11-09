@@ -40,4 +40,6 @@ export type TeamMember = {
   has_login: boolean;
   /** The one place they work at with the doctor, or null for all of them. */
   place: { id: string; name: string } | null;
+  /** What the doctor pays them a month (0152). Null for a hospital's assistant: the hospital pays them. */
+  monthly_salary: number | null;
 };

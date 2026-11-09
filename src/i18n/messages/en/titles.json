@@ -48,6 +48,7 @@
     "queue": "Patient Queue",
     "schedule": "Schedule",
     "team": "Team Members",
+    "payroll": "Team Payroll",
     "staff": "My Doctor's Day",
 
     "accounts": "Accounts",
@@ -115,6 +116,7 @@
     "pharmacyInsights": "Insights",
     "pharmacySettings": "Pharmacy Settings",
     "pharmacyStaff": "Pharmacy Staff & Roles",
+    "pharmacyPayroll": "Pharmacy Payroll",
     "pharmacyBranches": "Branches & Registers",
     "pharmacyAudit": "Pharmacy Audit Log",
     "pharmacyNotifications": "Pharmacy Notifications",

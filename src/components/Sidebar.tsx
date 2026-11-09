@@ -36,6 +36,7 @@ import {
   Users,
   FileText,
   Building2,
+  HandCoins,
 } from "lucide-react";
 import { usePharmacy } from "@/context/PharmacyContext";
 import { BRAND_INFO } from "@/constants/brand";
@@ -81,7 +82,8 @@ export function Sidebar({ onOpenSearch, onOpenPos }: SidebarProps) {
   const isAdminStaff = pathname.startsWith("/pharmacy/administration/staff");
   const isAdminAuditLogs = pathname.startsWith("/pharmacy/administration/audit-logs");
   const isAdminBranches = pathname.startsWith("/pharmacy/administration/branches");
-  const isAdministration = pathname.startsWith("/pharmacy/administration");
+  const isPayroll = pathname.startsWith("/pharmacy/payroll");
+  const isAdministration = pathname.startsWith("/pharmacy/administration") || isPayroll;
 
   const handleSignOut = async () => {
     logout();
@@ -600,6 +602,19 @@ export function Sidebar({ onOpenSearch, onOpenPos }: SidebarProps) {
               >
                 <Users className="w-4 h-4 text-slate-500" />
                 <span>Staff & Roles</span>
+              </Link>
+
+              {/* Payroll (0152) */}
+              <Link
+                href="/pharmacy/payroll"
+                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                  isPayroll
+                    ? "bg-[#d0ede1] text-[#0e6245] font-semibold shadow-sm"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-[#dfede4]"
+                }`}
+              >
+                <HandCoins className="w-4 h-4 text-slate-500" />
+                <span>Payroll</span>
               </Link>
 
               {/* Audit Logs */}
